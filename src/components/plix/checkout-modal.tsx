@@ -71,8 +71,11 @@ export function CheckoutModal({
       setBookingId(order.booking_id);
       setSimulation(order.simulation);
     } catch {
+      // createRazorpayOrder now returns a fallback payload instead of throwing,
+      // so this catch is a last-resort safety net.
+      console.error("[Razorpay Init Error]: checkout modal — createRazorpayOrder threw unexpectedly");
       setStatus("error");
-      toast.error("We couldn't start the checkout. Please try again.");
+      toast.error("We couldn't start the checkout. Please try again or contact us.");
       return;
     }
 

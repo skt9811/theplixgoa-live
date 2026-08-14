@@ -30,24 +30,17 @@ function AdminPage() {
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
 
-  async function checkPin(e: React.FormEvent) {
+  function checkPin(e: React.FormEvent) {
     e.preventDefault();
     if (!pinInput) return;
 
-    const { data, error } = await supabase
-      .from("app_secrets")
-      .select("value")
-      .eq("key", "ADMIN_PIN")
-      .maybeSingle();
-
-    const dbPin = !error && data ? data.value : null;
+    const envPin = import.meta.env.VITE_ADMIN_PIN;
     const fallbackPin = "1234";
+    const validPin = envPin || fallbackPin;
 
-    if (pinInput === dbPin || pinInput === fallbackPin) {
+    if (pinInput === validPin) {
       setAuthed(true);
       setPinError("");
-    } else if (dbPin === null) {
-      setPinError("Could not verify PIN. Please try again.");
     } else {
       setPinError("Incorrect PIN. Please try again.");
     }
@@ -78,12 +71,12 @@ function AdminPage() {
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
               placeholder="Enter admin PIN"
-              className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+              className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring/40 min-h-[44px]"
             />
             {pinError && <p className="text-xs text-red-600">{pinError}</p>}
             <button
               type="submit"
-              className="w-full rounded-full bg-gradient-emerald px-6 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02]"
+              className="w-full rounded-full bg-gradient-emerald px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] min-h-[44px]"
             >
               Unlock Dashboard
             </button>

@@ -44,14 +44,14 @@ export function PropertyCard({ property }: { property: Property }) {
             <button
               onClick={() => go(-1)}
               aria-label="Previous photo"
-              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/85 p-1.5 opacity-0 shadow-soft transition-opacity group-hover:opacity-100"
+              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/85 p-2 opacity-0 shadow-soft transition-opacity group-hover:opacity-100 size-9 flex items-center justify-center"
             >
               <ChevronLeft className="size-4" />
             </button>
             <button
               onClick={() => go(1)}
               aria-label="Next photo"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/85 p-1.5 opacity-0 shadow-soft transition-opacity group-hover:opacity-100"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/85 p-2 opacity-0 shadow-soft transition-opacity group-hover:opacity-100 size-9 flex items-center justify-center"
             >
               <ChevronRight className="size-4" />
             </button>
@@ -113,7 +113,7 @@ export function PropertyCard({ property }: { property: Property }) {
           <Link
             to="/properties/$slug"
             params={{ slug: property.slug }}
-            className="rounded-full bg-gradient-emerald px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition-transform duration-200 hover:scale-[1.03]"
+            className="rounded-full bg-gradient-emerald px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform duration-200 hover:scale-[1.03] min-h-[44px] inline-flex items-center"
           >
             View Stay
           </Link>

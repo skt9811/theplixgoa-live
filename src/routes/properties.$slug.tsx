@@ -45,7 +45,20 @@ import {
   jsonLdScript,
 } from "@/lib/seo";
 
+type PropertySearch = {
+  checkIn?: string | undefined;
+  checkOut?: string | undefined;
+  guests?: number | undefined;
+  rooms?: number | undefined;
+};
+
 export const Route = createFileRoute("/properties/$slug")({
+  validateSearch: (search: Record<string, unknown>): PropertySearch => ({
+    checkIn: typeof search["checkIn"] === "string" ? search["checkIn"] : undefined,
+    checkOut: typeof search["checkOut"] === "string" ? search["checkOut"] : undefined,
+    guests: search["guests"] ? Number(search["guests"]) : undefined,
+    rooms: search["rooms"] ? Number(search["rooms"]) : undefined,
+  }),
   loader: async ({ context, params }) => {
     const property = await context.queryClient.ensureQueryData(propertyQuery(params.slug));
     if (!property) throw notFound();
@@ -135,12 +148,13 @@ const amenityIcons: Record<string, ComponentType<{ className?: string }>> = {
 
 function PropertyDetail() {
   const { slug } = Route.useParams();
+  const urlSearch = Route.useSearch();
   const { data: property } = useSuspenseQuery(propertyQuery(slug));
   const { data: reviews } = useSuspenseQuery(reviewsQuery);
-  const [checkIn, setCheckIn] = useState(todayISO(3));
-  const [checkOut, setCheckOut] = useState(todayISO(5));
-  const [guests, setGuests] = useState(2);
-  const [rooms, setRooms] = useState(1);
+  const [checkIn, setCheckIn] = useState(urlSearch.checkIn ?? todayISO(3));
+  const [checkOut, setCheckOut] = useState(urlSearch.checkOut ?? todayISO(5));
+  const [guests, setGuests] = useState(urlSearch.guests ?? 2);
+  const [rooms, setRooms] = useState(urlSearch.rooms ?? 1);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [rateOverrides, setRateOverrides] = useState<RateOverride>({});
   const [blockedDates, setBlockedDates] = useState<Set<string>>(new Set());
@@ -180,7 +194,7 @@ function PropertyDetail() {
   if (!property) return <Fallback title="We couldn't find that stay" />;
 
   const input =
-    "mt-1 w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/40";
+    "mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-ring/40 min-h-[44px]";
 
   function handleRoomsChange(value: number) {
     setRooms(value);
@@ -228,7 +242,7 @@ function PropertyDetail() {
         </p>
       </header>
 
-      <section className="mt-6 grid gap-2 overflow-hidden rounded-2xl md:grid-cols-4 md:grid-rows-2">
+      <section className="mt-6 grid gap-2 overflow-hidden rounded-2xl grid-cols-1 md:grid-cols-4 md:grid-rows-2">
         {images.slice(0, 5).map((src, i) => (
           <img
             key={src + i}
@@ -246,7 +260,7 @@ function PropertyDetail() {
 
       <div className="mt-10 grid gap-10 lg:grid-cols-[1.6fr_1fr]">
         <div>
-          <div className="grid grid-cols-2 gap-4 rounded-2xl border border-border bg-card p-5 shadow-soft sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-border bg-card p-5 shadow-soft sm:grid-cols-4 sm:gap-4">
             <Stat icon={Users} label="Max guests" value={String(property.max_guests)} />
             <Stat icon={BedDouble} label="Bedrooms" value={String(property.bedrooms)} />
             <Stat icon={Bath} label="Bathrooms" value={String(property.bathrooms)} />
@@ -375,7 +389,7 @@ function PropertyDetail() {
                   min={todayISO()}
                   value={checkIn}
                   onChange={(e) => setCheckIn(e.target.value)}
-                  className={input}
+                  className={`${input} min-h-[44px]`}
                 />
               </label>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -385,7 +399,7 @@ function PropertyDetail() {
                   min={checkIn}
                   value={checkOut}
                   onChange={(e) => setCheckOut(e.target.value)}
-                  className={input}
+                  className={`${input} min-h-[44px]`}
                 />
               </label>
             </div>
@@ -399,7 +413,7 @@ function PropertyDetail() {
                   max={maxRooms}
                   value={rooms}
                   onChange={(e) => handleRoomsChange(Number(e.target.value))}
-                  className={input}
+                  className={`${input} min-h-[44px]`}
                 />
               </label>
             )}
@@ -412,7 +426,7 @@ function PropertyDetail() {
                 max={effectiveMaxGuests}
                 value={guests}
                 onChange={(e) => handleGuestsChange(Number(e.target.value))}
-                className={input}
+                className={`${input} min-h-[44px]`}
               />
             </label>
             {guestError && (
@@ -455,7 +469,7 @@ function PropertyDetail() {
             <button
               disabled={nights === 0 || datesBlocked || Boolean(guestError)}
               onClick={() => setCheckoutOpen(true)}
-              className="mt-5 w-full rounded-full bg-gradient-emerald px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-5 w-full rounded-full bg-gradient-emerald px-6 py-4 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 min-h-[44px]"
             >
               {nights === 0 ? "Select valid dates" : datesBlocked ? "Dates unavailable" : "Book Direct Now"}
             </button>

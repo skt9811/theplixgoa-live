@@ -48,7 +48,7 @@ export function CheckoutModal({
   const [simulation, setSimulation] = useState(false);
 
   const input =
-    "mt-1 w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40";
+    "mt-1 w-full rounded-xl border border-input bg-background px-3.5 py-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40 min-h-[44px]";
 
   async function handlePay(e: React.FormEvent) {
     e.preventDefault();
@@ -270,7 +270,7 @@ export function CheckoutModal({
             <button
               type="submit"
               disabled={status === "creating_order"}
-              className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-emerald px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:opacity-70"
+              className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-emerald px-6 py-4 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:opacity-70 min-h-[44px]"
             >
               {status === "creating_order" ? (
                 <>

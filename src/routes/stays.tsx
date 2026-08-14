@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { BedDouble, CalendarDays, Users } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
 import { propertiesQuery } from "@/lib/plix-queries";
 import { LOCATIONS } from "@/lib/plix";
@@ -66,7 +67,7 @@ export const Route = createFileRoute("/stays")({
 });
 
 function Stays() {
-  const { location, guests, rooms } = Route.useSearch();
+  const { location, guests, rooms, checkIn, checkOut } = Route.useSearch();
   const { data: properties } = useSuspenseQuery(propertiesQuery);
 
   const activeFilter = location ?? "All";
@@ -97,6 +98,37 @@ function Stays() {
         Private pool villas, boutique resorts, and heritage estates across North Goa's most coveted neighborhoods.
       </p>
 
+      {/* Active search summary */}
+      {(checkIn || guests || rooms) && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-muted-foreground">
+          {checkIn && checkOut && (
+            <span className="flex items-center gap-1.5">
+              <CalendarDays className="size-3.5 text-primary" aria-hidden />
+              {checkIn} → {checkOut}
+            </span>
+          )}
+          {guests && (
+            <span className="flex items-center gap-1.5">
+              <Users className="size-3.5 text-primary" aria-hidden />
+              {guests} guest{guests > 1 ? "s" : ""}
+            </span>
+          )}
+          {rooms && rooms > 1 && (
+            <span className="flex items-center gap-1.5">
+              <BedDouble className="size-3.5 text-primary" aria-hidden />
+              {rooms} rooms
+            </span>
+          )}
+          <Link
+            to="/stays"
+            search={{ location: undefined }}
+            className="ml-auto text-xs font-medium text-primary hover:underline"
+          >
+            Clear
+          </Link>
+        </div>
+      )}
+
       {/* Location filter tabs */}
       <div className="mt-8 flex flex-wrap gap-2">
         {FILTER_TABS.map((tab) => {
@@ -109,7 +141,7 @@ function Stays() {
                 ...prev,
                 location: tab === "All" ? undefined : tab,
               })}
-              className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-full px-5 py-2.5 text-sm font-medium transition-colors min-h-[40px] ${
                 isActive
                   ? "bg-navy text-navy-foreground"
                   : "border border-border bg-card text-foreground/80 hover:bg-accent hover:text-accent-foreground"

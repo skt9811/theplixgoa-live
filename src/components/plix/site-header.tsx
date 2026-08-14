@@ -15,6 +15,11 @@ export function SiteHeader() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const isHome = pathname === "/";
 
+  // Auto-close mobile menu on route change
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
   useEffect(() => {
     if (!isHome) return;
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -201,14 +206,14 @@ export function SiteHeader() {
             <Link
               to="/"
               onClick={() => setOpen(false)}
-              className={isHome ? "rounded-lg px-3 py-2 text-white/90 hover:bg-white/15" : "rounded-lg px-3 py-2 hover:bg-accent"}
+              className={`rounded-lg px-3 py-3 ${isHome ? "text-white/90 hover:bg-white/15" : "hover:bg-accent"}`}
             >
               Home
             </Link>
             <Link
               to="/stays"
               onClick={() => setOpen(false)}
-              className={isHome ? "rounded-lg px-3 py-2 text-white/90 hover:bg-white/15" : "rounded-lg px-3 py-2 hover:bg-accent"}
+              className={`rounded-lg px-3 py-3 ${isHome ? "text-white/90 hover:bg-white/15" : "hover:bg-accent"}`}
             >
               Stays
             </Link>
@@ -218,7 +223,7 @@ export function SiteHeader() {
                 to="/stays"
                 search={{ location: p.location }}
                 onClick={() => setOpen(false)}
-                className={isHome ? "rounded-lg px-3 py-2 pl-6 text-white/70 hover:bg-white/15" : "rounded-lg px-3 py-2 pl-6 text-foreground/70 hover:bg-accent"}
+                className={`rounded-lg px-3 py-3 pl-6 ${isHome ? "text-white/70 hover:bg-white/15" : "text-foreground/70 hover:bg-accent"}`}
               >
                 {p.name}
               </Link>
@@ -228,7 +233,7 @@ export function SiteHeader() {
                 key={l.to}
                 to={l.to}
                 onClick={() => setOpen(false)}
-                className={isHome ? "rounded-lg px-3 py-2 text-white/90 hover:bg-white/15" : "rounded-lg px-3 py-2 hover:bg-accent"}
+                className={`rounded-lg px-3 py-3 ${isHome ? "text-white/90 hover:bg-white/15" : "hover:bg-accent"}`}
               >
                 {l.label}
               </Link>

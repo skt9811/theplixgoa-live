@@ -49,6 +49,7 @@ function edgeFunctionUrl(name: string): string {
 
 function edgeFunctionHeaders(): Record<string, string> {
   return {
+    apikey: SUPABASE_ANON_KEY,
     Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
     "Content-Type": "application/json",
   };

@@ -1,8 +1,32 @@
+import { createClient } from "@supabase/supabase-js";
 import { PROPERTIES, type Property } from "@/lib/plix";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
+
+export type BookingRecord = {
+  property_id: string;
+  property_name: string;
+  property_location: string;
+  guest_name: string;
+  guest_email: string;
+  guest_mobile: string;
+  check_in: string;
+  check_out: string;
+  guests: number;
+  nights: number;
+  rooms?: number;
+  nightly_rates?: number[];
+  subtotal: number;
+  taxes: number;
+  total_amount: number;
+  razorpay_order_id?: string | null;
+  razorpay_payment_id?: string | null;
+  razorpay_signature?: string | null;
+  payment_status: string;
+  host_email?: string | null;
+};
 
 export type CreateOrderInput = {
   property: Property;
@@ -24,39 +48,86 @@ export type CreateOrderResponse = {
   amount: number;
   currency: string;
   key_id: string | null;
+  booking_record: BookingRecord;
 };
 
-export type ConfirmBookingInput = {
-  booking_id: string;
-  razorpay_payment_id?: string;
-  razorpay_order_id?: string;
-  razorpay_signature?: string;
-  simulation: boolean;
+export type RazorpayHandlerResult = {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
 };
-
-export type ConfirmBookingResponse = {
-  simulation: boolean;
-  booking_id: string;
-  payment_status: string;
-  emails_sent: boolean;
-  emails_failed?: string[];
-  message?: string;
-};
-
-function edgeFunctionUrl(name: string): string {
-  return `${SUPABASE_URL}/functions/v1/${name}`;
-}
-
-function edgeFunctionHeaders(): Record<string, string> {
-  return {
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    "Content-Type": "application/json",
-  };
-}
 
 export function isRazorpayConfigured(): boolean {
   return Boolean(RAZORPAY_KEY_ID && SUPABASE_URL && SUPABASE_ANON_KEY);
+}
+
+function getSupabase() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+export async function insertBooking(
+  record: BookingRecord,
+): Promise<{ id: string } | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("bookings")
+    .insert({
+      property_id: record.property_id,
+      property_name: record.property_name,
+      property_location: record.property_location,
+      guest_name: record.guest_name,
+      guest_email: record.guest_email,
+      guest_mobile: record.guest_mobile,
+      check_in: record.check_in,
+      check_out: record.check_out,
+      guests: record.guests,
+      nights: record.nights,
+      subtotal: record.subtotal,
+      taxes: record.taxes,
+      total_amount: record.total_amount,
+      razorpay_order_id: record.razorpay_order_id ?? null,
+      razorpay_payment_id: record.razorpay_payment_id ?? null,
+      razorpay_signature: record.razorpay_signature ?? null,
+      payment_status: record.payment_status,
+      host_email: record.host_email ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("[Booking Insert Error]:", error.message);
+    return null;
+  }
+  return data ? { id: data.id } : null;
+}
+
+export async function updateBookingPayment(
+  bookingId: string,
+  paymentId: string,
+  orderId: string,
+  signature: string,
+): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+
+  const { error } = await supabase
+    .from("bookings")
+    .update({
+      razorpay_payment_id: paymentId,
+      razorpay_order_id: orderId,
+      razorpay_signature: signature,
+      payment_status: "paid",
+    })
+    .eq("id", bookingId);
+
+  if (error) {
+    console.error("[Booking Update Error]:", error.message);
+    return false;
+  }
+  return true;
 }
 
 export async function createRazorpayOrder(
@@ -70,70 +141,47 @@ export async function createRazorpayOrder(
   const total = subtotal + taxes;
   const amountInPaise = Math.round(total * 100);
 
+  const bookingRecord: BookingRecord = {
+    property_id: property.id,
+    property_name: property.name,
+    property_location: property.location,
+    guest_name: guestName,
+    guest_email: guestEmail,
+    guest_mobile: guestMobile,
+    check_in: checkIn,
+    check_out: checkOut,
+    guests,
+    nights,
+    rooms,
+    nightly_rates: nightlyRates,
+    subtotal,
+    taxes,
+    total_amount: total,
+    payment_status: "pending",
+    host_email: "reservations@theplixgoa.com",
+  };
+
+  // Insert the booking row first so we have an ID to reference
+  let bookingId = `pending_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   try {
-    const response = await fetch(edgeFunctionUrl("create-razorpay-order"), {
-      method: "POST",
-      headers: edgeFunctionHeaders(),
-      body: JSON.stringify({
-        property_id: property.id,
-        property_name: property.name,
-        property_location: property.location,
-        guest_name: guestName,
-        guest_email: guestEmail,
-        guest_mobile: guestMobile,
-        check_in: checkIn,
-        check_out: checkOut,
-        guests,
-        nights,
-        rooms,
-        nightly_rates: nightlyRates,
-        subtotal,
-        taxes,
-        total_amount: total,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.json().catch(() => ({ error: "Request failed" }));
-      throw new Error(errorBody.error ?? `Failed to create order (${response.status})`);
+    const inserted = await insertBooking(bookingRecord);
+    if (inserted) {
+      bookingId = inserted.id;
     }
-
-    const data = (await response.json()) as CreateOrderResponse;
-    if (!data.order_id) {
-      throw new Error("Invalid response from order creation: missing order_id");
-    }
-    return data;
   } catch (error) {
-    console.error("[Razorpay Init Error]:", error);
-
-    // Client-side fallback: build a direct-checkout payload using the public key
-    const fallbackId = `client_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-    return {
-      simulation: !RAZORPAY_KEY_ID,
-      booking_id: fallbackId,
-      order_id: `fallback_${fallbackId}`,
-      amount: amountInPaise,
-      currency: "INR",
-      key_id: RAZORPAY_KEY_ID || null,
-    };
-  }
-}
-
-export async function confirmBooking(
-  input: ConfirmBookingInput,
-): Promise<ConfirmBookingResponse> {
-  const response = await fetch(edgeFunctionUrl("send-booking-confirmation"), {
-    method: "POST",
-    headers: edgeFunctionHeaders(),
-    body: JSON.stringify(input),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(errorBody.error ?? `Failed to confirm booking (${response.status})`);
+    console.error("[Razorpay Init Error]: booking insert failed", error);
   }
 
-  return (await response.json()) as ConfirmBookingResponse;
+  // No server-side order creation — direct client-side checkout
+  return {
+    simulation: !RAZORPAY_KEY_ID,
+    booking_id: bookingId,
+    order_id: `client_${bookingId}`,
+    amount: amountInPaise,
+    currency: "INR",
+    key_id: RAZORPAY_KEY_ID || null,
+    booking_record: bookingRecord,
+  };
 }
 
 declare global {
@@ -148,7 +196,6 @@ type RazorpayOptions = {
   currency: string;
   name: string;
   description: string;
-  order_id?: string;
   prefill: { name: string; email: string; contact: string };
   theme: { color: string };
   handler: (response: {
@@ -157,12 +204,6 @@ type RazorpayOptions = {
     razorpay_signature: string;
   }) => void;
   modal: { ondismiss: () => void };
-};
-
-export type RazorpayHandlerResult = {
-  razorpay_payment_id: string;
-  razorpay_order_id: string;
-  razorpay_signature: string;
 };
 
 let razorpayScriptPromise: Promise<void> | null = null;
@@ -233,17 +274,14 @@ export async function openRazorpayCheckout(params: {
     throw new Error("Razorpay checkout failed to initialize.");
   }
 
-  const isFallbackOrder = order.order_id.startsWith("fallback_") || order.order_id.startsWith("client_");
-
   const options: RazorpayOptions = {
     key: order.key_id,
     amount: order.amount,
     currency: order.currency,
     name: "Plix Hospitality",
     description: `${property.name} — ${property.location}`,
-    ...(isFallbackOrder ? {} : { order_id: order.order_id }),
     prefill: { name: guestName, email: guestEmail, contact: guestMobile },
-    theme: { color: "#0f766e" },
+    theme: { color: "#00a251" },
     handler: (result) => onSuccess(result),
     modal: {
       ondismiss: onDismiss,

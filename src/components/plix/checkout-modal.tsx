@@ -3,9 +3,9 @@ import { CircleCheck as CheckCircle2, Loader as Loader2, ShieldCheck, X } from "
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  confirmBooking,
   createRazorpayOrder,
   openRazorpayCheckout,
+  updateBookingPayment,
   type CreateOrderResponse,
 } from "@/lib/booking";
 import { formatINR, TAX_RATE, type Property } from "@/lib/plix";
@@ -70,10 +70,8 @@ export function CheckoutModal({
       });
       setBookingId(order.booking_id);
       setSimulation(order.simulation);
-    } catch {
-      // createRazorpayOrder now returns a fallback payload instead of throwing,
-      // so this catch is a last-resort safety net.
-      console.error("[Razorpay Init Error]: checkout modal — createRazorpayOrder threw unexpectedly");
+    } catch (error) {
+      console.error("[Razorpay Init Error]:", error);
       setStatus("error");
       toast.error("We couldn't start the checkout. Please try again or contact us.");
       return;
@@ -98,7 +96,8 @@ export function CheckoutModal({
           toast.error("Payment cancelled. Your booking was not completed.");
         },
       });
-    } catch {
+    } catch (error) {
+      console.error("[Razorpay Init Error]:", error);
       setStatus("error");
       toast.error("Could not open Razorpay checkout. Please try again.");
     }
@@ -109,43 +108,46 @@ export function CheckoutModal({
     result: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string },
   ) {
     setStatus("confirming");
-    try {
-      await confirmBooking({
-        booking_id: order.booking_id,
-        razorpay_payment_id: result.razorpay_payment_id,
-        razorpay_order_id: result.razorpay_order_id,
-        razorpay_signature: result.razorpay_signature,
-        simulation: order.simulation,
-      });
 
+    let paymentConfirmed = true;
+    if (!order.simulation) {
+      // Write payment details directly to the bookings table
+      paymentConfirmed = await updateBookingPayment(
+        order.booking_id,
+        result.razorpay_payment_id,
+        result.razorpay_order_id,
+        result.razorpay_signature,
+      );
+    }
+
+    if (paymentConfirmed) {
       if (order.simulation) {
         toast.success("Booking confirmed (demo mode). No real payment was processed.");
       } else {
-        toast.success("Payment successful! Confirmation emails sent.");
+        toast.success("Payment successful! Your booking is confirmed.");
       }
-
-      setStatus("done");
-      setTimeout(() => {
-        navigate({
-          to: "/booking-success",
-          search: {
-            id: order.booking_id,
-            property: property.name,
-            location: property.location,
-            checkin: checkIn,
-            checkout: checkOut,
-            guests: String(guests),
-            nights: String(nights),
-            total: String(total),
-            payment: result.razorpay_payment_id,
-            sim: order.simulation ? "1" : "",
-          },
-        });
-      }, 1800);
-    } catch {
-      setStatus("error");
-      toast.error("Payment went through but we couldn't send confirmation emails. We'll contact you.");
+    } else {
+      toast.success("Payment received! We'll confirm your booking shortly.");
     }
+
+    setStatus("done");
+    setTimeout(() => {
+      navigate({
+        to: "/booking-success",
+        search: {
+          id: order.booking_id,
+          property: property.name,
+          location: property.location,
+          checkin: checkIn,
+          checkout: checkOut,
+          guests: String(guests),
+          nights: String(nights),
+          total: String(total),
+          payment: result.razorpay_payment_id,
+          sim: order.simulation ? "1" : "",
+        },
+      });
+    }, 1800);
   }
 
   return (
@@ -188,7 +190,7 @@ export function CheckoutModal({
             <Loader2 className="mx-auto size-10 animate-spin text-primary" aria-hidden />
             <h3 className="mt-4 text-lg font-semibold text-navy">Confirming your booking…</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Recording payment and sending confirmation emails.
+              Recording payment and saving your booking.
             </p>
           </div>
         ) : status === "checkout_open" && !simulation ? (

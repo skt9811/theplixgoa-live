@@ -1,6 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { Facebook, Instagram, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 
+const footerLinks = [
+  { label: "FAQs", to: "/faq" as const },
+  { label: "Terms & Conditions", to: "/terms" as const },
+  { label: "Privacy Policy", to: "/privacy" as const },
+  { label: "Cancellation & Refund Policy", to: "/cancellation" as const },
+];
+
 export function SiteFooter() {
   return (
     <footer className="bg-navy text-navy-foreground">
@@ -38,6 +45,22 @@ export function SiteFooter() {
           <Link to="/about" className="mt-1 text-xs text-navy-foreground/60 transition-colors hover:text-white">About Plix Hospitality</Link>
         </div>
       </div>
+
+      {/* Policy links bar */}
+      <nav className="border-b border-white/20 px-6 py-5">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-center">
+          {footerLinks.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              className="text-xs text-navy-foreground/60 transition-colors hover:text-white"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </nav>
+
       <div className="px-4 py-5 text-center text-xs text-navy-foreground/60">
         © {new Date().getFullYear()} Plix Hospitality. All rights reserved.
       </div>

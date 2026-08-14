@@ -1,8 +1,8 @@
 import { useNavigate } from "@tanstack/react-router";
-import { BedDouble, CalendarDays, MapPin, Search, Users } from "lucide-react";
+import { BedDouble, CalendarDays, MapPin, Minus, Plus, Search, Users } from "lucide-react";
 import { useState } from "react";
 import { PROPERTIES, todayISO } from "@/lib/plix";
-import { GUESTS_PER_ROOM, isMultiRoomProperty, maxGuestsForRooms } from "@/lib/rates";
+import { GUESTS_PER_ROOM, isMultiRoomProperty, maxGuestsForRooms, maxRoomsForProperty } from "@/lib/rates";
 
 export function SearchBar({ compact = false }: { compact?: boolean }) {
   const navigate = useNavigate();
@@ -40,9 +40,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
   }
 
   function handleRoomsChange(value: number) {
-    const maxRooms = selectedProperty?.max_guests
-      ? Math.floor(selectedProperty.max_guests / GUESTS_PER_ROOM)
-      : 1;
+    const maxRooms = selectedProperty ? maxRoomsForProperty(selectedProperty.id) : 1;
     const nextRooms = Math.max(1, Math.min(value, maxRooms));
     setRooms(nextRooms);
     if (selectedProperty) {
@@ -140,14 +138,27 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
           <div className="flex flex-1 items-center gap-1 px-3 py-1.5 md:rounded-full md:hover:bg-gray-50">
             <BedDouble className="size-3.5 shrink-0 text-bronze" aria-hidden />
             <span className="sr-only">Rooms</span>
-            <input
-              type="number"
-              min={1}
-              max={selectedProperty?.max_guests ? Math.floor(selectedProperty.max_guests / GUESTS_PER_ROOM) : 1}
-              value={rooms}
-              onChange={(e) => handleRoomsChange(Number(e.target.value))}
-              className={fieldClass}
-            />
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => handleRoomsChange(rooms - 1)}
+                disabled={rooms <= 1}
+                className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-gray-300 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Decrease rooms"
+              >
+                <Minus className="size-3" />
+              </button>
+              <span className="min-w-[1.25rem] text-center text-xs font-medium text-foreground">{rooms}</span>
+              <button
+                type="button"
+                onClick={() => handleRoomsChange(rooms + 1)}
+                disabled={selectedProperty ? rooms >= maxRoomsForProperty(selectedProperty.id) : true}
+                className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-gray-300 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Increase rooms"
+              >
+                <Plus className="size-3" />
+              </button>
+            </div>
             <span className="text-xs text-muted-foreground/60">rooms</span>
           </div>
           <span className="hidden h-5 w-px bg-gray-200 md:block" />

@@ -4,7 +4,7 @@ import { BadgeIndianRupee, ConciergeBell, Hop as HomeIcon, MapPin as MapPinIcon,
 import { PropertyCard } from "@/components/plix/property-card";
 import { SearchBar } from "@/components/plix/search-bar";
 import { propertiesQuery, reviewsQuery } from "@/lib/plix-queries";
-import { calanguteImage, heroImage, morjimImage, northGoaImage, vagatorImage } from "@/lib/plix";
+import { calanguteImage, chicoHeroImage, heroImage, morjimImage, northGoaImage, vagatorImage } from "@/lib/plix";
 import {
   Accordion,
   AccordionContent,
@@ -160,13 +160,13 @@ function Home() {
     <>
       <section className="relative isolate flex h-screen w-full flex-col items-center justify-center overflow-hidden">
         <img
-          src={heroImage}
-          alt="Luxury villa with infinity pool overlooking the Goan coast at sunset"
+          src={chicoHeroImage}
+          alt="Luxury Goan villa with terracotta architecture, private pool and tropical gardens"
           width={1920}
           height={1088}
           className="absolute inset-0 size-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/60" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#2a1810]/75 via-[#2a1810]/55 to-[#1a0e05]/80" />
 
         <div className="relative z-10 mx-auto flex h-full max-w-4xl flex-col items-center justify-center px-4 text-center">
           <p className="animate-fade text-xs font-semibold uppercase tracking-[0.28em] text-white/80">

@@ -219,6 +219,7 @@ export const imageMap: Record<string, string> = {
 };
 
 export const heroImage = heroGoa;
+export const chicoHeroImage = chico;
 export const northGoaImage = heroGoa;
 export const morjimImage = morjim1;
 export const vagatorImage = harbor1;

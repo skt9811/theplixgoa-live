@@ -96,6 +96,34 @@ export function websiteJsonLd() {
   };
 }
 
+export function lodgingBusinessJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "LodgingBusiness",
+    "@id": `${SITE_URL}/#lodgingbusiness`,
+    name: "Plix Hospitality / The Plix Goa",
+    description:
+      "Luxury private pool villas, boutique resorts, and sprawling bungalows in Anjuna, Vagator, Assagao, Morjim, and Candolim, North Goa. Book direct and skip commission.",
+    url: SITE_URL,
+    telephone: "+91 9009800895",
+    priceRange: "₹₹₹",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: "Pequen, Chivar, 1561/3A, Anjuna, Vagator",
+      addressLocality: "Anjuna, Vagator",
+      addressRegion: "Goa",
+      postalCode: "403413",
+      addressCountry: "IN",
+    },
+    areaServed: ["Anjuna", "Vagator", "Assagao", "Morjim", "Candolim"],
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: "4.9",
+      reviewCount: "6",
+    },
+  };
+}
+
 export function vacationRentalJsonLd(p: Property) {
   return {
     "@context": "https://schema.org",

@@ -17,6 +17,7 @@ import {
   canonicalUrl,
   organizationJsonLd,
   websiteJsonLd,
+  lodgingBusinessJsonLd,
   faqPageJsonLd,
   jsonLdScript,
 } from "@/lib/seo";
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Book luxury private pool villas, boutique resorts, and sprawling bungalows directly in Anjuna, Vagator, Assagao, Morjim, and Candolim. Skip commission and book direct.",
+          "Book luxury private pool villas, boutique resorts, and bungalows in Anjuna, Vagator, and Assagao. Skip commissions and book direct with Plix Goa.",
       },
       { name: "robots", content: "index, follow, max-image-preview:large" },
       { property: "og:title", content: "Luxury Villas & Boutique Resorts in North Goa | The Plix Goa" },
@@ -46,7 +47,7 @@ export const Route = createFileRoute("/")({
       {
         name: "twitter:description",
         content:
-          "Book luxury private pool villas, boutique resorts, and sprawling bungalows directly in North Goa. Skip commission and book direct.",
+          "Book luxury private pool villas, boutique resorts, and bungalows in Anjuna, Vagator, and Assagao. Skip commissions and book direct with Plix Goa.",
       },
       { name: "twitter:image", content: `${SITE_URL}/og-home.jpg` },
     ],
@@ -56,6 +57,7 @@ export const Route = createFileRoute("/")({
     scripts: [
       { type: "application/ld+json", children: jsonLdScript(organizationJsonLd()) },
       { type: "application/ld+json", children: jsonLdScript(websiteJsonLd()) },
+      { type: "application/ld+json", children: jsonLdScript(lodgingBusinessJsonLd()) },
       {
         type: "application/ld+json",
         children: jsonLdScript(

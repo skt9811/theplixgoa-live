@@ -16,8 +16,12 @@ import {
   Waves,
   Wifi,
 } from "lucide-react";
-import { useEffect, useState, type ComponentType } from "react";
-import { CheckoutModal } from "@/components/plix/checkout-modal";
+import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
+import { SmartImage } from "@/components/plix/smart-image";
+
+const CheckoutModal = lazy(() =>
+  import("@/components/plix/checkout-modal").then((m) => ({ default: m.CheckoutModal })),
+);
 import { loadRazorpayScript } from "@/lib/booking";
 import { propertyQuery, reviewsQuery } from "@/lib/plix-queries";
 import { formatINR, nightsBetween, resolveImages, TAX_RATE, todayISO, PROPERTIES } from "@/lib/plix";
@@ -242,19 +246,21 @@ function PropertyDetail() {
         </p>
       </header>
 
-      <section className="mt-6 grid gap-2 overflow-hidden rounded-2xl grid-cols-1 md:grid-cols-4 md:grid-rows-2">
+      <section className="mt-6 grid aspect-[4/3] grid-cols-1 gap-2 overflow-hidden rounded-2xl md:h-[min(42vw,620px)] md:aspect-auto md:grid-cols-4 md:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
         {images.slice(0, 5).map((src, i) => (
-          <img
+          <div
             key={src + i}
-            src={src}
-            alt={`${property.name} — ${property.bedrooms} bedroom luxury ${property.bedrooms >= 8 ? "bungalow" : "villa"} in ${property.location}, North Goa${i === 0 ? " with private pool" : ""}`}
-            loading={i === 0 ? "eager" : "lazy"}
-            width={1200}
-            height={800}
-            className={`size-full object-cover ${
-              i === 0 ? "md:col-span-2 md:row-span-2 aspect-[4/3]" : "aspect-[4/3] md:aspect-auto"
-            }`}
-          />
+            className={`relative min-h-0 overflow-hidden ${i === 0 ? "md:col-span-2 md:row-span-2" : ""}`}
+          >
+            <SmartImage
+              src={src}
+              alt={`${property.name} — ${property.bedrooms} bedroom luxury ${property.bedrooms >= 8 ? "bungalow" : "villa"} in ${property.location}, North Goa${i === 0 ? " with private pool" : ""}`}
+              loading="eager"
+              width={1200}
+              height={800}
+              className="block h-full w-full object-cover object-center"
+            />
+          </div>
         ))}
       </section>
 
@@ -481,16 +487,18 @@ function PropertyDetail() {
       </div>
 
       {checkoutOpen && (
-        <CheckoutModal
-          property={property}
-          checkIn={checkIn}
-          checkOut={checkOut}
-          guests={guests}
-          nights={nights}
-          rooms={rooms}
-          nightlyRates={nightlyRates}
-          onClose={() => setCheckoutOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <CheckoutModal
+            property={property}
+            checkIn={checkIn}
+            checkOut={checkOut}
+            guests={guests}
+            nights={nights}
+            rooms={rooms}
+            nightlyRates={nightlyRates}
+            onClose={() => setCheckoutOpen(false)}
+          />
+        </Suspense>
       )}
     </div>
   );

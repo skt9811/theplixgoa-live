@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Bath, BedDouble, ChevronLeft, ChevronRight, MapPin, Users, Waves } from "lucide-react";
 import { useState } from "react";
 import { formatINR, resolveImages, type Property } from "@/lib/plix";
+import { SmartImage } from "@/components/plix/smart-image";
 
 function propertyCardSubtitle(p: Property): string {
   const beds = p.bedrooms <= 6 ? `${p.bedrooms} BHK` : `${p.bedrooms} Bedroom`;
@@ -23,14 +24,14 @@ export function PropertyCard({ property }: { property: Property }) {
     <article className="group overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-lift">
       <div className="relative aspect-[4/3] overflow-hidden">
         {images.map((src, i) => (
-          <img
+          <SmartImage
             key={src + i}
             src={src}
             alt={`${property.name} — ${property.bedrooms} bedroom luxury ${property.bedrooms >= 8 ? "bungalow" : "villa"} in ${property.location}, North Goa${i === 0 ? " with private pool" : ""}`}
             loading="lazy"
             width={1200}
             height={800}
-            className={`absolute inset-0 size-full object-cover transition-opacity duration-500 ${
+            className={`absolute inset-0 block h-full w-full object-cover object-center transition-opacity duration-500 ${
               i === index ? "opacity-100" : "opacity-0"
             }`}
           />

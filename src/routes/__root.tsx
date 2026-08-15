@@ -13,6 +13,8 @@ import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/plix/site-header";
 import { SiteFooter } from "@/components/plix/site-footer";
 import { Toaster } from "@/components/ui/sonner";
+import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 
 
 function NotFoundComponent() {
@@ -93,6 +95,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "icon", href: "/Plix_Transparent_(1)%20copy.png", type: "image/png" },
       { rel: "preconnect", href: "https://checkout.razorpay.com" },
+      { rel: "preconnect", href: "https://www.googletagmanager.com" },
+    ],
+    scripts: [
+      {
+        src: "https://www.googletagmanager.com/gtag/js?id=G-T4SSM7J1SY",
+        async: true,
+      },
+      {
+        type: "text/javascript",
+        children: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-T4SSM7J1SY');`,
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -129,6 +145,8 @@ function RootComponent() {
         <SiteFooter />
       </div>
       <Toaster position="top-center" richColors />
+      <SpeedInsights />
+      <Analytics />
     </QueryClientProvider>
   );
 }

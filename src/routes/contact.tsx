@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ObfuscatedEmail } from "@/components/plix/obfuscated-email";
 import {
   SITE_URL,
   SITE_NAME,
@@ -72,15 +73,12 @@ function Contact() {
             </span>
             WhatsApp us
           </a>
-          <a
-            href="mailto:reservations@theplixgoa.com"
-            className="flex items-center gap-3 text-foreground"
-          >
+          <ObfuscatedEmail className="flex items-center gap-3 text-foreground">
             <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
               <Mail className="size-4" aria-hidden />
             </span>
             reservations@theplixgoa.com
-          </a>
+          </ObfuscatedEmail>
           <div className="flex items-start gap-3 text-muted-foreground">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
               <MapPin className="size-4" aria-hidden />

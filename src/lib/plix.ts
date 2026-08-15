@@ -69,30 +69,14 @@ import bhk4_1 from "@/assets/4bhk1.png";
 import bhk4_2 from "@/assets/4bhk2.png";
 import bhk4_3 from "@/assets/4bhk3.png";
 import bhk4_4 from "@/assets/4bhk4.png";
-import bhk4_5 from "@/assets/4bhk5.png";
-import bhk4_6 from "@/assets/4bhk6.png";
-import bhk4_7 from "@/assets/4bhk7.png";
-import bhk4_8 from "@/assets/4bhk8.png";
-import bhk4_9 from "@/assets/4bhk9.png";
-import bhk4_10 from "@/assets/4bhk10.png";
-import bhk4_11 from "@/assets/4bhk11.png";
 
 // Casa Meadows (5bhk)
 import bhk5 from "@/assets/5bhk.png";
-import bhk5_1 from "@/assets/5bhk1.png";
+import bhk5_1 from "@/assets/5bhk1.jpeg";
 import bhk5_2 from "@/assets/5bhk2.png";
 import bhk5_3 from "@/assets/5bhk3.png";
 import bhk5_4 from "@/assets/5bhk4.png";
 import bhk5_5 from "@/assets/5bhk5.png";
-import bhk5_6 from "@/assets/5bhk6.png";
-import bhk5_7 from "@/assets/5bhk7.png";
-import bhk5_8 from "@/assets/5bhk8.png";
-import bhk5_9 from "@/assets/5bhk9.png";
-import bhk5_10 from "@/assets/5bhk10.png";
-import bhk5_11 from "@/assets/5bhk11.png";
-import bhk5_12 from "@/assets/5bhk12.png";
-import bhk5_13 from "@/assets/5bhk13.png";
-import bhk5_14 from "@/assets/5bhk14.png";
 
 // The Plix Villa
 import plix from "@/assets/plix.JPEG";
@@ -177,13 +161,6 @@ export const imageMap: Record<string, string> = {
   "4bhk2": bhk4_2,
   "4bhk3": bhk4_3,
   "4bhk4": bhk4_4,
-  "4bhk5": bhk4_5,
-  "4bhk6": bhk4_6,
-  "4bhk7": bhk4_7,
-  "4bhk8": bhk4_8,
-  "4bhk9": bhk4_9,
-  "4bhk10": bhk4_10,
-  "4bhk11": bhk4_11,
   // Casa Meadows (5bhk)
   "5bhk": bhk5,
   "5bhk1": bhk5_1,
@@ -191,15 +168,6 @@ export const imageMap: Record<string, string> = {
   "5bhk3": bhk5_3,
   "5bhk4": bhk5_4,
   "5bhk5": bhk5_5,
-  "5bhk6": bhk5_6,
-  "5bhk7": bhk5_7,
-  "5bhk8": bhk5_8,
-  "5bhk9": bhk5_9,
-  "5bhk10": bhk5_10,
-  "5bhk11": bhk5_11,
-  "5bhk12": bhk5_12,
-  "5bhk13": bhk5_13,
-  "5bhk14": bhk5_14,
   // The Plix Villa
   plix,
   plix1,
@@ -339,7 +307,7 @@ export const PROPERTIES: Property[] = [
     max_guests: 6,
     base_price: 9500,
     distance_to_beach: "10 mins drive to Anjuna Beach",
-    image_keys: ["4bhk11", "4bhk", "4bhk1", "4bhk2", "4bhk3", "4bhk4", "4bhk5", "4bhk6", "4bhk7", "4bhk8", "4bhk9", "4bhk10"],
+    image_keys: ["4bhk1", "4bhk", "4bhk2", "4bhk3", "4bhk4"],
     amenity_tags: ["Bespoke Interiors", "Private Pool", "Air Conditioning", "Power Backup"],
     nearby: [
       { name: "Anjuna Beach", distance: "10 mins drive" },
@@ -370,7 +338,7 @@ export const PROPERTIES: Property[] = [
     max_guests: 10,
     base_price: 15000,
     distance_to_beach: "8 mins drive to Anjuna Beach",
-    image_keys: ["5bhk6", "5bhk", "5bhk1", "5bhk2", "5bhk3", "5bhk4", "5bhk5", "5bhk7", "5bhk8", "5bhk9", "5bhk10", "5bhk11", "5bhk12", "5bhk13", "5bhk14"],
+    image_keys: ["5bhk", "5bhk1", "5bhk2", "5bhk3", "5bhk4", "5bhk5"],
     amenity_tags: ["Valley Views", "Private Pool", "Elite Hospitality", "Free Parking"],
     nearby: [
       { name: "Anjuna Beach", distance: "8 mins drive" },

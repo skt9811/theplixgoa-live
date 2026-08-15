@@ -15,6 +15,7 @@ import { SiteFooter } from "@/components/plix/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
+import { WhatsAppFab } from "@/components/plix/whatsapp-fab";
 
 
 function NotFoundComponent() {
@@ -107,7 +108,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         children: `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', 'G-T4SSM7J1SY');`,
+gtag('config', 'G-T4SSM7J1SY', {
+  send_page_view: true
+});`,
       },
     ],
   }),
@@ -147,6 +150,7 @@ function RootComponent() {
       <Toaster position="top-center" richColors />
       <SpeedInsights />
       <Analytics />
+      <WhatsAppFab />
     </QueryClientProvider>
   );
 }

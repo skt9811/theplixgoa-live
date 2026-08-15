@@ -228,3 +228,22 @@
     opacity: 1;
   }
 }
+
+@utility animate-whatsapp-pulse {
+  animation: whatsapp-pulse 2.4s ease-out infinite;
+}
+
+@keyframes whatsapp-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  70% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}

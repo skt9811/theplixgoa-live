@@ -2,8 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { FileText, Loader as Loader2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
-import { supabase } from "@/lib/rates";
-import { blogsQuery, slugify, type BlogPost } from "@/lib/blog";
+import { blogsQuery, saveBlogPost, deleteBlogPost, slugify, type BlogPost } from "@/lib/blog";
 
 const CATEGORIES = ["Nightlife", "Travel Tips", "Local Guides", "Villas"];
 
@@ -38,7 +37,8 @@ export function BlogManager() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: FormState) => {
-      const payload = {
+      const { error } = await saveBlogPost({
+        id: data.id ?? undefined,
         title: data.title,
         slug: data.slug,
         category: data.category,
@@ -46,17 +46,9 @@ export function BlogManager() {
         excerpt: data.excerpt,
         content: data.content,
         author: data.author || "Plix Hospitality",
-      };
-      if (data.id) {
-        const { error } = await supabase.from("blogs").update(payload).eq("id", data.id);
-        if (error) throw new Error(error.message);
-      } else {
-        const { error } = await supabase.from("blogs").insert({
-          ...payload,
-          published_at: new Date().toISOString(),
-        });
-        if (error) throw new Error(error.message);
-      }
+        published_at: new Date().toISOString(),
+      });
+      if (error) throw new Error(error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["blogs"] });
@@ -68,8 +60,8 @@ export function BlogManager() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("blogs").delete().eq("id", id);
-      if (error) throw new Error(error.message);
+      const { error } = await deleteBlogPost(id);
+      if (error) throw new Error(error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["blogs"] });

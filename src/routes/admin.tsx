@@ -3,7 +3,12 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, BedDouble, Lock, Loader as Loader2, Save, Clock as Unlock, CalendarDays, FileText } from "lucide-react";
 import { PROPERTIES, formatINR, todayISO } from "@/lib/plix";
-import { supabase } from "@/lib/rates";
+import {
+  supabase,
+  saveRateOverrides,
+  deleteRateOverrides,
+  toggleBlockedDate,
+} from "@/lib/rates";
 import { BlogManager } from "@/components/plix/blog-manager";
 
 export const Route = createFileRoute("/admin")({
@@ -147,7 +152,6 @@ function AdminDashboard() {
         rMap[r.date] = Number(r.rate);
       }
     }
-    setRatesMap(rMap);
 
     const bMap: BlockedMap = {};
     if (blockedRes.data) {
@@ -155,6 +159,30 @@ function AdminDashboard() {
         bMap[b.date] = true;
       }
     }
+
+    // Merge localStorage overrides (rates + blocked dates)
+    try {
+      const raw = localStorage.getItem("plix_rates_data");
+      if (raw) {
+        const local = JSON.parse(raw);
+        const localRates = local.rates?.[selectedPropertyId] ?? {};
+        for (const [date, rate] of Object.entries(localRates)) {
+          if (date >= monthStartStr && date <= monthEndStr) {
+            rMap[date] = rate as number;
+          }
+        }
+        const localBlocked: string[] = local.blocked?.[selectedPropertyId] ?? [];
+        for (const date of localBlocked) {
+          if (date >= monthStartStr && date <= monthEndStr) {
+            bMap[date] = true;
+          }
+        }
+      }
+    } catch {
+      // localStorage unavailable
+    }
+
+    setRatesMap(rMap);
     setBlockedMap(bMap);
     setLoading(false);
   }, [selectedPropertyId, monthStartStr, monthEndStr]);
@@ -218,33 +246,22 @@ function AdminDashboard() {
   }
 
   async function toggleBlock(date: string) {
-    if (blockedMap[date]) {
-      const { error } = await supabase
-        .from("blocked_dates")
-        .delete()
-        .eq("property_id", selectedPropertyId)
-        .eq("date", date);
-      if (error) {
-        toast.error("Failed to unblock date");
-        return;
-      }
-      setBlockedMap((prev) => {
-        const next = { ...prev };
-        delete next[date];
-        return next;
-      });
-      toast.success(`Unblocked ${date}`);
-    } else {
-      const { error } = await supabase
-        .from("blocked_dates")
-        .insert({ property_id: selectedPropertyId, date });
-      if (error) {
-        toast.error("Failed to block date");
-        return;
-      }
-      setBlockedMap((prev) => ({ ...prev, [date]: true }));
-      toast.success(`Blocked ${date}`);
+    const isBlocked = blockedMap[date];
+    const { error } = await toggleBlockedDate(selectedPropertyId, date, isBlocked);
+    if (error) {
+      toast.error("Failed to update block status");
+      return;
     }
+    setBlockedMap((prev) => {
+      const next = { ...prev };
+      if (isBlocked) {
+        delete next[date];
+      } else {
+        next[date] = true;
+      }
+      return next;
+    });
+    toast.success(isBlocked ? `Unblocked ${date}` : `Blocked ${date}`);
   }
 
   async function saveRates() {
@@ -262,9 +279,7 @@ function AdminDashboard() {
       rate,
     }));
 
-    const { error } = await supabase
-      .from("property_rates")
-      .upsert(rows, { onConflict: "property_id,date" });
+    const { error } = await saveRateOverrides(selectedPropertyId, rows);
 
     setSaving(false);
     if (error) {
@@ -287,11 +302,7 @@ function AdminDashboard() {
   async function resetRates() {
     if (selectedRange.length === 0) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("property_rates")
-      .delete()
-      .eq("property_id", selectedPropertyId)
-      .in("date", selectedRange);
+    const { error } = await deleteRateOverrides(selectedPropertyId, selectedRange);
     setSaving(false);
     if (error) {
       toast.error("Failed to reset rates");

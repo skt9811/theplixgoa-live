@@ -66,8 +66,22 @@ export const Route = createFileRoute("/properties/$slug")({
   loader: async ({ context, params }) => {
     const property = await context.queryClient.ensureQueryData(propertyQuery(params.slug));
     if (!property) throw notFound();
-    void context.queryClient.ensureQueryData(reviewsQuery);
-    return { name: property.name, slug: property.slug, location: property.location, tagline: property.tagline };
+    const reviews = await context.queryClient.ensureQueryData(reviewsQuery);
+    const propertyReviews = reviews.filter((r) => r.property_id === property.id);
+    return {
+      name: property.name,
+      slug: property.slug,
+      location: property.location,
+      tagline: property.tagline,
+      seo_keywords: property.seo_keywords,
+      reviews: propertyReviews.map((r) => ({
+        id: r.id,
+        guest_name: r.guest_name,
+        rating: r.rating,
+        comment: r.comment,
+        guest_city: r.guest_city,
+      })),
+    };
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
@@ -87,7 +101,7 @@ export const Route = createFileRoute("/properties/$slug")({
     const ogImage = p ? propertyOgImage(p) : `${SITE_URL}/og-home.jpg`;
     const scripts = p
       ? [
-          { type: "application/ld+json", children: jsonLdScript(vacationRentalJsonLd(p)) },
+          { type: "application/ld+json", children: jsonLdScript(vacationRentalJsonLd(p, loaderData.reviews)) },
           {
             type: "application/ld+json",
             children: jsonLdScript(
@@ -100,10 +114,12 @@ export const Route = createFileRoute("/properties/$slug")({
           },
         ]
       : [];
+    const keywords = loaderData.seo_keywords?.join(", ") ?? "";
     return {
       meta: [
         { title },
         { name: "description", content: description },
+        ...(keywords ? [{ name: "keywords", content: keywords }] : []),
         { name: "robots", content: "index, follow, max-image-preview:large" },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
@@ -333,22 +349,6 @@ function PropertyDetail() {
               ))}
             </ul>
           </section>
-
-          {property.seo_keywords.length > 0 && (
-            <section className="mt-10">
-              <h2 className="text-2xl font-semibold text-navy">Search keywords</h2>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {property.seo_keywords.map((kw) => (
-                  <span
-                    key={kw}
-                    className="rounded-full border border-border bg-muted px-4 py-2 text-sm text-muted-foreground"
-                  >
-                    {kw}
-                  </span>
-                ))}
-              </div>
-            </section>
-          )}
 
           {propertyReviews.length > 0 && (
             <section className="mt-10">

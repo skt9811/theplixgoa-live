@@ -1,5 +1,13 @@
 import type { Property } from "./plix";
 
+type ReviewData = {
+  id: string;
+  guest_name: string;
+  rating: number;
+  comment: string;
+  guest_city?: string | null;
+};
+
 export const SITE_URL = "https://theplixgoa.com";
 export const SITE_NAME = "The Plix Goa";
 export const SITE_PHONE_1 = "+91-9009800809";
@@ -55,12 +63,13 @@ export function canonicalUrl(path: string): string {
 export function organizationJsonLd() {
   return {
     "@context": "https://schema.org",
-    "@type": "Hotel",
+    "@type": "Organization",
     "@id": `${SITE_URL}/#organization`,
     name: SITE_NAME,
     description:
       "Luxury private pool villas, boutique resorts, and sprawling bungalows in Anjuna, Vagator, Assagao, Morjim, and Candolim, North Goa. Book direct and skip commission.",
     url: SITE_URL,
+    logo: `${SITE_URL}/Plix_Transparent_(1).png`,
     telephone: [SITE_PHONE_1, SITE_PHONE_2],
     email: SITE_EMAIL,
     priceRange: PRICE_RANGE,
@@ -73,6 +82,12 @@ export function organizationJsonLd() {
       addressCountry: SITE_ADDRESS.country,
     },
     areaServed: ["Vagator", "Anjuna", "Assagao", "Morjim", "Candolim"],
+    sameAs: [
+      "https://facebook.com/theplixgoa",
+      "https://instagram.com/theplixgoa",
+      "https://x.com/theplixgoa",
+      "https://wa.me/919009800809",
+    ],
     aggregateRating: {
       "@type": "AggregateRating",
       ratingValue: "4.9",
@@ -124,8 +139,13 @@ export function lodgingBusinessJsonLd() {
   };
 }
 
-export function vacationRentalJsonLd(p: Property) {
-  return {
+export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
+  const avgRating = reviews.length > 0
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+    : "4.9";
+  const reviewCount = reviews.length > 0 ? String(reviews.length) : "1";
+
+  const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": p.bedrooms >= 8 ? "LodgingBusiness" : "VacationRental",
     "@id": `${SITE_URL}/properties/${p.slug}#lodging`,
@@ -160,10 +180,21 @@ export function vacationRentalJsonLd(p: Property) {
         : undefined,
     aggregateRating: {
       "@type": "AggregateRating",
-      ratingValue: "4.9",
-      reviewCount: "1",
+      ratingValue: avgRating,
+      reviewCount,
     },
   };
+
+  if (reviews.length > 0) {
+    schema.review = reviews.map((r) => ({
+      "@type": "Review",
+      author: { "@type": "Person", name: r.guest_name },
+      reviewRating: { "@type": "Rating", ratingValue: String(r.rating), bestRating: "5" },
+      reviewBody: r.comment,
+    }));
+  }
+
+  return schema;
 }
 
 export function faqPageJsonLd(faqs: { q: string; a: string }[]) {

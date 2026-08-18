@@ -303,6 +303,39 @@ export function estimateReadingTime(content: string): number {
   return Math.max(1, Math.ceil(words / 200));
 }
 
+export function autoFormatContent(raw: string): string {
+  // Split by block-level HTML tags (h1-h3, p, ul, ol, li, blockquote, img, div, figure)
+  // and wrap any loose text between them in <p> tags
+  const blockTags = /<(?:h[1-3]|p|ul|ol|li|blockquote|img|div|figure|table|hr)\b[^>]*>[\s\S]*?<\/(?:h[1-3]|p|ul|ol|li|blockquote|div|figure|table)>|<(?:img|hr)\b[^>]*\/?>/gi;
+  const parts = raw.split(blockTags);
+  const matches = raw.match(blockTags) || [];
+
+  let result = "";
+  for (let i = 0; i < parts.length; i++) {
+    const text = parts[i].trim();
+    if (text) {
+      // Wrap loose text in a styled paragraph
+      result += `<p class="leading-relaxed">${text}</p>`;
+    }
+    if (i < matches.length) {
+      result += matches[i];
+    }
+  }
+
+  // If no block tags were found, wrap the entire content
+  if (!matches.length && result) return result;
+
+  // Ensure h1/h2/h3 have consistent spacing by wrapping them with margin classes
+  // (the prose-blog CSS already handles this, but we add classes for inline use)
+  result = result.replace(/<h1\b/g, '<h1 class="mt-8 mb-4 font-serif text-2xl font-normal text-navy"');
+  result = result.replace(/<h2\b/g, '<h2 class="mt-10 mb-4 font-serif text-xl font-normal text-navy"');
+  result = result.replace(/<h3\b/g, '<h3 class="mt-8 mb-3 font-serif text-lg font-normal text-navy"');
+  result = result.replace(/<p\b(?![^>]*class=)/g, '<p class="leading-relaxed mb-5"');
+  result = result.replace(/<img\b(?![^>]*class=)/g, '<img class="rounded-xl shadow-md mx-auto my-8 max-w-full h-auto"');
+
+  return result || raw;
+}
+
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",

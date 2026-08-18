@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Facebook, Instagram, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
+import { Facebook, Instagram, Mail, MapPin, MessageCircle, Phone, Twitter } from "lucide-react";
 import { ObfuscatedEmail } from "@/components/plix/obfuscated-email";
 
 const footerLinks = [
@@ -36,10 +36,11 @@ export function SiteFooter() {
         <div className="flex flex-col items-center justify-center gap-3 px-6 py-10 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-navy-foreground/70">Social</p>
           <div className="flex items-center gap-4 text-navy-foreground/85">
-            <a href="#" aria-label="Facebook" className="transition-colors hover:text-white"><Facebook className="size-4" /></a>
-            <a href="#" aria-label="Instagram" className="transition-colors hover:text-white"><Instagram className="size-4" /></a>
-            <a href="https://wa.me/919009800809" aria-label="WhatsApp" className="transition-colors hover:text-white"><MessageCircle className="size-4" /></a>
-            <ObfuscatedEmail ariaLabel="Email" className="transition-colors hover:text-white"><Mail className="size-4" /></ObfuscatedEmail>
+            <a href="https://facebook.com/theplixgoa" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="transition-colors hover:text-white"><Facebook className="size-4" /></a>
+            <a href="https://instagram.com/theplixgoa" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="transition-colors hover:text-white"><Instagram className="size-4" /></a>
+            <a href="https://x.com/theplixgoa" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)" className="transition-colors hover:text-white"><Twitter className="size-4" /></a>
+            <a href="https://wa.me/919009800809" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className="transition-colors hover:text-white"><MessageCircle className="size-4" /></a>
+            <ObfuscatedEmail ariaLabel="Email us" className="transition-colors hover:text-white"><Mail className="size-4" /></ObfuscatedEmail>
           </div>
           <Link to="/about" className="mt-1 text-xs text-navy-foreground/60 transition-colors hover:text-white">About Plix Hospitality</Link>
         </div>

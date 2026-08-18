@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { heroImage } from "@/lib/plix";
+import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 import {
   SITE_URL,
   SITE_NAME,

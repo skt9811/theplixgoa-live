@@ -1,23 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { toast } from "sonner";
-import {
-  ArrowLeft,
-  ArrowRight,
-  CalendarDays,
-  FileText,
-  Lock,
-  Loader as Loader2,
-  Save,
-  X,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, FileText, Hop as Home, LayoutGrid, Lock, Loader as Loader2, MapPin, Save, X } from "lucide-react";
 import { PROPERTIES, formatINR, todayISO } from "@/lib/plix";
 import {
   saveRateOverrides,
   deleteRateOverrides,
   toggleBlockedDate,
+  fetchRateOverrides,
+  fetchBlockedDates,
+  notifyDataChange,
 } from "@/lib/rates";
 import { MinimalBlogPublisher } from "@/components/plix/minimal-blog-publisher";
+import { PropertiesManager } from "@/components/plix/properties-manager";
+import { LocationsManager } from "@/components/plix/locations-manager";
+import { PageContentEditor } from "@/components/plix/page-content-editor";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -33,7 +30,14 @@ export const Route = createFileRoute("/admin")({
 });
 
 function AdminPage() {
-  const [authed, setAuthed] = useState(false);
+  const [authed, setAuthed] = useState(() => {
+    if (typeof localStorage === "undefined") return false;
+    try {
+      return localStorage.getItem("plix_admin_auth") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
 
@@ -41,10 +45,15 @@ function AdminPage() {
     e.preventDefault();
     if (!pinInput) return;
     const envPin = import.meta.env.VITE_ADMIN_PIN;
-    const validPin = envPin || "1234";
+    const validPin = envPin || "1979";
     if (pinInput === validPin) {
       setAuthed(true);
       setPinError("");
+      try {
+        localStorage.setItem("plix_admin_auth", "true");
+      } catch {
+        // localStorage unavailable
+      }
     } else {
       setPinError("Incorrect PIN");
     }
@@ -103,7 +112,7 @@ type RatesMap = Record<string, number>;
 type BlockedMap = Record<string, boolean>;
 
 function AdminDashboard() {
-  const [tab, setTab] = useState<"rates" | "blogs">("rates");
+  const [tab, setTab] = useState<"rates" | "blogs" | "properties" | "locations" | "content">("rates");
   const [selectedPropertyId, setSelectedPropertyId] = useState(PROPERTIES[0].id);
   const [currentMonth, setCurrentMonth] = useState(() => {
     const d = new Date();
@@ -138,34 +147,34 @@ function AdminDashboard() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const raw = localStorage.getItem("plix_rates_data");
-      const rMap: RatesMap = {};
+      const [overrides, blockedSet] = await Promise.all([
+        fetchRateOverrides(selectedPropertyId, monthStartStr, monthEndStr),
+        fetchBlockedDates(selectedPropertyId, monthStartStr, monthEndStr),
+      ]);
+      setRatesMap(overrides);
       const bMap: BlockedMap = {};
-      if (raw) {
-        const local = JSON.parse(raw);
-        const localRates = local.rates?.[selectedPropertyId] ?? {};
-        for (const [date, rate] of Object.entries(localRates)) {
-          if (date >= monthStartStr && date <= monthEndStr) {
-            rMap[date] = rate as number;
-          }
-        }
-        const localBlocked: string[] = local.blocked?.[selectedPropertyId] ?? [];
-        for (const date of localBlocked) {
-          if (date >= monthStartStr && date <= monthEndStr) {
-            bMap[date] = true;
-          }
-        }
-      }
-      setRatesMap(rMap);
+      for (const date of blockedSet) bMap[date] = true;
       setBlockedMap(bMap);
     } catch {
-      // localStorage unavailable
+      setRatesMap({});
+      setBlockedMap({});
     }
     setLoading(false);
   }, [selectedPropertyId, monthStartStr, monthEndStr]);
 
   useEffect(() => {
     void loadData();
+  }, [loadData]);
+
+  // Cross-tab sync: reload when storage changes in another tab
+  useEffect(() => {
+    function onStorageChange(e: StorageEvent) {
+      if (e.key === "plix_rates_data" || e.key === "plix_blog_posts") {
+        void loadData();
+      }
+    }
+    window.addEventListener("storage", onStorageChange);
+    return () => window.removeEventListener("storage", onStorageChange);
   }, [loadData]);
 
   const calendarDays = useMemo(() => {
@@ -337,20 +346,23 @@ function AdminDashboard() {
   const weekdays = ["S", "M", "T", "W", "T", "F", "S"];
 
   return (
-    <div className="min-h-[100dvh] bg-navy text-white">
+    <div className="min-h-[100dvh] overflow-y-auto overflow-x-hidden bg-navy text-white">
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-navy/95 backdrop-blur-lg">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex w-full max-w-2xl items-center justify-between overflow-x-hidden px-4 py-3">
           <img src="/Plix_Transparent_(1).png" alt="The Plix Goa" className="h-8 w-auto object-contain" />
-          <Link
-            to="/"
+          <button
+            onClick={() => {
+              try { localStorage.removeItem("plix_admin_auth"); } catch { /* noop */ }
+              window.location.href = "/";
+            }}
             className="rounded-full border border-white/20 px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/10"
           >
             Exit
-          </Link>
+          </button>
         </div>
         {/* Tabs */}
-        <div className="mx-auto flex max-w-2xl gap-1 px-4 pb-2">
+        <div className="mx-auto flex w-full max-w-2xl gap-1 overflow-x-hidden px-4 pb-2">
           <button
             onClick={() => setTab("rates")}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
@@ -358,7 +370,34 @@ function AdminDashboard() {
             }`}
           >
             <CalendarDays className="size-4" />
-            Rates & Inventory
+            Rates
+          </button>
+          <button
+            onClick={() => setTab("properties")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+              tab === "properties" ? "bg-white/15 text-white" : "text-white/50 hover:text-white/80"
+            }`}
+          >
+            <Home className="size-4" />
+            Properties
+          </button>
+          <button
+            onClick={() => setTab("locations")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+              tab === "locations" ? "bg-white/15 text-white" : "text-white/50 hover:text-white/80"
+            }`}
+          >
+            <MapPin className="size-4" />
+            Locations
+          </button>
+          <button
+            onClick={() => setTab("content")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+              tab === "content" ? "bg-white/15 text-white" : "text-white/50 hover:text-white/80"
+            }`}
+          >
+            <LayoutGrid className="size-4" />
+            Content
           </button>
           <button
             onClick={() => setTab("blogs")}
@@ -367,14 +406,20 @@ function AdminDashboard() {
             }`}
           >
             <FileText className="size-4" />
-            Blog Posts
+            Blogs
           </button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-5">
+      <main className="mx-auto w-full max-w-2xl overflow-x-hidden px-4 py-5">
         {tab === "blogs" ? (
           <MinimalBlogPublisher />
+        ) : tab === "properties" ? (
+          <PropertiesManager />
+        ) : tab === "locations" ? (
+          <LocationsManager />
+        ) : tab === "content" ? (
+          <PageContentEditor />
         ) : (
           <>
             {/* Property selector */}
@@ -445,8 +490,8 @@ function AdminDashboard() {
                   />
                 </label>
               </div>
-              <div className="mt-3 flex items-center gap-3">
-                <label className="flex flex-1 items-center gap-2 text-xs text-white/60">
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <label className="flex w-full items-center gap-2 text-xs text-white/60 sm:flex-1">
                   Rate (₹)
                   <input
                     type="number"
@@ -575,7 +620,7 @@ function AdminDashboard() {
                     <X className="size-4" />
                   </button>
                 </div>
-                <div className="mt-3 flex items-center gap-3">
+                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <input
                     type="number"
                     min={0}
@@ -587,13 +632,13 @@ function AdminDashboard() {
                   <button
                     onClick={saveRates}
                     disabled={saving || !rateInput}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-bronze px-4 py-2.5 text-sm font-semibold text-bronze-foreground transition-transform active:scale-95 disabled:opacity-40"
+                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full bg-bronze px-4 py-2.5 text-sm font-semibold text-bronze-foreground transition-transform active:scale-95 disabled:opacity-40"
                   >
                     {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                     Save
                   </button>
                 </div>
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     onClick={resetRates}
                     disabled={saving}

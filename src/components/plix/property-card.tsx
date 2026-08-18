@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { Bath, BedDouble, ChevronLeft, ChevronRight, MapPin, Users, Waves } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatINR, resolveImages, type Property } from "@/lib/plix";
+import { fetchTodayRate } from "@/lib/rates";
 import { SmartImage } from "@/components/plix/smart-image";
 
 function propertyCardSubtitle(p: Property): string {
@@ -18,7 +19,14 @@ function propertyCardSubtitle(p: Property): string {
 export function PropertyCard({ property }: { property: Property }) {
   const images = resolveImages(property.image_keys);
   const [index, setIndex] = useState(0);
+  const [todayRate, setTodayRate] = useState<number | null>(null);
   const go = (dir: number) => setIndex((i) => (i + dir + images.length) % images.length);
+
+  useEffect(() => {
+    void fetchTodayRate(property.id, property.base_price).then(setTodayRate);
+  }, [property.id, property.base_price]);
+
+  const displayRate = todayRate ?? property.base_price;
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-lift">
@@ -107,9 +115,12 @@ export function PropertyCard({ property }: { property: Property }) {
         <div className="mt-5 flex items-end justify-between border-t border-border pt-4">
           <div>
             <span className="text-2xl font-semibold text-navy">
-              {formatINR(property.base_price)}
+              {formatINR(displayRate)}
             </span>
             <span className="text-sm text-muted-foreground"> / night</span>
+            {todayRate !== null && todayRate !== property.base_price && (
+              <span className="ml-2 text-xs font-medium text-primary">Today&apos;s Rate</span>
+            )}
           </div>
           <Link
             to="/properties/$slug"

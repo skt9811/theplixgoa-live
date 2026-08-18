@@ -169,6 +169,7 @@ function writeLocalBlogs(posts: BlogPost[]): void {
   if (typeof localStorage === "undefined") return;
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(posts));
+    window.dispatchEvent(new Event("storage"));
   } catch {
     // storage full or unavailable
   }
@@ -180,41 +181,77 @@ function sortByPublished(posts: BlogPost[]): BlogPost[] {
   );
 }
 
-export async function fetchBlogs(): Promise<BlogPost[]> {
-  const { data, error } = await supabase
-    .from("blogs")
-    .select(
-      "id, title, slug, excerpt, content, cover_image, category, author, published_at, created_at",
-    )
-    .order("published_at", { ascending: false });
+function filterPublished(posts: BlogPost[]): BlogPost[] {
+  const now = Date.now();
+  return posts.filter((p) => new Date(p.published_at).getTime() <= now);
+}
 
-  if (!error && data && data.length > 0) {
-    return sortByPublished(data as BlogPost[]);
+export async function fetchBlogs(): Promise<BlogPost[]> {
+  try {
+    const { data, error } = await supabase
+      .from("blogs")
+      .select(
+        "id, title, slug, excerpt, content, cover_image, category, author, published_at, created_at",
+      )
+      .order("published_at", { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      return sortByPublished(filterPublished(data as BlogPost[]));
+    }
+  } catch {
+    // network error — fall through to localStorage
   }
 
   // Fallback to localStorage
+  return sortByPublished(filterPublished(readLocalBlogs()));
+}
+
+export async function fetchAllBlogsAdmin(): Promise<BlogPost[]> {
+  try {
+    const { data, error } = await supabase
+      .from("blogs")
+      .select(
+        "id, title, slug, excerpt, content, cover_image, category, author, published_at, created_at",
+      )
+      .order("published_at", { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      return sortByPublished(data as BlogPost[]);
+    }
+  } catch {
+    // network error — fall through to localStorage
+  }
+
   return sortByPublished(readLocalBlogs());
 }
 
 export async function fetchBlogBySlug(slug: string): Promise<BlogPost | null> {
-  const { data, error } = await supabase
-    .from("blogs")
-    .select(
-      "id, title, slug, excerpt, content, cover_image, category, author, published_at, created_at",
-    )
-    .eq("slug", slug)
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from("blogs")
+      .select(
+        "id, title, slug, excerpt, content, cover_image, category, author, published_at, created_at",
+      )
+      .eq("slug", slug)
+      .maybeSingle();
 
-  if (!error && data) {
-    return data as BlogPost;
+    if (!error && data) {
+      const post = data as BlogPost;
+      if (new Date(post.published_at).getTime() > Date.now()) return null;
+      return post;
+    }
+  } catch {
+    // network error — fall through to localStorage
   }
 
-  // Fallback to localStorage
-  return readLocalBlogs().find((p) => p.slug === slug) ?? null;
+  // Fallback to localStorage — hide scheduled posts on public site
+  const local = readLocalBlogs().find((p) => p.slug === slug);
+  if (local && new Date(local.published_at).getTime() <= Date.now()) return local;
+  return null;
 }
 
 export async function saveBlogPost(
-  post: Omit<BlogPost, "id" | "created_at"> & { id?: string },
+  post: Omit<BlogPost, "id" | "created_at"> & { id?: string | undefined },
 ): Promise<{ error: string | null }> {
   const payload = {
     title: post.title,
@@ -224,57 +261,80 @@ export async function saveBlogPost(
     excerpt: post.excerpt,
     content: post.content,
     author: post.author || "Plix Hospitality",
+    published_at: post.published_at,
   };
 
   if (post.id) {
     // Update
-    const { error } = await supabase.from("blogs").update(payload).eq("id", post.id);
-    if (error) {
-      // Fallback: update in localStorage
+    try {
+      const { error } = await supabase.from("blogs").update(payload).eq("id", post.id);
+      if (error) throw error;
+    } catch {
+      // Supabase failed — fallback to localStorage
       const posts = readLocalBlogs();
       const idx = posts.findIndex((p) => p.id === post.id);
       if (idx >= 0) {
-        posts[idx] = { ...posts[idx], ...payload };
+        posts[idx] = { ...posts[idx], ...payload } as BlogPost;
         writeLocalBlogs(posts);
       }
+      return { error: null };
     }
-    return { error: error?.message ?? null };
+    // Also update localStorage for consistency
+    const posts = readLocalBlogs();
+    const idx = posts.findIndex((p) => p.id === post.id);
+    if (idx >= 0) {
+      posts[idx] = { ...posts[idx], ...payload } as BlogPost;
+      writeLocalBlogs(posts);
+    }
+    return { error: null };
   }
 
   // Insert
-  const { data, error } = await supabase
-    .from("blogs")
-    .insert({ ...payload, published_at: new Date().toISOString() })
-    .select("id")
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from("blogs")
+      .insert(payload)
+      .select("id")
+      .maybeSingle();
 
-  if (error || !data) {
+    if (!error && data) {
+      // Also sync to localStorage
+      const posts = readLocalBlogs();
+      const newPost: BlogPost = {
+        id: data.id,
+        ...payload,
+        created_at: new Date().toISOString(),
+      };
+      posts.push(newPost);
+      writeLocalBlogs(posts);
+      return { error: null };
+    }
+    throw error ?? new Error("No data returned");
+  } catch {
     // Fallback: add to localStorage
     const posts = readLocalBlogs();
     const newPost: BlogPost = {
       id: `local-${Date.now()}`,
       ...payload,
-      published_at: new Date().toISOString(),
       created_at: new Date().toISOString(),
     };
     posts.push(newPost);
     writeLocalBlogs(posts);
+    return { error: null };
   }
-  return { error: null };
 }
 
 export async function deleteBlogPost(id: string): Promise<{ error: string | null }> {
-  const { error } = await supabase.from("blogs").delete().eq("id", id);
-  if (error) {
-    // Fallback: remove from localStorage
-    const posts = readLocalBlogs();
-    writeLocalBlogs(posts.filter((p) => p.id !== id));
-  } else {
-    // Also clean from localStorage
-    const posts = readLocalBlogs();
-    writeLocalBlogs(posts.filter((p) => p.id !== id));
+  try {
+    const { error } = await supabase.from("blogs").delete().eq("id", id);
+    if (error) throw error;
+  } catch {
+    // Supabase failed — fallback to localStorage
   }
-  return { error: error?.message ?? null };
+  // Always clean localStorage
+  const posts = readLocalBlogs();
+  writeLocalBlogs(posts.filter((p) => p.id !== id));
+  return { error: null };
 }
 
 export const blogsQuery = queryOptions({
@@ -312,13 +372,13 @@ export function autoFormatContent(raw: string): string {
 
   let result = "";
   for (let i = 0; i < parts.length; i++) {
-    const text = parts[i].trim();
+    const text = (parts[i] ?? "").trim();
     if (text) {
       // Wrap loose text in a styled paragraph
       result += `<p class="leading-relaxed">${text}</p>`;
     }
     if (i < matches.length) {
-      result += matches[i];
+      result += matches[i] ?? "";
     }
   }
 

@@ -1,23 +1,36 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { TriangleAlert as AlertTriangle, Clock, Image as ImageIcon, Loader as Loader2, Pencil, Save, Send, Trash2, Upload, X } from "lucide-react";
+import { TriangleAlert as AlertTriangle, CalendarClock, CircleCheck as CheckCircle2, Clock, Image as ImageIcon, Loader as Loader2, Pencil, Save, Send, Trash2, Upload, X } from "lucide-react";
 import {
   saveBlogPost,
   deleteBlogPost,
   slugify,
   autoFormatContent,
   estimateReadingTime,
-  fetchBlogs,
+  fetchAllBlogsAdmin,
   type BlogPost,
 } from "@/lib/blog";
 
 const CATEGORIES = ["Nightlife", "Travel Tips", "Local Guides", "Villas"];
+
+function toDatetimeLocal(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const off = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - off * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function isScheduled(publishedAt: string): boolean {
+  return new Date(publishedAt).getTime() > Date.now();
+}
 
 export function MinimalBlogPublisher() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Nightlife");
   const [coverImage, setCoverImage] = useState("");
+  const [publishDate, setPublishDate] = useState("");
   const [content, setContent] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -28,7 +41,7 @@ export function MinimalBlogPublisher() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadPosts() {
-    const data = await fetchBlogs();
+    const data = await fetchAllBlogsAdmin();
     setPosts(data);
     setLoaded(true);
   }
@@ -42,6 +55,7 @@ export function MinimalBlogPublisher() {
     setTitle("");
     setCategory("Nightlife");
     setCoverImage("");
+    setPublishDate("");
     setContent("");
     setShowUrlInput(false);
     setUrlInput("");
@@ -52,6 +66,7 @@ export function MinimalBlogPublisher() {
     setTitle(post.title);
     setCategory(post.category);
     setCoverImage(post.cover_image);
+    setPublishDate(toDatetimeLocal(post.published_at));
     setContent(post.content);
     setShowUrlInput(false);
     setUrlInput("");
@@ -92,6 +107,9 @@ export function MinimalBlogPublisher() {
 
     const formattedContent = autoFormatContent(content);
     const excerpt = content.replace(/<[^>]*>/g, "").slice(0, 140);
+    const publishedAt = publishDate
+      ? new Date(publishDate).toISOString()
+      : new Date().toISOString();
 
     const { error } = await saveBlogPost({
       id: editingId ?? undefined,
@@ -102,7 +120,7 @@ export function MinimalBlogPublisher() {
       excerpt,
       content: formattedContent,
       author: "Plix Hospitality",
-      published_at: new Date().toISOString(),
+      published_at: publishedAt,
     });
 
     setPublishing(false);
@@ -112,7 +130,8 @@ export function MinimalBlogPublisher() {
       return;
     }
 
-    toast.success(editingId ? "Blog post updated" : "Blog post published");
+    const isSched = new Date(publishedAt).getTime() > Date.now();
+    toast.success(editingId ? "Blog post updated" : isSched ? "Blog post scheduled" : "Blog post published");
     resetForm();
     void loadPosts();
   }
@@ -135,7 +154,7 @@ export function MinimalBlogPublisher() {
   return (
     <div className="grid gap-5">
       {/* Publisher form */}
-      <form onSubmit={publish} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+      <form onSubmit={publish} className="w-full max-w-full overflow-x-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-white">
             {editingId ? "Edit Blog Post" : "New Blog Post"}
@@ -161,18 +180,38 @@ export function MinimalBlogPublisher() {
             required
           />
 
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded-lg border border-white/15 bg-white/10 px-3.5 py-3 text-sm text-white outline-none focus:ring-1 focus:ring-bronze/50"
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c} className="bg-navy">{c}</option>
-            ))}
-          </select>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full rounded-lg border border-white/15 bg-white/10 px-3.5 py-3 text-sm text-white outline-none focus:ring-1 focus:ring-bronze/50"
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c} className="bg-navy">{c}</option>
+              ))}
+            </select>
+
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-medium text-white/70">
+                <CalendarClock className="size-3.5" />
+                Publish Date & Time
+              </label>
+              <input
+                type="datetime-local"
+                value={publishDate}
+                onChange={(e) => setPublishDate(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-bronze/50 [color-scheme:dark]"
+              />
+              <p className="mt-1 text-[10px] text-white/40">
+                {publishDate && new Date(publishDate) > new Date()
+                  ? "Will be scheduled (hidden until publish date)"
+                  : "Leave empty to publish immediately"}
+              </p>
+            </div>
+          </div>
 
           {/* Dual Image Upload Component */}
-          <div className="rounded-xl border border-white/15 bg-white/[0.06] p-4">
+          <div className="w-full overflow-x-hidden rounded-xl border border-white/15 bg-white/[0.06] p-4">
             <label className="text-xs font-medium text-white/70">Cover Image</label>
 
             {coverImage ? (
@@ -209,13 +248,13 @@ export function MinimalBlogPublisher() {
                   Upload from device
                 </button>
                 {showUrlInput ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <input
                       type="url"
                       value={urlInput}
                       onChange={(e) => setUrlInput(e.target.value)}
                       placeholder="https://example.com/image.jpg"
-                      className="flex-1 rounded-lg border border-white/15 bg-white/10 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:ring-1 focus:ring-bronze/50"
+                      className="w-full flex-1 rounded-lg border border-white/15 bg-white/10 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:ring-1 focus:ring-bronze/50"
                     />
                     <button
                       type="button"
@@ -247,7 +286,7 @@ export function MinimalBlogPublisher() {
           </div>
 
           {/* Content textarea with reading time */}
-          <div>
+          <div className="w-full">
             <div className="mb-1.5 flex items-center justify-between">
               <label className="text-xs font-medium text-white/70">Content (HTML supported)</label>
               {wordCount > 0 && (
@@ -270,7 +309,7 @@ export function MinimalBlogPublisher() {
           <button
             type="submit"
             disabled={publishing}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-bronze px-5 py-3.5 text-sm font-semibold text-bronze-foreground transition-transform active:scale-95 disabled:opacity-40"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-bronze px-5 py-3.5 text-sm font-semibold text-bronze-foreground transition-transform active:scale-95 disabled:opacity-40"
           >
             {publishing ? <Loader2 className="size-4 animate-spin" /> : editingId ? <Save className="size-4" /> : <Send className="size-4" />}
             {editingId ? "Update Blog Post" : "Publish Post"}
@@ -278,52 +317,70 @@ export function MinimalBlogPublisher() {
         </div>
       </form>
 
-      {/* Existing posts */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-        <h2 className="text-base font-semibold text-white">Published Posts</h2>
+      {/* Existing posts with status badges */}
+      <div className="w-full max-w-full overflow-x-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+        <h2 className="text-base font-semibold text-white">All Posts</h2>
         <div className="mt-3 grid gap-2">
           {posts.length === 0 ? (
             <p className="py-6 text-center text-sm text-white/40">No posts yet</p>
           ) : (
-            posts.map((post) => (
-              <div
-                key={post.id}
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 transition-colors hover:border-white/20"
-              >
-                {post.cover_image ? (
-                  <img
-                    src={post.cover_image}
-                    alt=""
-                    className="size-11 shrink-0 rounded-lg object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  />
-                ) : (
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/10 text-[10px] text-white/40">
-                    N/A
+            posts.map((post) => {
+              const scheduled = isScheduled(post.published_at);
+              return (
+                <div
+                  key={post.id}
+                  className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 transition-colors hover:border-white/20"
+                >
+                  {post.cover_image ? (
+                    <img
+                      src={post.cover_image}
+                      alt=""
+                      className="size-11 shrink-0 rounded-lg object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                  ) : (
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/10 text-[10px] text-white/40">
+                      N/A
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-white">{post.title}</p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-white/40">
+                      <span>{post.category}</span>
+                      <span>·</span>
+                      <span>{estimateReadingTime(post.content)} min read</span>
+                      {scheduled ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-400">
+                          <Clock className="size-2.5" />
+                          Scheduled
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+                          <CheckCircle2 className="size-2.5" />
+                          Live
+                        </span>
+                      )}
+                    </div>
                   </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-white">{post.title}</p>
-                  <p className="truncate text-xs text-white/40">
-                    {post.category} · {estimateReadingTime(post.content)} min read
-                  </p>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      onClick={() => startEdit(post)}
+                      className="rounded-lg border border-white/15 p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                      title="Edit"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(post)}
+                      className="rounded-lg border border-red-500/30 p-2 text-red-400 transition-colors hover:bg-red-500/10"
+                      title="Delete"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => startEdit(post)}
-                  className="shrink-0 rounded-lg border border-white/15 p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-                  title="Edit"
-                >
-                  <Pencil className="size-3.5" />
-                </button>
-                <button
-                  onClick={() => setDeleteTarget(post)}
-                  className="shrink-0 rounded-lg border border-red-500/30 p-2 text-red-400 transition-colors hover:bg-red-500/10"
-                  title="Delete"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

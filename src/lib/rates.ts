@@ -104,29 +104,42 @@ function writeLocalRates(data: LocalRateData): void {
   }
 }
 
+export function notifyDataChange(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(new Event("storage"));
+  } catch {
+    // noop
+  }
+}
+
 export async function fetchRateOverrides(
   propertyId: string,
   startDate: string,
   endDate: string,
 ): Promise<RateOverride> {
-  const { data, error } = await supabase
-    .from("property_rates")
-    .select("date, rate")
-    .eq("property_id", propertyId)
-    .gte("date", startDate)
-    .lte("date", endDate);
+  try {
+    const { data, error } = await supabase
+      .from("property_rates")
+      .select("date, rate")
+      .eq("property_id", propertyId)
+      .gte("date", startDate)
+      .lte("date", endDate);
 
-  if (!error && data) {
-    const map: RateOverride = {};
-    for (const row of data) {
-      map[row.date] = Number(row.rate);
+    if (!error && data) {
+      const map: RateOverride = {};
+      for (const row of data) {
+        map[row.date] = Number(row.rate);
+      }
+      // merge localStorage overrides on top
+      const local = readLocalRates().rates[propertyId] ?? {};
+      for (const [date, rate] of Object.entries(local)) {
+        if (date >= startDate && date <= endDate) map[date] = rate;
+      }
+      return map;
     }
-    // merge localStorage overrides on top
-    const local = readLocalRates().rates[propertyId] ?? {};
-    for (const [date, rate] of Object.entries(local)) {
-      if (date >= startDate && date <= endDate) map[date] = rate;
-    }
-    return map;
+  } catch {
+    // network error — fall through to localStorage
   }
 
   // Fallback to localStorage only
@@ -143,16 +156,20 @@ export async function fetchBlockedDates(
   startDate: string,
   endDate: string,
 ): Promise<Set<string>> {
-  const { data, error } = await supabase
-    .from("blocked_dates")
-    .select("date")
-    .eq("property_id", propertyId)
-    .gte("date", startDate)
-    .lte("date", endDate);
-
   const blocked = new Set<string>();
-  if (!error && data) {
-    for (const row of data) blocked.add(row.date);
+  try {
+    const { data, error } = await supabase
+      .from("blocked_dates")
+      .select("date")
+      .eq("property_id", propertyId)
+      .gte("date", startDate)
+      .lte("date", endDate);
+
+    if (!error && data) {
+      for (const row of data) blocked.add(row.date);
+    }
+  } catch {
+    // network error — continue with localStorage
   }
 
   // merge localStorage blocked dates
@@ -167,20 +184,23 @@ export async function saveRateOverrides(
   propertyId: string,
   rows: { property_id: string; date: string; rate: number }[],
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase
-    .from("property_rates")
-    .upsert(rows, { onConflict: "property_id,date" });
+  try {
+    const { error } = await supabase
+      .from("property_rates")
+      .upsert(rows, { onConflict: "property_id,date" });
 
-  if (error) {
+    if (error) throw error;
+  } catch {
     // Supabase failed — persist to localStorage
-    const local = readLocalRates();
-    if (!local.rates[propertyId]) local.rates[propertyId] = {};
-    for (const row of rows) {
-      local.rates[propertyId][row.date] = row.rate;
-    }
-    writeLocalRates(local);
-    return { error: null };
   }
+  // Always write to localStorage for offline consistency
+  const local = readLocalRates();
+  if (!local.rates[propertyId]) local.rates[propertyId] = {};
+  for (const row of rows) {
+    local.rates[propertyId][row.date] = row.rate;
+  }
+  writeLocalRates(local);
+  notifyDataChange();
   return { error: null };
 }
 
@@ -188,25 +208,18 @@ export async function deleteRateOverrides(
   propertyId: string,
   dates: string[],
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase
-    .from("property_rates")
-    .delete()
-    .eq("property_id", propertyId)
-    .in("date", dates);
+  try {
+    const { error } = await supabase
+      .from("property_rates")
+      .delete()
+      .eq("property_id", propertyId)
+      .in("date", dates);
 
-  if (error) {
-    // Fallback: remove from localStorage
-    const local = readLocalRates();
-    if (local.rates[propertyId]) {
-      for (const date of dates) {
-        delete local.rates[propertyId][date];
-      }
-      writeLocalRates(local);
-    }
-    return { error: null };
+    if (error) throw error;
+  } catch {
+    // Supabase failed — fallback to localStorage
   }
-
-  // Also clean from localStorage so they don't reappear
+  // Always clean localStorage so they don't reappear
   const local = readLocalRates();
   if (local.rates[propertyId]) {
     for (const date of dates) {
@@ -214,6 +227,7 @@ export async function deleteRateOverrides(
     }
     writeLocalRates(local);
   }
+  notifyDataChange();
   return { error: null };
 }
 
@@ -224,24 +238,35 @@ export async function toggleBlockedDate(
 ): Promise<{ error: string | null }> {
   if (isBlocked) {
     // Unblock — remove from Supabase and localStorage
-    const { error } = await supabase
-      .from("blocked_dates")
-      .delete()
-      .eq("property_id", propertyId)
-      .eq("date", date);
+    try {
+      const { error } = await supabase
+        .from("blocked_dates")
+        .delete()
+        .eq("property_id", propertyId)
+        .eq("date", date);
+      if (error && isSupabaseConfigured) {
+        // non-fatal, continue to localStorage
+      }
+    } catch {
+      // network error — continue to localStorage
+    }
 
     const local = readLocalRates();
     if (local.blocked[propertyId]) {
       local.blocked[propertyId] = local.blocked[propertyId].filter((d) => d !== date);
       writeLocalRates(local);
     }
-    if (error && !isSupabaseConfigured) return { error: null };
-    return { error: error?.message ?? null };
+    notifyDataChange();
+    return { error: null };
   } else {
     // Block — insert to Supabase and add to localStorage
-    const { error } = await supabase
-      .from("blocked_dates")
-      .insert({ property_id: propertyId, date });
+    try {
+      await supabase
+        .from("blocked_dates")
+        .insert({ property_id: propertyId, date });
+    } catch {
+      // network error — continue to localStorage
+    }
 
     const local = readLocalRates();
     if (!local.blocked[propertyId]) local.blocked[propertyId] = [];
@@ -249,8 +274,8 @@ export async function toggleBlockedDate(
       local.blocked[propertyId].push(date);
       writeLocalRates(local);
     }
-    if (error && !isSupabaseConfigured) return { error: null };
-    return { error: error?.message ?? null };
+    notifyDataChange();
+    return { error: null };
   }
 }
 
@@ -299,4 +324,10 @@ export function quoteFromRates(nightlyRates: number[], taxRate: number) {
   const subtotal = nightlyRates.reduce((sum, r) => sum + r, 0);
   const taxes = subtotal * taxRate;
   return { subtotal, taxes, total: subtotal + taxes };
+}
+
+export async function fetchTodayRate(propertyId: string, basePrice: number): Promise<number> {
+  const today = new Date().toISOString().slice(0, 10);
+  const overrides = await fetchRateOverrides(propertyId, today, today);
+  return overrides[today] ?? basePrice;
 }

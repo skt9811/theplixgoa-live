@@ -1,10 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { BadgeIndianRupee, ConciergeBell, Hop as HomeIcon, MapPin as MapPinIcon, Quote, Sparkles, Star, Utensils, Waves, Wine } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
 import { SearchBar } from "@/components/plix/search-bar";
 import { propertiesQuery, reviewsQuery } from "@/lib/plix-queries";
-import { calanguteImage, chicoHeroImage, heroImage, morjimImage, northGoaImage, vagatorImage } from "@/lib/plix";
+import { calanguteImage, chicoHeroImage, heroImage, morjimImage, northGoaImage, vagatorImage, resolveImages } from "@/lib/plix";
+import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
+import { fetchActiveLocationGrids, type LocationGrid } from "@/lib/locations-data";
 import {
   Accordion,
   AccordionContent,
@@ -78,39 +81,6 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
-const locationCards = [
-  {
-    name: "Vagator",
-    query: "Vagator",
-    image: vagatorImage,
-    blurb: "Cliffside villas and sunset beach clubs",
-  },
-  {
-    name: "Anjuna",
-    query: "Anjuna",
-    image: northGoaImage,
-    blurb: "Valley views, flea markets and laid-back charm",
-  },
-  {
-    name: "Morjim",
-    query: "Morjim",
-    image: morjimImage,
-    blurb: "Turtle beach calm and sea-breeze resorts",
-  },
-  {
-    name: "Candolim",
-    query: "Candolim",
-    image: calanguteImage,
-    blurb: "Heritage estates and lively beach shacks",
-  },
-  {
-    name: "Assagao",
-    query: "Assagao",
-    image: northGoaImage,
-    blurb: "Curated design villas in a serene village",
-  },
-];
-
 const perks = [
   {
     icon: Waves,
@@ -158,12 +128,54 @@ function Home() {
   const { data: reviews } = useSuspenseQuery(reviewsQuery);
   const featured = properties.slice(0, 3);
 
+  const [config, setConfig] = useState<SiteConfig | null>(null);
+  const [locations, setLocations] = useState<LocationGrid[]>([]);
+
+  useEffect(() => {
+    void fetchSiteConfig().then(setConfig);
+    void fetchActiveLocationGrids().then(setLocations);
+  }, []);
+
+  // Listen for admin changes
+  useEffect(() => {
+    function onStorageChange() {
+      void fetchSiteConfig().then(setConfig);
+      void fetchActiveLocationGrids().then(setLocations);
+    }
+    window.addEventListener("storage", onStorageChange);
+    return () => window.removeEventListener("storage", onStorageChange);
+  }, []);
+
+  const heroHeading = config?.hero_heading || "An Exclusive Collection of Luxury Private Pool Villas in Goa";
+  const heroSubtitle = config?.hero_subtitle || "Handpicked coastal sanctuaries across Anjuna, Vagator, Assagao, Morjim, and Candolim — designed for slow living, effortless luxury, and group escapes.";
+  const heroCtaText = config?.hero_cta_text || "Book Your Stay";
+  const heroCtaLink = (config?.hero_cta_link || "/contact") as "/contact" | "/stays";
+  const heroImageSrc = config?.hero_image_url || chicoHeroImage;
+
+  // Build dynamic location cards: use admin-managed ones if available, else defaults
+  const defaultLocationCards = [
+    { name: "Vagator", query: "Vagator", image: vagatorImage, blurb: "Cliffside villas and sunset beach clubs" },
+    { name: "Anjuna", query: "Anjuna", image: northGoaImage, blurb: "Valley views, flea markets and laid-back charm" },
+    { name: "Morjim", query: "Morjim", image: morjimImage, blurb: "Turtle beach calm and sea-breeze resorts" },
+    { name: "Candolim", query: "Candolim", image: calanguteImage, blurb: "Heritage estates and lively beach shacks" },
+    { name: "Assagao", query: "Assagao", image: northGoaImage, blurb: "Curated design villas in a serene village" },
+  ];
+
+  const dynamicLocations = locations.length > 0
+    ? locations.map((l) => ({
+        name: l.title,
+        query: l.title,
+        image: l.image_url || chicoHeroImage,
+        blurb: l.description || "",
+      }))
+    : defaultLocationCards;
+
   return (
     <>
       <section className="relative isolate flex min-h-screen w-full flex-col items-center justify-center overflow-hidden">
 
         <img
-          src={chicoHeroImage}
+          src={heroImageSrc}
           alt="Luxury Goan villa with terracotta architecture, private pool and tropical gardens"
           width={1920}
           height={1088}
@@ -176,17 +188,17 @@ function Home() {
             The Plix Goa · North Goa, India
           </p>
           <h1 className="animate-rise mt-4 font-serif text-3xl font-normal leading-tight tracking-wide text-white md:text-5xl lg:text-6xl">
-            An Exclusive Collection of Luxury Private Pool Villas in Goa
+            {heroHeading}
           </h1>
           <p className="animate-rise mt-4 max-w-2xl text-base font-light text-white/90 md:text-lg">
-            Handpicked coastal sanctuaries across Anjuna, Vagator, Assagao, Morjim, and Candolim — designed for slow living, effortless luxury, and group escapes.
+            {heroSubtitle}
           </p>
           <div className="animate-rise mt-8 flex flex-wrap items-center justify-center gap-4">
             <Link
-              to="/contact"
+              to={heroCtaLink}
               className="rounded-full bg-bronze px-8 py-3.5 text-sm font-semibold text-bronze-foreground shadow-lg transition-transform duration-200 hover:scale-[1.03]"
             >
-              Book Your Stay
+              {heroCtaText}
             </Link>
             <Link
               to="/stays"
@@ -237,6 +249,7 @@ function Home() {
         </div>
       </section>
 
+      {config?.section_locations_visible !== false && (
       <section className="mx-auto max-w-7xl px-4 py-16 md:px-6">
         <SectionHeading
           eyebrow="Where to stay"
@@ -244,7 +257,7 @@ function Home() {
           sub="Five distinct pockets of North Goa, one uncompromising standard of hospitality."
         />
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {locationCards.map((l) => (
+          {dynamicLocations.map((l) => (
             <Link
               key={l.name}
               to="/stays"
@@ -276,6 +289,7 @@ function Home() {
           </Link>
         </div>
       </section>
+      )}
 
       <section className="bg-sand/60 py-16">
         <div className="mx-auto max-w-7xl px-4 md:px-6">
@@ -300,6 +314,7 @@ function Home() {
         </div>
       </section>
 
+      {config?.section_perks_visible !== false && (
       <section className="mx-auto max-w-7xl px-4 py-16 md:px-6">
         <SectionHeading
           eyebrow="The Plix Promise"
@@ -321,7 +336,9 @@ function Home() {
           ))}
         </div>
       </section>
+      )}
 
+      {config?.section_reviews_visible !== false && (
       <section className="bg-navy py-16 text-navy-foreground">
         <div className="mx-auto max-w-7xl px-4 md:px-6">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary-glow">
@@ -351,7 +368,9 @@ function Home() {
           </div>
         </div>
       </section>
+      )}
 
+      {config?.section_faqs_visible !== false && (
       <section className="mx-auto max-w-3xl px-4 py-16 md:px-6">
         <SectionHeading eyebrow="Good to know" title="Frequently asked questions" />
         <Accordion type="single" collapsible className="mt-6">
@@ -367,6 +386,7 @@ function Home() {
           ))}
         </Accordion>
       </section>
+      )}
     </>
   );
 }

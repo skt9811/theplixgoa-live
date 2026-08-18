@@ -193,9 +193,55 @@ export const morjimImage = morjim1;
 export const vagatorImage = harbor1;
 export const calanguteImage = harbor1;
 
+export function enhanceImageUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+
+  if (trimmed.includes("images.unsplash.com")) {
+    try {
+      const parsed = new URL(trimmed);
+      parsed.searchParams.set("w", "1600");
+      parsed.searchParams.set("auto", "format");
+      parsed.searchParams.set("fit", "crop");
+      parsed.searchParams.set("q", "80");
+      return parsed.toString();
+    } catch {
+      return trimmed;
+    }
+  }
+
+  return trimmed;
+}
+
+function isResolvableImageSource(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/")) {
+    return true;
+  }
+  return Boolean(imageMap[trimmed]);
+}
+
+export function resolveImageKey(keyOrUrl: string): string | undefined {
+  const trimmed = keyOrUrl.trim();
+  if (!trimmed) return undefined;
+
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/")) {
+    return enhanceImageUrl(trimmed);
+  }
+
+  const mapped = imageMap[trimmed];
+  return mapped ? enhanceImageUrl(mapped) : undefined;
+}
+
 export function resolveImages(keys: string[] | null | undefined): string[] {
-  const resolved = (keys ?? []).map((k) => imageMap[k]).filter(Boolean) as string[];
-  return resolved.length ? resolved : [heroGoa];
+  const resolved = (keys ?? [])
+    .filter(isResolvableImageSource)
+    .map(resolveImageKey)
+    .filter((url): url is string => Boolean(url));
+
+  const unique = [...new Set(resolved)];
+  return unique.length ? unique : [heroGoa];
 }
 
 export const TAX_RATE = 0.12;

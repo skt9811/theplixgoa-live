@@ -17,14 +17,14 @@ import {
   Wifi,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
-import { SmartImage } from "@/components/plix/smart-image";
+import { PropertyGallery } from "@/components/plix/property-gallery";
 
 const CheckoutModal = lazy(() =>
   import("@/components/plix/checkout-modal").then((m) => ({ default: m.CheckoutModal })),
 );
 import { loadRazorpayScript } from "@/lib/booking";
 import { propertyQuery, reviewsQuery } from "@/lib/plix-queries";
-import { formatINR, nightsBetween, resolveImages, TAX_RATE, todayISO, PROPERTIES } from "@/lib/plix";
+import { formatINR, nightsBetween, TAX_RATE, todayISO, PROPERTIES } from "@/lib/plix";
 import {
   eachNight,
   fetchBlockedDates,
@@ -186,7 +186,6 @@ function PropertyDetail() {
     ? maxGuestsForRooms(rooms, property?.max_guests ?? 1)
     : property?.max_guests ?? 1;
 
-  const images = property ? resolveImages(property.image_keys) : [];
   const nights = property ? nightsBetween(checkIn, checkOut) : 0;
   const nightsList = nights > 0 ? eachNight(checkIn, checkOut) : [];
   const nightlyRates = property
@@ -262,23 +261,7 @@ function PropertyDetail() {
         </p>
       </header>
 
-      <section className="mt-6 grid aspect-[4/3] grid-cols-1 gap-2 overflow-hidden rounded-2xl md:h-[min(42vw,620px)] md:aspect-auto md:grid-cols-4 md:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
-        {images.slice(0, 5).map((src, i) => (
-          <div
-            key={src + i}
-            className={`relative min-h-0 overflow-hidden ${i === 0 ? "md:col-span-2 md:row-span-2" : ""}`}
-          >
-            <SmartImage
-              src={src}
-              alt={`${property.name} — ${property.bedrooms} bedroom luxury ${property.bedrooms >= 8 ? "bungalow" : "villa"} in ${property.location}, North Goa${i === 0 ? " with private pool" : ""}`}
-              loading="eager"
-              width={1200}
-              height={800}
-              className="block h-full w-full object-cover object-center"
-            />
-          </div>
-        ))}
-      </section>
+      <PropertyGallery property={property} />
 
       <div className="mt-10 grid gap-10 lg:grid-cols-[1.6fr_1fr]">
         <div>

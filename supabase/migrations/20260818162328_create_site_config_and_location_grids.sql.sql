@@ -142,11 +142,11 @@ DROP POLICY IF EXISTS "anon_delete_location_grids" ON location_grids;
 CREATE POLICY "anon_delete_location_grids" ON location_grids FOR DELETE
   TO anon, authenticated USING (true);
 
--- Seed with current location cards
+-- Seed with current location cards (direct Unsplash Goa destination photos)
 INSERT INTO location_grids (title, description, image_url, is_active, sort_order) VALUES
-  ('Vagator', 'Cliffside villas and sunset beach clubs', '', true, 0),
-  ('Anjuna', 'Valley views, flea markets and laid-back charm', '', true, 1),
-  ('Morjim', 'Turtle beach calm and sea-breeze resorts', '', true, 2),
-  ('Candolim', 'Heritage estates and lively beach shacks', '', true, 3),
-  ('Assagao', 'Curated design villas in a serene village', '', true, 4)
+  ('Vagator', 'Cliffside villas and sunset beach clubs', 'https://images.unsplash.com/photo-1723989888773-e89030f3726c?q=80&w=1000', true, 0),
+  ('Anjuna', 'Valley views, flea markets and laid-back charm', 'https://images.unsplash.com/photo-1652820330085-82a0c2b88d78?q=80&w=1000', true, 1),
+  ('Morjim', 'Turtle beach calm and sea-breeze resorts', 'https://images.unsplash.com/photo-1668262121183-08bf7a35cc82?q=80&w=1000', true, 2),
+  ('Candolim', 'Heritage estates and lively beach shacks', 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?q=80&w=1000', true, 3),
+  ('Assagao', 'Curated design villas in a serene village', 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?q=80&w=1000', true, 4)
 ON CONFLICT DO NOTHING;

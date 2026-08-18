@@ -12,31 +12,61 @@ export type LocationGrid = {
 
 const LS_KEY = "plix_locations_data";
 
-/** Unique Unsplash Goa / coastal destination photos — one per location card. */
+/** Direct Unsplash Goa destination photos — one unique image per location card. */
 export const LOCATION_IMAGE_FALLBACKS: Record<string, string> = {
-  vagator: "https://images.unsplash.com/photo-1540202404-d0c4fe142365?w=1200",
-  anjuna: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?w=1200",
-  morjim: "https://images.unsplash.com/photo-1505142468610-359e7a316be0?w=1200",
-  candolim: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=1200",
-  assagao: "https://images.unsplash.com/photo-1582610116397-edb318620f90?w=1200",
-  "north goa": "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1200",
+  vagator:
+    "https://images.unsplash.com/photo-1723989888773-e89030f3726c?q=80&w=1000",
+  anjuna:
+    "https://images.unsplash.com/photo-1652820330085-82a0c2b88d78?q=80&w=1000",
+  morjim:
+    "https://images.unsplash.com/photo-1668262121183-08bf7a35cc82?q=80&w=1000",
+  candolim:
+    "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?q=80&w=1000",
+  calangute:
+    "https://images.unsplash.com/photo-1723275763631-2f53c56ee251?q=80&w=1000",
+  assagao:
+    "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?q=80&w=1000",
+  siolim:
+    "https://images.unsplash.com/photo-1727806775961-2b4346506646?q=80&w=1000",
+  "north goa":
+    "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?q=80&w=1000",
 };
 
-const DEFAULT_LOCATION_IMAGE =
-  LOCATION_IMAGE_FALLBACKS["north goa"] ??
-  "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1200";
+const DEFAULT_LOCATION_IMAGE = LOCATION_IMAGE_FALLBACKS["north goa"];
 
-/** Resolve a location card image: custom URL first, then per-location Unsplash fallback. */
+export function isValidImageUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function getLocationFallbackImage(title: string): string {
+  const key = title.trim().toLowerCase();
+  return LOCATION_IMAGE_FALLBACKS[key] ?? DEFAULT_LOCATION_IMAGE;
+}
+
+/** Resolve a location card image: valid custom URL first, then per-location Unsplash fallback. */
 export function resolveLocationImage(
   title: string,
   imageUrl?: string | null,
   image?: string | null,
 ): string {
-  const custom = (imageUrl ?? image ?? "").trim();
-  if (custom) return custom;
+  for (const candidate of [imageUrl, image]) {
+    const custom = (candidate ?? "").trim();
+    if (isValidImageUrl(custom)) return custom;
+  }
 
-  const key = title.trim().toLowerCase();
-  return LOCATION_IMAGE_FALLBACKS[key] ?? DEFAULT_LOCATION_IMAGE;
+  return getLocationFallbackImage(title);
+}
+
+function sanitizeLocationGrid(location: LocationGrid): LocationGrid {
+  const image_url = resolveLocationImage(location.title, location.image_url);
+  return image_url === location.image_url ? location : { ...location, image_url };
 }
 
 const SEED_LOCATIONS: LocationGrid[] = [
@@ -97,7 +127,11 @@ function readLocalLocations(): LocationGrid[] {
       localStorage.setItem(LS_KEY, JSON.stringify(SEED_LOCATIONS));
       return [...SEED_LOCATIONS];
     }
-    return JSON.parse(raw) as LocationGrid[];
+    const parsed = JSON.parse(raw) as LocationGrid[];
+    const sanitized = parsed.map(sanitizeLocationGrid);
+    const changed = sanitized.some((loc, i) => loc.image_url !== parsed[i]?.image_url);
+    if (changed) writeLocalLocations(sanitized);
+    return sanitized;
   } catch {
     return [...SEED_LOCATIONS];
   }
@@ -120,7 +154,7 @@ export async function fetchLocationGrids(): Promise<LocationGrid[]> {
       .order("sort_order", { ascending: true });
 
     if (!error && data && data.length > 0) {
-      const merged = data as LocationGrid[];
+      const merged = (data as LocationGrid[]).map(sanitizeLocationGrid);
       writeLocalLocations(merged);
       return merged;
     }

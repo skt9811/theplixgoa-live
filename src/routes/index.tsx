@@ -160,7 +160,8 @@ function Home() {
 
   return (
     <>
-      <section className="relative isolate flex h-screen w-full flex-col items-center justify-center overflow-hidden">
+      <section className="relative isolate flex min-h-screen w-full flex-col items-center justify-center overflow-hidden">
+
         <img
           src={chicoHeroImage}
           alt="Luxury Goan villa with terracotta architecture, private pool and tropical gardens"
@@ -170,7 +171,7 @@ function Home() {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#2a1810]/75 via-[#2a1810]/55 to-[#1a0e05]/80" />
 
-        <div className="relative z-10 mx-auto flex h-full max-w-4xl flex-col items-center justify-center px-4 text-center">
+        <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-4 pb-28 pt-24 text-center">
           <p className="animate-fade text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
             The Plix Goa · North Goa, India
           </p>
@@ -196,7 +197,7 @@ function Home() {
           </div>
         </div>
 
-        <div className="absolute bottom-8 left-1/2 z-10 w-full max-w-3xl -translate-x-1/2 px-4">
+        <div className="relative z-20 mx-auto w-full max-w-3xl px-4 pb-6">
           <SearchBar compact />
         </div>
       </section>

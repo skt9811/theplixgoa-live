@@ -99,7 +99,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
       onSubmit={handleSubmit}
       className={`flex w-full flex-col items-stretch gap-px bg-white ${
         compact
-          ? "rounded-2xl border border-gray-200 p-2 shadow-lg md:flex-row md:items-center md:rounded-full md:p-1"
+          ? "rounded-2xl border border-gray-200 p-2 shadow-lg md:flex-row md:items-center md:rounded-full md:p-1.5"
           : "rounded-2xl border border-border p-1.5 shadow-card backdrop-blur md:flex-row md:items-center md:rounded-full"
       }`}
     >

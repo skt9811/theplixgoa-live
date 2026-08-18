@@ -5,6 +5,7 @@ import { SearchBar } from "@/components/plix/search-bar";
 import { PROPERTIES } from "@/lib/plix";
 
 const links = [
+  { to: "/blog", label: "Blog" },
   { to: "/about", label: "About Us" },
   { to: "/contact", label: "Contact" },
 ] as const;
@@ -216,6 +217,13 @@ export function SiteHeader() {
               className={`rounded-lg px-3 py-3 ${isHome ? "text-white/90 hover:bg-white/15" : "hover:bg-accent"}`}
             >
               Stays
+            </Link>
+            <Link
+              to="/blog"
+              onClick={() => setOpen(false)}
+              className={`rounded-lg px-3 py-3 ${isHome ? "text-white/90 hover:bg-white/15" : "hover:bg-accent"}`}
+            >
+              Blog
             </Link>
             {PROPERTIES.map((p) => (
               <Link

@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, BedDouble, Lock, Loader as Loader2, Save, Clock as Unlock } from "lucide-react";
+import { ArrowLeft, ArrowRight, BedDouble, Lock, Loader as Loader2, Save, Clock as Unlock, CalendarDays, FileText } from "lucide-react";
 import { PROPERTIES, formatINR, todayISO } from "@/lib/plix";
 import { supabase } from "@/lib/rates";
+import { BlogManager } from "@/components/plix/blog-manager";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -95,6 +96,7 @@ function AdminPage() {
 }
 
 function AdminDashboard() {
+  const [tab, setTab] = useState<"rates" | "blogs">("rates");
   const [selectedPropertyId, setSelectedPropertyId] = useState(PROPERTIES[0].id);
   const [currentMonth, setCurrentMonth] = useState(() => {
     const d = new Date();
@@ -315,7 +317,7 @@ function AdminDashboard() {
         <div>
           <h1 className="text-2xl font-semibold text-navy md:text-3xl">Admin Dashboard</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage nightly rates and block unavailable dates across all properties.
+            Manage nightly rates, block unavailable dates, and publish blog posts.
           </p>
         </div>
         <Link
@@ -326,7 +328,37 @@ function AdminDashboard() {
         </Link>
       </div>
 
-      {/* Property selector */}
+      {/* Tab navigation */}
+      <div className="mt-6 flex gap-2">
+        <button
+          onClick={() => setTab("rates")}
+          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+            tab === "rates"
+              ? "bg-navy text-navy-foreground"
+              : "border border-border bg-card text-foreground/80 hover:bg-accent"
+          }`}
+        >
+          <CalendarDays className="size-4" />
+          Rates & Availability
+        </button>
+        <button
+          onClick={() => setTab("blogs")}
+          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+            tab === "blogs"
+              ? "bg-navy text-navy-foreground"
+              : "border border-border bg-card text-foreground/80 hover:bg-accent"
+          }`}
+        >
+          <FileText className="size-4" />
+          Blog Posts
+        </button>
+      </div>
+
+      {tab === "blogs" ? (
+        <BlogManager />
+      ) : (
+        <>
+
       <div className="mt-6 flex flex-wrap gap-2">
         {PROPERTIES.map((p) => (
           <button
@@ -537,6 +569,8 @@ function AdminDashboard() {
             </button>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

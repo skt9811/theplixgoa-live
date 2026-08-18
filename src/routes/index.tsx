@@ -5,9 +5,14 @@ import { BadgeIndianRupee, ConciergeBell, Hop as HomeIcon, MapPin as MapPinIcon,
 import { PropertyCard } from "@/components/plix/property-card";
 import { SearchBar } from "@/components/plix/search-bar";
 import { propertiesQuery, reviewsQuery } from "@/lib/plix-queries";
-import { calanguteImage, chicoHeroImage, heroImage, morjimImage, northGoaImage, vagatorImage, resolveImages } from "@/lib/plix";
+import { chicoHeroImage } from "@/lib/plix";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
-import { fetchActiveLocationGrids, type LocationGrid } from "@/lib/locations-data";
+import {
+  DEFAULT_LOCATION_GRIDS,
+  fetchActiveLocationGrids,
+  resolveLocationImage,
+  type LocationGrid,
+} from "@/lib/locations-data";
 import {
   Accordion,
   AccordionContent,
@@ -152,23 +157,13 @@ function Home() {
   const heroCtaLink = (config?.hero_cta_link || "/contact") as "/contact" | "/stays";
   const heroImageSrc = config?.hero_image_url || chicoHeroImage;
 
-  // Build dynamic location cards: use admin-managed ones if available, else defaults
-  const defaultLocationCards = [
-    { name: "Vagator", query: "Vagator", image: vagatorImage, blurb: "Cliffside villas and sunset beach clubs" },
-    { name: "Anjuna", query: "Anjuna", image: northGoaImage, blurb: "Valley views, flea markets and laid-back charm" },
-    { name: "Morjim", query: "Morjim", image: morjimImage, blurb: "Turtle beach calm and sea-breeze resorts" },
-    { name: "Candolim", query: "Candolim", image: calanguteImage, blurb: "Heritage estates and lively beach shacks" },
-    { name: "Assagao", query: "Assagao", image: northGoaImage, blurb: "Curated design villas in a serene village" },
-  ];
-
-  const dynamicLocations = locations.length > 0
-    ? locations.map((l) => ({
-        name: l.title,
-        query: l.title,
-        image: l.image_url || chicoHeroImage,
-        blurb: l.description || "",
-      }))
-    : defaultLocationCards;
+  const locationSource = locations.length > 0 ? locations : DEFAULT_LOCATION_GRIDS;
+  const dynamicLocations = locationSource.map((l) => ({
+    name: l.title,
+    query: l.title,
+    image: resolveLocationImage(l.title, l.image_url, (l as LocationGrid & { image?: string }).image),
+    blurb: l.description || "",
+  }));
 
   return (
     <>

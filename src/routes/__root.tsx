@@ -83,6 +83,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "author", content: "The Plix Goa" },
+      { name: "theme-color", content: "#0f172a" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@theplixgoa" },
     ],
@@ -95,6 +96,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap",
       },
       { rel: "icon", href: "/Plix_Transparent_(1)%20copy.png", type: "image/png" },
+      { rel: "manifest", href: "/manifest.json" },
+      {
+        rel: "apple-touch-icon",
+        href: "/icon-192.png",
+      },
       { rel: "preconnect", href: "https://checkout.razorpay.com" },
       { rel: "preconnect", href: "https://www.googletagmanager.com" },
     ],
@@ -111,6 +117,14 @@ gtag('js', new Date());
 gtag('config', 'G-T4SSM7J1SY', {
   send_page_view: true
 });`,
+      },
+      {
+        type: "text/javascript",
+        children: `if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw.js').catch(function() {});
+  });
+}`,
       },
     ],
   }),

@@ -24,7 +24,7 @@ export const Route = createFileRoute("/admin")({
     meta: [
       { title: "Admin — The Plix Goa" },
       { name: "robots", content: "noindex" },
-      { name: "theme-color", content: "#1a2a1a" },
+      { name: "theme-color", content: "#0f172a" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
     ],

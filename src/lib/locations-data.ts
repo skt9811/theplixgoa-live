@@ -14,9 +14,11 @@ const LS_KEY = "plix_locations_data";
 
 /** Unique Unsplash Goa / coastal destination photos — one per location card. */
 export const LOCATION_IMAGE_FALLBACKS: Record<string, string> = {
-  vagator: "https://images.unsplash.com/photo-1540202404-d0c4fe142365?w=1200",
-  anjuna: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?w=1200",
-  morjim: "https://images.unsplash.com/photo-1505142468610-359e7a316be0?w=1200",
+  vagator: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
+  anjuna: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=800&q=80",
+  morjim: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80",
+  siolim: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80",
+  mandrem: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80",
   candolim: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=1200",
   assagao: "https://images.unsplash.com/photo-1582610116397-edb318620f90?w=1200",
   "north goa": "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1200",

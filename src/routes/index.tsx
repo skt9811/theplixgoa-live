@@ -266,6 +266,10 @@ function Home() {
                 width={1200}
                 height={800}
                 className="aspect-[4/3] size-full object-cover transition-transform duration-700 group-hover:scale-110"
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  if (img.src !== chicoHeroImage) img.src = chicoHeroImage;
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-navy/85 via-navy/25 to-transparent" />
               <div className="absolute bottom-0 p-5">

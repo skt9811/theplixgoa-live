@@ -104,12 +104,35 @@ function writeLocalRates(data: LocalRateData): void {
   }
 }
 
+type SupabaseErrorLike = {
+  message?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+};
+
+function logSupabaseError(context: string, err: unknown): string {
+  const error = err as SupabaseErrorLike;
+  console.error(`[rates] ${context} failed:`, {
+    message: error?.message,
+    code: error?.code,
+    details: error?.details,
+    hint: error?.hint,
+  });
+  return error?.message || `${context} failed`;
+}
+
 export function notifyDataChange(): void {
   if (typeof window === "undefined") return;
   try {
-    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new Event("plix-data-change"));
   } catch {
     // noop
+  }
+  try {
+    localStorage.setItem("plix_data_updated", Date.now().toString());
+  } catch {
+    // storage full or unavailable — same-tab listeners still fire via the custom event
   }
 }
 
@@ -126,23 +149,20 @@ export async function fetchRateOverrides(
       .gte("date", startDate)
       .lte("date", endDate);
 
-    if (!error && data) {
-      const map: RateOverride = {};
-      for (const row of data) {
-        map[row.date] = Number(row.rate);
-      }
-      // merge localStorage overrides on top
-      const local = readLocalRates().rates[propertyId] ?? {};
-      for (const [date, rate] of Object.entries(local)) {
-        if (date >= startDate && date <= endDate) map[date] = rate;
-      }
-      return map;
+    if (error) throw error;
+
+    // Database is authoritative — do not let stale localStorage values
+    // override rows that actually exist (or were removed) in Supabase.
+    const map: RateOverride = {};
+    for (const row of data ?? []) {
+      map[row.date] = Number(row.rate);
     }
-  } catch {
-    // network error — fall through to localStorage
+    return map;
+  } catch (err) {
+    logSupabaseError("fetchRateOverrides", err);
   }
 
-  // Fallback to localStorage only
+  // Fallback to localStorage only when Supabase is unreachable/misconfigured
   const local = readLocalRates().rates[propertyId] ?? {};
   const map: RateOverride = {};
   for (const [date, rate] of Object.entries(local)) {
@@ -165,11 +185,10 @@ export async function fetchBlockedDates(
       .gte("date", startDate)
       .lte("date", endDate);
 
-    if (!error && data) {
-      for (const row of data) blocked.add(row.date);
-    }
-  } catch {
-    // network error — continue with localStorage
+    if (error) throw error;
+    for (const row of data ?? []) blocked.add(row.date);
+  } catch (err) {
+    logSupabaseError("fetchBlockedDates", err);
   }
 
   // merge localStorage blocked dates
@@ -184,19 +203,29 @@ export async function saveRateOverrides(
   propertyId: string,
   rows: { property_id: string; date: string; rate: number }[],
 ): Promise<{ error: string | null }> {
+  // Explicit string coercion for property_id/date keeps the upsert conflict
+  // target (property_id,date) matching cleanly regardless of caller input types.
+  const payload = rows.map((row) => ({
+    property_id: String(row.property_id),
+    date: String(row.date),
+    rate: row.rate,
+  }));
+
   try {
     const { error } = await supabase
       .from("property_rates")
-      .upsert(rows, { onConflict: "property_id,date" });
+      .upsert(payload, { onConflict: "property_id,date" });
 
     if (error) throw error;
-  } catch {
-    // Supabase failed — persist to localStorage
+  } catch (err) {
+    const message = logSupabaseError("saveRateOverrides", err);
+    return { error: message };
   }
-  // Always write to localStorage for offline consistency
+
+  // Mirror to localStorage so the calendar stays consistent offline.
   const local = readLocalRates();
   if (!local.rates[propertyId]) local.rates[propertyId] = {};
-  for (const row of rows) {
+  for (const row of payload) {
     local.rates[propertyId][row.date] = row.rate;
   }
   writeLocalRates(local);
@@ -212,14 +241,15 @@ export async function deleteRateOverrides(
     const { error } = await supabase
       .from("property_rates")
       .delete()
-      .eq("property_id", propertyId)
-      .in("date", dates);
+      .eq("property_id", String(propertyId))
+      .in("date", dates.map(String));
 
     if (error) throw error;
-  } catch {
-    // Supabase failed — fallback to localStorage
+  } catch (err) {
+    const message = logSupabaseError("deleteRateOverrides", err);
+    return { error: message };
   }
-  // Always clean localStorage so they don't reappear
+
   const local = readLocalRates();
   if (local.rates[propertyId]) {
     for (const date of dates) {
@@ -237,18 +267,17 @@ export async function toggleBlockedDate(
   isBlocked: boolean,
 ): Promise<{ error: string | null }> {
   if (isBlocked) {
-    // Unblock — remove from Supabase and localStorage
+    // Unblock — remove from Supabase
     try {
       const { error } = await supabase
         .from("blocked_dates")
         .delete()
-        .eq("property_id", propertyId)
-        .eq("date", date);
-      if (error && isSupabaseConfigured) {
-        // non-fatal, continue to localStorage
-      }
-    } catch {
-      // network error — continue to localStorage
+        .eq("property_id", String(propertyId))
+        .eq("date", String(date));
+      if (error) throw error;
+    } catch (err) {
+      const message = logSupabaseError("toggleBlockedDate (unblock)", err);
+      return { error: message };
     }
 
     const local = readLocalRates();
@@ -259,13 +288,15 @@ export async function toggleBlockedDate(
     notifyDataChange();
     return { error: null };
   } else {
-    // Block — insert to Supabase and add to localStorage
+    // Block — insert to Supabase
     try {
-      await supabase
+      const { error } = await supabase
         .from("blocked_dates")
-        .insert({ property_id: propertyId, date });
-    } catch {
-      // network error — continue to localStorage
+        .insert({ property_id: String(propertyId), date: String(date) });
+      if (error) throw error;
+    } catch (err) {
+      const message = logSupabaseError("toggleBlockedDate (block)", err);
+      return { error: message };
     }
 
     const local = readLocalRates();

@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check, ChevronDown, Loader as Loader2, Plus, Save, Trash2, X } from "lucide-react";
 import { PROPERTIES, formatINR, type Property } from "@/lib/plix";
-import { savePropertyOverride } from "@/lib/properties-data";
+import { fetchPropertiesWithOverrides, savePropertyOverride } from "@/lib/properties-data";
 
 type EditState = {
   slug: string;
@@ -38,6 +38,24 @@ export function PropertiesManager() {
   const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
   const [edits, setEdits] = useState<Record<string, EditState>>({});
   const [saving, setSaving] = useState(false);
+  const expandedSlugRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    expandedSlugRef.current = expandedSlug;
+  }, [expandedSlug]);
+
+  const refreshFromServer = useCallback(async () => {
+    const latest = await fetchPropertiesWithOverrides();
+    setEdits((prev) => {
+      const next = { ...prev };
+      for (const p of latest) {
+        // Skip the row someone is actively editing so an in-flight edit isn't clobbered
+        if (p.slug === expandedSlugRef.current) continue;
+        next[p.slug] = toEditState(p);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const initial: Record<string, EditState> = {};
@@ -45,7 +63,24 @@ export function PropertiesManager() {
       initial[p.slug] = toEditState(p);
     }
     setEdits(initial);
-  }, []);
+    void refreshFromServer();
+  }, [refreshFromServer]);
+
+  // Cross-tab / same-tab sync: reload when rate or property data changes elsewhere
+  useEffect(() => {
+    function onDataChange() {
+      void refreshFromServer();
+    }
+    function onStorageChange(e: StorageEvent) {
+      if (e.key === "plix_data_updated") void refreshFromServer();
+    }
+    window.addEventListener("plix-data-change", onDataChange);
+    window.addEventListener("storage", onStorageChange);
+    return () => {
+      window.removeEventListener("plix-data-change", onDataChange);
+      window.removeEventListener("storage", onStorageChange);
+    };
+  }, [refreshFromServer]);
 
   function updateField(slug: string, field: keyof EditState, value: string | string[]) {
     setEdits((prev) => ({

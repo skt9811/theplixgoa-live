@@ -166,10 +166,14 @@ function AdminDashboard() {
     void loadData();
   }, [loadData]);
 
-  // Cross-tab sync: reload when storage changes in another tab
+  // Cross-tab sync: reload when another admin tab writes new data
   useEffect(() => {
     function onStorageChange(e: StorageEvent) {
-      if (e.key === "plix_rates_data" || e.key === "plix_blog_posts") {
+      if (
+        e.key === "plix_data_updated" ||
+        e.key === "plix_rates_data" ||
+        e.key === "plix_blog_posts"
+      ) {
         void loadData();
       }
     }
@@ -227,7 +231,7 @@ function AdminDashboard() {
     const isBlocked = blockedMap[date];
     const { error } = await toggleBlockedDate(selectedPropertyId, date, isBlocked);
     if (error) {
-      toast.error("Failed to update");
+      toast.error(`Failed to update: ${error}`);
       return;
     }
     setBlockedMap((prev) => {
@@ -251,7 +255,7 @@ function AdminDashboard() {
     const { error } = await saveRateOverrides(selectedPropertyId, rows);
     setSaving(false);
     if (error) {
-      toast.error("Failed to save");
+      toast.error(`Failed to save: ${error}`);
       return;
     }
     setRatesMap((prev) => {
@@ -270,7 +274,7 @@ function AdminDashboard() {
     const { error } = await deleteRateOverrides(selectedPropertyId, selectedRange);
     setSaving(false);
     if (error) {
-      toast.error("Failed to reset");
+      toast.error(`Failed to reset: ${error}`);
       return;
     }
     setRatesMap((prev) => {
@@ -302,10 +306,17 @@ function AdminDashboard() {
     setSaving(true);
 
     if (bulkBlock) {
+      let firstError: string | null = null;
       for (const date of dates) {
         if (!blockedMap[date]) {
-          await toggleBlockedDate(selectedPropertyId, date, false);
+          const { error } = await toggleBlockedDate(selectedPropertyId, date, false);
+          if (error && !firstError) firstError = error;
         }
+      }
+      if (firstError) {
+        toast.error(`Failed to block some dates: ${firstError}`);
+        setSaving(false);
+        return;
       }
       setBlockedMap((prev) => {
         const next = { ...prev };
@@ -323,7 +334,7 @@ function AdminDashboard() {
       const rows = dates.map((date) => ({ property_id: selectedPropertyId, date, rate }));
       const { error } = await saveRateOverrides(selectedPropertyId, rows);
       if (error) {
-        toast.error("Failed to save bulk rates");
+        toast.error(`Failed to save bulk rates: ${error}`);
         setSaving(false);
         return;
       }

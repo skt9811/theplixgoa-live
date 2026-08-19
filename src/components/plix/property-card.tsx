@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Bath, BedDouble, ChevronLeft, ChevronRight, MapPin, Users, Waves } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { formatINR, resolveImages, type Property } from "@/lib/plix";
 import { fetchTodayRate } from "@/lib/rates";
 import { SmartImage } from "@/components/plix/smart-image";
@@ -22,9 +22,26 @@ export function PropertyCard({ property }: { property: Property }) {
   const [todayRate, setTodayRate] = useState<number | null>(null);
   const go = (dir: number) => setIndex((i) => (i + dir + images.length) % images.length);
 
-  useEffect(() => {
+  const loadRate = useCallback(() => {
     void fetchTodayRate(property.id, property.base_price).then(setTodayRate);
   }, [property.id, property.base_price]);
+
+  useEffect(() => {
+    loadRate();
+  }, [loadRate]);
+
+  // Refetch when the admin updates rates — same tab (custom event) or another tab (storage event)
+  useEffect(() => {
+    function onStorageChange(e: StorageEvent) {
+      if (e.key === "plix_data_updated") loadRate();
+    }
+    window.addEventListener("plix-data-change", loadRate);
+    window.addEventListener("storage", onStorageChange);
+    return () => {
+      window.removeEventListener("plix-data-change", loadRate);
+      window.removeEventListener("storage", onStorageChange);
+    };
+  }, [loadRate]);
 
   const displayRate = todayRate ?? property.base_price;
 

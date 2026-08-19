@@ -16,7 +16,7 @@ import {
   Waves,
   Wifi,
 } from "lucide-react";
-import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
 import { SmartImage } from "@/components/plix/smart-image";
 
 const CheckoutModal = lazy(() =>
@@ -201,7 +201,7 @@ function PropertyDetail() {
     void loadRazorpayScript();
   }, []);
 
-  useEffect(() => {
+  const loadRatesAndAvailability = useCallback(() => {
     if (!property || nights === 0) return;
     const nightsListInner = eachNight(checkIn, checkOut);
     if (nightsListInner.length === 0) return;
@@ -210,6 +210,23 @@ function PropertyDetail() {
     void fetchRateOverrides(property.id, startDate, endDate).then(setRateOverrides);
     void fetchBlockedDates(property.id, startDate, endDate).then(setBlockedDates);
   }, [property, checkIn, checkOut, nights]);
+
+  useEffect(() => {
+    loadRatesAndAvailability();
+  }, [loadRatesAndAvailability]);
+
+  // Refetch when the admin updates rates/availability — same tab or another tab
+  useEffect(() => {
+    function onStorageChange(e: StorageEvent) {
+      if (e.key === "plix_data_updated") loadRatesAndAvailability();
+    }
+    window.addEventListener("plix-data-change", loadRatesAndAvailability);
+    window.addEventListener("storage", onStorageChange);
+    return () => {
+      window.removeEventListener("plix-data-change", loadRatesAndAvailability);
+      window.removeEventListener("storage", onStorageChange);
+    };
+  }, [loadRatesAndAvailability]);
 
   if (!property) return <Fallback title="We couldn't find that stay" />;
 

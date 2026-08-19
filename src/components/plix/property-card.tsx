@@ -18,7 +18,6 @@ function propertyCardSubtitle(p: Property): string {
 
 export function PropertyCard({ property }: { property: Property }) {
   const images = resolveImages(property.image_keys);
-  const primaryFallback = images[0];
   const [index, setIndex] = useState(0);
   const [todayRate, setTodayRate] = useState<number | null>(null);
   const go = (dir: number) => setIndex((i) => (i + dir + images.length) % images.length);
@@ -36,12 +35,11 @@ export function PropertyCard({ property }: { property: Property }) {
           <SmartImage
             key={src + i}
             src={src}
-            fallbackSrc={src !== primaryFallback ? primaryFallback : undefined}
             alt={`${property.name} — ${property.bedrooms} bedroom luxury ${property.bedrooms >= 8 ? "bungalow" : "villa"} in ${property.location}, North Goa${i === 0 ? " with private pool" : ""}`}
             loading="lazy"
-            width={1600}
-            height={1067}
-            className={`absolute inset-0 transition-opacity duration-500 ${
+            width={1200}
+            height={800}
+            className={`absolute inset-0 block h-full w-full object-cover object-center transition-opacity duration-500 ${
               i === index ? "opacity-100" : "opacity-0"
             }`}
           />

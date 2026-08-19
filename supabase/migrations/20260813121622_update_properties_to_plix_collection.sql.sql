@@ -62,7 +62,7 @@ VALUES
  ARRAY['Private Pool','Panoramic Views','Luxury Amenities','Free WiFi'],
  '[{"name":"Vagator Beach","distance":"5 mins drive"},{"name":"Chapora Fort","distance":"10 mins drive"},{"name":"Anjuna Flea Market","distance":"15 mins drive"},{"name":"Mapusa Market","distance":"20 mins drive"},{"name":"Goa International Airport (Mopa)","distance":"35 mins drive"}]'::jsonb,
  15.6012,73.7380),
-('casa-moana','Casa Moana','Vagator','North Goa','VAGATOR, NORTH GOA • 3 BEDS',
+('casa-moana','Casa','Vagator','North Goa','VAGATOR, NORTH GOA • 3 BEDS',
  'Immerse yourself in high-end vacation rentals featuring bespoke interior design at these luxury Private Villas in Vagator Goa.',
  3,3,6,9500,'6 mins drive to Vagator Beach',
  ARRAY['harbor-2','morjim-1','northgoa','harbor-1'],

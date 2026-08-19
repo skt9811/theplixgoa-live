@@ -63,7 +63,7 @@ import bhk3_9 from "@/assets/3bhk9.png";
 import bhk3_10 from "@/assets/3bhk10.png";
 import bhk3_11 from "@/assets/3bhk11.png";
 
-// Casa Moana (4bhk)
+// Casa (4bhk)
 import bhk4 from "@/assets/4bhk.png";
 import bhk4_1 from "@/assets/4bhk1.png";
 import bhk4_2 from "@/assets/4bhk2.png";
@@ -155,7 +155,7 @@ export const imageMap: Record<string, string> = {
   "3bhk9": bhk3_9,
   "3bhk10": bhk3_10,
   "3bhk11": bhk3_11,
-  // Casa Moana (4bhk)
+  // Casa (4bhk)
   "4bhk": bhk4,
   "4bhk1": bhk4_1,
   "4bhk2": bhk4_2,
@@ -337,15 +337,15 @@ export const PROPERTIES: Property[] = [
   {
     id: "casa-moana",
     slug: "casa-moana",
-    name: "Casa Moana",
+    name: "Casa",
     location: "Vagator",
     region: "North Goa",
     tagline: "VAGATOR, NORTH GOA • 3 BHK BOUTIQUE POOL VILLA",
     description:
-      "Contemporary sanctuary for intimate escapes. Casa Moana is an elegant 3 BHK private pool villa in Vagator for up to 6 guests, combining modern aesthetics with cozy privacy. Featuring bespoke interior design, floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes, it offers a tranquil garden setting minutes from Anjuna and Vagator beaches.",
-    seo_title: "Casa Moana | 3 BHK Boutique Private Pool Villa in Vagator",
+      "Contemporary sanctuary for intimate escapes. Casa is an elegant 3 BHK private pool villa in Vagator for up to 6 guests, combining modern aesthetics with cozy privacy. Featuring bespoke interior design, floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes, it offers a tranquil garden setting minutes from Anjuna and Vagator beaches.",
+    seo_title: "Casa | 3 BHK Boutique Private Pool Villa in Vagator",
     seo_description:
-      "Book Casa Moana, an elegant 3 BHK private pool villa in Vagator, North Goa. Accommodates up to 6 guests with bespoke interiors and modern amenities. Direct booking, zero commission.",
+      "Book Casa, an elegant 3 BHK private pool villa in Vagator, North Goa. Accommodates up to 6 guests with bespoke interiors and modern amenities. Direct booking, zero commission.",
     seo_keywords: ["3 BHK Villa Vagator", "Boutique Pool Villa Goa", "Private Pool Villa Vagator", "Couple Friendly Villa North Goa", "Luxury Holiday Home Anjuna"],
     enclave: "Marina Villas by The Plix",
     bedrooms: 3,

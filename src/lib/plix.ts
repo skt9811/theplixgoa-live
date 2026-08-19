@@ -461,7 +461,7 @@ export const PROPERTIES: Property[] = [
   {
     id: "morjim-pride",
     slug: "morjim-pride",
-    name: "Morjim Pride - Beachfront Resort Morjim",
+    name: "Morjim Pride",
     location: "Morjim",
     region: "North Goa",
     tagline: "MORJIM, NORTH GOA • BEACHFRONT RESORT NEAR MORJIM BEACH",

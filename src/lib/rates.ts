@@ -24,37 +24,28 @@ export const supabase = new Proxy({} as SupabaseClient, {
           select: () => ({
             eq: () => ({
               gte: () => ({
-                lte: () =>
-                  Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+                lte: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
               }),
-              in: () =>
-                Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+              in: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
             }),
-            order: () =>
-              Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+            order: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
             eq: () => ({
-              maybeSingle: () =>
-                Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+              maybeSingle: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
               gte: () => ({
-                lte: () =>
-                  Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+                lte: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
               }),
             }),
           }),
-          insert: () =>
-            Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+          insert: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
           update: () => ({
-            eq: () =>
-              Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+            eq: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
           }),
           delete: () => ({
             eq: () => ({
-              in: () =>
-                Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+              in: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
             }),
           }),
-          upsert: () =>
-            Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
+          upsert: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
         });
       }
       return undefined;
@@ -127,31 +118,31 @@ export async function fetchRateOverrides(
   startDate: string,
   endDate: string,
 ): Promise<RateOverride> {
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await supabase
-        .from("property_rates")
-        .select("date, rate")
-        .eq("property_id", propertyId)
-        .gte("date", startDate)
-        .lte("date", endDate);
+  try {
+    const { data, error } = await supabase
+      .from("property_rates")
+      .select("date, rate")
+      .eq("property_id", propertyId)
+      .gte("date", startDate)
+      .lte("date", endDate);
 
-      if (!error && data) {
-        // Supabase is the source of truth here — do NOT merge in localStorage,
-        // or a browser with a stale local write would permanently diverge from
-        // what every other user (and the admin, from a different browser) sees.
-        const map: RateOverride = {};
-        for (const row of data) {
-          map[row.date] = Number(row.rate);
-        }
-        return map;
+    if (!error && data) {
+      const map: RateOverride = {};
+      for (const row of data) {
+        map[row.date] = Number(row.rate);
       }
-    } catch {
-      // network error — fall through to localStorage
+      // merge localStorage overrides on top
+      const local = readLocalRates().rates[propertyId] ?? {};
+      for (const [date, rate] of Object.entries(local)) {
+        if (date >= startDate && date <= endDate) map[date] = rate;
+      }
+      return map;
     }
+  } catch {
+    // network error — fall through to localStorage
   }
 
-  // Fallback to localStorage only when Supabase is unconfigured/unreachable
+  // Fallback to localStorage only
   const local = readLocalRates().rates[propertyId] ?? {};
   const map: RateOverride = {};
   for (const [date, rate] of Object.entries(local)) {
@@ -165,27 +156,23 @@ export async function fetchBlockedDates(
   startDate: string,
   endDate: string,
 ): Promise<Set<string>> {
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await supabase
-        .from("blocked_dates")
-        .select("date")
-        .eq("property_id", propertyId)
-        .gte("date", startDate)
-        .lte("date", endDate);
+  const blocked = new Set<string>();
+  try {
+    const { data, error } = await supabase
+      .from("blocked_dates")
+      .select("date")
+      .eq("property_id", propertyId)
+      .gte("date", startDate)
+      .lte("date", endDate);
 
-      if (!error && data) {
-        const blocked = new Set<string>();
-        for (const row of data) blocked.add(row.date);
-        return blocked;
-      }
-    } catch {
-      // network error — fall through to localStorage
+    if (!error && data) {
+      for (const row of data) blocked.add(row.date);
     }
+  } catch {
+    // network error — continue with localStorage
   }
 
-  // Fallback to localStorage only when Supabase is unconfigured/unreachable
-  const blocked = new Set<string>();
+  // merge localStorage blocked dates
   const localBlocked = readLocalRates().blocked[propertyId] ?? [];
   for (const date of localBlocked) {
     if (date >= startDate && date <= endDate) blocked.add(date);
@@ -197,24 +184,16 @@ export async function saveRateOverrides(
   propertyId: string,
   rows: { property_id: string; date: string; rate: number }[],
 ): Promise<{ error: string | null }> {
-  if (isSupabaseConfigured) {
-    try {
-      const { error } = await supabase
-        .from("property_rates")
-        .upsert(rows, { onConflict: "property_id,date" });
+  try {
+    const { error } = await supabase
+      .from("property_rates")
+      .upsert(rows, { onConflict: "property_id,date" });
 
-      if (error) return { error: error.message || "Failed to save rates" };
-      notifyDataChange();
-      return { error: null };
-    } catch (err) {
-      // Genuine network failure — report it rather than silently pretending
-      // to succeed, so the admin knows this update did not reach the database
-      // and won't be visible to other users.
-      return { error: err instanceof Error ? err.message : "Failed to save rates" };
-    }
+    if (error) throw error;
+  } catch {
+    // Supabase failed — persist to localStorage
   }
-
-  // Supabase not configured (local/offline dev) — persist to localStorage only
+  // Always write to localStorage for offline consistency
   const local = readLocalRates();
   if (!local.rates[propertyId]) local.rates[propertyId] = {};
   for (const row of rows) {
@@ -229,23 +208,18 @@ export async function deleteRateOverrides(
   propertyId: string,
   dates: string[],
 ): Promise<{ error: string | null }> {
-  if (isSupabaseConfigured) {
-    try {
-      const { error } = await supabase
-        .from("property_rates")
-        .delete()
-        .eq("property_id", propertyId)
-        .in("date", dates);
+  try {
+    const { error } = await supabase
+      .from("property_rates")
+      .delete()
+      .eq("property_id", propertyId)
+      .in("date", dates);
 
-      if (error) return { error: error.message || "Failed to reset rates" };
-      notifyDataChange();
-      return { error: null };
-    } catch (err) {
-      return { error: err instanceof Error ? err.message : "Failed to reset rates" };
-    }
+    if (error) throw error;
+  } catch {
+    // Supabase failed — fallback to localStorage
   }
-
-  // Supabase not configured (local/offline dev) — clean localStorage only
+  // Always clean localStorage so they don't reappear
   const local = readLocalRates();
   if (local.rates[propertyId]) {
     for (const date of dates) {
@@ -262,40 +236,47 @@ export async function toggleBlockedDate(
   date: string,
   isBlocked: boolean,
 ): Promise<{ error: string | null }> {
-  if (isSupabaseConfigured) {
-    try {
-      const { error } = isBlocked
-        ? await supabase
-            .from("blocked_dates")
-            .delete()
-            .eq("property_id", propertyId)
-            .eq("date", date)
-        : await supabase.from("blocked_dates").insert({ property_id: propertyId, date });
-
-      if (error) return { error: error.message || "Failed to update" };
-      notifyDataChange();
-      return { error: null };
-    } catch (err) {
-      return { error: err instanceof Error ? err.message : "Failed to update" };
-    }
-  }
-
-  // Supabase not configured (local/offline dev) — persist to localStorage only
-  const local = readLocalRates();
   if (isBlocked) {
+    // Unblock — remove from Supabase and localStorage
+    try {
+      const { error } = await supabase
+        .from("blocked_dates")
+        .delete()
+        .eq("property_id", propertyId)
+        .eq("date", date);
+      if (error && isSupabaseConfigured) {
+        // non-fatal, continue to localStorage
+      }
+    } catch {
+      // network error — continue to localStorage
+    }
+
+    const local = readLocalRates();
     if (local.blocked[propertyId]) {
       local.blocked[propertyId] = local.blocked[propertyId].filter((d) => d !== date);
       writeLocalRates(local);
     }
+    notifyDataChange();
+    return { error: null };
   } else {
+    // Block — insert to Supabase and add to localStorage
+    try {
+      await supabase
+        .from("blocked_dates")
+        .insert({ property_id: propertyId, date });
+    } catch {
+      // network error — continue to localStorage
+    }
+
+    const local = readLocalRates();
     if (!local.blocked[propertyId]) local.blocked[propertyId] = [];
     if (!local.blocked[propertyId].includes(date)) {
       local.blocked[propertyId].push(date);
       writeLocalRates(local);
     }
+    notifyDataChange();
+    return { error: null };
   }
-  notifyDataChange();
-  return { error: null };
 }
 
 export function isMultiRoomProperty(propertyId: string): boolean {
@@ -326,11 +307,7 @@ export function eachNight(checkIn: string, checkOut: string): string[] {
   return nights;
 }
 
-export function hasBlockedOverlap(
-  blocked: Set<string>,
-  checkIn: string,
-  checkOut: string,
-): boolean {
+export function hasBlockedOverlap(blocked: Set<string>, checkIn: string, checkOut: string): boolean {
   const nights = eachNight(checkIn, checkOut);
   return nights.some((n) => blocked.has(n));
 }

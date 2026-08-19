@@ -49,7 +49,7 @@ import chico15 from "@/assets/chico15.PNG";
 import chico16 from "@/assets/chico16.PNG";
 import chico17 from "@/assets/chico17.PNG";
 
-// Casa Marina (3bhk)
+// Casa Moana (3bhk)
 import bhk3 from "@/assets/3bhk.png";
 import bhk3_1 from "@/assets/3bhk1.png";
 import bhk3_2 from "@/assets/3bhk2.png";
@@ -63,7 +63,7 @@ import bhk3_9 from "@/assets/3bhk9.png";
 import bhk3_10 from "@/assets/3bhk10.png";
 import bhk3_11 from "@/assets/3bhk11.png";
 
-// Casa Moana (4bhk)
+// Casa Marina (4bhk)
 import bhk4 from "@/assets/4bhk.png";
 import bhk4_1 from "@/assets/4bhk1.png";
 import bhk4_2 from "@/assets/4bhk2.png";
@@ -142,7 +142,7 @@ export const imageMap: Record<string, string> = {
   chico15,
   chico16,
   chico17,
-  // Casa Marina (3bhk)
+  // Casa Moana (3bhk)
   "3bhk": bhk3,
   "3bhk1": bhk3_1,
   "3bhk2": bhk3_2,
@@ -155,7 +155,7 @@ export const imageMap: Record<string, string> = {
   "3bhk9": bhk3_9,
   "3bhk10": bhk3_10,
   "3bhk11": bhk3_11,
-  // Casa Moana (4bhk)
+  // Casa Marina (4bhk)
   "4bhk": bhk4,
   "4bhk1": bhk4_1,
   "4bhk2": bhk4_2,
@@ -260,15 +260,15 @@ export const PROPERTIES: Property[] = [
   {
     id: "casa-marina",
     slug: "casa-marina",
-    name: "Casa Marina",
+    name: "Casa Moana",
     location: "Anjuna",
     region: "North Goa",
     tagline: "ANJUNA / VAGATOR, NORTH GOA • 4 BHK PRIVATE POOL VILLA",
     description:
-      "Contemporary sanctuary for intimate escapes and large groups. Casa Marina is a refined 4 BHK private pool villa featuring floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes. Accommodating up to 8 guests near Anjuna and Vagator beaches, it offers panoramic pool views, premium luxury amenities, and a fully private garden setting perfect for family reunions and group celebrations.",
-    seo_title: "Casa Marina | 4 BHK Luxury Private Pool Villa in Anjuna",
+      "Contemporary sanctuary for intimate escapes and large groups. Casa Moana is a refined 4 BHK private pool villa featuring floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes. Accommodating up to 8 guests near Anjuna and Vagator beaches, it offers panoramic pool views, premium luxury amenities, and a fully private garden setting perfect for family reunions and group celebrations.",
+    seo_title: "Casa Moana | 4 BHK Luxury Private Pool Villa in Anjuna",
     seo_description:
-      "Book Casa Marina, a spacious 4 BHK luxury private pool villa in Anjuna, North Goa. Accommodates up to 8 guests near Anjuna and Vagator beaches. Direct booking, zero commission.",
+      "Book Casa Moana, a spacious 4 BHK luxury private pool villa in Anjuna, North Goa. Accommodates up to 8 guests near Anjuna and Vagator beaches. Direct booking, zero commission.",
     seo_keywords: ["4 BHK Villa Anjuna", "Private Pool Villa Goa", "Family Villa North Goa", "Group Stay Anjuna", "Luxury Villa near Vagator Beach"],
     enclave: "Marina Villas by The Plix",
     bedrooms: 4,
@@ -291,15 +291,15 @@ export const PROPERTIES: Property[] = [
   {
     id: "casa-moana",
     slug: "casa-moana",
-    name: "Casa Moana",
+    name: "Casa Marina",
     location: "Vagator",
     region: "North Goa",
     tagline: "VAGATOR, NORTH GOA • 3 BHK BOUTIQUE POOL VILLA",
     description:
-      "Contemporary sanctuary for intimate escapes. Casa Moana is an elegant 3 BHK private pool villa in Vagator for up to 6 guests, combining modern aesthetics with cozy privacy. Featuring bespoke interior design, floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes, it offers a tranquil garden setting minutes from Anjuna and Vagator beaches.",
-    seo_title: "Casa Moana | 3 BHK Boutique Private Pool Villa in Vagator",
+      "Contemporary sanctuary for intimate escapes. Casa Marina is an elegant 3 BHK private pool villa in Vagator for up to 6 guests, combining modern aesthetics with cozy privacy. Featuring bespoke interior design, floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes, it offers a tranquil garden setting minutes from Anjuna and Vagator beaches.",
+    seo_title: "Casa Marina | 3 BHK Boutique Private Pool Villa in Vagator",
     seo_description:
-      "Book Casa Moana, an elegant 3 BHK private pool villa in Vagator, North Goa. Accommodates up to 6 guests with bespoke interiors and modern amenities. Direct booking, zero commission.",
+      "Book Casa Marina, an elegant 3 BHK private pool villa in Vagator, North Goa. Accommodates up to 6 guests with bespoke interiors and modern amenities. Direct booking, zero commission.",
     seo_keywords: ["3 BHK Villa Vagator", "Boutique Pool Villa Goa", "Private Pool Villa Vagator", "Couple Friendly Villa North Goa", "Luxury Holiday Home Anjuna"],
     enclave: "Marina Villas by The Plix",
     bedrooms: 3,
@@ -415,7 +415,7 @@ export const PROPERTIES: Property[] = [
   {
     id: "morjim-pride",
     slug: "morjim-pride",
-    name: "Morjim Pride - Beachfront Resort Morjim",
+    name: "Morjim Pride",
     location: "Morjim",
     region: "North Goa",
     tagline: "MORJIM, NORTH GOA • BEACHFRONT RESORT NEAR MORJIM BEACH",

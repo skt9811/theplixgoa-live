@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { BadgeIndianRupee, Building2, ConciergeBell, HeartHandshake, Hop as HomeIcon, MapPin as MapPinIcon, Quote, Sparkles, Star, Utensils, Waves, Wine } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
+import { ReviewCarousel } from "@/components/plix/review-carousel";
 import { SearchBar } from "@/components/plix/search-bar";
 import { propertiesQuery, reviewsQuery } from "@/lib/plix-queries";
 import { chicoHeroImage } from "@/lib/plix";
@@ -497,6 +498,17 @@ function Home() {
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
             </div>
           ))}
+        </div>
+      </section>
+      )}
+
+      {reviews.length > 0 && (
+      <section className="mx-auto max-w-7xl px-4 py-16 md:px-6">
+        <h2 className="text-center font-display text-3xl font-semibold text-navy md:text-4xl">
+          Loved by Our Guests
+        </h2>
+        <div className="mt-10">
+          <ReviewCarousel reviews={reviews} />
         </div>
       </section>
       )}

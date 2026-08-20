@@ -291,19 +291,19 @@ function Home() {
 
   const [config, setConfig] = useState<SiteConfig | null>(null);
   const [locations, setLocations] = useState<LocationGrid[]>([]);
-  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
 
   useEffect(() => {
     void fetchSiteConfig().then(setConfig);
     void fetchActiveLocationGrids().then(setLocations);
   }, []);
 
-  // Drone video is decorative and well below the fold — on mobile, skip
-  // preloading its ~6.7MB payload until the guest actually scrolls to it.
+  // Drone video is decorative and well below the fold — mobile devices never
+  // download the ~6.7MB file; it only loads/plays at the md: breakpoint or above.
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    setIsMobileViewport(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobileViewport(e.matches);
+    const mq = window.matchMedia("(min-width: 768px)");
+    setIsDesktopViewport(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktopViewport(e.matches);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
@@ -538,9 +538,9 @@ function Home() {
         <div className="relative mt-8 aspect-video w-full overflow-hidden rounded-3xl shadow-card">
           <video
             className="absolute inset-0 size-full object-cover"
-            src="/drone-showcase.mp4"
-            preload={isMobileViewport ? "none" : "metadata"}
-            autoPlay
+            src={isDesktopViewport ? "/drone-showcase.mp4" : undefined}
+            preload="none"
+            autoPlay={isDesktopViewport}
             loop
             muted
             playsInline

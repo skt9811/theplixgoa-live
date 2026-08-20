@@ -49,7 +49,7 @@ import chico15 from "@/assets/chico15.PNG";
 import chico16 from "@/assets/chico16.PNG";
 import chico17 from "@/assets/chico17.PNG";
 
-// Casa Moana images (asset files named 3bhk*)
+// Casa Moana (4 BHK) images — asset files are named 3bhk* despite belonging to Casa Moana
 import bhk3 from "@/assets/3bhk.png";
 import bhk3_1 from "@/assets/3bhk1.png";
 import bhk3_2 from "@/assets/3bhk2.png";
@@ -63,7 +63,7 @@ import bhk3_9 from "@/assets/3bhk9.png";
 import bhk3_10 from "@/assets/3bhk10.png";
 import bhk3_11 from "@/assets/3bhk11.png";
 
-// Casa Marina images (asset files named 4bhk*)
+// Casa Marina (3 BHK) images — asset files are named 4bhk* despite belonging to Casa Marina
 import bhk4 from "@/assets/4bhk.png";
 import bhk4_1 from "@/assets/4bhk1.png";
 import bhk4_2 from "@/assets/4bhk2.png";
@@ -142,7 +142,7 @@ export const imageMap: Record<string, string> = {
   chico15,
   chico16,
   chico17,
-  // Casa Moana images (asset files named 3bhk*)
+  // Casa Moana (4 BHK) images — asset files are named 3bhk* despite belonging to Casa Moana
   "3bhk": bhk3,
   "3bhk1": bhk3_1,
   "3bhk2": bhk3_2,
@@ -155,7 +155,7 @@ export const imageMap: Record<string, string> = {
   "3bhk9": bhk3_9,
   "3bhk10": bhk3_10,
   "3bhk11": bhk3_11,
-  // Casa Marina images (asset files named 4bhk*)
+  // Casa Marina (3 BHK) images — asset files are named 4bhk* despite belonging to Casa Marina
   "4bhk": bhk4,
   "4bhk1": bhk4_1,
   "4bhk2": bhk4_2,

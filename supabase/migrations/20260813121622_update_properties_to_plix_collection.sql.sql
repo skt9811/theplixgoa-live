@@ -6,8 +6,8 @@
   by setting `is_active = false` so existing reservation/review references
   are preserved (no destructive DELETE).
 - Upsert six new properties by slug:
-  - casa-marina (Vagator, 4 beds, 12000)
-  - casa-moana (Vagator, 3 beds, 9500)
+  - casa-marina (Vagator, 3 beds, 9500)
+  - casa-moana (Anjuna, 4 beds, 12000)
   - casa-meadows (Anjuna, 5 beds, 15000)
   - harbor-court (Vagator, 10 beds boutique resort, 4500) — note: this
     reuses the existing `harbor-court` slug but with new Vagator details;
@@ -55,16 +55,16 @@ WHERE slug = 'harbor-court';
 -- Insert the remaining five new properties (idempotent on slug via ON CONFLICT).
 INSERT INTO public.properties (slug, name, location, region, tagline, description, bedrooms, bathrooms, max_guests, base_price, distance_to_beach, image_keys, amenity_tags, nearby, latitude, longitude)
 VALUES
-('casa-marina','Casa Marina','Vagator','North Goa','VAGATOR, NORTH GOA • 4 BEDS',
+('casa-marina','Casa Marina','Vagator','North Goa','VAGATOR, NORTH GOA • 3 BEDS',
  'Experience a majestic layout with panoramic private pool views and premium luxury amenities at our premier Private Villas in Vagator Goa.',
- 4,4,8,12000,'5 mins drive to Vagator Beach',
+ 3,3,6,9500,'5 mins drive to Vagator Beach',
  ARRAY['northgoa','harbor-1','harbor-2','hero-goa'],
  ARRAY['Private Pool','Panoramic Views','Luxury Amenities','Free WiFi'],
  '[{"name":"Vagator Beach","distance":"5 mins drive"},{"name":"Chapora Fort","distance":"10 mins drive"},{"name":"Anjuna Flea Market","distance":"15 mins drive"},{"name":"Mapusa Market","distance":"20 mins drive"},{"name":"Goa International Airport (Mopa)","distance":"35 mins drive"}]'::jsonb,
  15.6012,73.7380),
-('casa-moana','Casa Moana','Vagator','North Goa','VAGATOR, NORTH GOA • 3 BEDS',
+('casa-moana','Casa Moana','Anjuna','North Goa','ANJUNA, NORTH GOA • 4 BEDS',
  'Immerse yourself in high-end vacation rentals featuring bespoke interior design at these luxury Private Villas in Vagator Goa.',
- 3,3,6,9500,'6 mins drive to Vagator Beach',
+ 4,4,8,12000,'6 mins drive to Vagator Beach',
  ARRAY['harbor-2','morjim-1','northgoa','harbor-1'],
  ARRAY['Bespoke Interiors','Private Pool','AC','Power Backup'],
  '[{"name":"Vagator Beach","distance":"6 mins drive"},{"name":"Chapora Fort","distance":"10 mins drive"},{"name":"Ozran Beach","distance":"12 mins drive"},{"name":"Anjuna Flea Market","distance":"15 mins drive"},{"name":"Goa International Airport (Mopa)","distance":"35 mins drive"}]'::jsonb,

@@ -23,8 +23,10 @@ export function PropertyCard({ property }: { property: Property }) {
   const go = (dir: number) => setIndex((i) => (i + dir + images.length) % images.length);
 
   const loadRate = useCallback(() => {
-    void fetchTodayRate(property.id, property.base_price).then(setTodayRate);
-  }, [property.id, property.base_price]);
+    // property_rates keys on the slug, matching how the admin panel writes
+    // property_id — not property.id.
+    void fetchTodayRate(property.slug, property.base_price).then(setTodayRate);
+  }, [property.slug, property.base_price]);
 
   useEffect(() => {
     loadRate();

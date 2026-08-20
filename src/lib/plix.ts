@@ -251,7 +251,12 @@ export function quote(basePrice: number, nights: number) {
 export function todayISO(offsetDays = 0): string {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
+  // Local calendar parts, not UTC — toISOString() can land on the wrong
+  // calendar day for users whose local date differs from UTC's.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export const LOCATIONS = ["Vagator", "Anjuna", "Assagao", "Morjim", "Candolim", "North Goa"] as const;

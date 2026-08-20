@@ -326,13 +326,31 @@ export function maxRoomsForProperty(propertyId: string): number {
   return 1;
 }
 
+// Formats a Date using its local calendar parts (not UTC) so the string
+// matches what the user actually sees/picked, regardless of timezone offset.
+function toLocalISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Parses a "YYYY-MM-DD" string as local midnight. `new Date(str)` parses
+// date-only strings as UTC midnight, which — mixed with local-time day
+// arithmetic — can drift the calendar date by one day depending on the
+// user's timezone. Parsing and formatting must both stay in local time.
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y!, m! - 1, d!);
+}
+
 export function eachNight(checkIn: string, checkOut: string): string[] {
   const nights: string[] = [];
-  const start = new Date(checkIn);
-  const end = new Date(checkOut);
+  const start = parseLocalDate(checkIn);
+  const end = parseLocalDate(checkOut);
   const cursor = new Date(start);
   while (cursor < end) {
-    nights.push(cursor.toISOString().slice(0, 10));
+    nights.push(toLocalISODate(cursor));
     cursor.setDate(cursor.getDate() + 1);
   }
   return nights;
@@ -358,7 +376,7 @@ export function quoteFromRates(nightlyRates: number[], taxRate: number) {
 }
 
 export async function fetchTodayRate(propertyId: string, basePrice: number): Promise<number> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toLocalISODate(new Date());
   const overrides = await fetchRateOverrides(propertyId, today, today);
   return overrides[today] ?? basePrice;
 }

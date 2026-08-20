@@ -207,8 +207,10 @@ function PropertyDetail() {
     if (nightsListInner.length === 0) return;
     const startDate = nightsListInner[0];
     const endDate = nightsListInner[nightsListInner.length - 1];
-    void fetchRateOverrides(property.id, startDate, endDate).then(setRateOverrides);
-    void fetchBlockedDates(property.id, startDate, endDate).then(setBlockedDates);
+    // property_rates/blocked_dates key on the slug (e.g. "harbor-court"),
+    // matching how the admin panel writes property_id — not property.id.
+    void fetchRateOverrides(property.slug, startDate, endDate).then(setRateOverrides);
+    void fetchBlockedDates(property.slug, startDate, endDate).then(setBlockedDates);
   }, [property, checkIn, checkOut, nights]);
 
   useEffect(() => {
@@ -396,7 +398,7 @@ function PropertyDetail() {
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
             <div className="flex items-end gap-1">
               <span className="text-3xl font-semibold text-navy">
-                {formatINR(rateOverrides[nightsList[0] ?? ""] ?? property.base_price)}
+                {formatINR(rateOverrides[checkIn] ?? property.base_price)}
               </span>
               <span className="pb-1 text-sm text-muted-foreground">/ night</span>
             </div>

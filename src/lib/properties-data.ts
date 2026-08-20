@@ -60,6 +60,10 @@ export async function fetchPropertiesWithOverrides(): Promise<Property[]> {
       return PROPERTIES.map((p) => ({
         ...p,
         ...(merged[p.slug] ?? {}),
+        // The DB row's own uuid `id` column must never replace the app's
+        // canonical slug-based id — other code (rate lookups, multi-room
+        // checks, review filters) keys off property.id expecting the slug.
+        id: p.id,
       })) as Property[];
     }
   } catch {

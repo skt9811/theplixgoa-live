@@ -39,13 +39,52 @@ function hasValidImageKeys(keys: unknown): keys is string[] {
   );
 }
 
+// Hard-pinned metadata for casa-marina/casa-moana, applied after every merge
+// regardless of what Supabase or localStorage returns. The seed migration
+// wrote these two rows with their name/BHK/location/price swapped; until
+// supabase/migrations/20260820140000_fix_casa_marina_moana_swap.sql is
+// applied to the live database, a stale DB row would otherwise keep
+// overriding the corrected static data in plix.ts.
+// NOTE: because this runs unconditionally, admin edits to these specific
+// fields for these two properties (via the properties manager UI) will not
+// take visible effect until the migration is applied and this pin removed.
+// image_keys is intentionally not pinned here — hasValidImageKeys() already
+// rejects this migration's generic placeholder keys for these two rows.
+const CANONICAL_PROPERTY_OVERRIDES: Record<string, Partial<Property>> = {
+  "casa-marina": {
+    name: "Casa Marina",
+    location: "Vagator",
+    tagline: "VAGATOR, NORTH GOA • 3 BHK BOUTIQUE POOL VILLA",
+    bedrooms: 3,
+    bathrooms: 3,
+    max_guests: 6,
+    base_price: 9500,
+  },
+  "casa-moana": {
+    name: "Casa Moana",
+    location: "Anjuna",
+    tagline: "ANJUNA / VAGATOR, NORTH GOA • 4 BHK PRIVATE POOL VILLA",
+    bedrooms: 4,
+    bathrooms: 4,
+    max_guests: 8,
+    base_price: 12000,
+  },
+};
+
+function applyCanonicalOverrides(properties: Property[]): Property[] {
+  return properties.map((p) => {
+    const pin = CANONICAL_PROPERTY_OVERRIDES[p.slug] ?? CANONICAL_PROPERTY_OVERRIDES[p.id];
+    return pin ? { ...p, ...pin } : p;
+  });
+}
+
 const LS_KEY = "plix_properties_data";
 
 // Bumping this key name forces a one-time wipe of cached overrides in every
 // browser — used when static data (plix.ts) changes in a way that makes
 // old cached overrides wrong (e.g. the casa-marina/casa-moana metadata
 // swap). Change the suffix (v2 -> v3, etc.) to force another purge later.
-const CACHE_VERSION_KEY = "plix_cache_v2";
+const CACHE_VERSION_KEY = "plix_cache_v3";
 
 function readLocalOverrides(): Record<string, PropertyOverride> {
   if (typeof localStorage === "undefined") return {};
@@ -99,34 +138,38 @@ export async function fetchPropertiesWithOverrides(): Promise<Property[]> {
       // override rows that actually exist in Supabase (mirrors rates.ts).
       const merged = { ...overrides, ...dbMap };
       writeLocalOverrides(merged);
-      return PROPERTIES.map((p) => {
-        const override: Partial<PropertyOverride> = merged[p.slug] ?? {};
-        return {
-          ...p,
-          ...override,
-          // The DB row's own uuid `id` column must never replace the app's
-          // canonical slug-based id — other code (rate lookups, multi-room
-          // checks, review filters) keys off property.id expecting the slug.
-          id: p.id,
-          // Discard stale/generic placeholder image_keys — plix.ts's real
-          // per-property gallery stays authoritative over them.
-          image_keys: hasValidImageKeys(override.image_keys) ? override.image_keys : p.image_keys,
-        };
-      }) as Property[];
+      return applyCanonicalOverrides(
+        PROPERTIES.map((p) => {
+          const override: Partial<PropertyOverride> = merged[p.slug] ?? {};
+          return {
+            ...p,
+            ...override,
+            // The DB row's own uuid `id` column must never replace the app's
+            // canonical slug-based id — other code (rate lookups, multi-room
+            // checks, review filters) keys off property.id expecting the slug.
+            id: p.id,
+            // Discard stale/generic placeholder image_keys — plix.ts's real
+            // per-property gallery stays authoritative over them.
+            image_keys: hasValidImageKeys(override.image_keys) ? override.image_keys : p.image_keys,
+          };
+        }) as Property[],
+      );
     }
   } catch {
     // network error — fall through
   }
 
   // Fallback: static PROPERTIES with localStorage overrides
-  return PROPERTIES.map((p) => {
-    const override: Partial<PropertyOverride> = overrides[p.slug] ?? {};
-    return {
-      ...p,
-      ...override,
-      image_keys: hasValidImageKeys(override.image_keys) ? override.image_keys : p.image_keys,
-    };
-  }) as Property[];
+  return applyCanonicalOverrides(
+    PROPERTIES.map((p) => {
+      const override: Partial<PropertyOverride> = overrides[p.slug] ?? {};
+      return {
+        ...p,
+        ...override,
+        image_keys: hasValidImageKeys(override.image_keys) ? override.image_keys : p.image_keys,
+      };
+    }) as Property[],
+  );
 }
 
 export async function fetchPropertyBySlugWithOverride(

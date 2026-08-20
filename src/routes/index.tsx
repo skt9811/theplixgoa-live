@@ -10,7 +10,6 @@ import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 import {
   DEFAULT_LOCATION_GRIDS,
   fetchActiveLocationGrids,
-  resolveLocationImage,
   type LocationGrid,
 } from "@/lib/locations-data";
 import {
@@ -132,6 +131,158 @@ const faqs = [
   },
 ];
 
+type IllustrationProps = { className?: string };
+
+function VagatorIllustration({ className }: IllustrationProps) {
+  return (
+    <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg">
+      <circle cx="86" cy="30" r="13" fill="#D4AF37" fillOpacity="0.85" />
+      <path
+        d="M6 94 L20 58 L30 72 L42 36 L54 64 L64 48 L70 94 Z"
+        fill="none"
+        stroke="#C4A77D"
+        strokeWidth="2.2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      <path
+        d="M2 98 Q12 92 22 98 T42 98 T62 98 T82 98 T102 98 T122 98"
+        fill="none"
+        stroke="#C4A77D"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M2 106 Q12 100 22 106 T42 106 T62 106 T82 106 T102 106 T122 106"
+        fill="none"
+        stroke="#C4A77D"
+        strokeWidth="2"
+        strokeLinecap="round"
+        opacity="0.5"
+      />
+    </svg>
+  );
+}
+
+function AnjunaIllustration({ className }: IllustrationProps) {
+  return (
+    <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg">
+      <path d="M66 100 C64 82 68 66 70 52" fill="none" stroke="#C4A77D" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M70 52 C56 46 46 50 36 60" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
+      <path d="M70 52 C60 40 62 30 76 24" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
+      <path d="M70 52 C82 42 96 42 104 52" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
+      <path d="M70 52 C82 48 92 34 88 20" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
+      <path d="M70 52 C58 44 48 30 52 18" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
+      <path d="M12 92 L18 70 L34 66" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M34 66 L36 92" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
+      <path d="M10 92 L38 92" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
+      <path d="M14 92 L12 100 M34 92 L36 100" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M2 106 Q12 100 22 106 T42 106 T62 106 T82 106 T102 106 T122 106"
+        fill="none"
+        stroke="#C4A77D"
+        strokeWidth="2"
+        strokeLinecap="round"
+        opacity="0.6"
+      />
+    </svg>
+  );
+}
+
+function MorjimIllustration({ className }: IllustrationProps) {
+  return (
+    <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M28 92 Q28 54 60 54 Q92 54 92 92 Z"
+        fill="none"
+        stroke="#C4A77D"
+        strokeWidth="2.4"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M60 54 L60 92 M40 58 Q46 76 44 92 M80 58 Q74 76 76 92 M32 78 Q60 68 88 78"
+        fill="none"
+        stroke="#C4A77D"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <circle cx="22" cy="86" r="4" fill="none" stroke="#C4A77D" strokeWidth="1.8" />
+      <path d="M30 96 Q24 100 18 98 M90 96 Q96 100 102 98" fill="none" stroke="#C4A77D" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M98 92 Q96 82 100 74 M104 92 Q102 84 106 78" fill="none" stroke="#C4A77D" strokeWidth="1.6" strokeLinecap="round" />
+      <path
+        d="M2 106 Q12 100 22 106 T42 106 T62 106 T82 106 T102 106 T122 106"
+        fill="none"
+        stroke="#C4A77D"
+        strokeWidth="2"
+        strokeLinecap="round"
+        opacity="0.6"
+      />
+    </svg>
+  );
+}
+
+function CandolimIllustration({ className }: IllustrationProps) {
+  return (
+    <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M30 96 L30 44 Q60 16 90 44 L90 96"
+        fill="none"
+        stroke="#C4A77D"
+        strokeWidth="2.4"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      <path d="M40 96 L40 48 Q60 28 80 48 L80 96" fill="none" stroke="#C4A77D" strokeWidth="1.6" />
+      <path d="M60 30 L60 44 M52 34 L56 44 M68 34 L64 44" fill="none" stroke="#C4A77D" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M18 96 L102 96 M14 102 L106 102" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
+      <path d="M60 6 L60 14 M56 10 L64 10" fill="none" stroke="#C4A77D" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function AssagaoIllustration({ className }: IllustrationProps) {
+  return (
+    <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg">
+      <path d="M60 56 Q50 32 60 10 Q70 32 60 56 Z" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M60 56 Q36 44 18 48 Q38 58 60 56 Z" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M60 56 Q84 44 102 48 Q82 58 60 56 Z" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinejoin="round" />
+      <path
+        d="M60 56 Q46 34 30 26 Q42 48 60 56 Z"
+        fill="none"
+        stroke="#C4A77D"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+        opacity="0.85"
+      />
+      <path
+        d="M60 56 Q74 34 90 26 Q78 48 60 56 Z"
+        fill="none"
+        stroke="#C4A77D"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+        opacity="0.85"
+      />
+      <path
+        d="M10 100 Q30 90 40 98 Q55 106 70 96 Q90 88 110 98"
+        fill="none"
+        stroke="#C4A77D"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle cx="40" cy="98" r="2.2" fill="#D4AF37" />
+      <circle cx="70" cy="96" r="2.2" fill="#D4AF37" />
+    </svg>
+  );
+}
+
+const DESTINATION_ILLUSTRATIONS = {
+  vagator: VagatorIllustration,
+  anjuna: AnjunaIllustration,
+  morjim: MorjimIllustration,
+  candolim: CandolimIllustration,
+  assagao: AssagaoIllustration,
+};
+
 function Home() {
   const { data: properties } = useSuspenseQuery(propertiesQuery);
   const { data: reviews } = useSuspenseQuery(reviewsQuery);
@@ -165,7 +316,6 @@ function Home() {
   const dynamicLocations = locationSource.map((l) => ({
     name: l.title,
     query: l.title,
-    image: resolveLocationImage(l.title, l.image_url, (l as LocationGrid & { image?: string }).image),
     blurb: l.description || "",
   }));
 
@@ -255,33 +405,26 @@ function Home() {
           title="Explore our locations"
           sub="Five distinct pockets of North Goa, one uncompromising standard of hospitality."
         />
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {dynamicLocations.map((l) => (
-            <Link
-              key={l.name}
-              to="/stays"
-              search={{ location: l.query }}
-              className="group relative isolate overflow-hidden rounded-2xl shadow-card"
-            >
-              <img
-                src={l.image}
-                alt={`Luxury villas and boutique stays in ${l.name}, North Goa — ${l.blurb}`}
-                loading="lazy"
-                width={1200}
-                height={800}
-                className="aspect-[4/3] size-full object-cover transition-transform duration-700 group-hover:scale-110"
-                onError={(e) => {
-                  const img = e.currentTarget;
-                  if (img.src !== chicoHeroImage) img.src = chicoHeroImage;
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-navy/85 via-navy/25 to-transparent" />
-              <div className="absolute bottom-0 p-5">
-                <h3 className="text-xl font-semibold text-navy-foreground">{l.name}</h3>
-                <p className="mt-1 text-sm text-navy-foreground/80">{l.blurb}</p>
-              </div>
-            </Link>
-          ))}
+        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {dynamicLocations.map((l) => {
+            const Illustration =
+              DESTINATION_ILLUSTRATIONS[l.name.trim().toLowerCase() as keyof typeof DESTINATION_ILLUSTRATIONS] ??
+              AnjunaIllustration;
+            return (
+              <Link
+                key={l.name}
+                to="/stays"
+                search={{ location: l.query }}
+                className="flex flex-col items-center justify-center rounded-3xl border border-amber-100/50 bg-white p-8 text-center shadow-[0_20px_50px_rgba(0,0,0,0.06)] transition-transform duration-300 hover:-translate-y-1"
+              >
+                <Illustration className="mx-auto mb-6 h-28 w-28" />
+                <h3 className="mb-2 font-display text-2xl font-medium text-slate-900">{l.name}</h3>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#B38B4D]">
+                  {l.blurb}
+                </p>
+              </Link>
+            );
+          })}
         </div>
         <div className="mt-8 text-center">
           <Link

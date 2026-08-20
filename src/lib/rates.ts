@@ -383,6 +383,26 @@ export function quoteFromRates(nightlyRates: number[], bedrooms: number) {
   return { subtotal, taxes, total: subtotal + taxes, rate };
 }
 
+// A coupon discounts the room-rate subtotal before GST is applied — the GST
+// slab itself (5%/18%) still follows each night's undiscounted declared
+// rate (see gstRateForRoomRate), only the taxable amount shrinks. Shared by
+// the checkout UI and the actual Razorpay order creation so the total shown
+// to the guest always matches the amount charged.
+export function quoteWithDiscount(nightlyRates: number[], bedrooms: number, discountAmount: number) {
+  const { subtotal, rate } = quoteFromRates(nightlyRates, bedrooms);
+  const clampedDiscount = Math.min(Math.max(discountAmount, 0), subtotal);
+  const discountedSubtotal = subtotal - clampedDiscount;
+  const taxes = discountedSubtotal * rate;
+  return {
+    subtotal,
+    discountAmount: clampedDiscount,
+    discountedSubtotal,
+    taxes,
+    total: discountedSubtotal + taxes,
+    rate,
+  };
+}
+
 export async function fetchTodayRate(propertyId: string, basePrice: number): Promise<number> {
   const today = toLocalISODate(new Date());
   const overrides = await fetchRateOverrides(propertyId, today, today);

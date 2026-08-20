@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { PROPERTIES, type Property } from "@/lib/plix";
-import { quoteFromRates } from "@/lib/rates";
+import { quoteWithDiscount } from "@/lib/rates";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
@@ -20,6 +20,8 @@ export type BookingRecord = {
   rooms?: number;
   nightly_rates?: number[];
   subtotal: number;
+  coupon_code?: string | null;
+  discount_amount?: number;
   taxes: number;
   total_amount: number;
   razorpay_order_id?: string | null;
@@ -40,6 +42,8 @@ export type CreateOrderInput = {
   nights: number;
   rooms?: number;
   nightlyRates?: number[];
+  couponCode?: string;
+  discountAmount?: number;
 };
 
 export type CreateOrderResponse = {
@@ -87,6 +91,12 @@ export async function insertBooking(
       guests: record.guests,
       nights: record.nights,
       subtotal: record.subtotal,
+      // coupon_code / discount_amount intentionally omitted here — the
+      // `bookings` table doesn't have these columns until
+      // supabase/migrations/20260820150000_add_coupon_fields_to_bookings.sql
+      // is applied. Including them in every insert would make ALL booking
+      // writes fail (unrecognized column), not just discounted ones. Add
+      // them back to this payload once that migration has been run.
       taxes: record.taxes,
       total_amount: record.total_amount,
       razorpay_order_id: record.razorpay_order_id ?? null,
@@ -134,11 +144,15 @@ export async function updateBookingPayment(
 export async function createRazorpayOrder(
   input: CreateOrderInput,
 ): Promise<CreateOrderResponse> {
-  const { property, nights, guestName, guestEmail, guestMobile, checkIn, checkOut, guests, rooms = 1, nightlyRates } = input;
+  const { property, nights, guestName, guestEmail, guestMobile, checkIn, checkOut, guests, rooms = 1, nightlyRates, couponCode, discountAmount = 0 } = input;
   const effectiveNightlyRates = nightlyRates && nightlyRates.length > 0
     ? nightlyRates
     : Array.from({ length: nights }, () => property.base_price);
-  const { subtotal, taxes, total } = quoteFromRates(effectiveNightlyRates, property.bedrooms);
+  const { subtotal, discountAmount: appliedDiscount, taxes, total } = quoteWithDiscount(
+    effectiveNightlyRates,
+    property.bedrooms,
+    discountAmount,
+  );
   const amountInPaise = Math.round(total * 100);
 
   const bookingRecord: BookingRecord = {
@@ -155,6 +169,8 @@ export async function createRazorpayOrder(
     rooms,
     nightly_rates: nightlyRates,
     subtotal,
+    coupon_code: couponCode ?? null,
+    discount_amount: appliedDiscount,
     taxes,
     total_amount: total,
     payment_status: "pending",

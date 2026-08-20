@@ -1,15 +1,18 @@
 import { useNavigate } from "@tanstack/react-router";
-import { CircleCheck as CheckCircle2, Loader as Loader2, ShieldCheck, X } from "lucide-react";
-import { useState } from "react";
+import { CircleCheck as CheckCircle2, Loader as Loader2, ShieldCheck, Tag, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { AuthModal } from "@/components/plix/auth-modal";
 import {
   createRazorpayOrder,
   openRazorpayCheckout,
   updateBookingPayment,
   type CreateOrderResponse,
 } from "@/lib/booking";
+import { validateCoupon, type CouponValidationResult } from "@/lib/coupons";
+import { getGuestUser, onGuestAuthChange, type GuestUser } from "@/lib/guest-auth";
 import { formatINR, gstLabel, type Property } from "@/lib/plix";
-import { quoteFromRates } from "@/lib/rates";
+import { quoteWithDiscount } from "@/lib/rates";
 
 type Props = {
   property: Property;
@@ -40,23 +43,64 @@ export function CheckoutModal({
     nightlyRates && nightlyRates.length > 0
       ? nightlyRates
       : Array.from({ length: nights }, () => property.base_price);
+
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResult | null>(null);
+  const couponDiscount = appliedCoupon?.valid ? appliedCoupon.discountAmount : 0;
+
   const {
     subtotal: computedSubtotal,
+    discountAmount,
     taxes: computedTaxes,
     total,
     rate: gstRate,
-  } = quoteFromRates(effectiveNightlyRates, property.bedrooms);
+  } = quoteWithDiscount(effectiveNightlyRates, property.bedrooms, couponDiscount);
 
   const [form, setForm] = useState({ name: "", email: "", mobile: "" });
   const [status, setStatus] = useState<Status>("idle");
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [simulation, setSimulation] = useState(false);
+  const [guestUser, setGuestUser] = useState<GuestUser | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
+
+  useEffect(() => {
+    setGuestUser(getGuestUser());
+    return onGuestAuthChange(() => setGuestUser(getGuestUser()));
+  }, []);
+
+  useEffect(() => {
+    if (guestUser && !form.mobile) {
+      setForm((f) => ({ ...f, mobile: guestUser.phone }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guestUser]);
+
+  function handleApplyCoupon() {
+    const result = validateCoupon(couponInput, computedSubtotal);
+    setAppliedCoupon(result);
+    if (result.valid) {
+      toast.success(`Coupon ${result.coupon.code} applied — you saved ${formatINR(result.discountAmount)}.`);
+    } else {
+      toast.error(result.error);
+    }
+  }
+
+  function handleRemoveCoupon() {
+    setAppliedCoupon(null);
+    setCouponInput("");
+  }
 
   const input =
     "mt-1 w-full rounded-xl border border-input bg-background px-3.5 py-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40 min-h-[44px]";
 
   async function handlePay(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!guestUser) {
+      setAuthOpen(true);
+      return;
+    }
+
     setStatus("creating_order");
 
     let order: CreateOrderResponse;
@@ -72,6 +116,8 @@ export function CheckoutModal({
         nights,
         rooms,
         nightlyRates,
+        couponCode: appliedCoupon?.valid ? appliedCoupon.coupon.code : undefined,
+        discountAmount: appliedCoupon?.valid ? appliedCoupon.discountAmount : undefined,
       });
       setBookingId(order.booking_id);
       setSimulation(order.simulation);
@@ -156,6 +202,7 @@ export function CheckoutModal({
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-navy/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
       <div className="animate-rise max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-card p-6 shadow-lift sm:rounded-3xl">
         <div className="flex items-start justify-between">
@@ -223,6 +270,55 @@ export function CheckoutModal({
                   label={`${formatINR(property.base_price)} × ${nights} night${nights === 1 ? "" : "s"}`}
                   value={formatINR(computedSubtotal)}
                 />
+              )}
+              <div className="mt-2 border-t border-border pt-3">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <Tag className="size-3.5 text-primary" aria-hidden />
+                  Have a coupon code?
+                </p>
+                <div className="mt-1.5 flex gap-2">
+                  <input
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleApplyCoupon();
+                      }
+                    }}
+                    disabled={Boolean(appliedCoupon?.valid) || status === "creating_order"}
+                    placeholder="Enter code"
+                    className="min-h-[38px] w-full rounded-lg border border-input bg-background px-3 py-2 text-xs uppercase tracking-wide outline-none transition-shadow focus:ring-2 focus:ring-ring/40 disabled:opacity-60"
+                  />
+                  {appliedCoupon?.valid ? (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      disabled={status === "creating_order"}
+                      className="shrink-0 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-accent disabled:opacity-60"
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={!couponInput.trim() || status === "creating_order"}
+                      className="shrink-0 rounded-lg bg-navy px-3 py-2 text-xs font-semibold text-navy-foreground disabled:opacity-60"
+                    >
+                      Apply
+                    </button>
+                  )}
+                </div>
+                {appliedCoupon && !appliedCoupon.valid && (
+                  <p className="mt-1.5 text-xs text-red-600">{appliedCoupon.error}</p>
+                )}
+                {appliedCoupon?.valid && (
+                  <p className="mt-1.5 text-xs text-primary">{appliedCoupon.coupon.description}</p>
+                )}
+              </div>
+              {discountAmount > 0 && appliedCoupon?.valid && (
+                <Row label={`Coupon (${appliedCoupon.coupon.code})`} value={`-${formatINR(discountAmount)}`} />
               )}
               <Row label={gstLabel(gstRate)} value={formatINR(computedTaxes)} />
               <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-semibold text-navy">
@@ -295,6 +391,15 @@ export function CheckoutModal({
         )}
       </div>
     </div>
+    <AuthModal
+      open={authOpen}
+      onClose={() => setAuthOpen(false)}
+      onSuccess={(user) => {
+        setGuestUser(user);
+        setForm((f) => ({ ...f, mobile: f.mobile || user.phone }));
+      }}
+    />
+    </>
   );
 }
 

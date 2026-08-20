@@ -2,7 +2,9 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { MapPin, Menu, Phone, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SearchBar } from "@/components/plix/search-bar";
+import { AuthModal } from "@/components/plix/auth-modal";
 import { PROPERTIES } from "@/lib/plix";
+import { clearGuestUser, getGuestUser, onGuestAuthChange, type GuestUser } from "@/lib/guest-auth";
 
 const links = [
   { to: "/blog", label: "Blog" },
@@ -13,6 +15,8 @@ const links = [
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [guestUser, setGuestUser] = useState<GuestUser | null>(null);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const isHome = pathname === "/";
 
@@ -20,6 +24,11 @@ export function SiteHeader() {
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    setGuestUser(getGuestUser());
+    return onGuestAuthChange(() => setGuestUser(getGuestUser()));
+  }, []);
 
   useEffect(() => {
     if (!isHome) return;
@@ -75,13 +84,27 @@ export function SiteHeader() {
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              to="/contact"
-              className={`flex items-center gap-1.5 transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-navy-foreground/80 hover:text-primary-glow"}`}
-            >
-              <User className="size-3" aria-hidden />
-              My Account
-            </Link>
+            {guestUser ? (
+              <button
+                onClick={() => {
+                  clearGuestUser();
+                  setGuestUser(null);
+                }}
+                className={`flex items-center gap-1.5 transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-navy-foreground/80 hover:text-primary-glow"}`}
+                title="Sign out"
+              >
+                <User className="size-3" aria-hidden />
+                •••• {guestUser.phone.slice(-4)}
+              </button>
+            ) : (
+              <button
+                onClick={() => setAuthOpen(true)}
+                className={`flex items-center gap-1.5 transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-navy-foreground/80 hover:text-primary-glow"}`}
+              >
+                <User className="size-3" aria-hidden />
+                Sign In
+              </button>
+            )}
             <Link
               to="/stays"
               className={`rounded-full px-4 py-1 text-xs font-semibold transition-colors ${
@@ -271,6 +294,8 @@ export function SiteHeader() {
           </div>
         </div>
       )}
+
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </header>
   );
 }

@@ -337,24 +337,40 @@ function PropertyDetail() {
 
           <section className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">Where you'll be staying</h2>
-            <div className="relative mt-4 overflow-hidden rounded-2xl border border-border bg-muted">
-              <div className="flex aspect-[16/9] flex-col items-center justify-center gap-2 bg-[radial-gradient(circle_at_30%_30%,color-mix(in_oklab,var(--primary)_18%,transparent),transparent_60%)] text-center">
-                <MapPin className="size-8 text-primary" aria-hidden />
-                <p className="font-medium text-navy">{property.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {property.latitude?.toFixed(4)}, {property.longitude?.toFixed(4)} ·{" "}
-                  {property.location}, Goa
-                </p>
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${property.latitude},${property.longitude}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-navy-foreground"
-                >
-                  Open in Google Maps
-                </a>
+            {property.google_maps_embed_url ? (
+              <div className="mt-4 h-[380px] w-full overflow-hidden rounded-2xl border border-border shadow-soft">
+                <iframe
+                  src={property.google_maps_embed_url}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  className="size-full"
+                  title={`Map showing the location of ${property.name}`}
+                />
               </div>
-            </div>
+            ) : (
+              <div className="relative mt-4 overflow-hidden rounded-2xl border border-border bg-muted">
+                <div className="flex aspect-[16/9] flex-col items-center justify-center gap-2 bg-[radial-gradient(circle_at_30%_30%,color-mix(in_oklab,var(--primary)_18%,transparent),transparent_60%)] text-center">
+                  <MapPin className="size-8 text-primary" aria-hidden />
+                  <p className="font-medium text-navy">{property.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {property.latitude?.toFixed(4)}, {property.longitude?.toFixed(4)} ·{" "}
+                    {property.location}, Goa
+                  </p>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${property.latitude},${property.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-navy-foreground"
+                  >
+                    Open in Google Maps
+                  </a>
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="mt-10">

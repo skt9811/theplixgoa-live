@@ -41,12 +41,22 @@ function hasValidImageKeys(keys: unknown): keys is string[] {
 
 const LS_KEY = "plix_properties_data";
 
+// casa-marina and casa-moana had their name/BHK metadata swapped in plix.ts
+// for a period; browsers that cached an override for either slug during
+// that window would keep showing the wrong name/bedroom count forever,
+// even after plix.ts was corrected. Ignore any cached entry for these two
+// slugs so the corrected static data is always authoritative for them.
+const QUARANTINED_OVERRIDE_SLUGS = new Set(["casa-marina", "casa-moana"]);
+
 function readLocalOverrides(): Record<string, PropertyOverride> {
   if (typeof localStorage === "undefined") return {};
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Record<string, Partial<PropertyOverride>>;
+    for (const slug of QUARANTINED_OVERRIDE_SLUGS) {
+      delete parsed[slug];
+    }
     // Strip stale/invalid image_keys so plix.ts's real gallery stays
     // authoritative instead of being merged over by placeholder keys.
     for (const entry of Object.values(parsed)) {

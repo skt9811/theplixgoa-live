@@ -120,17 +120,47 @@ export async function signUpWithPassword(email: string, password: string, fullNa
   }
 }
 
+const GOOGLE_MAINTENANCE_MESSAGE = "Google sign-in is undergoing maintenance. Please sign in with Email & Password.";
+
 export async function signInWithGoogle(): Promise<AuthResult> {
   if (!isSupabaseConfigured) {
     return { success: false, error: "Sign-in isn't available right now. Please try again later." };
   }
   try {
-    const { error } = await supabase.auth.signInWithOAuth({
+    // signInWithOAuth() never actually validates the provider server-side
+    // when it drives the redirect itself — it just builds the authorize URL
+    // and navigates there, so a disabled provider only surfaces as a raw
+    // JSON error page after the browser has already left the app (a
+    // try/catch around the call can't see that; the promise resolves fine
+    // right before the navigation happens). skipBrowserRedirect hands us
+    // the URL instead, so we can pre-flight it ourselves and only navigate
+    // once we know it's actually going to redirect to Google.
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: window.location.origin, skipBrowserRedirect: true },
     });
     if (error) throw error;
-    return { success: true };
+    if (!data?.url) throw new Error("Google sign-in failed. Please try again.");
+
+    const preflight = await fetch(data.url, { redirect: "manual" });
+    if (preflight.type === "opaqueredirect" || (preflight.status >= 300 && preflight.status < 400)) {
+      window.location.assign(data.url);
+      return { success: true };
+    }
+
+    let unsupportedProvider = false;
+    try {
+      const body = (await preflight.json()) as { error_code?: string; msg?: string };
+      unsupportedProvider =
+        body.error_code === "validation_failed" || /provider is not enabled/i.test(body.msg ?? "");
+    } catch {
+      // non-JSON response — treat as a generic failure below
+    }
+
+    return {
+      success: false,
+      error: unsupportedProvider ? GOOGLE_MAINTENANCE_MESSAGE : "Google sign-in failed. Please try again.",
+    };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Google sign-in failed. Please try again." };
   }

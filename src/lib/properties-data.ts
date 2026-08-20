@@ -1,5 +1,5 @@
 import { supabase, notifyDataChange } from "@/lib/rates";
-import { PROPERTIES, type Property } from "@/lib/plix";
+import { PROPERTIES, imageMap, type Property } from "@/lib/plix";
 
 type PropertyOverride = {
   id: string;
@@ -16,6 +16,29 @@ type PropertyOverride = {
   is_active: boolean;
 };
 
+// Generic stock photos used as decorative fallbacks elsewhere (location
+// grids, hero banners) — some properties were seeded with these as
+// placeholder image_keys before real gallery photos existed. They must
+// never win over a property's real per-property gallery (HC*, MP*, 3bhk*,
+// 4bhk*, 5bhk*, chico*, plix*).
+const GENERIC_FALLBACK_IMAGE_KEYS = new Set([
+  "hero-goa",
+  "morjim-1",
+  "morjim-2",
+  "harbor-1",
+  "harbor-2",
+  "northgoa",
+]);
+
+function hasValidImageKeys(keys: unknown): keys is string[] {
+  return (
+    Array.isArray(keys) &&
+    keys.length > 0 &&
+    keys.every((key) => typeof key === "string" && Boolean(imageMap[key])) &&
+    keys.some((key) => !GENERIC_FALLBACK_IMAGE_KEYS.has(key))
+  );
+}
+
 const LS_KEY = "plix_properties_data";
 
 function readLocalOverrides(): Record<string, PropertyOverride> {
@@ -23,7 +46,15 @@ function readLocalOverrides(): Record<string, PropertyOverride> {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return {};
-    return JSON.parse(raw) as Record<string, PropertyOverride>;
+    const parsed = JSON.parse(raw) as Record<string, Partial<PropertyOverride>>;
+    // Strip stale/invalid image_keys so plix.ts's real gallery stays
+    // authoritative instead of being merged over by placeholder keys.
+    for (const entry of Object.values(parsed)) {
+      if (!hasValidImageKeys(entry.image_keys)) {
+        delete entry.image_keys;
+      }
+    }
+    return parsed as Record<string, PropertyOverride>;
   } catch {
     return {};
   }
@@ -57,24 +88,34 @@ export async function fetchPropertiesWithOverrides(): Promise<Property[]> {
       // override rows that actually exist in Supabase (mirrors rates.ts).
       const merged = { ...overrides, ...dbMap };
       writeLocalOverrides(merged);
-      return PROPERTIES.map((p) => ({
-        ...p,
-        ...(merged[p.slug] ?? {}),
-        // The DB row's own uuid `id` column must never replace the app's
-        // canonical slug-based id — other code (rate lookups, multi-room
-        // checks, review filters) keys off property.id expecting the slug.
-        id: p.id,
-      })) as Property[];
+      return PROPERTIES.map((p) => {
+        const override: Partial<PropertyOverride> = merged[p.slug] ?? {};
+        return {
+          ...p,
+          ...override,
+          // The DB row's own uuid `id` column must never replace the app's
+          // canonical slug-based id — other code (rate lookups, multi-room
+          // checks, review filters) keys off property.id expecting the slug.
+          id: p.id,
+          // Discard stale/generic placeholder image_keys — plix.ts's real
+          // per-property gallery stays authoritative over them.
+          image_keys: hasValidImageKeys(override.image_keys) ? override.image_keys : p.image_keys,
+        };
+      }) as Property[];
     }
   } catch {
     // network error — fall through
   }
 
   // Fallback: static PROPERTIES with localStorage overrides
-  return PROPERTIES.map((p) => ({
-    ...p,
-    ...(overrides[p.slug] ?? {}),
-  })) as Property[];
+  return PROPERTIES.map((p) => {
+    const override: Partial<PropertyOverride> = overrides[p.slug] ?? {};
+    return {
+      ...p,
+      ...override,
+      image_keys: hasValidImageKeys(override.image_keys) ? override.image_keys : p.image_keys,
+    };
+  }) as Property[];
 }
 
 export async function fetchPropertyBySlugWithOverride(

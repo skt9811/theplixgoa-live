@@ -39,7 +39,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
     : 20;
 
   const fieldClass =
-    "w-full bg-transparent text-xs font-medium text-foreground outline-none placeholder:text-muted-foreground/60 [color-scheme:light]";
+    "w-full bg-transparent text-xs font-medium text-foreground outline-none placeholder:text-muted-foreground [color-scheme:light]";
 
   function handleGuestsChange(value: number) {
     const nextValue = Math.max(1, Math.min(value, effectiveMaxGuests));
@@ -181,7 +181,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
                 <Plus className="size-3" />
               </button>
             </div>
-            <span className="text-xs text-muted-foreground/60">rooms</span>
+            <span className="text-xs text-muted-foreground">rooms</span>
           </div>
           <span className="hidden h-5 w-px bg-gray-200 md:block" />
         </>
@@ -198,7 +198,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
           onChange={(e) => handleGuestsChange(Number(e.target.value))}
           className={`${fieldClass} w-12 text-center`}
         />
-        <span className="text-xs text-muted-foreground/60">guests</span>
+        <span className="text-xs text-muted-foreground">guests</span>
       </label>
 
       <button

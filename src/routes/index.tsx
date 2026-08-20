@@ -291,10 +291,21 @@ function Home() {
 
   const [config, setConfig] = useState<SiteConfig | null>(null);
   const [locations, setLocations] = useState<LocationGrid[]>([]);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   useEffect(() => {
     void fetchSiteConfig().then(setConfig);
     void fetchActiveLocationGrids().then(setLocations);
+  }, []);
+
+  // Drone video is decorative and well below the fold — on mobile, skip
+  // preloading its ~6.7MB payload until the guest actually scrolls to it.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobileViewport(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobileViewport(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
   }, []);
 
   // Listen for admin changes
@@ -329,6 +340,7 @@ function Home() {
           alt="Luxury Goan villa with terracotta architecture, private pool and tropical gardens"
           width={1920}
           height={1088}
+          fetchPriority="high"
           className="absolute inset-0 size-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#2a1810]/75 via-[#2a1810]/55 to-[#1a0e05]/80" />
@@ -420,7 +432,7 @@ function Home() {
               >
                 <Illustration className="mx-auto mb-6 h-28 w-28" />
                 <h3 className="mb-2 font-display text-2xl font-medium text-slate-900">{l.name}</h3>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#B38B4D]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8C6D3F]">
                   {l.blurb}
                 </p>
               </Link>
@@ -527,6 +539,7 @@ function Home() {
           <video
             className="absolute inset-0 size-full object-cover"
             src="/drone-showcase.mp4"
+            preload={isMobileViewport ? "none" : "metadata"}
             autoPlay
             loop
             muted

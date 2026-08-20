@@ -335,6 +335,35 @@ function Home() {
       </section>
       )}
 
+      <section className="mx-auto max-w-7xl px-4 py-16 md:px-6">
+        <div className="max-w-2xl">
+          <span className="inline-flex items-center rounded-full bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+            Experience the Plix
+          </span>
+          <h2 className="mt-4 text-3xl font-semibold text-navy md:text-4xl">Birds-Eye View of Luxury</h2>
+          <p className="mt-3 text-base text-muted-foreground">
+            Aerial tours of our bespoke villa sanctuaries across North Goa.
+          </p>
+        </div>
+        <div className="relative mt-8 aspect-video w-full overflow-hidden rounded-3xl shadow-card">
+          <video
+            className="absolute inset-0 size-full object-cover"
+            src="/drone-showcase.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+          />
+          <div
+            className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"
+            aria-hidden
+          />
+          <div className="absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-medium uppercase tracking-wide text-white backdrop-blur-sm">
+            Aerial Tour • Plix Properties
+          </div>
+        </div>
+      </section>
+
       {config?.section_reviews_visible !== false && (
       <section className="bg-navy py-16 text-navy-foreground">
         <div className="mx-auto max-w-7xl px-4 md:px-6">

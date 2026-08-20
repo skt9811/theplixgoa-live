@@ -6,6 +6,7 @@ import { AuthModal } from "@/components/plix/auth-modal";
 import {
   createRazorpayOrder,
   openRazorpayCheckout,
+  sendBookingConfirmationEmails,
   updateBookingPayment,
   type CreateOrderResponse,
 } from "@/lib/booking";
@@ -193,6 +194,15 @@ export function CheckoutModal({
         result.razorpay_signature,
       );
     }
+
+    // Guest + host confirmation emails, via the send-booking-confirmation edge
+    // function. Fire-and-log, not fire-and-forget: failures are console-logged
+    // for diagnosis but never block or reverse the already-successful payment.
+    void sendBookingConfirmationEmails(order.booking_id, {
+      razorpay_payment_id: result.razorpay_payment_id,
+      razorpay_signature: result.razorpay_signature,
+      simulation: order.simulation,
+    });
 
     if (paymentConfirmed) {
       if (order.simulation) {

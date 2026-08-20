@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, CalendarDays, FileText, Hop as Home, LayoutGrid, Lock, Loader as Loader2, MapPin, Save, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpenCheck, CalendarDays, FileText, Hop as Home, LayoutGrid, Lock, Loader as Loader2, MapPin, Save, X } from "lucide-react";
 import { PROPERTIES, formatINR, todayISO } from "@/lib/plix";
 import {
   saveRateOverrides,
@@ -15,6 +15,7 @@ import { MinimalBlogPublisher } from "@/components/plix/minimal-blog-publisher";
 import { PropertiesManager } from "@/components/plix/properties-manager";
 import { LocationsManager } from "@/components/plix/locations-manager";
 import { PageContentEditor } from "@/components/plix/page-content-editor";
+import { BookingsManager } from "@/components/plix/bookings-manager";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -112,7 +113,7 @@ type RatesMap = Record<string, number>;
 type BlockedMap = Record<string, boolean>;
 
 function AdminDashboard() {
-  const [tab, setTab] = useState<"rates" | "blogs" | "properties" | "locations" | "content">("rates");
+  const [tab, setTab] = useState<"rates" | "blogs" | "properties" | "locations" | "content" | "bookings">("rates");
   const [selectedPropertyId, setSelectedPropertyId] = useState(PROPERTIES[0].id);
   const [currentMonth, setCurrentMonth] = useState(() => {
     const d = new Date();
@@ -375,6 +376,15 @@ function AdminDashboard() {
         {/* Tabs */}
         <div className="mx-auto flex w-full max-w-2xl gap-1 overflow-x-hidden px-4 pb-2">
           <button
+            onClick={() => setTab("bookings")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+              tab === "bookings" ? "bg-white/15 text-white" : "text-white/50 hover:text-white/80"
+            }`}
+          >
+            <BookOpenCheck className="size-4" />
+            Bookings
+          </button>
+          <button
             onClick={() => setTab("rates")}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
               tab === "rates" ? "bg-white/15 text-white" : "text-white/50 hover:text-white/80"
@@ -423,7 +433,9 @@ function AdminDashboard() {
       </header>
 
       <main className="mx-auto w-full max-w-2xl overflow-x-hidden px-4 py-5">
-        {tab === "blogs" ? (
+        {tab === "bookings" ? (
+          <BookingsManager />
+        ) : tab === "blogs" ? (
           <MinimalBlogPublisher />
         ) : tab === "properties" ? (
           <PropertiesManager />

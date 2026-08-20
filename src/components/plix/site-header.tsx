@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { MapPin, Menu, Phone, User, X } from "lucide-react";
+import { LogOut, MapPin, Menu, Phone, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SearchBar } from "@/components/plix/search-bar";
 import { AuthModal } from "@/components/plix/auth-modal";
@@ -85,17 +85,26 @@ export function SiteHeader() {
           </div>
           <div className="flex items-center gap-3">
             {guestUser ? (
-              <button
-                onClick={() => {
-                  void signOutGuest();
-                  setGuestUser(null);
-                }}
-                className={`flex items-center gap-1.5 transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-navy-foreground/80 hover:text-primary-glow"}`}
-                title="Sign out"
-              >
-                <User className="size-3" aria-hidden />
-                {guestUser.fullName?.split(" ")[0] ?? guestUser.email}
-              </button>
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/account"
+                  className={`flex items-center gap-1.5 transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-navy-foreground/80 hover:text-primary-glow"}`}
+                  title="My account"
+                >
+                  <User className="size-3" aria-hidden />
+                  {guestUser.fullName?.split(" ")[0] ?? guestUser.email}
+                </Link>
+                <button
+                  onClick={() => {
+                    void signOutGuest();
+                    setGuestUser(null);
+                  }}
+                  className={`flex items-center gap-1 transition-colors ${isHome ? "text-white/60 hover:text-white" : "text-navy-foreground/60 hover:text-primary-glow"}`}
+                  title="Sign out"
+                >
+                  <LogOut className="size-3" aria-hidden />
+                </button>
+              </div>
             ) : (
               <button
                 onClick={() => setAuthOpen(true)}

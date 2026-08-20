@@ -142,7 +142,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "/icon-192.png",
       },
       { rel: "preconnect", href: "https://checkout.razorpay.com" },
-      { rel: "preconnect", href: "https://www.googletagmanager.com" },
     ],
     scripts: [
       { type: "application/ld+json", children: jsonLdScript(websiteJsonLd()) },

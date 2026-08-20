@@ -141,6 +141,99 @@ export async function updateBookingPayment(
   return true;
 }
 
+export type BookingRow = BookingRecord & {
+  id: string;
+  created_at: string;
+};
+
+/** Direct bookings with a check-in today or later, soonest first — for the admin dashboard. */
+export async function fetchUpcomingBookings(): Promise<BookingRow[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("*")
+    .gte("check_in", todayStr)
+    .order("check_in", { ascending: true });
+
+  if (error) {
+    console.error("[fetchUpcomingBookings]:", error.message);
+    return [];
+  }
+  return (data ?? []) as BookingRow[];
+}
+
+/** A signed-in guest's own bookings, most recent check-in first — for the account page. */
+export async function fetchBookingsForGuest(email: string): Promise<BookingRow[]> {
+  const supabase = getSupabase();
+  if (!supabase || !email) return [];
+
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("*")
+    .eq("guest_email", email)
+    .order("check_in", { ascending: false });
+
+  if (error) {
+    console.error("[fetchBookingsForGuest]:", error.message);
+    return [];
+  }
+  return (data ?? []) as BookingRow[];
+}
+
+export type SendConfirmationResult = {
+  ok: boolean;
+  emailsFailed: string[];
+  error: string | null;
+};
+
+// Triggers the guest + host confirmation emails via the send-booking-confirmation
+// edge function. Payment already succeeded and the booking row is already updated
+// by this point — an email failure here must never block or roll back that, so
+// every failure path just reports back for the caller to surface, not throw.
+export async function sendBookingConfirmationEmails(
+  bookingId: string,
+  payment: { razorpay_payment_id?: string; razorpay_signature?: string; simulation?: boolean },
+): Promise<SendConfirmationResult> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return { ok: false, emailsFailed: [], error: "Supabase not configured" };
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke("send-booking-confirmation", {
+      body: {
+        booking_id: bookingId,
+        razorpay_payment_id: payment.razorpay_payment_id,
+        razorpay_signature: payment.razorpay_signature,
+        simulation: payment.simulation ?? false,
+      },
+    });
+
+    if (error) {
+      console.error("[send-booking-confirmation] invoke error:", error.message);
+      return { ok: false, emailsFailed: [], error: error.message };
+    }
+    if (data?.error) {
+      console.error("[send-booking-confirmation] function error:", data.error);
+      return { ok: false, emailsFailed: [], error: data.error };
+    }
+    const emailsFailed: string[] = data?.emails_failed ?? [];
+    if (emailsFailed.length > 0) {
+      console.error("[send-booking-confirmation] emails failed to send:", emailsFailed);
+    }
+    return { ok: emailsFailed.length === 0, emailsFailed, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[send-booking-confirmation] unexpected error:", message);
+    return { ok: false, emailsFailed: [], error: message };
+  }
+}
+
 export async function createRazorpayOrder(
   input: CreateOrderInput,
 ): Promise<CreateOrderResponse> {

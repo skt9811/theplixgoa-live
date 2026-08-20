@@ -9,7 +9,7 @@ import {
   updateBookingPayment,
   type CreateOrderResponse,
 } from "@/lib/booking";
-import { validateCoupon, type CouponValidationResult } from "@/lib/coupons";
+import { redeemCoupon, validateCoupon, type CouponValidationResult } from "@/lib/coupons";
 import { getGuestUser, onGuestAuthChange, type GuestUser } from "@/lib/guest-auth";
 import { formatINR, gstLabel, type Property } from "@/lib/plix";
 import { quoteWithDiscount } from "@/lib/rates";
@@ -22,6 +22,8 @@ type Props = {
   nights: number;
   rooms?: number;
   nightlyRates?: number[];
+  /** A coupon already applied in the property page's booking widget — pre-filled and re-validated on mount. */
+  initialCouponCode?: string;
   onClose: () => void;
 };
 
@@ -35,6 +37,7 @@ export function CheckoutModal({
   nights,
   rooms = 1,
   nightlyRates,
+  initialCouponCode,
   onClose,
 }: Props) {
   const navigate = useNavigate();
@@ -46,6 +49,7 @@ export function CheckoutModal({
 
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResult | null>(null);
+  const [couponChecking, setCouponChecking] = useState(false);
   const couponDiscount = appliedCoupon?.valid ? appliedCoupon.discountAmount : 0;
 
   const {
@@ -78,15 +82,31 @@ export function CheckoutModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guestUser]);
 
-  function handleApplyCoupon() {
-    const result = validateCoupon(couponInput, computedSubtotal);
+  async function handleApplyCoupon() {
+    setCouponChecking(true);
+    const result = await validateCoupon(couponInput, computedSubtotal);
+    setCouponChecking(false);
     setAppliedCoupon(result);
     if (result.valid) {
-      toast.success(`Coupon ${result.coupon.code} applied — you saved ${formatINR(result.discountAmount)}.`);
+      toast.success(`✓ Applied ${formatINR(result.discountAmount)} discount`);
     } else {
       toast.error(result.error);
     }
   }
+
+  // A coupon already applied on the property page carries into checkout —
+  // pre-fill and silently re-validate it here (it's just a read, so it
+  // doesn't spend a single-use code; only redeemCoupon() on payment success does).
+  useEffect(() => {
+    if (!initialCouponCode) return;
+    setCouponInput(initialCouponCode);
+    setCouponChecking(true);
+    void validateCoupon(initialCouponCode, computedSubtotal).then((result) => {
+      setCouponChecking(false);
+      setAppliedCoupon(result);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCouponCode]);
 
   function handleRemoveCoupon() {
     setAppliedCoupon(null);
@@ -119,7 +139,7 @@ export function CheckoutModal({
         nights,
         rooms,
         nightlyRates,
-        couponCode: appliedCoupon?.valid ? appliedCoupon.coupon.code : undefined,
+        couponCode: appliedCoupon?.valid ? appliedCoupon.code : undefined,
         discountAmount: appliedCoupon?.valid ? appliedCoupon.discountAmount : undefined,
       });
       setBookingId(order.booking_id);
@@ -182,6 +202,12 @@ export function CheckoutModal({
       }
     } else {
       toast.success("Payment received! We'll confirm your booking shortly.");
+    }
+
+    // Only spend a single-use coupon once the booking has actually gone
+    // through — not at Apply-time, when the guest might still abandon checkout.
+    if (appliedCoupon?.valid) {
+      void redeemCoupon(appliedCoupon.code, appliedCoupon.source);
     }
 
     setStatus("done");
@@ -277,7 +303,7 @@ export function CheckoutModal({
               <div className="mt-2 border-t border-border pt-3">
                 <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                   <Tag className="size-3.5 text-primary" aria-hidden />
-                  Have a coupon code?
+                  Have a promo code?
                 </p>
                 <div className="mt-1.5 flex gap-2">
                   <input
@@ -286,10 +312,10 @@ export function CheckoutModal({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        handleApplyCoupon();
+                        void handleApplyCoupon();
                       }
                     }}
-                    disabled={Boolean(appliedCoupon?.valid) || status === "creating_order"}
+                    disabled={Boolean(appliedCoupon?.valid) || couponChecking || status === "creating_order"}
                     placeholder="Enter code"
                     className="min-h-[38px] w-full rounded-lg border border-input bg-background px-3 py-2 text-xs uppercase tracking-wide outline-none transition-shadow focus:ring-2 focus:ring-ring/40 disabled:opacity-60"
                   />
@@ -305,11 +331,11 @@ export function CheckoutModal({
                   ) : (
                     <button
                       type="button"
-                      onClick={handleApplyCoupon}
-                      disabled={!couponInput.trim() || status === "creating_order"}
+                      onClick={() => void handleApplyCoupon()}
+                      disabled={!couponInput.trim() || couponChecking || status === "creating_order"}
                       className="shrink-0 rounded-lg bg-navy px-3 py-2 text-xs font-semibold text-navy-foreground disabled:opacity-60"
                     >
-                      Apply
+                      {couponChecking ? <Loader2 className="size-3.5 animate-spin" /> : "Apply"}
                     </button>
                   )}
                 </div>
@@ -317,11 +343,13 @@ export function CheckoutModal({
                   <p className="mt-1.5 text-xs text-red-600">{appliedCoupon.error}</p>
                 )}
                 {appliedCoupon?.valid && (
-                  <p className="mt-1.5 text-xs text-primary">{appliedCoupon.coupon.description}</p>
+                  <p className="mt-1.5 text-xs font-medium text-primary">
+                    ✓ Applied {formatINR(appliedCoupon.discountAmount)} discount
+                  </p>
                 )}
               </div>
               {discountAmount > 0 && appliedCoupon?.valid && (
-                <Row label={`Coupon (${appliedCoupon.coupon.code})`} value={`-${formatINR(discountAmount)}`} />
+                <Row label={`Coupon (${appliedCoupon.code})`} value={`-${formatINR(discountAmount)}`} />
               )}
               <Row label={gstLabel(gstRate)} value={formatINR(computedTaxes)} />
               <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-semibold text-navy">

@@ -7,22 +7,26 @@ import {
   Coffee,
   ConciergeBell,
   Footprints,
+  Loader as Loader2,
   MapPin,
   PawPrint,
   Snowflake,
   Star,
+  Tag,
   Tv,
   Users,
   Waves,
   Wifi,
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
+import { toast } from "sonner";
 import { SmartImage } from "@/components/plix/smart-image";
 
 const CheckoutModal = lazy(() =>
   import("@/components/plix/checkout-modal").then((m) => ({ default: m.CheckoutModal })),
 );
 import { loadRazorpayScript } from "@/lib/booking";
+import { validateCoupon, type CouponValidationResult } from "@/lib/coupons";
 import { propertyQuery, reviewsQuery } from "@/lib/plix-queries";
 import { formatINR, gstLabel, nightsBetween, resolveImages, todayISO, PROPERTIES } from "@/lib/plix";
 import {
@@ -34,7 +38,7 @@ import {
   isMultiRoomProperty,
   maxGuestsForRooms,
   maxRoomsForProperty,
-  quoteFromRates,
+  quoteWithDiscount,
   type RateOverride,
 } from "@/lib/rates";
 import {
@@ -179,6 +183,9 @@ function PropertyDetail() {
   const [rateOverrides, setRateOverrides] = useState<RateOverride>({});
   const [blockedDates, setBlockedDates] = useState<Set<string>>(new Set());
   const [guestError, setGuestError] = useState("");
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResult | null>(null);
+  const [couponChecking, setCouponChecking] = useState(false);
 
   const isMultiRoom = isMultiRoomProperty(property?.id ?? "");
   const maxRooms = property ? maxRoomsForProperty(property.id) : 1;
@@ -192,10 +199,34 @@ function PropertyDetail() {
   const nightlyRates = property
     ? nightsList.map((n) => rateOverrides[n] ?? property.base_price)
     : [];
-  const { subtotal, taxes, total, rate: gstRate } = quoteFromRates(nightlyRates, property?.bedrooms ?? 1);
+  const couponDiscount = appliedCoupon?.valid ? appliedCoupon.discountAmount : 0;
+  const {
+    subtotal,
+    discountAmount,
+    taxes,
+    total,
+    rate: gstRate,
+  } = quoteWithDiscount(nightlyRates, property?.bedrooms ?? 1, couponDiscount);
   const hasCustomRate = nightsList.some((n) => rateOverrides[n] !== undefined);
   const datesBlocked = hasBlockedOverlap(blockedDates, checkIn, checkOut);
   const propertyReviews = property ? reviews.filter((r) => r.property_id === property.id) : [];
+
+  async function handleApplyCoupon() {
+    setCouponChecking(true);
+    const result = await validateCoupon(couponInput, subtotal);
+    setCouponChecking(false);
+    setAppliedCoupon(result);
+    if (result.valid) {
+      toast.success(`✓ Applied ${formatINR(result.discountAmount)} discount`);
+    } else {
+      toast.error(result.error);
+    }
+  }
+
+  function handleRemoveCoupon() {
+    setAppliedCoupon(null);
+    setCouponInput("");
+  }
 
   useEffect(() => {
     void loadRazorpayScript();
@@ -491,6 +522,60 @@ function PropertyDetail() {
                   <span className="text-foreground">{formatINR(subtotal)}</span>
                 </div>
               )}
+
+              <div className="border-t border-border pt-3">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <Tag className="size-3.5 text-primary" aria-hidden />
+                  Have a promo code?
+                </p>
+                <div className="mt-1.5 flex gap-2">
+                  <input
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void handleApplyCoupon();
+                      }
+                    }}
+                    disabled={Boolean(appliedCoupon?.valid) || couponChecking || nights === 0}
+                    placeholder="Enter code"
+                    className="min-h-[38px] w-full rounded-lg border border-input bg-background px-3 py-2 text-xs uppercase tracking-wide outline-none transition-shadow focus:ring-2 focus:ring-ring/40 disabled:opacity-60"
+                  />
+                  {appliedCoupon?.valid ? (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="shrink-0 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-accent"
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void handleApplyCoupon()}
+                      disabled={!couponInput.trim() || couponChecking || nights === 0}
+                      className="shrink-0 rounded-lg bg-navy px-3 py-2 text-xs font-semibold text-navy-foreground disabled:opacity-60"
+                    >
+                      {couponChecking ? <Loader2 className="size-3.5 animate-spin" /> : "Apply"}
+                    </button>
+                  )}
+                </div>
+                {appliedCoupon && !appliedCoupon.valid && (
+                  <p className="mt-1.5 text-xs text-red-600">{appliedCoupon.error}</p>
+                )}
+                {appliedCoupon?.valid && (
+                  <p className="mt-1.5 text-xs font-medium text-primary">
+                    ✓ Applied {formatINR(appliedCoupon.discountAmount)} discount
+                  </p>
+                )}
+              </div>
+              {discountAmount > 0 && appliedCoupon?.valid && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Coupon ({appliedCoupon.code})</span>
+                  <span className="text-foreground">-{formatINR(discountAmount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-muted-foreground">
                 <span>{gstLabel(gstRate)}</span>
                 <span className="text-foreground">{formatINR(taxes)}</span>
@@ -531,6 +616,7 @@ function PropertyDetail() {
             nights={nights}
             rooms={rooms}
             nightlyRates={nightlyRates}
+            {...(appliedCoupon?.valid ? { initialCouponCode: appliedCoupon.code } : {})}
             onClose={() => setCheckoutOpen(false)}
           />
         </Suspense>

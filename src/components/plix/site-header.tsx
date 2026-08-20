@@ -1,15 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { MapPin, Menu, Phone, User, X } from "lucide-react";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { SearchBar } from "@/components/plix/search-bar";
+import { AuthModal } from "@/components/plix/auth-modal";
 import { PROPERTIES } from "@/lib/plix";
 import { getGuestUser, onGuestAuthChange, signOutGuest, type GuestUser } from "@/lib/guest-auth";
-
-// Closed by default on every page — lazy-loaded so its bundle (form, guest-auth
-// client) only downloads once a visitor actually opens the sign-in modal.
-const AuthModal = lazy(() =>
-  import("@/components/plix/auth-modal").then((m) => ({ default: m.AuthModal })),
-);
 
 const links = [
   { to: "/blog", label: "Blog" },
@@ -133,22 +128,19 @@ export function SiteHeader() {
         }`}
       >
         <Link to="/" className="flex items-center gap-2.5" aria-label="The Plix Goa home">
-          <picture>
-            <source srcSet="/Plix_Transparent_(1).webp" type="image/webp" />
-            <img
-              src="/Plix_Transparent_(1).png"
-              alt="Plix Hospitality"
-              width={70}
-              height={70}
-              className={`h-10 w-auto object-contain transition-all duration-300 md:h-12 lg:h-14 ${
-                isHome && !homeSolid
-                  ? "brightness-0 invert drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]"
-                  : homeSolid
-                    ? "brightness-0 invert"
-                    : ""
-              }`}
-            />
-          </picture>
+          <img
+            src="/Plix_Transparent_(1).png"
+            alt="Plix Hospitality"
+            width={70}
+            height={70}
+            className={`h-10 w-auto object-contain transition-all duration-300 md:h-12 lg:h-14 ${
+              isHome && !homeSolid
+                ? "brightness-0 invert drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]"
+                : homeSolid
+                  ? "brightness-0 invert"
+                  : ""
+            }`}
+          />
         </Link>
 
         <nav className="hidden items-center gap-1 text-sm font-medium lg:flex">
@@ -305,11 +297,7 @@ export function SiteHeader() {
         </div>
       )}
 
-      {authOpen && (
-        <Suspense fallback={null}>
-          <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
-        </Suspense>
-      )}
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </header>
   );
 }

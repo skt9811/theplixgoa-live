@@ -4,14 +4,13 @@ type SmartImageProps = {
   src: string;
   alt: string;
   loading?: "lazy" | "eager";
-  fetchPriority?: "high" | "low" | "auto" | undefined;
   width?: number;
   height?: number;
   className?: string;
   style?: CSSProperties;
 };
 
-export function SmartImage({ src, alt, loading = "lazy", fetchPriority, width, height, className, style }: SmartImageProps) {
+export function SmartImage({ src, alt, loading = "lazy", width, height, className, style }: SmartImageProps) {
   const [errored, setErrored] = useState(false);
 
   if (errored) {
@@ -32,7 +31,6 @@ export function SmartImage({ src, alt, loading = "lazy", fetchPriority, width, h
       src={src}
       alt={alt}
       loading={loading}
-      fetchPriority={fetchPriority}
       width={width}
       height={height}
       className={`block ${className ?? ""}`}

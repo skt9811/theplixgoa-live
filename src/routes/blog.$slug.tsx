@@ -63,7 +63,6 @@ function BlogPostPage() {
           <img
             src={post.cover_image}
             alt={post.title}
-            fetchPriority="high"
             className="absolute inset-0 size-full object-cover"
           />
         ) : (

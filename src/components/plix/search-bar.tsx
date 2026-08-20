@@ -2,7 +2,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { BedDouble, CalendarDays, MapPin, Minus, Plus, Search, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PROPERTIES, todayISO } from "@/lib/plix";
-import { GUESTS_PER_ROOM, isMultiRoomProperty, maxGuestsForRooms, maxRoomsForProperty } from "@/lib/rates-utils";
+import { GUESTS_PER_ROOM, isMultiRoomProperty, maxGuestsForRooms, maxRoomsForProperty } from "@/lib/rates";
 
 type SearchParams = {
   checkIn?: string;

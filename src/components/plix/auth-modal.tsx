@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CircleCheck as CheckCircle2, Loader as Loader2, Mail, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
-import { heroImage, heroImageWebp } from "@/lib/plix";
+import { heroImage } from "@/lib/plix";
 import {
   getGuestUser,
   signInWithGoogle,
@@ -117,18 +117,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
       <div className="animate-rise my-auto flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-card shadow-lift md:flex-row">
         {/* Left hero panel */}
         <div className="relative hidden min-h-[420px] flex-col justify-between overflow-hidden p-8 text-white md:flex md:w-1/2">
-          <picture>
-            <source srcSet={heroImageWebp} type="image/webp" />
-            <img
-              src={heroImage}
-              alt=""
-              aria-hidden
-              loading="lazy"
-              width={1600}
-              height={907}
-              className="absolute inset-0 size-full object-cover"
-            />
-          </picture>
+          <img src={heroImage} alt="" aria-hidden className="absolute inset-0 size-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-navy/95 via-navy/60 to-navy/30" />
           <p className="relative text-xs font-semibold uppercase tracking-[0.28em] text-primary-glow">
             The Plix Goa

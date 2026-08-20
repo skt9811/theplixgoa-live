@@ -16,6 +16,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { WhatsAppFab } from "@/components/plix/whatsapp-fab";
+import { SITE_NAME, websiteJsonLd, jsonLdScript } from "@/lib/seo";
 
 
 function NotFoundComponent() {
@@ -86,6 +87,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "theme-color", content: "#0f172a" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@theplixgoa" },
+      { property: "og:site_name", content: SITE_NAME },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -105,6 +107,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://www.googletagmanager.com" },
     ],
     scripts: [
+      { type: "application/ld+json", children: jsonLdScript(websiteJsonLd()) },
       {
         src: "https://www.googletagmanager.com/gtag/js?id=G-T4SSM7J1SY",
         async: true,

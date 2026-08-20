@@ -24,7 +24,6 @@ import {
   SITE_NAME,
   canonicalUrl,
   organizationJsonLd,
-  websiteJsonLd,
   lodgingBusinessJsonLd,
   faqPageJsonLd,
   jsonLdScript,
@@ -33,14 +32,14 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Luxury Villas & Boutique Resorts in North Goa | The Plix Goa" },
+      { title: "The Plix Goa | Luxury Villas & Resorts in North Goa" },
       {
         name: "description",
         content:
           "Book luxury private pool villas, boutique resorts, and bungalows in Anjuna, Vagator, and Assagao. Skip commissions and book direct with Plix Goa.",
       },
       { name: "robots", content: "index, follow, max-image-preview:large" },
-      { property: "og:title", content: "Luxury Villas & Boutique Resorts in North Goa | The Plix Goa" },
+      { property: "og:title", content: "The Plix Goa | Luxury Villas & Resorts in North Goa" },
       {
         property: "og:description",
         content:
@@ -51,7 +50,7 @@ export const Route = createFileRoute("/")({
       { property: "og:site_name", content: SITE_NAME },
       { property: "og:image", content: `${SITE_URL}/og-home.jpg` },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Luxury Villas & Boutique Resorts in North Goa | The Plix Goa" },
+      { name: "twitter:title", content: "The Plix Goa | Luxury Villas & Resorts in North Goa" },
       {
         name: "twitter:description",
         content:
@@ -64,7 +63,6 @@ export const Route = createFileRoute("/")({
     ],
     scripts: [
       { type: "application/ld+json", children: jsonLdScript(organizationJsonLd()) },
-      { type: "application/ld+json", children: jsonLdScript(websiteJsonLd()) },
       { type: "application/ld+json", children: jsonLdScript(lodgingBusinessJsonLd()) },
       {
         type: "application/ld+json",

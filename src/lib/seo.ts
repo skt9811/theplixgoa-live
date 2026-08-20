@@ -9,7 +9,10 @@ type ReviewData = {
 };
 
 export const SITE_URL = "https://theplixgoa.com";
-export const SITE_NAME = "The Plix Goa";
+// The canonical brand/site name Google should surface as the search-result
+// site name chip. Full descriptive phrasing ("The Plix Goa | Luxury Villas…")
+// still lives in individual page <title> strings.
+export const SITE_NAME = "The Plix";
 export const SITE_PHONE_1 = "+91-9009800809";
 export const SITE_PHONE_2 = "+91-9009800895";
 export const SITE_EMAIL = "reservations@theplixgoa.com";
@@ -101,8 +104,9 @@ export function websiteJsonLd() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "@id": `${SITE_URL}/#website`,
-    url: SITE_URL,
     name: SITE_NAME,
+    alternateName: ["The Plix Goa", "ThePlix"],
+    url: `${SITE_URL}/`,
     potentialAction: {
       "@type": "SearchAction",
       target: `${SITE_URL}/stays?location={search_term_string}`,

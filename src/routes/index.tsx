@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { BadgeIndianRupee, ConciergeBell, Hop as HomeIcon, MapPin as MapPinIcon, Quote, Sparkles, Star, Utensils, Waves, Wine } from "lucide-react";
+import { BadgeIndianRupee, Building2, ConciergeBell, HeartHandshake, Hop as HomeIcon, MapPin as MapPinIcon, Quote, Sparkles, Star, Utensils, Waves, Wine } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
 import { SearchBar } from "@/components/plix/search-bar";
 import { propertiesQuery, reviewsQuery } from "@/lib/plix-queries";
@@ -105,6 +105,12 @@ const perks = [
     title: "Prime North Goa Locations",
     body: "Steps away from iconic beaches, sunset spots, and world-class culinary hubs.",
   },
+];
+
+const stats = [
+  { icon: HeartHandshake, value: "100,000+", label: "Happy Guests" },
+  { icon: Star, value: "5/5", label: "Rated for Excellence" },
+  { icon: Building2, value: "25+", label: "Handpicked Luxury Villas" },
 ];
 
 const faqs = [
@@ -307,6 +313,23 @@ function Home() {
             >
               Explore the full collection
             </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 md:px-6">
+        <div className="rounded-3xl bg-[#381B34] px-6 py-10 shadow-card sm:px-10 sm:py-12">
+          <div className="grid grid-cols-1 divide-y divide-[#FFF5DC]/15 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            {stats.map((s) => (
+              <div
+                key={s.label}
+                className="flex flex-col items-center gap-3 py-6 text-center first:pt-0 last:pb-0 sm:py-0 sm:first:pl-0 sm:last:pr-0 sm:px-8"
+              >
+                <s.icon className="size-9 text-[#FFF5DC]" strokeWidth={1.5} aria-hidden />
+                <p className="font-display text-3xl font-semibold text-[#FFF5DC] sm:text-4xl">{s.value}</p>
+                <p className="text-sm text-[#FFF5DC]/75">{s.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>

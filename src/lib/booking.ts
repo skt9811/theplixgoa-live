@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { PROPERTIES, type Property } from "@/lib/plix";
+import { quoteFromRates } from "@/lib/rates";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
@@ -134,11 +135,10 @@ export async function createRazorpayOrder(
   input: CreateOrderInput,
 ): Promise<CreateOrderResponse> {
   const { property, nights, guestName, guestEmail, guestMobile, checkIn, checkOut, guests, rooms = 1, nightlyRates } = input;
-  const subtotal = nightlyRates && nightlyRates.length > 0
-    ? nightlyRates.reduce((s, r) => s + r, 0)
-    : property.base_price * nights;
-  const taxes = subtotal * 0.12;
-  const total = subtotal + taxes;
+  const effectiveNightlyRates = nightlyRates && nightlyRates.length > 0
+    ? nightlyRates
+    : Array.from({ length: nights }, () => property.base_price);
+  const { subtotal, taxes, total } = quoteFromRates(effectiveNightlyRates, property.bedrooms);
   const amountInPaise = Math.round(total * 100);
 
   const bookingRecord: BookingRecord = {

@@ -198,7 +198,23 @@ export function resolveImages(keys: string[] | null | undefined): string[] {
   return resolved.length ? resolved : [heroGoa];
 }
 
-export const TAX_RATE = 0.12;
+// GST slab per India's per-room tariff rule: the nightly rate is divided
+// across the villa's bedrooms to get an equivalent per-room rate, which
+// decides whether the 5% (2.5% CGST + 2.5% SGST) or 18% (9% CGST + 9%
+// SGST) slab applies.
+export const GST_THRESHOLD_PER_ROOM = 7000;
+export const GST_RATE_STANDARD = 0.05;
+export const GST_RATE_LUXURY = 0.18;
+
+export function gstRateForRoomRate(nightlyRate: number, bedrooms: number): number {
+  const rooms = bedrooms > 0 ? bedrooms : 1;
+  const effectiveRoomRate = nightlyRate / rooms;
+  return effectiveRoomRate >= GST_THRESHOLD_PER_ROOM ? GST_RATE_LUXURY : GST_RATE_STANDARD;
+}
+
+export function gstLabel(rate: number): string {
+  return `GST (${Math.round(rate * 100)}%)`;
+}
 
 export type NearbyPlace = { name: string; distance: string };
 
@@ -242,10 +258,11 @@ export function nightsBetween(checkIn: string, checkOut: string): number {
   return Math.round((b - a) / 86_400_000);
 }
 
-export function quote(basePrice: number, nights: number) {
+export function quote(basePrice: number, nights: number, bedrooms: number) {
   const subtotal = basePrice * nights;
-  const taxes = subtotal * TAX_RATE;
-  return { subtotal, taxes, total: subtotal + taxes };
+  const rate = gstRateForRoomRate(basePrice, bedrooms);
+  const taxes = subtotal * rate;
+  return { subtotal, taxes, total: subtotal + taxes, rate };
 }
 
 export function todayISO(offsetDays = 0): string {

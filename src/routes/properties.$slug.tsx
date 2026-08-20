@@ -24,7 +24,7 @@ const CheckoutModal = lazy(() =>
 );
 import { loadRazorpayScript } from "@/lib/booking";
 import { propertyQuery, reviewsQuery } from "@/lib/plix-queries";
-import { formatINR, nightsBetween, resolveImages, TAX_RATE, todayISO, PROPERTIES } from "@/lib/plix";
+import { formatINR, gstLabel, nightsBetween, resolveImages, todayISO, PROPERTIES } from "@/lib/plix";
 import {
   eachNight,
   fetchBlockedDates,
@@ -192,7 +192,7 @@ function PropertyDetail() {
   const nightlyRates = property
     ? nightsList.map((n) => rateOverrides[n] ?? property.base_price)
     : [];
-  const { subtotal, taxes, total } = quoteFromRates(nightlyRates, TAX_RATE);
+  const { subtotal, taxes, total, rate: gstRate } = quoteFromRates(nightlyRates, property?.bedrooms ?? 1);
   const hasCustomRate = nightsList.some((n) => rateOverrides[n] !== undefined);
   const datesBlocked = hasBlockedOverlap(blockedDates, checkIn, checkOut);
   const propertyReviews = property ? reviews.filter((r) => r.property_id === property.id) : [];
@@ -476,7 +476,7 @@ function PropertyDetail() {
                 </div>
               )}
               <div className="flex justify-between text-muted-foreground">
-                <span>Taxes & fees (12%)</span>
+                <span>{gstLabel(gstRate)}</span>
                 <span className="text-foreground">{formatINR(taxes)}</span>
               </div>
               <div className="flex justify-between border-t border-border pt-3 text-base font-semibold text-navy">

@@ -70,7 +70,7 @@ const faqGroups: FaqGroup[] = [
       },
       {
         q: "Are taxes included in the displayed price?",
-        a: "All nightly rates shown on the website include 12% taxes and fees. The total you see at checkout is the final amount — there are no hidden charges.",
+        a: "Nightly rates shown on the website are pre-tax. GST is calculated at checkout based on the applicable government slab (5% for stays under ₹7,000 per room per night, 18% at or above that) and shown as a separate line item before you pay — there are no hidden charges.",
       },
     ],
   },

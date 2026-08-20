@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { gstRateForRoomRate } from "@/lib/plix";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
@@ -369,10 +370,17 @@ export function computeNightlyRates(
   return nights.map((n) => overrides[n] ?? basePrice);
 }
 
-export function quoteFromRates(nightlyRates: number[], taxRate: number) {
+// Applies the GST tier per night — each night's rate can carry its own
+// slab (5% or 18%) when rate overrides push it across the per-room
+// threshold, so this sums per-night tax rather than one flat rate over
+// the whole stay. `rate` is the blended effective rate (taxes / subtotal),
+// which equals 0.05 or 0.18 in the common case where every night falls in
+// the same slab.
+export function quoteFromRates(nightlyRates: number[], bedrooms: number) {
   const subtotal = nightlyRates.reduce((sum, r) => sum + r, 0);
-  const taxes = subtotal * taxRate;
-  return { subtotal, taxes, total: subtotal + taxes };
+  const taxes = nightlyRates.reduce((sum, r) => sum + r * gstRateForRoomRate(r, bedrooms), 0);
+  const rate = subtotal > 0 ? taxes / subtotal : gstRateForRoomRate(0, bedrooms);
+  return { subtotal, taxes, total: subtotal + taxes, rate };
 }
 
 export async function fetchTodayRate(propertyId: string, basePrice: number): Promise<number> {

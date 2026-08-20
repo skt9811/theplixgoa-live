@@ -8,7 +8,8 @@ import {
   updateBookingPayment,
   type CreateOrderResponse,
 } from "@/lib/booking";
-import { formatINR, TAX_RATE, type Property } from "@/lib/plix";
+import { formatINR, gstLabel, type Property } from "@/lib/plix";
+import { quoteFromRates } from "@/lib/rates";
 
 type Props = {
   property: Property;
@@ -35,12 +36,16 @@ export function CheckoutModal({
 }: Props) {
   const navigate = useNavigate();
 
-  const computedSubtotal =
+  const effectiveNightlyRates =
     nightlyRates && nightlyRates.length > 0
-      ? nightlyRates.reduce((s, r) => s + r, 0)
-      : property.base_price * nights;
-  const computedTaxes = computedSubtotal * TAX_RATE;
-  const total = computedSubtotal + computedTaxes;
+      ? nightlyRates
+      : Array.from({ length: nights }, () => property.base_price);
+  const {
+    subtotal: computedSubtotal,
+    taxes: computedTaxes,
+    total,
+    rate: gstRate,
+  } = quoteFromRates(effectiveNightlyRates, property.bedrooms);
 
   const [form, setForm] = useState({ name: "", email: "", mobile: "" });
   const [status, setStatus] = useState<Status>("idle");
@@ -219,7 +224,7 @@ export function CheckoutModal({
                   value={formatINR(computedSubtotal)}
                 />
               )}
-              <Row label="Taxes & fees (12%)" value={formatINR(computedTaxes)} />
+              <Row label={gstLabel(gstRate)} value={formatINR(computedTaxes)} />
               <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-semibold text-navy">
                 <span>Amount payable</span>
                 <span>{formatINR(total)}</span>

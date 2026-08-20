@@ -1,24 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { BadgeIndianRupee, Building2, ConciergeBell, HeartHandshake, Hop as HomeIcon, MapPin as MapPinIcon, Quote, Sparkles, Star, Utensils, Waves, Wine } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
-import { ReviewCarousel } from "@/components/plix/review-carousel";
+import { SectionHeading } from "@/components/plix/section-heading";
 import { SearchBar } from "@/components/plix/search-bar";
 import { propertiesQuery, reviewsQuery } from "@/lib/plix-queries";
 import { chicoHeroImage, chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
-import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
-import {
-  DEFAULT_LOCATION_GRIDS,
-  fetchActiveLocationGrids,
-  type LocationGrid,
-} from "@/lib/locations-data";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import type { SiteConfig } from "@/lib/site-config";
+import { DEFAULT_LOCATION_GRIDS, type LocationGrid } from "@/lib/locations-static";
 import {
   SITE_URL,
   SITE_NAME,
@@ -28,6 +18,15 @@ import {
   faqPageJsonLd,
   jsonLdScript,
 } from "@/lib/seo";
+
+// Both sit well below the fold — lazy-loaded so their JS (embla-carousel,
+// the Radix accordion primitive) isn't part of the homepage's critical bundle.
+const ReviewCarousel = lazy(() =>
+  import("@/components/plix/review-carousel").then((m) => ({ default: m.ReviewCarousel })),
+);
+const FaqAccordion = lazy(() =>
+  import("@/components/plix/faq-accordion").then((m) => ({ default: m.FaqAccordion })),
+);
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -111,25 +110,6 @@ const stats = [
   { icon: HeartHandshake, value: "100,000+", label: "Happy Guests" },
   { icon: Star, value: "5/5", label: "Rated for Excellence" },
   { icon: Building2, value: "25+", label: "Handpicked Luxury Villas" },
-];
-
-const faqs = [
-  {
-    q: "Do you charge any booking or platform fees?",
-    a: "No. Booking direct with The Plix Goa means you pay the nightly rate plus applicable taxes — nothing else.",
-  },
-  {
-    q: "Is the entire villa private to my group?",
-    a: "Yes. Every Plix stay is booked as a whole property, so the pool, kitchen and garden are exclusively yours.",
-  },
-  {
-    q: "Are pets allowed?",
-    a: "Selected villas including Morjim Pride are pet friendly. Look for the 'Pet Friendly' tag on the property card.",
-  },
-  {
-    q: "What is the cancellation policy?",
-    a: "Free cancellation up to 14 days before check-in with a full refund. Within 14 days we offer a credit for a future stay.",
-  },
 ];
 
 type IllustrationProps = { className?: string };
@@ -293,10 +273,17 @@ function Home() {
   const [locations, setLocations] = useState<LocationGrid[]>([]);
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
 
-  useEffect(() => {
-    void fetchSiteConfig().then(setConfig);
-    void fetchActiveLocationGrids().then(setLocations);
+  // Dynamically imported so the Supabase SDK isn't part of the homepage's
+  // critical bundle — this CMS overlay data loads shortly after mount, not
+  // before first paint.
+  const loadCmsOverlay = useCallback(() => {
+    void import("@/lib/site-config").then(({ fetchSiteConfig }) => fetchSiteConfig()).then(setConfig);
+    void import("@/lib/locations-data").then(({ fetchActiveLocationGrids }) => fetchActiveLocationGrids()).then(setLocations);
   }, []);
+
+  useEffect(() => {
+    loadCmsOverlay();
+  }, [loadCmsOverlay]);
 
   // Drone video is decorative and well below the fold — mobile devices never
   // download the ~6.7MB file; it only loads/plays at the md: breakpoint or above.
@@ -310,13 +297,9 @@ function Home() {
 
   // Listen for admin changes
   useEffect(() => {
-    function onStorageChange() {
-      void fetchSiteConfig().then(setConfig);
-      void fetchActiveLocationGrids().then(setLocations);
-    }
-    window.addEventListener("storage", onStorageChange);
-    return () => window.removeEventListener("storage", onStorageChange);
-  }, []);
+    window.addEventListener("storage", loadCmsOverlay);
+    return () => window.removeEventListener("storage", loadCmsOverlay);
+  }, [loadCmsOverlay]);
 
   const heroHeading = config?.hero_heading || "An Exclusive Collection of Luxury Private Pool Villas in Goa";
   const heroSubtitle = config?.hero_subtitle || "Handpicked coastal sanctuaries across Anjuna, Vagator, Assagao, Morjim, and Candolim — designed for slow living, effortless luxury, and group escapes.";
@@ -536,7 +519,9 @@ function Home() {
           Loved by Our Guests
         </h2>
         <div className="mt-10">
-          <ReviewCarousel reviews={reviews} />
+          <Suspense fallback={null}>
+            <ReviewCarousel reviews={reviews} />
+          </Suspense>
         </div>
       </section>
       )}
@@ -604,40 +589,11 @@ function Home() {
       )}
 
       {config?.section_faqs_visible !== false && (
-      <section className="mx-auto max-w-3xl px-4 py-16 md:px-6">
-        <SectionHeading eyebrow="Good to know" title="Frequently asked questions" />
-        <Accordion type="single" collapsible className="mt-6">
-          {faqs.map((f) => (
-            <AccordionItem key={f.q} value={f.q}>
-              <AccordionTrigger className="text-left text-base font-medium text-navy">
-                {f.q}
-              </AccordionTrigger>
-              <AccordionContent className="text-sm leading-relaxed text-muted-foreground">
-                {f.a}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </section>
+        <Suspense fallback={null}>
+          <FaqAccordion />
+        </Suspense>
       )}
     </>
   );
 }
 
-function SectionHeading({
-  eyebrow,
-  title,
-  sub,
-}: {
-  eyebrow: string;
-  title: string;
-  sub?: string;
-}) {
-  return (
-    <div className="max-w-2xl">
-      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">{eyebrow}</p>
-      <h2 className="mt-3 text-3xl font-semibold text-navy md:text-4xl">{title}</h2>
-      {sub && <p className="mt-3 text-base text-muted-foreground">{sub}</p>}
-    </div>
-  );
-}

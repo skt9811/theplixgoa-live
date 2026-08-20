@@ -4,7 +4,7 @@ import { BedDouble, CalendarDays, Users } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
 import { propertiesQuery } from "@/lib/plix-queries";
 import { LOCATIONS } from "@/lib/plix";
-import { isMultiRoomProperty } from "@/lib/rates";
+import { isMultiRoomProperty } from "@/lib/rates-utils";
 import {
   SITE_URL,
   SITE_NAME,

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { heroImage } from "@/lib/plix";
+import { heroImage, heroImageWebp } from "@/lib/plix";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 import {
   SITE_URL,
@@ -47,14 +47,17 @@ function About() {
   return (
     <div>
       <section className="relative isolate overflow-hidden">
-        <img
-          src={heroImage}
-          alt="The Plix Goa luxury villa with private pool in North Goa at sunset"
-          loading="lazy"
-          width={1920}
-          height={1088}
-          className="absolute inset-0 size-full object-cover"
-        />
+        <picture>
+          <source srcSet={heroImageWebp} type="image/webp" />
+          <img
+            src={heroImage}
+            alt="The Plix Goa luxury villa with private pool in North Goa at sunset"
+            width={1600}
+            height={907}
+            fetchPriority="high"
+            className="absolute inset-0 size-full object-cover"
+          />
+        </picture>
         <div className="absolute inset-0 bg-gradient-hero" />
         <div className="relative mx-auto max-w-7xl px-4 py-24 md:px-6">
           <h1 className="max-w-2xl text-4xl font-semibold text-navy-foreground md:text-5xl">

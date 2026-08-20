@@ -321,7 +321,8 @@ function PropertyDetail() {
             <SmartImage
               src={src}
               alt={`${property.name} — ${property.bedrooms} bedroom luxury ${property.bedrooms >= 8 ? "bungalow" : "villa"} in ${property.location}, North Goa${i === 0 ? " with private pool" : ""}`}
-              loading="eager"
+              loading={i === 0 ? "eager" : "lazy"}
+              fetchPriority={i === 0 ? "high" : undefined}
               width={1200}
               height={800}
               className="block h-full w-full object-cover object-center"

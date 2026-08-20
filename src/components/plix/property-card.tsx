@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { Bath, BedDouble, ChevronLeft, ChevronRight, MapPin, Users, Waves } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { formatINR, resolveImages, type Property } from "@/lib/plix";
-import { fetchTodayRate } from "@/lib/rates";
 import { SmartImage } from "@/components/plix/smart-image";
 
 function propertyCardSubtitle(p: Property): string {
@@ -24,8 +23,12 @@ export function PropertyCard({ property }: { property: Property }) {
 
   const loadRate = useCallback(() => {
     // property_rates keys on the slug, matching how the admin panel writes
-    // property_id — not property.id.
-    void fetchTodayRate(property.slug, property.base_price).then(setTodayRate);
+    // property_id — not property.id. Dynamically imported so the Supabase
+    // SDK isn't part of the critical bundle that ships with every page
+    // that renders a property card.
+    void import("@/lib/rates").then(({ fetchTodayRate }) =>
+      fetchTodayRate(property.slug, property.base_price),
+    ).then(setTodayRate);
   }, [property.slug, property.base_price]);
 
   useEffect(() => {

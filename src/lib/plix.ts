@@ -1,4 +1,5 @@
 import heroGoa from "@/assets/hero-goa.jpg";
+import heroGoaWebp from "@/assets/hero-goa.webp";
 import morjim1 from "@/assets/morjim-1.jpg";
 import morjim2 from "@/assets/morjim-2.jpg";
 import harbor1 from "@/assets/harbor-1.jpg";
@@ -189,6 +190,7 @@ export const imageMap: Record<string, string> = {
 };
 
 export const heroImage = heroGoa;
+export const heroImageWebp = heroGoaWebp;
 export const chicoHeroImage = chico;
 export const chicoHeroImageMobileWebp = chicoMobileWebp;
 export const chicoHeroImageDesktopWebp = chicoDesktopWebp;

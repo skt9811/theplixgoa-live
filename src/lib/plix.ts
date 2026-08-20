@@ -31,6 +31,8 @@ import MP11 from "@/assets/MP11.jpg";
 
 // Vivenda Chico
 import chico from "@/assets/chico.jpg";
+import chicoMobileWebp from "@/assets/chico-mobile.webp";
+import chicoDesktopWebp from "@/assets/chico-desktop.webp";
 import chico1 from "@/assets/chico1.PNG";
 import chico2 from "@/assets/chico2.PNG";
 import chico3 from "@/assets/chico3.PNG";
@@ -188,6 +190,8 @@ export const imageMap: Record<string, string> = {
 
 export const heroImage = heroGoa;
 export const chicoHeroImage = chico;
+export const chicoHeroImageMobileWebp = chicoMobileWebp;
+export const chicoHeroImageDesktopWebp = chicoDesktopWebp;
 export const northGoaImage = heroGoa;
 export const morjimImage = morjim1;
 export const vagatorImage = harbor1;

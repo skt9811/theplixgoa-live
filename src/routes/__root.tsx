@@ -6,7 +6,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 
@@ -17,6 +17,31 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { WhatsAppFab } from "@/components/plix/whatsapp-fab";
 import { SITE_NAME, websiteJsonLd, jsonLdScript } from "@/lib/seo";
+import { chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
+
+const GOOGLE_FONTS_HREF =
+  "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap";
+
+function loadDeferredAnalytics() {
+  const gtmScript = document.createElement("script");
+  gtmScript.src = "https://www.googletagmanager.com/gtag/js?id=G-T4SSM7J1SY";
+  gtmScript.async = true;
+  document.head.appendChild(gtmScript);
+
+  const inlineScript = document.createElement("script");
+  inlineScript.textContent = `
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-T4SSM7J1SY', { send_page_view: true });
+    (function(c,l,a,r,i,t,y){
+      c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+      t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+      y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "y5emlw3hfs");
+  `;
+  document.head.appendChild(inlineScript);
+}
 
 
 function NotFoundComponent() {
@@ -91,12 +116,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      {
+        rel: "preload",
+        as: "image",
+        type: "image/webp",
+        href: chicoHeroImageDesktopWebp,
+        imageSrcSet: `${chicoHeroImageMobileWebp} 700w, ${chicoHeroImageDesktopWebp} 1280w`,
+        imageSizes: "100vw",
+        fetchPriority: "high",
+      },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap",
-      },
+      { rel: "preload", as: "style", href: GOOGLE_FONTS_HREF },
       { rel: "icon", href: "/Plix_Transparent_(1)%20copy.png", type: "image/png" },
       { rel: "manifest", href: "/manifest.json" },
       {
@@ -109,17 +140,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     scripts: [
       { type: "application/ld+json", children: jsonLdScript(websiteJsonLd()) },
       {
-        src: "https://www.googletagmanager.com/gtag/js?id=G-T4SSM7J1SY",
-        async: true,
-      },
-      {
         type: "text/javascript",
-        children: `window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', 'G-T4SSM7J1SY', {
-  send_page_view: true
-});`,
+        children: `(function() {
+  var link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = ${JSON.stringify(GOOGLE_FONTS_HREF)};
+  link.media = 'print';
+  link.onload = function() { this.media = 'all'; };
+  document.head.appendChild(link);
+})();`,
       },
       {
         type: "text/javascript",
@@ -128,14 +157,6 @@ gtag('config', 'G-T4SSM7J1SY', {
     navigator.serviceWorker.register('/sw.js').catch(function() {});
   });
 }`,
-      },
-      {
-        type: "text/javascript",
-        children: `(function(c,l,a,r,i,t,y){
-    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-})(window, document, "clarity", "script", "y5emlw3hfs");`,
       },
     ],
   }),
@@ -150,6 +171,9 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <noscript>
+          <link rel="stylesheet" href={GOOGLE_FONTS_HREF} />
+        </noscript>
       </head>
       <body>
         {children}
@@ -161,6 +185,15 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    if (document.readyState === "complete") {
+      loadDeferredAnalytics();
+      return;
+    }
+    window.addEventListener("load", loadDeferredAnalytics, { once: true });
+    return () => window.removeEventListener("load", loadDeferredAnalytics);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

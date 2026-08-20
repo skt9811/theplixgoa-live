@@ -6,7 +6,7 @@ import { PropertyCard } from "@/components/plix/property-card";
 import { ReviewCarousel } from "@/components/plix/review-carousel";
 import { SearchBar } from "@/components/plix/search-bar";
 import { propertiesQuery, reviewsQuery } from "@/lib/plix-queries";
-import { chicoHeroImage } from "@/lib/plix";
+import { chicoHeroImage, chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 import {
   DEFAULT_LOCATION_GRIDS,
@@ -323,6 +323,7 @@ function Home() {
   const heroCtaText = config?.hero_cta_text || "Book Your Stay";
   const heroCtaLink = (config?.hero_cta_link || "/contact") as "/contact" | "/stays";
   const heroImageSrc = config?.hero_image_url || chicoHeroImage;
+  const isDefaultHeroImage = !config?.hero_image_url;
 
   const locationSource = locations.length > 0 ? locations : DEFAULT_LOCATION_GRIDS;
   const dynamicLocations = locationSource.map((l) => ({
@@ -335,14 +336,32 @@ function Home() {
     <>
       <section className="relative isolate flex min-h-screen w-full flex-col items-center justify-center overflow-hidden">
 
-        <img
-          src={heroImageSrc}
-          alt="Luxury Goan villa with terracotta architecture, private pool and tropical gardens"
-          width={1920}
-          height={1088}
-          fetchPriority="high"
-          className="absolute inset-0 size-full object-cover"
-        />
+        {isDefaultHeroImage ? (
+          <picture>
+            <source
+              type="image/webp"
+              srcSet={`${chicoHeroImageMobileWebp} 700w, ${chicoHeroImageDesktopWebp} 1280w`}
+              sizes="100vw"
+            />
+            <img
+              src={heroImageSrc}
+              alt="Luxury Goan villa with terracotta architecture, private pool and tropical gardens"
+              width={1920}
+              height={1088}
+              fetchPriority="high"
+              className="absolute inset-0 size-full object-cover"
+            />
+          </picture>
+        ) : (
+          <img
+            src={heroImageSrc}
+            alt="Luxury Goan villa with terracotta architecture, private pool and tropical gardens"
+            width={1920}
+            height={1088}
+            fetchPriority="high"
+            className="absolute inset-0 size-full object-cover"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-[#2a1810]/75 via-[#2a1810]/55 to-[#1a0e05]/80" />
 
         <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-4 pb-28 pt-24 text-center">

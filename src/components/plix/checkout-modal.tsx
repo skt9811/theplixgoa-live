@@ -69,9 +69,12 @@ export function CheckoutModal({
   }, []);
 
   useEffect(() => {
-    if (guestUser && !form.mobile) {
-      setForm((f) => ({ ...f, mobile: guestUser.phone }));
-    }
+    if (!guestUser) return;
+    setForm((f) => ({
+      ...f,
+      email: f.email || guestUser.email,
+      name: f.name || guestUser.fullName || f.name,
+    }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guestUser]);
 
@@ -396,7 +399,11 @@ export function CheckoutModal({
       onClose={() => setAuthOpen(false)}
       onSuccess={(user) => {
         setGuestUser(user);
-        setForm((f) => ({ ...f, mobile: f.mobile || user.phone }));
+        setForm((f) => ({
+          ...f,
+          email: f.email || user.email,
+          name: f.name || user.fullName || f.name,
+        }));
       }}
     />
     </>

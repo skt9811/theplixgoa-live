@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { SearchBar } from "@/components/plix/search-bar";
 import { AuthModal } from "@/components/plix/auth-modal";
 import { PROPERTIES } from "@/lib/plix";
-import { clearGuestUser, getGuestUser, onGuestAuthChange, type GuestUser } from "@/lib/guest-auth";
+import { getGuestUser, onGuestAuthChange, signOutGuest, type GuestUser } from "@/lib/guest-auth";
 
 const links = [
   { to: "/blog", label: "Blog" },
@@ -87,14 +87,14 @@ export function SiteHeader() {
             {guestUser ? (
               <button
                 onClick={() => {
-                  clearGuestUser();
+                  void signOutGuest();
                   setGuestUser(null);
                 }}
                 className={`flex items-center gap-1.5 transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-navy-foreground/80 hover:text-primary-glow"}`}
                 title="Sign out"
               >
                 <User className="size-3" aria-hidden />
-                •••• {guestUser.phone.slice(-4)}
+                {guestUser.fullName?.split(" ")[0] ?? guestUser.email}
               </button>
             ) : (
               <button

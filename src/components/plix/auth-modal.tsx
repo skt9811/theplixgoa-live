@@ -1,8 +1,14 @@
 import { useState } from "react";
-import { CircleCheck as CheckCircle2, Loader as Loader2, ShieldCheck, X } from "lucide-react";
+import { CircleCheck as CheckCircle2, Loader as Loader2, Mail, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { heroImage } from "@/lib/plix";
-import { sendOtp, verifyOtp, type GuestUser } from "@/lib/guest-auth";
+import {
+  getGuestUser,
+  signInWithGoogle,
+  signInWithPassword,
+  signUpWithPassword,
+  type GuestUser,
+} from "@/lib/guest-auth";
 
 type Props = {
   open: boolean;
@@ -10,30 +16,29 @@ type Props = {
   onSuccess?: (user: GuestUser) => void;
 };
 
-type Step = "phone" | "otp" | "done";
+type Mode = "signin" | "signup";
+type Status = "form" | "check-email" | "done";
 
 export function AuthModal({ open, onClose, onSuccess }: Props) {
-  const [step, setStep] = useState<Step>("phone");
-  const [mobile, setMobile] = useState("");
-  const [otp, setOtp] = useState("");
-  const [simulation, setSimulation] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [verifying, setVerifying] = useState(false);
+  const [mode, setMode] = useState<Mode>("signin");
+  const [status, setStatus] = useState<Status>("form");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
   if (!open) return null;
 
-  const digits = mobile.replace(/\D/g, "");
-  const phone = `+91${digits}`;
-  const mobileValid = digits.length === 10;
-
   function reset() {
-    setStep("phone");
-    setMobile("");
-    setOtp("");
-    setSimulation(false);
-    setSending(false);
-    setVerifying(false);
+    setMode("signin");
+    setStatus("form");
+    setFullName("");
+    setEmail("");
+    setPassword("");
+    setSubmitting(false);
+    setGoogleLoading(false);
     setError("");
   }
 
@@ -42,66 +47,77 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
     onClose();
   }
 
-  async function runSendOtp() {
-    if (!mobileValid) {
-      setError("Enter a valid 10-digit mobile number.");
-      return;
-    }
+  function switchMode(next: Mode) {
+    setMode(next);
     setError("");
-    setSending(true);
-    const result = await sendOtp(phone);
-    setSending(false);
-    setSimulation(result.simulation);
-    setStep("otp");
-    if (result.simulation) {
-      toast.info(`Demo mode: your OTP is ${result.demoCode}`, { duration: 8000 });
-    } else {
-      toast.success(`OTP sent to ${phone}`);
-    }
   }
 
-  function handleSendOtp(e: React.FormEvent) {
-    e.preventDefault();
-    void runSendOtp();
-  }
-
-  async function handleVerify(e: React.FormEvent) {
-    e.preventDefault();
-    if (otp.length !== 6) {
-      setError("Enter the 6-digit code.");
-      return;
-    }
-    setError("");
-    setVerifying(true);
-    const result = await verifyOtp(phone, otp, simulation);
-    setVerifying(false);
-    if (!result.success) {
-      setError(result.error ?? "Verification failed. Please try again.");
-      return;
-    }
-    setStep("done");
-    toast.success("You're verified!");
+  function finishSuccess(fallbackEmail: string, fallbackFullName?: string) {
+    setStatus("done");
+    toast.success(mode === "signin" ? "Welcome back!" : "Account created!");
     setTimeout(() => {
-      onSuccess?.({ phone, verifiedAt: new Date().toISOString() });
+      // Prefer the real synced session (has accurate metadata); fall back
+      // to what was just typed in case the auth-state listener hasn't run yet.
+      const fallback: GuestUser = fallbackFullName
+        ? { email: fallbackEmail, fullName: fallbackFullName, verifiedAt: new Date().toISOString() }
+        : { email: fallbackEmail, verifiedAt: new Date().toISOString() };
+      onSuccess?.(getGuestUser() ?? fallback);
       reset();
       onClose();
     }, 1000);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setSubmitting(true);
+
+    if (mode === "signin") {
+      const result = await signInWithPassword(email, password);
+      setSubmitting(false);
+      if (!result.success) {
+        setError(result.error ?? "Sign-in failed. Please try again.");
+        return;
+      }
+      finishSuccess(email);
+      return;
+    }
+
+    const result = await signUpWithPassword(email, password, fullName);
+    setSubmitting(false);
+    if (!result.success) {
+      setError(result.error ?? "Sign-up failed. Please try again.");
+      return;
+    }
+    if (result.needsEmailConfirmation) {
+      setStatus("check-email");
+      return;
+    }
+    finishSuccess(email, fullName);
+  }
+
+  async function handleGoogle() {
+    setError("");
+    setGoogleLoading(true);
+    const result = await signInWithGoogle();
+    if (!result.success) {
+      setGoogleLoading(false);
+      const message = result.error ?? "Google sign-in failed. Please try again.";
+      setError(message);
+      toast.error(message);
+    }
+    // On success the browser is already navigating to Google — nothing else to do here.
   }
 
   const input =
     "mt-1 w-full rounded-xl border border-input bg-background px-3.5 py-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40 min-h-[44px]";
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-end justify-center bg-navy/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-      <div className="animate-rise grid w-full max-w-3xl grid-cols-1 overflow-hidden rounded-t-3xl bg-card shadow-lift sm:rounded-3xl md:grid-cols-2">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
+      <div className="animate-rise my-auto flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-card shadow-lift md:flex-row">
         {/* Left hero panel */}
-        <div className="relative hidden min-h-[420px] flex-col justify-between overflow-hidden p-8 text-white md:flex">
-          <img
-            src={heroImage}
-            alt=""
-            aria-hidden
-            className="absolute inset-0 size-full object-cover"
-          />
+        <div className="relative hidden min-h-[420px] flex-col justify-between overflow-hidden p-8 text-white md:flex md:w-1/2">
+          <img src={heroImage} alt="" aria-hidden className="absolute inset-0 size-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-navy/95 via-navy/60 to-navy/30" />
           <p className="relative text-xs font-semibold uppercase tracking-[0.28em] text-primary-glow">
             The Plix Goa
@@ -117,7 +133,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
         </div>
 
         {/* Right auth panel */}
-        <div className="relative p-6 sm:p-8">
+        <div className="relative p-6 sm:p-8 md:w-1/2">
           <button
             onClick={handleClose}
             aria-label="Close"
@@ -126,113 +142,152 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
             <X className="size-5" />
           </button>
 
-          {step === "done" ? (
+          {status === "done" ? (
             <div className="flex min-h-[320px] flex-col items-center justify-center py-8 text-center">
               <CheckCircle2 className="size-14 text-primary" aria-hidden />
-              <h3 className="mt-4 text-xl font-semibold text-navy">You're signed in</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{phone}</p>
+              <h3 className="mt-4 text-xl font-semibold text-navy">
+                {mode === "signin" ? "Welcome back" : "Account created"}
+              </h3>
+              <p className="mt-2 text-sm text-muted-foreground">{email}</p>
             </div>
-          ) : step === "phone" ? (
-            <form onSubmit={handleSendOtp} className="mt-8 grid gap-4">
-              <div>
-                <h3 className="text-xl font-semibold text-navy">Sign in to continue</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  We'll text you a one-time code to verify your number.
-                </p>
-              </div>
-              <label className="block text-sm font-medium text-foreground">
-                Mobile number
-                <div className="mt-1 flex overflow-hidden rounded-xl border border-input bg-background focus-within:ring-2 focus-within:ring-ring/40">
-                  <span className="flex items-center border-r border-input bg-muted px-3.5 text-sm font-medium text-muted-foreground">
-                    +91
-                  </span>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    autoFocus
-                    value={mobile}
-                    onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                    placeholder="98765 43210"
-                    className="min-h-[44px] w-full bg-transparent px-3.5 py-3 text-sm outline-none"
-                  />
-                </div>
-              </label>
-              {error && <p className="text-xs text-red-600">{error}</p>}
-              <button
-                type="submit"
-                disabled={!mobileValid || sending}
-                className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-emerald px-6 py-4 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:opacity-60 min-h-[44px]"
-              >
-                {sending ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" /> Sending OTP…
-                  </>
-                ) : (
-                  "Send OTP"
-                )}
-              </button>
-              <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                <ShieldCheck className="size-3.5 text-primary" aria-hidden />
-                We'll never share your number.
+          ) : status === "check-email" ? (
+            <div className="flex min-h-[320px] flex-col items-center justify-center py-8 text-center">
+              <Mail className="size-14 text-primary" aria-hidden />
+              <h3 className="mt-4 text-xl font-semibold text-navy">Check your email</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                We sent a confirmation link to{" "}
+                <span className="font-medium text-foreground">{email}</span>. Confirm your address to
+                finish creating your account.
               </p>
-            </form>
+            </div>
           ) : (
-            <form onSubmit={handleVerify} className="mt-8 grid gap-4">
-              <div>
-                <h3 className="text-xl font-semibold text-navy">Enter the code</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  We sent a 6-digit code to <span className="font-medium text-foreground">{phone}</span>.{" "}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep("phone");
-                      setOtp("");
-                      setError("");
-                    }}
-                    className="font-semibold text-primary underline-offset-2 hover:underline"
-                  >
-                    Change number
-                  </button>
-                </p>
+            <>
+              <div className="mt-6 grid grid-cols-2 gap-1 rounded-full bg-muted p-1">
+                <button
+                  type="button"
+                  onClick={() => switchMode("signin")}
+                  className={`rounded-full py-2 text-sm font-semibold transition-colors ${
+                    mode === "signin" ? "bg-card text-navy shadow-soft" : "text-muted-foreground"
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchMode("signup")}
+                  className={`rounded-full py-2 text-sm font-semibold transition-colors ${
+                    mode === "signup" ? "bg-card text-navy shadow-soft" : "text-muted-foreground"
+                  }`}
+                >
+                  Create Account
+                </button>
               </div>
-              <label className="block text-sm font-medium text-foreground">
-                6-digit OTP
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoFocus
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="••••••"
-                  className={`${input} text-center text-lg tracking-[0.5em]`}
-                />
-              </label>
-              {error && <p className="text-xs text-red-600">{error}</p>}
-              <button
-                type="submit"
-                disabled={otp.length !== 6 || verifying}
-                className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-emerald px-6 py-4 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:opacity-60 min-h-[44px]"
-              >
-                {verifying ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" /> Verifying…
-                  </>
-                ) : (
-                  "Verify & Continue"
+
+              <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
+                {mode === "signup" && (
+                  <label className="block text-sm font-medium text-foreground">
+                    Full name
+                    <input
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className={input}
+                      placeholder="Ananya Menon"
+                      autoComplete="name"
+                    />
+                  </label>
                 )}
-              </button>
+                <label className="block text-sm font-medium text-foreground">
+                  Email
+                  <input
+                    required
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={input}
+                    placeholder="you@email.com"
+                    autoComplete="email"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-foreground">
+                  Password
+                  <input
+                    required
+                    type="password"
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={input}
+                    placeholder="••••••••"
+                    autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  />
+                </label>
+                {error && <p className="text-xs text-red-600">{error}</p>}
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-emerald px-6 py-4 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:opacity-60 min-h-[44px]"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      {mode === "signin" ? "Signing in…" : "Creating account…"}
+                    </>
+                  ) : mode === "signin" ? (
+                    "Sign In"
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+
+              <div className="my-5 flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Or</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
               <button
                 type="button"
-                onClick={() => void runSendOtp()}
-                disabled={sending}
-                className="text-center text-xs font-semibold text-primary underline-offset-2 hover:underline disabled:opacity-60"
+                onClick={() => void handleGoogle()}
+                disabled={googleLoading}
+                className="inline-flex w-full items-center justify-center gap-3 rounded-full border border-input bg-white px-6 py-3.5 text-sm font-semibold text-foreground shadow-soft transition-transform hover:scale-[1.01] disabled:opacity-60 min-h-[44px]"
               >
-                Resend code
+                {googleLoading ? <Loader2 className="size-4 animate-spin" /> : <GoogleLogo className="size-5" />}
+                Continue with Google
               </button>
-            </form>
+
+              <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                <ShieldCheck className="size-3.5 text-primary" aria-hidden />
+                We'll never share your details.
+              </p>
+            </>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+function GoogleLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <path
+        fill="#FFC107"
+        d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
+      />
+      <path
+        fill="#FF3D00"
+        d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"
+      />
+    </svg>
   );
 }

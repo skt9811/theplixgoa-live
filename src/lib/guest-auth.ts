@@ -1,10 +1,12 @@
+import type { User } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/rates";
 
 const LS_KEY = "plix_guest_user";
 const AUTH_EVENT = "plix-guest-auth-change";
 
 export type GuestUser = {
-  phone: string; // E.164, e.g. "+919876543210"
+  email: string;
+  fullName?: string;
   verifiedAt: string;
 };
 
@@ -34,6 +36,23 @@ export function clearGuestUser(): void {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(AUTH_EVENT));
 }
 
+/**
+ * Ends the real Supabase session, not just the local mirror — clearGuestUser()
+ * alone would get silently undone by the onAuthStateChange listener below the
+ * next time it fires (token refresh, tab focus, etc.) since the session would
+ * still be active.
+ */
+export async function signOutGuest(): Promise<void> {
+  if (isSupabaseConfigured) {
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // fall through — still clear local state
+    }
+  }
+  clearGuestUser();
+}
+
 /** Fires on sign-in/sign-out from this tab (custom event) or another tab (storage event). */
 export function onGuestAuthChange(callback: () => void): () => void {
   if (typeof window === "undefined") return () => {};
@@ -45,48 +64,74 @@ export function onGuestAuthChange(callback: () => void): () => void {
   };
 }
 
-export type SendOtpResult = { simulation: boolean; demoCode?: string; error?: string };
-
-// This project has no SMS/phone provider configured in Supabase Auth, so a
-// real signInWithOtp call will typically fail. Mirrors the Razorpay
-// simulation pattern in booking.ts: try the real path, fall back to a
-// clearly-labeled demo flow that still exercises the full UI.
-let simulatedPhone: string | null = null;
-let simulatedCode: string | null = null;
-
-export async function sendOtp(phone: string): Promise<SendOtpResult> {
-  if (isSupabaseConfigured) {
-    try {
-      const { error } = await supabase.auth.signInWithOtp({ phone });
-      if (error) throw error;
-      return { simulation: false };
-    } catch {
-      // Phone auth provider not enabled/configured for this project — fall through to demo mode.
-    }
-  }
-
-  simulatedPhone = phone;
-  simulatedCode = String(Math.floor(100000 + Math.random() * 900000));
-  return { simulation: true, demoCode: simulatedCode };
+function guestUserFromSupabaseUser(user: User): GuestUser {
+  const metadata = user.user_metadata as Record<string, unknown> | null;
+  const fullName = metadata?.["full_name"];
+  const base: GuestUser = { email: user.email ?? "", verifiedAt: new Date().toISOString() };
+  return typeof fullName === "string" ? { ...base, fullName } : base;
 }
 
-export type VerifyOtpResult = { success: boolean; error?: string };
-
-export async function verifyOtp(phone: string, token: string, simulation: boolean): Promise<VerifyOtpResult> {
-  if (!simulation) {
-    try {
-      const { error } = await supabase.auth.verifyOtp({ phone, token, type: "sms" });
-      if (error) throw error;
-      setGuestUser({ phone, verifiedAt: new Date().toISOString() });
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : "Verification failed. Please try again." };
+// Keeps plix_guest_user (and everything that reads it — header, checkout,
+// coupon UI) in sync with the real Supabase Auth session. This is what
+// picks up a session after signInWithPassword/signUp resolve, and — since
+// Google OAuth is a full-page redirect — after the browser comes back from
+// Google and the SDK parses the callback on this module's next load.
+if (isSupabaseConfigured) {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      setGuestUser(guestUserFromSupabaseUser(session.user));
+    } else {
+      clearGuestUser();
     }
-  }
+  });
+}
 
-  if (phone === simulatedPhone && token === simulatedCode) {
-    setGuestUser({ phone, verifiedAt: new Date().toISOString() });
-    return { success: true };
+export type AuthResult = { success: boolean; error?: string };
+
+export async function signInWithPassword(email: string, password: string): Promise<AuthResult> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: "Sign-in isn't available right now. Please try again later." };
   }
-  return { success: false, error: "Incorrect code. Please try again." };
+  try {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Sign-in failed. Please try again." };
+  }
+}
+
+export type SignUpResult = { success: boolean; needsEmailConfirmation?: boolean; error?: string };
+
+export async function signUpWithPassword(email: string, password: string, fullName: string): Promise<SignUpResult> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: "Sign-up isn't available right now. Please try again later." };
+  }
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
+    });
+    if (error) throw error;
+    return { success: true, needsEmailConfirmation: !data.session };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Sign-up failed. Please try again." };
+  }
+}
+
+export async function signInWithGoogle(): Promise<AuthResult> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: "Sign-in isn't available right now. Please try again later." };
+  }
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) throw error;
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Google sign-in failed. Please try again." };
+  }
 }

@@ -6,7 +6,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 
@@ -17,7 +17,6 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { WhatsAppFab } from "@/components/plix/whatsapp-fab";
 import { SITE_NAME, websiteJsonLd, jsonLdScript } from "@/lib/seo";
-import { notifyVisitorOnce } from "@/lib/visitor-notify";
 
 
 function NotFoundComponent() {
@@ -162,10 +161,6 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-
-  useEffect(() => {
-    notifyVisitorOnce();
-  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

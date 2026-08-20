@@ -131,8 +131,8 @@ export function SiteHeader() {
           <img
             src="/Plix_Transparent_(1).png"
             alt="Plix Hospitality"
-            width={500}
-            height={500}
+            width={70}
+            height={70}
             className={`h-10 w-auto object-contain transition-all duration-300 md:h-12 lg:h-14 ${
               isHome && !homeSolid
                 ? "brightness-0 invert drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]"

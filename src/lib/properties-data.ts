@@ -14,6 +14,7 @@ type PropertyOverride = {
   image_keys: string[];
   description: string;
   is_active: boolean;
+  google_maps_embed_url?: string | null;
 };
 
 // Generic stock photos used as decorative fallbacks elsewhere (location
@@ -151,6 +152,12 @@ export async function fetchPropertiesWithOverrides(): Promise<Property[]> {
             // Discard stale/generic placeholder image_keys — plix.ts's real
             // per-property gallery stays authoritative over them.
             image_keys: hasValidImageKeys(override.image_keys) ? override.image_keys : p.image_keys,
+            // The `properties` table has no google_maps_embed_url column yet,
+            // so a DB row's key is always absent here today — but if that
+            // column is ever added and a row is written before this field is
+            // backfilled, don't let an empty/null value blank out plix.ts's
+            // static embed URL.
+            google_maps_embed_url: override.google_maps_embed_url || p.google_maps_embed_url,
           };
         }) as Property[],
       );
@@ -167,6 +174,7 @@ export async function fetchPropertiesWithOverrides(): Promise<Property[]> {
         ...p,
         ...override,
         image_keys: hasValidImageKeys(override.image_keys) ? override.image_keys : p.image_keys,
+        google_maps_embed_url: override.google_maps_embed_url || p.google_maps_embed_url,
       };
     }) as Property[],
   );
@@ -199,6 +207,10 @@ export async function savePropertyOverride(
     image_keys: override.image_keys ?? existing.image_keys,
     description: override.description ?? existing.description,
     is_active: override.is_active ?? true,
+    // Not sent to Supabase below — the `properties` table has no
+    // google_maps_embed_url column yet. Cached to localStorage only so it
+    // isn't lost if a future admin UI starts collecting it.
+    google_maps_embed_url: override.google_maps_embed_url ?? existing.google_maps_embed_url,
   };
 
   // Write to Supabase

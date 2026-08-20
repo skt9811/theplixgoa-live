@@ -53,8 +53,9 @@ export async function fetchPropertiesWithOverrides(): Promise<Property[]> {
       for (const row of data) {
         dbMap[row.slug ?? row.id] = row as PropertyOverride;
       }
-      // Merge DB overrides on top of localStorage, then localStorage on top
-      const merged = { ...dbMap, ...overrides };
+      // Database is authoritative — do not let stale localStorage values
+      // override rows that actually exist in Supabase (mirrors rates.ts).
+      const merged = { ...overrides, ...dbMap };
       writeLocalOverrides(merged);
       return PROPERTIES.map((p) => ({
         ...p,

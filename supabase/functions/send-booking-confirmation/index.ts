@@ -83,9 +83,11 @@ Deno.serve(async (req: Request) => {
     let voucherAttachment: { filename: string; content: string; content_type: string } | undefined;
     try {
       const pdfBytes = await generateVoucherPdf(booking);
+      const pdfBase64 = uint8ArrayToBase64(pdfBytes);
+      console.log("PDF Base64 Length:", pdfBase64.length);
       voucherAttachment = {
         filename: `ThePlixGoa_Voucher_${booking.id.slice(0, 8).toUpperCase()}.pdf`,
-        content: uint8ArrayToBase64(pdfBytes),
+        content: pdfBase64,
         content_type: "application/pdf",
       };
     } catch (err) {

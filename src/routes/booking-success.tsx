@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarCheck, CircleCheck as CheckCircle2, Hop as Home, MapPin, Receipt, Users } from "lucide-react";
+import { useState } from "react";
+import { CalendarCheck, CircleCheck as CheckCircle2, Download, Hop as Home, Loader as Loader2, MapPin, Receipt, Users } from "lucide-react";
+import { fetchBookingById } from "@/lib/booking";
 
 type BookingSuccessSearch = {
   id?: string;
@@ -41,6 +43,32 @@ function BookingSuccess() {
   const s = Route.useSearch();
   const bookingRef = s.id ? s.id.slice(0, 8).toUpperCase() : "PLIX-XXXX";
   const isSimulation = s.sim === "1";
+  const [downloading, setDownloading] = useState(false);
+
+  // Real booking ids are plain UUIDs (no underscores); pending_/sim_/fallback_/
+  // client_ prefixed ids are local placeholders with no row to fetch.
+  const hasRealBookingId = Boolean(s.id) && !s.id!.includes("_");
+
+  async function handleDownloadVoucher() {
+    if (!s.id) return;
+    setDownloading(true);
+    try {
+      const booking = await fetchBookingById(s.id);
+      if (!booking) {
+        console.error("[Voucher Download Error]: booking not found for id", s.id);
+        return;
+      }
+      // Dynamically imported — pdf-lib is ~120KB gzip and must not be part of
+      // this page's critical bundle for the vast majority of visits that
+      // never click the download button.
+      const { downloadVoucherPdf } = await import("@/lib/pdf-voucher");
+      await downloadVoucherPdf(booking);
+    } catch (err) {
+      console.error("[Voucher Download Error]:", err);
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 md:px-6">
@@ -97,6 +125,21 @@ function BookingSuccess() {
           </div>
         )}
       </div>
+
+      {hasRealBookingId && (
+        <button
+          onClick={() => void handleDownloadVoucher()}
+          disabled={downloading}
+          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold text-navy transition-colors hover:bg-accent disabled:opacity-50"
+        >
+          {downloading ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Download className="size-4" aria-hidden />
+          )}
+          Download Voucher (PDF)
+        </button>
+      )}
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Link

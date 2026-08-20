@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { CalendarCheck, Hop as Home, Loader as Loader2, LogOut, Mail, MapPin, User, Users } from "lucide-react";
+import { CalendarCheck, Download, Hop as Home, Loader as Loader2, LogOut, Mail, MapPin, User, Users } from "lucide-react";
 import { fetchBookingsForGuest, type BookingRow } from "@/lib/booking";
 import { getGuestUser, onGuestAuthChange, signOutGuest, type GuestUser } from "@/lib/guest-auth";
 import { formatINR } from "@/lib/plix";
@@ -25,6 +25,22 @@ function AccountPage() {
   const [checkedAuth, setCheckedAuth] = useState(false);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [loadedBookings, setLoadedBookings] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  async function handleDownloadVoucher(booking: BookingRow) {
+    setDownloadingId(booking.id);
+    try {
+      // Dynamically imported — pdf-lib is ~120KB gzip and must not be part of
+      // the account page's critical bundle for guests who never download a
+      // voucher.
+      const { downloadVoucherPdf } = await import("@/lib/pdf-voucher");
+      await downloadVoucherPdf(booking);
+    } catch (err) {
+      console.error("[Voucher Download Error]:", err);
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   useEffect(() => {
     setGuestUser(getGuestUser());
@@ -153,6 +169,19 @@ function AccountPage() {
                 <span className="text-sm font-medium text-muted-foreground">Total Paid</span>
                 <span className="text-lg font-semibold text-navy">{formatINR(b.total_amount)}</span>
               </div>
+
+              <button
+                onClick={() => void handleDownloadVoucher(b)}
+                disabled={downloadingId === b.id}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-accent disabled:opacity-50"
+              >
+                {downloadingId === b.id ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <Download className="size-4" aria-hidden />
+                )}
+                Download Voucher
+              </button>
             </div>
           ))}
         </div>

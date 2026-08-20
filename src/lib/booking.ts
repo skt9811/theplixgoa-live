@@ -123,6 +123,25 @@ export async function fetchUpcomingBookings(): Promise<BookingRow[]> {
 }
 
 /** A signed-in guest's own bookings, most recent check-in first — for the account page. */
+/** A single booking by id — for the booking-success page's voucher download,
+ * where only the id (not the guest's full contact details) is in the URL. */
+export async function fetchBookingById(id: string): Promise<BookingRow | null> {
+  const supabase = getSupabase();
+  if (!supabase || !id) return null;
+
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[fetchBookingById]:", error.message);
+    return null;
+  }
+  return (data as BookingRow) ?? null;
+}
+
 export async function fetchBookingsForGuest(email: string): Promise<BookingRow[]> {
   const supabase = getSupabase();
   if (!supabase || !email) return [];

@@ -53,7 +53,6 @@ export type CreateOrderResponse = {
   amount: number;
   currency: string;
   key_id: string | null;
-  booking_record: BookingRecord;
 };
 
 export type RazorpayHandlerResult = {
@@ -69,50 +68,6 @@ export function isRazorpayConfigured(): boolean {
 function getSupabase() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
-
-export async function insertBooking(
-  record: BookingRecord,
-): Promise<{ id: string } | null> {
-  const supabase = getSupabase();
-  if (!supabase) return null;
-
-  const { data, error } = await supabase
-    .from("bookings")
-    .insert({
-      property_id: record.property_id,
-      property_name: record.property_name,
-      property_location: record.property_location,
-      guest_name: record.guest_name,
-      guest_email: record.guest_email,
-      guest_mobile: record.guest_mobile,
-      check_in: record.check_in,
-      check_out: record.check_out,
-      guests: record.guests,
-      nights: record.nights,
-      subtotal: record.subtotal,
-      // coupon_code / discount_amount intentionally omitted here — the
-      // `bookings` table doesn't have these columns until
-      // supabase/migrations/20260820150000_add_coupon_fields_to_bookings.sql
-      // is applied. Including them in every insert would make ALL booking
-      // writes fail (unrecognized column), not just discounted ones. Add
-      // them back to this payload once that migration has been run.
-      taxes: record.taxes,
-      total_amount: record.total_amount,
-      razorpay_order_id: record.razorpay_order_id ?? null,
-      razorpay_payment_id: record.razorpay_payment_id ?? null,
-      razorpay_signature: record.razorpay_signature ?? null,
-      payment_status: record.payment_status,
-      host_email: record.host_email ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    console.error("[Booking Insert Error]:", error.message);
-    return null;
-  }
-  return data ? { id: data.id } : null;
 }
 
 export async function updateBookingPayment(
@@ -234,63 +189,78 @@ export async function sendBookingConfirmationEmails(
   }
 }
 
+// Local, fully client-side fallback — used only when the create-razorpay-order
+// edge function is unreachable (Supabase misconfigured, network down). Never
+// produces a real Razorpay order; the guest always sees demo/simulation mode
+// in this case, same as when Razorpay itself isn't configured.
+function localFallbackOrder(input: CreateOrderInput, total: number): CreateOrderResponse {
+  const bookingId = `pending_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  return {
+    simulation: true,
+    booking_id: bookingId,
+    order_id: `client_${bookingId}`,
+    amount: Math.round(total * 100),
+    currency: "INR",
+    key_id: null,
+  };
+}
+
 export async function createRazorpayOrder(
   input: CreateOrderInput,
 ): Promise<CreateOrderResponse> {
-  const { property, nights, guestName, guestEmail, guestMobile, checkIn, checkOut, guests, rooms = 1, nightlyRates, couponCode, discountAmount = 0 } = input;
+  const { property, nights, guestName, guestEmail, guestMobile, checkIn, checkOut, guests, nightlyRates, discountAmount = 0 } = input;
   const effectiveNightlyRates = nightlyRates && nightlyRates.length > 0
     ? nightlyRates
     : Array.from({ length: nights }, () => property.base_price);
-  const { subtotal, discountAmount: appliedDiscount, taxes, total } = quoteWithDiscount(
-    effectiveNightlyRates,
-    property.bedrooms,
-    discountAmount,
-  );
-  const amountInPaise = Math.round(total * 100);
+  const { subtotal, taxes, total } = quoteWithDiscount(effectiveNightlyRates, property.bedrooms, discountAmount);
 
-  const bookingRecord: BookingRecord = {
-    property_id: property.id,
-    property_name: property.name,
-    property_location: property.location,
-    guest_name: guestName,
-    guest_email: guestEmail,
-    guest_mobile: guestMobile,
-    check_in: checkIn,
-    check_out: checkOut,
-    guests,
-    nights,
-    rooms,
-    nightly_rates: nightlyRates,
-    subtotal,
-    coupon_code: couponCode ?? null,
-    discount_amount: appliedDiscount,
-    taxes,
-    total_amount: total,
-    payment_status: "pending",
-    host_email: "reservations@theplixgoa.com",
-  };
-
-  // Insert the booking row first so we have an ID to reference
-  let bookingId = `pending_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-  try {
-    const inserted = await insertBooking(bookingRecord);
-    if (inserted) {
-      bookingId = inserted.id;
-    }
-  } catch (error) {
-    console.error("[Razorpay Init Error]: booking insert failed", error);
+  const supabase = getSupabase();
+  if (!supabase) {
+    return localFallbackOrder(input, total);
   }
 
-  // No server-side order creation — direct client-side checkout
-  return {
-    simulation: !RAZORPAY_KEY_ID,
-    booking_id: bookingId,
-    order_id: `client_${bookingId}`,
-    amount: amountInPaise,
-    currency: "INR",
-    key_id: RAZORPAY_KEY_ID || null,
-    booking_record: bookingRecord,
-  };
+  // Real order creation happens server-side (create-razorpay-order edge
+  // function): it calls Razorpay's Orders API for a real order_id and inserts
+  // the booking row with that order_id attached, before payment even starts.
+  // That's what lets razorpay-webhook reliably match an incoming payment
+  // event back to a booking, independent of whether the client is still
+  // around to see the Razorpay success callback fire.
+  try {
+    const { data, error } = await supabase.functions.invoke("create-razorpay-order", {
+      body: {
+        property_id: property.id,
+        property_name: property.name,
+        property_location: property.location,
+        guest_name: guestName,
+        guest_email: guestEmail,
+        guest_mobile: guestMobile,
+        check_in: checkIn,
+        check_out: checkOut,
+        guests,
+        nights,
+        subtotal,
+        taxes,
+        total_amount: total,
+      },
+    });
+
+    if (error || !data) {
+      console.error("[Razorpay Init Error]: create-razorpay-order failed", error);
+      return localFallbackOrder(input, total);
+    }
+
+    return {
+      simulation: Boolean(data.simulation),
+      booking_id: data.booking_id,
+      order_id: data.order_id,
+      amount: data.amount,
+      currency: data.currency,
+      key_id: data.key_id ?? null,
+    };
+  } catch (error) {
+    console.error("[Razorpay Init Error]: create-razorpay-order unreachable", error);
+    return localFallbackOrder(input, total);
+  }
 }
 
 declare global {

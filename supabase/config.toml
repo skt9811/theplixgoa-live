@@ -4,3 +4,10 @@ enabled = true
 client_id = "env(GOOGLE_CLIENT_ID)"
 secret = "env(GOOGLE_CLIENT_SECRET)"
 redirect_uri = "https://coojnxhftkmwlrkbagjm.supabase.co/auth/v1/callback"
+
+# Razorpay's webhook servers can't provide a Supabase JWT — the request is
+# authenticated by its own X-Razorpay-Signature instead (verified inside the
+# function). Without this, Supabase's gateway would reject every webhook
+# delivery with 401 before the function's own code ever runs.
+[functions.razorpay-webhook]
+verify_jwt = false

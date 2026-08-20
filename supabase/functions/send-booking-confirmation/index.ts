@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 import { getSecrets } from "../_shared/secrets.ts";
+import { generateVoucherPdf } from "../_shared/pdf-voucher.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -77,9 +78,24 @@ Deno.serve(async (req: Request) => {
     const guestHtml = buildGuestEmail(booking);
     const hostHtml = buildHostEmail(booking);
 
+    // A PDF generation bug must never block the confirmation emails themselves
+    // from going out — attach it only if it actually succeeds.
+    let voucherAttachment: { filename: string; content: string } | undefined;
+    try {
+      const pdfBytes = await generateVoucherPdf(booking);
+      voucherAttachment = {
+        filename: `ThePlixGoa_Voucher_${booking.id}.pdf`,
+        content: uint8ArrayToBase64(pdfBytes),
+      };
+    } catch (err) {
+      console.error("[send-booking-confirmation] voucher PDF generation failed:", err);
+    }
+
+    const attachments = voucherAttachment ? [voucherAttachment] : undefined;
+
     const [guestResult, hostResult] = await Promise.all([
-      sendResendEmail(resendApiKey, fromEmail, booking.guest_email, "Your Plix Hospitality booking is confirmed", guestHtml),
-      sendResendEmail(resendApiKey, fromEmail, hostEmail, `New booking: ${booking.property_name} — ${booking.guest_name}`, hostHtml),
+      sendResendEmail(resendApiKey, fromEmail, booking.guest_email, "Your Plix Hospitality booking is confirmed", guestHtml, attachments),
+      sendResendEmail(resendApiKey, fromEmail, hostEmail, `New booking: ${booking.property_name} — ${booking.guest_name}`, hostHtml, attachments),
     ]);
 
     const failedEmails: string[] = [];
@@ -111,6 +127,7 @@ async function sendResendEmail(
   to: string,
   subject: string,
   html: string,
+  attachments?: { filename: string; content: string }[],
 ): Promise<Response> {
   return fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -118,8 +135,20 @@ async function sendResendEmail(
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from, to: [to], subject, html }),
+    body: JSON.stringify({ from, to: [to], subject, html, attachments }),
   });
+}
+
+// btoa() only accepts a binary string (one char per byte), not a Uint8Array
+// directly — chunked to stay well clear of String.fromCharCode's argument
+// count limits on larger PDFs.
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
 }
 
 function formatINR(value: number): string {

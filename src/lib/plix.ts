@@ -245,6 +245,11 @@ export type Property = {
   latitude: number | null;
   longitude: number | null;
   google_maps_embed_url: string | null;
+  /** Physical unit count: 1 for a whole villa (the property is the unit),
+   * or the real room count for a multi-room resort. Admin-editable via
+   * properties-data.ts; see isMultiRoomProperty in lib/rates.ts for which
+   * properties actually use per-room inventory tracking. */
+  total_inventory: number;
 };
 
 export function formatINR(value: number): string {
@@ -316,6 +321,7 @@ export const PROPERTIES: Property[] = [
     longitude: 73.7425,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.870730595378!2d73.75229337478326!3d15.598554051866985!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfebc42ae85695%3A0x8fe453355360f281!2sMarina%20Villas%20by%20The%20Plix!5e0!3m2!1sen!2sin!4v1787225647279!5m2!1sen!2sin",
+    total_inventory: 1,
   },
   {
     id: "casa-moana",
@@ -349,6 +355,7 @@ export const PROPERTIES: Property[] = [
     longitude: 73.743,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.870730595378!2d73.75229337478326!3d15.598554051866985!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfebc42ae85695%3A0x8fe453355360f281!2sMarina%20Villas%20by%20The%20Plix!5e0!3m2!1sen!2sin!4v1787225647279!5m2!1sen!2sin",
+    total_inventory: 1,
   },
   {
     id: "casa-meadows",
@@ -382,6 +389,7 @@ export const PROPERTIES: Property[] = [
     longitude: 73.7435,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.870730595378!2d73.75229337478326!3d15.598554051866985!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfebc42ae85695%3A0x8fe453355360f281!2sMarina%20Villas%20by%20The%20Plix!5e0!3m2!1sen!2sin!4v1787225647279!5m2!1sen!2sin",
+    total_inventory: 1,
   },
   {
     id: "harbor-court",
@@ -415,6 +423,7 @@ export const PROPERTIES: Property[] = [
     longitude: 73.7395,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.8798999229653!2d73.73791177478313!3d15.598064351879852!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfe95ccd301c61%3A0x70764f7ab0c2ac5b!2sHarbor%20court!5e0!3m2!1sen!2sin!4v1787225547033!5m2!1sen!2sin",
+    total_inventory: 10,
   },
   {
     id: "the-plix-villa",
@@ -448,6 +457,7 @@ export const PROPERTIES: Property[] = [
     longitude: 73.752,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.843691896482!2d73.75493207478324!3d15.59999800182942!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfeb23f5d40b2b%3A0xbfa8e152957f9106!2sThe%20Plix%20Villa!5e0!3m2!1sen!2sin!4v1787225602144!5m2!1sen!2sin",
+    total_inventory: 1,
   },
   {
     id: "morjim-pride",
@@ -481,6 +491,7 @@ export const PROPERTIES: Property[] = [
     longitude: 73.734,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.325064000112!2d73.7377409747838!3d15.627669151108158!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfe95a6a32cc19%3A0x3ff28aba2cbdb21c!2sMorjim%20Pride!5e0!3m2!1sen!2sin!4v1787225624344!5m2!1sen!2sin",
+    total_inventory: 22,
   },
   {
     id: "vivenda-chico",
@@ -514,6 +525,7 @@ export const PROPERTIES: Property[] = [
     longitude: 73.762,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3844.3223041428723!2d73.76651777478182!3d15.520843253885856!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfc105cc2ac883%3A0x47be2befb7da01d3!2sVivenda%20Chico!5e0!3m2!1sen!2sin!4v1787225678244!5m2!1sen!2sin",
+    total_inventory: 1,
   },
 ].sort((a, b) => a.base_price - b.base_price);
 

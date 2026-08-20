@@ -10,7 +10,9 @@ import {
   fetchRateOverrides,
   fetchBlockedDates,
   notifyDataChange,
+  isMultiRoomProperty,
 } from "@/lib/rates";
+import { computeAvailableRooms, type NightlyAvailability } from "@/lib/inventory";
 import { MinimalBlogPublisher } from "@/components/plix/minimal-blog-publisher";
 import { PropertiesManager } from "@/components/plix/properties-manager";
 import { LocationsManager } from "@/components/plix/locations-manager";
@@ -121,6 +123,7 @@ function AdminDashboard() {
   });
   const [ratesMap, setRatesMap] = useState<RatesMap>({});
   const [blockedMap, setBlockedMap] = useState<BlockedMap>({});
+  const [availabilityMap, setAvailabilityMap] = useState<NightlyAvailability>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedRange, setSelectedRange] = useState<string[]>([]);
@@ -144,24 +147,36 @@ function AdminDashboard() {
     () => new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).toISOString().slice(0, 10),
     [currentMonth],
   );
+  // One day past monthEndStr — computeAvailableRooms treats its checkOut arg
+  // as exclusive (same convention as eachNight), so passing monthEndStr
+  // itself would silently drop the last day of the month from the map.
+  const monthEndExclusiveStr = useMemo(
+    () => new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1).toISOString().slice(0, 10),
+    [currentMonth],
+  );
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [overrides, blockedSet] = await Promise.all([
+      const [overrides, blockedSet, availability] = await Promise.all([
         fetchRateOverrides(selectedPropertyId, monthStartStr, monthEndStr),
         fetchBlockedDates(selectedPropertyId, monthStartStr, monthEndStr),
+        isMultiRoomProperty(selectedPropertyId)
+          ? computeAvailableRooms(selectedPropertyId, monthStartStr, monthEndExclusiveStr, selectedProperty.total_inventory)
+          : Promise.resolve({}),
       ]);
       setRatesMap(overrides);
       const bMap: BlockedMap = {};
       for (const date of blockedSet) bMap[date] = true;
       setBlockedMap(bMap);
+      setAvailabilityMap(availability);
     } catch {
       setRatesMap({});
       setBlockedMap({});
+      setAvailabilityMap({});
     }
     setLoading(false);
-  }, [selectedPropertyId, monthStartStr, monthEndStr]);
+  }, [selectedPropertyId, monthStartStr, monthEndExclusiveStr, selectedProperty.total_inventory]);
 
   useEffect(() => {
     void loadData();
@@ -187,8 +202,9 @@ function AdminDashboard() {
     const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
     const startWeekday = firstDay.getDay();
     const totalDays = lastDay.getDate();
-    const days: ({ date: string; rate: number | null; isCustom: boolean; isBlocked: boolean } | null)[] = [];
+    const days: ({ date: string; rate: number | null; isCustom: boolean; isBlocked: boolean; availableRooms: number | null } | null)[] = [];
     for (let i = 0; i < startWeekday; i++) days.push(null);
+    const isMultiRoom = isMultiRoomProperty(selectedPropertyId);
     for (let d = 1; d <= totalDays; d++) {
       const dateStr = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d)
         .toISOString()
@@ -199,10 +215,11 @@ function AdminDashboard() {
         rate: customRate ?? null,
         isCustom: customRate !== undefined,
         isBlocked: blockedMap[dateStr] ?? false,
+        availableRooms: isMultiRoom ? availabilityMap[dateStr] ?? selectedProperty.total_inventory : null,
       });
     }
     return days;
-  }, [currentMonth, ratesMap, blockedMap]);
+  }, [currentMonth, ratesMap, blockedMap, availabilityMap, selectedPropertyId, selectedProperty.total_inventory]);
 
   function handleDayClick(date: string) {
     if (rangeMode) {
@@ -607,6 +624,11 @@ function AdminDashboard() {
                           ) : (
                             <span className="text-[8px] text-white/40">₹{selectedProperty.base_price.toLocaleString("en-IN")}</span>
                           )}
+                          {cell.availableRooms !== null && !cell.isBlocked && (
+                            <span className={`text-[7px] ${cell.availableRooms <= 0 ? "text-red-400" : "text-emerald-400"}`}>
+                              {cell.availableRooms <= 0 ? "SOLD OUT" : `${cell.availableRooms} rms`}
+                            </span>
+                          )}
                         </div>
                       );
                     })}
@@ -661,6 +683,15 @@ function AdminDashboard() {
                     Save
                   </button>
                 </div>
+
+                {isMultiRoomProperty(selectedPropertyId) && (
+                  <p className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs text-white/60">
+                    {selectedRange.length === 1
+                      ? `${availabilityMap[selectedRange[0]!] ?? selectedProperty.total_inventory} of ${selectedProperty.total_inventory} rooms available`
+                      : `Room availability is computed from paid bookings — not directly editable. Use "Block" below to close a date entirely regardless of room count.`}
+                  </p>
+                )}
+
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     onClick={resetRates}

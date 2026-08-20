@@ -15,6 +15,7 @@ type PropertyOverride = {
   description: string;
   is_active: boolean;
   google_maps_embed_url?: string | null;
+  total_inventory?: number;
 };
 
 // Generic stock photos used as decorative fallbacks elsewhere (location
@@ -207,6 +208,7 @@ export async function savePropertyOverride(
     image_keys: override.image_keys ?? existing.image_keys,
     description: override.description ?? existing.description,
     is_active: override.is_active ?? true,
+    total_inventory: override.total_inventory ?? existing.total_inventory,
     // Not sent to Supabase below — the `properties` table has no
     // google_maps_embed_url column yet. Cached to localStorage only so it
     // isn't lost if a future admin UI starts collecting it.
@@ -230,6 +232,7 @@ export async function savePropertyOverride(
         image_keys: merged.image_keys,
         description: merged.description,
         is_active: merged.is_active,
+        total_inventory: merged.total_inventory,
         region: existing.region,
         seo_title: existing.seo_title,
         seo_description: existing.seo_description,

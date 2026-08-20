@@ -41,6 +41,7 @@ import {
   quoteWithDiscount,
   type RateOverride,
 } from "@/lib/rates";
+import { computeAvailableRooms, hasInsufficientRooms, type NightlyAvailability } from "@/lib/inventory";
 import {
   SITE_URL,
   SITE_NAME,
@@ -182,6 +183,7 @@ function PropertyDetail() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [rateOverrides, setRateOverrides] = useState<RateOverride>({});
   const [blockedDates, setBlockedDates] = useState<Set<string>>(new Set());
+  const [availability, setAvailability] = useState<NightlyAvailability>({});
   const [guestError, setGuestError] = useState("");
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResult | null>(null);
@@ -208,7 +210,8 @@ function PropertyDetail() {
     rate: gstRate,
   } = quoteWithDiscount(nightlyRates, property?.bedrooms ?? 1, couponDiscount);
   const hasCustomRate = nightsList.some((n) => rateOverrides[n] !== undefined);
-  const datesBlocked = hasBlockedOverlap(blockedDates, checkIn, checkOut);
+  const insufficientRooms = isMultiRoom ? hasInsufficientRooms(availability, rooms) : false;
+  const datesBlocked = hasBlockedOverlap(blockedDates, checkIn, checkOut) || insufficientRooms;
   const propertyReviews = property ? reviews.filter((r) => r.property_id === property.id) : [];
 
   async function handleApplyCoupon() {
@@ -242,6 +245,12 @@ function PropertyDetail() {
     // matching how the admin panel writes property_id — not property.id.
     void fetchRateOverrides(property.slug, startDate, endDate).then(setRateOverrides);
     void fetchBlockedDates(property.slug, startDate, endDate).then(setBlockedDates);
+    if (isMultiRoomProperty(property.id)) {
+      // Full checkIn/checkOut here, not startDate/endDate — those are
+      // night-inclusive bounds (endDate is the last *night*, not checkout),
+      // which would silently drop the final night from the availability check.
+      void computeAvailableRooms(property.slug, checkIn, checkOut, property.total_inventory).then(setAvailability);
+    }
   }, [property, checkIn, checkOut, nights]);
 
   useEffect(() => {
@@ -588,7 +597,9 @@ function PropertyDetail() {
 
             {datesBlocked && (
               <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                Some of the selected dates are unavailable. Please choose different dates.
+                {insufficientRooms
+                  ? `Not enough rooms available for ${rooms} room${rooms === 1 ? "" : "s"} on some of the selected dates. Try fewer rooms or different dates.`
+                  : "Some of the selected dates are unavailable. Please choose different dates."}
               </div>
             )}
 

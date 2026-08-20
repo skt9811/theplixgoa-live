@@ -13,7 +13,7 @@ import {
 import { redeemCoupon, validateCoupon, type CouponValidationResult } from "@/lib/coupons";
 import { getGuestUser, onGuestAuthChange, type GuestUser } from "@/lib/guest-auth";
 import { formatINR, gstLabel, type Property } from "@/lib/plix";
-import { quoteWithDiscount } from "@/lib/rates";
+import { autoBlockDatesForStay, isMultiRoomProperty, quoteWithDiscount } from "@/lib/rates";
 
 type Props = {
   property: Property;
@@ -193,6 +193,21 @@ export function CheckoutModal({
         result.razorpay_order_id,
         result.razorpay_signature,
       );
+
+      // Whole-villa properties: auto-block every night of the stay so the
+      // property reads as fully unavailable — a demo/simulation booking
+      // doesn't consume real inventory, so this only runs for real payments.
+      // Fire-and-log like the email call below: this must never block or
+      // reverse an already-successful payment.
+      //
+      // Multi-room resorts need no equivalent step here: availability is
+      // computed live from bookings.payment_status = "paid" (see
+      // lib/inventory.ts), so the row updateBookingPayment() just wrote is
+      // already all the "deduction" that's needed — nothing separate to
+      // decrement or store.
+      if (!isMultiRoomProperty(property.id)) {
+        void autoBlockDatesForStay(property.id, checkIn, checkOut);
+      }
     }
 
     // Guest + host confirmation emails, via the send-booking-confirmation edge

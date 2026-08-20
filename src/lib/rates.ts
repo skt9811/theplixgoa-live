@@ -311,6 +311,35 @@ export async function toggleBlockedDate(
   }
 }
 
+/**
+ * Auto-blocks every night of a confirmed stay for a whole-villa property
+ * (the property itself is the unit, so a booking makes it fully
+ * unavailable — unlike multi-room properties, which decrement available
+ * room counts instead; see decrementInventoryForStay in lib/inventory.ts).
+ * Upserts so re-processing (e.g. a webhook retry) is a no-op, not an error.
+ */
+export async function autoBlockDatesForStay(
+  propertyId: string,
+  checkIn: string,
+  checkOut: string,
+): Promise<{ error: string | null }> {
+  const nights = eachNight(checkIn, checkOut);
+  if (nights.length === 0) return { error: null };
+
+  try {
+    const { error } = await supabase.from("blocked_dates").upsert(
+      nights.map((date) => ({ property_id: propertyId, date, reason: "Booked" })),
+      { onConflict: "property_id,date", ignoreDuplicates: true },
+    );
+    if (error) throw error;
+    notifyDataChange();
+    return { error: null };
+  } catch (err) {
+    const message = logSupabaseError("autoBlockDatesForStay", err);
+    return { error: message };
+  }
+}
+
 export function isMultiRoomProperty(propertyId: string): boolean {
   return propertyId === "harbor-court" || propertyId === "morjim-pride";
 }

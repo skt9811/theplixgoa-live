@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { BedDouble, CalendarDays, Users } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
 import { propertiesQuery } from "@/lib/plix-queries";
-import { LOCATIONS } from "@/lib/plix";
-import { isMultiRoomProperty } from "@/lib/rates";
+import { LOCATIONS, type Property } from "@/lib/plix";
+import { fetchBlockedDates, hasBlockedOverlap, isMultiRoomProperty } from "@/lib/rates";
+import { computeAvailableRooms, hasInsufficientRooms } from "@/lib/inventory";
 import {
   SITE_URL,
   SITE_NAME,
@@ -72,6 +74,36 @@ function Stays() {
 
   const activeFilter = location ?? "All";
 
+  // Availability for the searched date range — undefined key means "not
+  // checked yet" (or no dates were searched), and is treated as available
+  // so the grid doesn't flash empty while this loads.
+  const [availableForDates, setAvailableForDates] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!checkIn || !checkOut) {
+      setAvailableForDates({});
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(
+      properties.map(async (p: Property) => {
+        const isMultiRoom = isMultiRoomProperty(p.id);
+        const [blocked, availability] = await Promise.all([
+          fetchBlockedDates(p.slug, checkIn, checkOut),
+          isMultiRoom ? computeAvailableRooms(p.slug, checkIn, checkOut, p.total_inventory) : Promise.resolve({}),
+        ]);
+        const blockedOverlap = hasBlockedOverlap(blocked, checkIn, checkOut);
+        const insufficientRooms = isMultiRoom ? hasInsufficientRooms(availability, rooms ?? 1) : false;
+        return [p.id, !blockedOverlap && !insufficientRooms] as const;
+      }),
+    ).then((results) => {
+      if (!cancelled) setAvailableForDates(Object.fromEntries(results));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [properties, checkIn, checkOut, rooms]);
+
   const filtered = properties.filter((p) => {
     const matchesLocation =
       !location ||
@@ -83,7 +115,8 @@ function Stays() {
       ? Math.min(rooms * 3, p.max_guests)
       : p.max_guests;
     const matchesGuests = !guests || effectiveMaxGuests >= guests;
-    return matchesLocation && matchesGuests;
+    const matchesAvailability = availableForDates[p.id] !== false;
+    return matchesLocation && matchesGuests && matchesAvailability;
   });
 
   return (

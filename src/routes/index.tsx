@@ -338,11 +338,8 @@ function Home() {
 
         {isDefaultHeroImage ? (
           <picture>
-            <source
-              type="image/webp"
-              srcSet={`${chicoHeroImageMobileWebp} 700w, ${chicoHeroImageDesktopWebp} 1280w`}
-              sizes="100vw"
-            />
+            <source media="(max-width: 768px)" srcSet={chicoHeroImageMobileWebp} type="image/webp" />
+            <source media="(min-width: 769px)" srcSet={chicoHeroImageDesktopWebp} type="image/webp" />
             <img
               src={heroImageSrc}
               alt="Luxury Goan villa with terracotta architecture, private pool and tropical gardens"

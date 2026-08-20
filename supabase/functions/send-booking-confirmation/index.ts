@@ -80,15 +80,21 @@ Deno.serve(async (req: Request) => {
 
     // A PDF generation bug must never block the confirmation emails themselves
     // from going out — attach it only if it actually succeeds.
-    let voucherAttachment: { filename: string; content: string } | undefined;
+    let voucherAttachment: { filename: string; content: string; content_type: string } | undefined;
     try {
       const pdfBytes = await generateVoucherPdf(booking);
       voucherAttachment = {
-        filename: `ThePlixGoa_Voucher_${booking.id}.pdf`,
+        filename: `ThePlixGoa_Voucher_${booking.id.slice(0, 8).toUpperCase()}.pdf`,
         content: uint8ArrayToBase64(pdfBytes),
+        content_type: "application/pdf",
       };
     } catch (err) {
-      console.error("[send-booking-confirmation] voucher PDF generation failed:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? err.stack : undefined;
+      console.error(
+        `[send-booking-confirmation] voucher PDF generation failed for booking ${booking.id}: ${message}`,
+        stack ? `\n${stack}` : "",
+      );
     }
 
     const attachments = voucherAttachment ? [voucherAttachment] : undefined;
@@ -127,7 +133,7 @@ async function sendResendEmail(
   to: string,
   subject: string,
   html: string,
-  attachments?: { filename: string; content: string }[],
+  attachments?: { filename: string; content: string; content_type: string }[],
 ): Promise<Response> {
   return fetch("https://api.resend.com/emails", {
     method: "POST",

@@ -47,12 +47,15 @@ function formatDateTime(isoStr: string): string {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+// Deliberately not style:"currency" — Intl renders that with the actual ₹
+// glyph (U+20B9), which pdf-lib's standard WinAnsi-encoded fonts cannot
+// encode and throw on. This is the exact bug that silently dropped the PDF
+// from every voucher: formatINR() ran on every totals row, so every single
+// generateVoucherPdf() call threw here and got swallowed by the caller's
+// try/catch — never once producing a PDF, not just for this one booking.
 function formatINR(value: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(Math.round(value));
+  const grouped = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Math.round(value));
+  return `Rs. ${grouped}`;
 }
 
 function statusLabel(paymentStatus: string): string {

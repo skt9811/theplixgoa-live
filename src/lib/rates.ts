@@ -111,7 +111,7 @@ type SupabaseErrorLike = {
   hint?: string;
 };
 
-function logSupabaseError(context: string, err: unknown): string {
+export function logSupabaseError(context: string, err: unknown): string {
   const error = err as SupabaseErrorLike;
   console.error(`[rates] ${context} failed:`, {
     message: error?.message,

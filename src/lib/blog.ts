@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import { supabase } from "@/lib/rates";
+import { supabase, logSupabaseError } from "@/lib/rates";
 
 export type BlogPost = {
   id: string;
@@ -195,14 +195,17 @@ export async function fetchBlogs(): Promise<BlogPost[]> {
       )
       .order("published_at", { ascending: false });
 
-    if (!error && data && data.length > 0) {
+    if (error) throw error;
+    // Database is authoritative — an empty table is a valid (if unlikely)
+    // state, not a signal to fall back to stale localStorage seed data.
+    if (data) {
       return sortByPublished(filterPublished(data as BlogPost[]));
     }
-  } catch {
-    // network error — fall through to localStorage
+  } catch (err) {
+    logSupabaseError("fetchBlogs", err);
   }
 
-  // Fallback to localStorage
+  // Fallback to localStorage only when Supabase is unreachable/misconfigured
   return sortByPublished(filterPublished(readLocalBlogs()));
 }
 
@@ -215,11 +218,12 @@ export async function fetchAllBlogsAdmin(): Promise<BlogPost[]> {
       )
       .order("published_at", { ascending: false });
 
-    if (!error && data && data.length > 0) {
+    if (error) throw error;
+    if (data) {
       return sortByPublished(data as BlogPost[]);
     }
-  } catch {
-    // network error — fall through to localStorage
+  } catch (err) {
+    logSupabaseError("fetchAllBlogsAdmin", err);
   }
 
   return sortByPublished(readLocalBlogs());
@@ -235,16 +239,20 @@ export async function fetchBlogBySlug(slug: string): Promise<BlogPost | null> {
       .eq("slug", slug)
       .maybeSingle();
 
-    if (!error && data) {
+    if (error) throw error;
+    // Database is authoritative — a successful query with no match means
+    // the post doesn't exist (or was deleted), not a signal to fall back.
+    if (data) {
       const post = data as BlogPost;
       if (new Date(post.published_at).getTime() > Date.now()) return null;
       return post;
     }
-  } catch {
-    // network error — fall through to localStorage
+    return null;
+  } catch (err) {
+    logSupabaseError("fetchBlogBySlug", err);
   }
 
-  // Fallback to localStorage — hide scheduled posts on public site
+  // Fallback to localStorage only when Supabase is unreachable/misconfigured
   const local = readLocalBlogs().find((p) => p.slug === slug);
   if (local && new Date(local.published_at).getTime() <= Date.now()) return local;
   return null;
@@ -265,21 +273,17 @@ export async function saveBlogPost(
   };
 
   if (post.id) {
-    // Update
+    // Update — Supabase is the source of truth for writes. A failure here
+    // must be reported to the caller, not masked by a silent localStorage
+    // write that leaves the admin believing the post is live for everyone.
     try {
       const { error } = await supabase.from("blogs").update(payload).eq("id", post.id);
       if (error) throw error;
-    } catch {
-      // Supabase failed — fallback to localStorage
-      const posts = readLocalBlogs();
-      const idx = posts.findIndex((p) => p.id === post.id);
-      if (idx >= 0) {
-        posts[idx] = { ...posts[idx], ...payload } as BlogPost;
-        writeLocalBlogs(posts);
-      }
-      return { error: null };
+    } catch (err) {
+      const message = logSupabaseError("saveBlogPost (update)", err);
+      return { error: message };
     }
-    // Also update localStorage for consistency
+    // Mirror to localStorage only after the Supabase write succeeded.
     const posts = readLocalBlogs();
     const idx = posts.findIndex((p) => p.id === post.id);
     if (idx >= 0) {
@@ -297,30 +301,22 @@ export async function saveBlogPost(
       .select("id")
       .maybeSingle();
 
-    if (!error && data) {
-      // Also sync to localStorage
-      const posts = readLocalBlogs();
-      const newPost: BlogPost = {
-        id: data.id,
-        ...payload,
-        created_at: new Date().toISOString(),
-      };
-      posts.push(newPost);
-      writeLocalBlogs(posts);
-      return { error: null };
-    }
-    throw error ?? new Error("No data returned");
-  } catch {
-    // Fallback: add to localStorage
+    if (error) throw error;
+    if (!data) throw new Error("No data returned");
+
+    // Mirror to localStorage only after the Supabase write succeeded.
     const posts = readLocalBlogs();
     const newPost: BlogPost = {
-      id: `local-${Date.now()}`,
+      id: data.id,
       ...payload,
       created_at: new Date().toISOString(),
     };
     posts.push(newPost);
     writeLocalBlogs(posts);
     return { error: null };
+  } catch (err) {
+    const message = logSupabaseError("saveBlogPost (insert)", err);
+    return { error: message };
   }
 }
 
@@ -328,10 +324,11 @@ export async function deleteBlogPost(id: string): Promise<{ error: string | null
   try {
     const { error } = await supabase.from("blogs").delete().eq("id", id);
     if (error) throw error;
-  } catch {
-    // Supabase failed — fallback to localStorage
+  } catch (err) {
+    const message = logSupabaseError("deleteBlogPost", err);
+    return { error: message };
   }
-  // Always clean localStorage
+  // Mirror to localStorage only after the Supabase delete succeeded.
   const posts = readLocalBlogs();
   writeLocalBlogs(posts.filter((p) => p.id !== id));
   return { error: null };

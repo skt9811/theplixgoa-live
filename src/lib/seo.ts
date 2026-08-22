@@ -99,6 +99,28 @@ export function organizationJsonLd() {
   };
 }
 
+export function localBusinessJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": `${SITE_URL}/#localbusiness`,
+    name: SITE_NAME,
+    image: `${SITE_URL}/Plix_Transparent_(1).png`,
+    url: SITE_URL,
+    telephone: SITE_PHONE_1,
+    email: SITE_EMAIL,
+    priceRange: PRICE_RANGE,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: SITE_ADDRESS.street,
+      addressLocality: "Anjuna, Vagator",
+      addressRegion: SITE_ADDRESS.region,
+      postalCode: SITE_ADDRESS.postalCode,
+      addressCountry: SITE_ADDRESS.country,
+    },
+  };
+}
+
 export function websiteJsonLd() {
   return {
     "@context": "https://schema.org",

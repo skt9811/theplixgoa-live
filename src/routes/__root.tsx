@@ -16,24 +16,15 @@ import { Toaster } from "@/components/ui/sonner";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { WhatsAppFab } from "@/components/plix/whatsapp-fab";
-import { SITE_NAME, websiteJsonLd, jsonLdScript } from "@/lib/seo";
+import { SITE_NAME, websiteJsonLd, localBusinessJsonLd, jsonLdScript } from "@/lib/seo";
 import { chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
 
 const GOOGLE_FONTS_HREF =
   "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap";
 
 function loadDeferredAnalytics() {
-  const gtmScript = document.createElement("script");
-  gtmScript.src = "https://www.googletagmanager.com/gtag/js?id=G-T4SSM7J1SY";
-  gtmScript.async = true;
-  document.head.appendChild(gtmScript);
-
   const inlineScript = document.createElement("script");
   inlineScript.textContent = `
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-T4SSM7J1SY', { send_page_view: true });
     (function(c,l,a,r,i,t,y){
       c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
       t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
@@ -144,7 +135,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://checkout.razorpay.com" },
     ],
     scripts: [
+      { src: "https://www.googletagmanager.com/gtag/js?id=G-98T2N1CNMW", async: true },
+      {
+        type: "text/javascript",
+        children: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-98T2N1CNMW');
+gtag('config', 'AW-18001047926');`,
+      },
       { type: "application/ld+json", children: jsonLdScript(websiteJsonLd()) },
+      { type: "application/ld+json", children: jsonLdScript(localBusinessJsonLd()) },
       {
         type: "text/javascript",
         children: `(function() {

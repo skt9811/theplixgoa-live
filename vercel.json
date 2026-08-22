@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/dotgrip",
+      "destination": "https://dotgrip-website.vercel.app"
+    },
+    {
+      "source": "/dotgrip/:path*",
+      "destination": "https://dotgrip-website.vercel.app/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

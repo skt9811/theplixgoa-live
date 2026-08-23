@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { FileText, Loader as Loader2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { blogsQuery, saveBlogPost, deleteBlogPost, slugify, type BlogPost } from "@/lib/blog";
 
-const CATEGORIES = ["Nightlife", "Travel Tips", "Local Guides", "Villas"];
+const CATEGORIES = ["Nightlife", "Travel Tips", "Local Guides", "Villas", "Luxury Stays", "Food & Dining"];
 
 type FormState = {
   id: string | null;

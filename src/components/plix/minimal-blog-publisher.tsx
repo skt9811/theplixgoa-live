@@ -11,7 +11,7 @@ import {
   type BlogPost,
 } from "@/lib/blog";
 
-const CATEGORIES = ["Nightlife", "Travel Tips", "Local Guides", "Villas"];
+const CATEGORIES = ["Nightlife", "Travel Tips", "Local Guides", "Villas", "Luxury Stays", "Food & Dining"];
 
 function toDatetimeLocal(iso: string): string {
   if (!iso) return "";

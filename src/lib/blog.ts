@@ -20,6 +20,8 @@ export const BLOG_CATEGORIES = [
   "Travel Tips",
   "Local Guides",
   "Villas",
+  "Luxury Stays",
+  "Food & Dining",
 ] as const;
 
 const LS_KEY = "plix_blog_posts";

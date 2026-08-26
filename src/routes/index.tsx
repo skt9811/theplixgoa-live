@@ -5,9 +5,10 @@ import { BadgeIndianRupee, Building2, ConciergeBell, HeartHandshake, Hop as Home
 import { PropertyCard } from "@/components/plix/property-card";
 import { ReviewCarousel } from "@/components/plix/review-carousel";
 import { HeroSearchBar } from "@/components/plix/hero-search-bar";
+import { HeroCarousel } from "@/components/plix/hero-carousel";
 import { NewsletterModal } from "@/components/plix/newsletter-modal";
 import { propertiesQuery, reviewsQuery } from "@/lib/plix-queries";
-import { chicoHeroImage, chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
+import { chicoHeroImage } from "@/lib/plix";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 import {
   DEFAULT_LOCATION_GRIDS,
@@ -319,9 +320,9 @@ function Home() {
     return () => window.removeEventListener("storage", onStorageChange);
   }, []);
 
-  const heroHeading = config?.hero_heading || "An Exclusive Collection of Luxury Private Pool Villas in Goa";
-  const heroSubtitle = config?.hero_subtitle || "Handpicked coastal sanctuaries across Anjuna, Vagator, Assagao, Morjim, and Candolim — designed for slow living, effortless luxury, and group escapes.";
-  const heroCtaText = config?.hero_cta_text || "Explore Stays";
+  const heroHeading = config?.hero_heading || "An Exclusive Collection of Private Pool Villas in Goa";
+  const heroSubtitle = config?.hero_subtitle || "Handpicked coastal sanctuaries across Vagator, Anjuna, and Morjim.";
+  const heroCtaText = config?.hero_cta_text || "Explore All Stays";
   const heroCtaLink = (config?.hero_cta_link || "/stays") as "/contact" | "/stays";
   const heroImageSrc = config?.hero_image_url || chicoHeroImage;
   const isDefaultHeroImage = !config?.hero_image_url;
@@ -336,65 +337,15 @@ function Home() {
   return (
     <>
       <section className="relative isolate flex min-h-screen w-full flex-col items-center justify-center overflow-hidden">
+        <HeroCarousel
+          slide1Image={isDefaultHeroImage ? chicoHeroImage : heroImageSrc}
+          slide1Heading={heroHeading}
+          slide1Subheading={heroSubtitle}
+          slide1CtaLabel={heroCtaText}
+          slide1CtaTo={heroCtaLink}
+        />
 
-        {isDefaultHeroImage ? (
-          <picture>
-            <source media="(max-width: 768px)" srcSet={chicoHeroImageMobileWebp} type="image/webp" />
-            <source media="(min-width: 769px)" srcSet={chicoHeroImageDesktopWebp} type="image/webp" />
-            <img
-              src={heroImageSrc}
-              alt="Luxury Goan villa with terracotta architecture, private pool and tropical gardens"
-              width={1920}
-              height={1088}
-              fetchPriority="high"
-              className="absolute inset-0 size-full object-cover"
-            />
-          </picture>
-        ) : (
-          <img
-            src={heroImageSrc}
-            alt="Luxury Goan villa with terracotta architecture, private pool and tropical gardens"
-            width={1920}
-            height={1088}
-            fetchPriority="high"
-            className="absolute inset-0 size-full object-cover"
-          />
-        )}
-        {/* Soft dark gradient vignette — linear for top-to-bottom contrast,
-            radial for edge darkening, so hero text stays readable over any photo. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#2a1810]/75 via-[#2a1810]/55 to-[#1a0e05]/80" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(10,6,2,0.45)_100%)]" />
-
-        <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-4 pb-28 pt-24 text-center">
-          <p className="animate-fade text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
-            The Plix Goa · North Goa, India
-          </p>
-          <h1 className="animate-rise mt-5 max-w-3xl font-serif text-4xl font-normal leading-[1.15] tracking-wide text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.35)] md:text-6xl lg:text-7xl">
-            {heroHeading}
-          </h1>
-          <p className="animate-rise mt-5 max-w-2xl text-base font-light text-white/90 md:text-lg">
-            {heroSubtitle}
-          </p>
-          <div className="animate-rise mt-8 flex flex-wrap items-center justify-center gap-4">
-            <Link
-              to={heroCtaLink}
-              className="rounded-full bg-bronze px-8 py-3.5 text-sm font-semibold text-bronze-foreground shadow-lg transition-transform duration-200 hover:scale-[1.03]"
-            >
-              {heroCtaText}
-            </Link>
-            <button
-              type="button"
-              onClick={() =>
-                document.getElementById("experience-video")?.scrollIntoView({ behavior: "smooth", block: "start" })
-              }
-              className="rounded-full border border-white/60 bg-white/10 px-8 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition-all duration-200 hover:scale-[1.03] hover:bg-white/20"
-            >
-              Watch Experience Video
-            </button>
-          </div>
-        </div>
-
-        <div className="relative z-20 mx-auto w-full max-w-5xl px-4 pb-6">
+        <div className="relative z-30 mx-auto mt-auto w-full max-w-5xl px-4 pb-6">
           <HeroSearchBar />
         </div>
       </section>

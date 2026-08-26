@@ -336,7 +336,7 @@ function Home() {
 
   return (
     <>
-      <section className="relative isolate flex min-h-screen w-full flex-col items-center justify-center overflow-hidden">
+      <section className="relative isolate flex min-h-[100dvh] w-full flex-col items-center justify-center overflow-hidden">
         <HeroCarousel
           slide1Image={isDefaultHeroImage ? chicoHeroImage : heroImageSrc}
           slide1Heading={heroHeading}
@@ -345,7 +345,10 @@ function Home() {
           slide1CtaTo={heroCtaLink}
         />
 
-        <div className="relative z-30 mx-auto mt-auto w-full max-w-5xl px-4 pb-6">
+        {/* Anchored to the bottom of the hero via mt-auto + pb-8, rather than
+            overlapping into the section below — z-30 keeps it above the
+            carousel's own arrows/dots (z-20) wherever they're near each other. */}
+        <div className="relative z-30 mx-auto mt-auto w-full max-w-5xl px-4 pb-8">
           <HeroSearchBar />
         </div>
       </section>

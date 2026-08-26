@@ -140,7 +140,7 @@ export function HeroCarousel({
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
               <div className="absolute inset-0 bg-gradient-to-b from-[#2a1810]/70 via-transparent to-[#1a0e05]/70" />
 
-              <div className="relative z-10 mx-auto flex h-full w-full max-w-4xl flex-col items-center justify-center px-4 pb-28 pt-24 text-center">
+              <div className="relative z-10 mx-auto flex h-full w-full max-w-4xl flex-col items-center justify-center px-4 pb-16 pt-24 text-center">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
                   The Plix Goa · North Goa, India
                 </p>
@@ -168,6 +168,24 @@ export function HeroCarousel({
                     </Link>
                   )}
                 </div>
+
+                {/* Dot indicators — grouped with the slide's own content flow
+                    rather than pinned to a fixed bottom offset, so they can
+                    never collide with the floating search widget below,
+                    regardless of the widget's height at any breakpoint. */}
+                <div className="mt-6 flex gap-2">
+                  {slides.map((s, dotIndex) => (
+                    <button
+                      key={s.heading}
+                      type="button"
+                      onClick={() => emblaApi?.scrollTo(dotIndex)}
+                      aria-label={`Go to slide ${dotIndex + 1}`}
+                      className={`h-1.5 rounded-full transition-all ${
+                        dotIndex === selectedIndex ? "w-6 bg-white" : "w-1.5 bg-white/40"
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           ))}
@@ -191,21 +209,6 @@ export function HeroCarousel({
       >
         <ChevronRight className="size-5" aria-hidden />
       </button>
-
-      {/* Dot indicators */}
-      <div className="absolute bottom-40 left-1/2 z-20 flex -translate-x-1/2 gap-2 sm:bottom-44">
-        {slides.map((slide, i) => (
-          <button
-            key={slide.heading}
-            type="button"
-            onClick={() => emblaApi?.scrollTo(i)}
-            aria-label={`Go to slide ${i + 1}`}
-            className={`h-1.5 rounded-full transition-all ${
-              i === selectedIndex ? "w-6 bg-white" : "w-1.5 bg-white/40"
-            }`}
-          />
-        ))}
-      </div>
     </div>
   );
 }

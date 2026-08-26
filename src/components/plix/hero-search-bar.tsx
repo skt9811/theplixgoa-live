@@ -86,7 +86,8 @@ export function HeroSearchBar() {
       onSubmit={handleSubmit}
       className="w-full rounded-3xl border border-white/25 bg-white/15 p-4 shadow-2xl backdrop-blur-md sm:p-5"
     >
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="lg:flex lg:flex-row lg:items-end lg:gap-3">
+      <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="block">
           <span className={fieldLabel}>
             <MapPin className="size-3.5 text-bronze" aria-hidden />
@@ -176,6 +177,16 @@ export function HeroSearchBar() {
         </div>
       </div>
 
+      <button
+        type="submit"
+        disabled={Boolean(guestError)}
+        className="mt-4 inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-full bg-bronze px-6 py-3.5 text-sm font-semibold text-bronze-foreground shadow-lg transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto lg:mt-0"
+      >
+        <Search className="size-4" aria-hidden />
+        Search Stays
+      </button>
+      </div>
+
       {isMultiRoom && (
         <label className="mt-3 block max-w-[220px]">
           <span className={fieldLabel}>Rooms</span>
@@ -204,15 +215,6 @@ export function HeroSearchBar() {
       )}
 
       {guestError && <p className="mt-2 text-xs text-red-200">{guestError}</p>}
-
-      <button
-        type="submit"
-        disabled={Boolean(guestError)}
-        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-bronze px-6 py-3.5 text-sm font-semibold text-bronze-foreground shadow-lg transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-      >
-        <Search className="size-4" aria-hidden />
-        Search Stays
-      </button>
     </form>
   );
 }

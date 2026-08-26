@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LogOut, MapPin, Menu, Phone, User, X } from "lucide-react";
+import { LogOut, Menu, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SearchBar } from "@/components/plix/search-bar";
 import { AuthModal } from "@/components/plix/auth-modal";
@@ -39,100 +39,30 @@ export function SiteHeader() {
   }, [isHome]);
 
   const homeSolid = isHome && scrolled;
+  const linkClass = isHome
+    ? "rounded-full px-3 py-2 text-white/90 transition-colors hover:bg-white/15 hover:text-white"
+    : "rounded-full px-3 py-2 text-foreground/80 transition-colors hover:bg-accent hover:text-accent-foreground";
+  const activeLinkClass = isHome && !homeSolid
+    ? "bg-white/15 text-white"
+    : homeSolid
+      ? "bg-white/20 text-white"
+      : "bg-accent text-accent-foreground";
 
   return (
     <header
       className={
         isHome
           ? `fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-              homeSolid
-                ? "bg-bronze text-white shadow-md"
-                : "bg-transparent text-white"
+              homeSolid ? "bg-bronze text-white shadow-md" : "bg-transparent text-white"
             }`
           : "sticky top-0 z-50 border-b border-border/70 bg-background/95 backdrop-blur-xl"
       }
     >
-      {/* Top utility contact strip — always visible */}
+      {/* Main nav bar — logo left, links centered, CTA right (equal 3-column
+          grid so the centered nav is optically centered in the full header,
+          not just between the logo and the CTA, whichever is wider). */}
       <div
-        className={`border-b transition-colors duration-300 ${
-          isHome
-            ? homeSolid
-              ? "border-white/20 bg-bronze text-white"
-              : "border-white/15 bg-black/20 text-white"
-            : "border-border/60 bg-navy text-navy-foreground"
-        }`}
-      >
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-1.5 text-xs md:px-6">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            <a
-              href="tel:+919009800809"
-              className={`flex items-center gap-1.5 transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-navy-foreground/80 hover:text-primary-glow"}`}
-            >
-              <Phone className="size-3" aria-hidden />
-              +91-9009800809
-            </a>
-            <a
-              href="tel:+919009800895"
-              className={`flex items-center gap-1.5 transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-navy-foreground/80 hover:text-primary-glow"}`}
-            >
-              <Phone className="size-3" aria-hidden />
-              +91-9009800895
-            </a>
-            <span className={`hidden items-center gap-1.5 sm:flex ${isHome ? "text-white/70" : "text-navy-foreground/70"}`}>
-              <MapPin className="size-3" aria-hidden />
-              Pequen, Chivar, 1561/3A, Anjuna, Vagator, Goa 403413
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            {guestUser ? (
-              <div className="flex items-center gap-2">
-                <Link
-                  to="/account"
-                  className={`flex items-center gap-1.5 transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-navy-foreground/80 hover:text-primary-glow"}`}
-                  title="My account"
-                >
-                  <User className="size-3" aria-hidden />
-                  {guestUser.fullName?.split(" ")[0] ?? guestUser.email}
-                </Link>
-                <button
-                  onClick={() => {
-                    void signOutGuest();
-                    setGuestUser(null);
-                  }}
-                  className={`flex items-center gap-1 transition-colors ${isHome ? "text-white/60 hover:text-white" : "text-navy-foreground/60 hover:text-primary-glow"}`}
-                  title="Sign out"
-                >
-                  <LogOut className="size-3" aria-hidden />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setAuthOpen(true)}
-                className={`flex items-center gap-1.5 transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-navy-foreground/80 hover:text-primary-glow"}`}
-              >
-                <User className="size-3" aria-hidden />
-                Sign In
-              </button>
-            )}
-            <Link
-              to="/stays"
-              className={`rounded-full px-4 py-1 text-xs font-semibold transition-colors ${
-                isHome
-                  ? homeSolid
-                    ? "bg-white text-bronze hover:bg-white/90"
-                    : "bg-white/90 text-navy hover:bg-white"
-                  : "bg-[oklch(0.828_0.189_84.429)] text-navy hover:bg-[oklch(0.78_0.17_80)]"
-              }`}
-            >
-              Book Now
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Main nav bar */}
-      <div
-        className={`mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 transition-all duration-300 md:px-6 ${
+        className={`mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-4 px-4 transition-all duration-300 md:px-6 ${
           homeSolid ? "py-2.5" : "py-3.5"
         }`}
       >
@@ -152,29 +82,10 @@ export function SiteHeader() {
           />
         </Link>
 
-        <nav className="hidden items-center gap-1 text-sm font-medium lg:flex">
-          <Link
-            to="/"
-            activeProps={{ className: isHome && !homeSolid ? "bg-white/15 text-white" : homeSolid ? "bg-white/20 text-white" : "bg-accent text-accent-foreground" }}
-            className={
-              isHome
-                ? "rounded-full px-3 py-2 text-white/90 transition-colors hover:bg-white/15 hover:text-white"
-                : "rounded-full px-3 py-2 text-foreground/80 transition-colors hover:bg-accent hover:text-accent-foreground"
-            }
-          >
-            Home
-          </Link>
-
+        <nav className="hidden items-center justify-self-center gap-1 text-sm font-medium lg:flex">
           <div className="group relative">
-            <Link
-              to="/stays"
-              className={
-                isHome
-                  ? "flex items-center gap-1 rounded-full px-3 py-2 text-white/90 transition-colors hover:bg-white/15 hover:text-white"
-                  : "flex items-center gap-1 rounded-full px-3 py-2 text-foreground/80 transition-colors hover:bg-accent hover:text-accent-foreground"
-              }
-            >
-              Stays
+            <Link to="/stays" className={`flex items-center gap-1 ${linkClass}`}>
+              Villas &amp; Stays
             </Link>
             <div className="invisible absolute left-0 top-full min-w-[220px] w-max whitespace-nowrap translate-y-1 rounded-xl border border-border bg-popover p-1.5 opacity-0 shadow-card transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
               {PROPERTIES.map((p) => (
@@ -190,38 +101,58 @@ export function SiteHeader() {
             </div>
           </div>
 
+          <a href="/#locations" className={linkClass}>
+            Locations
+          </a>
+
           {links.map((l) => (
-            <Link
-              key={l.to}
-              to={l.to}
-              activeProps={{ className: isHome && !homeSolid ? "bg-white/15 text-white" : homeSolid ? "bg-white/20 text-white" : "bg-accent text-accent-foreground" }}
-              className={
-                isHome
-                  ? "rounded-full px-3 py-2 text-white/90 transition-colors hover:bg-white/15 hover:text-white"
-                  : "rounded-full px-3 py-2 text-foreground/80 transition-colors hover:bg-accent hover:text-accent-foreground"
-              }
-            >
+            <Link key={l.to} to={l.to} activeProps={{ className: activeLinkClass }} className={linkClass}>
               {l.label}
             </Link>
           ))}
-          <Link
-            to="/stays"
-            className={
-              isHome
-                ? "ml-2 rounded-full border border-white/70 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-white hover:text-navy"
-                : "ml-2 rounded-full bg-navy px-5 py-2.5 text-sm font-semibold text-navy-foreground transition-transform duration-200 hover:scale-[1.03]"
-            }
-          >
-            Book Now
-          </Link>
         </nav>
 
+        <div className="hidden items-center gap-3 justify-self-end lg:flex">
+          {guestUser ? (
+            <div className="flex items-center gap-2">
+              <Link
+                to="/account"
+                className={`flex items-center gap-1.5 text-sm transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-foreground/80 hover:text-primary"}`}
+                title="My account"
+              >
+                <User className="size-3.5" aria-hidden />
+                {guestUser.fullName?.split(" ")[0] ?? guestUser.email}
+              </Link>
+              <button
+                onClick={() => {
+                  void signOutGuest();
+                  setGuestUser(null);
+                }}
+                className={`transition-colors ${isHome ? "text-white/60 hover:text-white" : "text-foreground/50 hover:text-primary"}`}
+                title="Sign out"
+              >
+                <LogOut className="size-3.5" aria-hidden />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAuthOpen(true)}
+              className={`flex items-center gap-1.5 text-sm transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-foreground/80 hover:text-primary"}`}
+            >
+              <User className="size-3.5" aria-hidden />
+              Sign In
+            </button>
+          )}
+          <Link
+            to="/stays"
+            className="rounded-full bg-bronze px-5 py-2.5 text-sm font-semibold text-bronze-foreground shadow-md transition-transform duration-200 hover:scale-[1.03]"
+          >
+            Book Direct &amp; Save
+          </Link>
+        </div>
+
         <button
-          className={
-            isHome
-              ? "rounded-lg border border-white/40 p-2 text-white"
-              : "rounded-lg border border-border p-2"
-          }
+          className={`justify-self-end ${isHome ? "rounded-lg border border-white/40 p-2 text-white" : "rounded-lg border border-border p-2"} lg:hidden`}
           onClick={() => setOpen((v) => !v)}
           aria-label="Toggle menu"
         >
@@ -238,26 +169,45 @@ export function SiteHeader() {
           }
         >
           <div className="grid gap-1 text-sm font-medium">
-            <Link
-              to="/"
-              onClick={() => setOpen(false)}
-              className={`rounded-lg px-3 py-3 ${isHome ? "text-white/90 hover:bg-white/15" : "hover:bg-accent"}`}
-            >
-              Home
-            </Link>
+            {guestUser ? (
+              <div className="flex items-center justify-between rounded-lg px-3 py-3">
+                <Link
+                  to="/account"
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center gap-1.5 ${isHome ? "text-white/90" : "text-foreground"}`}
+                >
+                  <User className="size-4" aria-hidden />
+                  {guestUser.fullName?.split(" ")[0] ?? guestUser.email}
+                </Link>
+                <button
+                  onClick={() => {
+                    void signOutGuest();
+                    setGuestUser(null);
+                  }}
+                  className={`flex items-center gap-1.5 text-xs ${isHome ? "text-white/60" : "text-foreground/60"}`}
+                >
+                  <LogOut className="size-3.5" aria-hidden />
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setAuthOpen(true);
+                  setOpen(false);
+                }}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-3 ${isHome ? "text-white/90 hover:bg-white/15" : "hover:bg-accent"}`}
+              >
+                <User className="size-4" aria-hidden />
+                Sign In
+              </button>
+            )}
             <Link
               to="/stays"
               onClick={() => setOpen(false)}
               className={`rounded-lg px-3 py-3 ${isHome ? "text-white/90 hover:bg-white/15" : "hover:bg-accent"}`}
             >
-              Stays
-            </Link>
-            <Link
-              to="/blog"
-              onClick={() => setOpen(false)}
-              className={`rounded-lg px-3 py-3 ${isHome ? "text-white/90 hover:bg-white/15" : "hover:bg-accent"}`}
-            >
-              Blog
+              Villas &amp; Stays
             </Link>
             {PROPERTIES.map((p) => (
               <Link
@@ -270,6 +220,13 @@ export function SiteHeader() {
                 {p.name}
               </Link>
             ))}
+            <a
+              href="/#locations"
+              onClick={() => setOpen(false)}
+              className={`rounded-lg px-3 py-3 ${isHome ? "text-white/90 hover:bg-white/15" : "hover:bg-accent"}`}
+            >
+              Locations
+            </a>
             {links.map((l) => (
               <Link
                 key={l.to}
@@ -280,20 +237,13 @@ export function SiteHeader() {
                 {l.label}
               </Link>
             ))}
-            {/* Contact info in mobile menu on homepage */}
-            {isHome && (
-              <div className="mt-2 flex flex-col gap-1 border-t border-white/15 pt-3 text-xs text-white/70">
-                <a href="tel:+919009800809" className="flex items-center gap-1.5">
-                  <Phone className="size-3" /> +91-9009800809
-                </a>
-                <a href="tel:+919009800895" className="flex items-center gap-1.5">
-                  <Phone className="size-3" /> +91-9009800895
-                </a>
-                <span className="flex items-start gap-1.5">
-                  <MapPin className="size-3 mt-0.5 shrink-0" /> Pequen, Chivar, 1561/3A, Anjuna, Vagator, Goa 403413
-                </span>
-              </div>
-            )}
+            <Link
+              to="/stays"
+              onClick={() => setOpen(false)}
+              className="mt-2 rounded-full bg-bronze px-4 py-3 text-center font-semibold text-bronze-foreground"
+            >
+              Book Direct &amp; Save
+            </Link>
           </div>
         </div>
       )}

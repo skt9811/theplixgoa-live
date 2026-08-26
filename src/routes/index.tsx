@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { BadgeIndianRupee, Building2, ConciergeBell, HeartHandshake, Hop as HomeIcon, MapPin as MapPinIcon, Quote, Sparkles, Star, Utensils, Waves, Wine } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
 import { ReviewCarousel } from "@/components/plix/review-carousel";
-import { SearchBar } from "@/components/plix/search-bar";
+import { HeroSearchBar } from "@/components/plix/hero-search-bar";
 import { propertiesQuery, reviewsQuery } from "@/lib/plix-queries";
 import { chicoHeroImage, chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
@@ -320,8 +320,8 @@ function Home() {
 
   const heroHeading = config?.hero_heading || "An Exclusive Collection of Luxury Private Pool Villas in Goa";
   const heroSubtitle = config?.hero_subtitle || "Handpicked coastal sanctuaries across Anjuna, Vagator, Assagao, Morjim, and Candolim — designed for slow living, effortless luxury, and group escapes.";
-  const heroCtaText = config?.hero_cta_text || "Book Your Stay";
-  const heroCtaLink = (config?.hero_cta_link || "/contact") as "/contact" | "/stays";
+  const heroCtaText = config?.hero_cta_text || "Explore Stays";
+  const heroCtaLink = (config?.hero_cta_link || "/stays") as "/contact" | "/stays";
   const heroImageSrc = config?.hero_image_url || chicoHeroImage;
   const isDefaultHeroImage = !config?.hero_image_url;
 
@@ -359,16 +359,19 @@ function Home() {
             className="absolute inset-0 size-full object-cover"
           />
         )}
+        {/* Soft dark gradient vignette — linear for top-to-bottom contrast,
+            radial for edge darkening, so hero text stays readable over any photo. */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#2a1810]/75 via-[#2a1810]/55 to-[#1a0e05]/80" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(10,6,2,0.45)_100%)]" />
 
         <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-4 pb-28 pt-24 text-center">
           <p className="animate-fade text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
             The Plix Goa · North Goa, India
           </p>
-          <h1 className="animate-rise mt-4 font-serif text-3xl font-normal leading-tight tracking-wide text-white md:text-5xl lg:text-6xl">
+          <h1 className="animate-rise mt-5 max-w-3xl font-serif text-4xl font-normal leading-[1.15] tracking-wide text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.35)] md:text-6xl lg:text-7xl">
             {heroHeading}
           </h1>
-          <p className="animate-rise mt-4 max-w-2xl text-base font-light text-white/90 md:text-lg">
+          <p className="animate-rise mt-5 max-w-2xl text-base font-light text-white/90 md:text-lg">
             {heroSubtitle}
           </p>
           <div className="animate-rise mt-8 flex flex-wrap items-center justify-center gap-4">
@@ -378,17 +381,42 @@ function Home() {
             >
               {heroCtaText}
             </Link>
-            <Link
-              to="/stays"
-              className="rounded-full border border-white/70 bg-white/10 px-8 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-200 hover:scale-[1.03] hover:bg-white hover:text-navy"
+            <button
+              type="button"
+              onClick={() =>
+                document.getElementById("experience-video")?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+              className="rounded-full border border-white/60 bg-white/10 px-8 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition-all duration-200 hover:scale-[1.03] hover:bg-white/20"
             >
-              Explore Villas
-            </Link>
+              Watch Experience Video
+            </button>
           </div>
         </div>
 
-        <div className="relative z-20 mx-auto w-full max-w-3xl px-4 pb-6">
-          <SearchBar compact />
+        <div className="relative z-20 mx-auto w-full max-w-5xl px-4 pb-6">
+          <HeroSearchBar />
+        </div>
+      </section>
+
+      {/* Luxury value proposition ribbon */}
+      <section className="border-b border-[#e8dece] bg-[#fbf7ee]">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-6 px-4 py-8 md:grid-cols-4 md:px-6">
+          {[
+            { icon: "🏆", title: "Best Price Guaranteed", blurb: "Book direct & save 10–15%" },
+            { icon: "🌊", title: "Prime Locations", blurb: "Anjuna, Vagator, Morjim" },
+            { icon: "🧹", title: "5-Star Housekeeping", blurb: "Dedicated staff & chef on demand" },
+            { icon: "📞", title: "24/7 Guest Concierge", blurb: "Personalized stay assistance" },
+          ].map((item) => (
+            <div key={item.title} className="flex items-start gap-3">
+              <span className="text-2xl leading-none" aria-hidden>
+                {item.icon}
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-[#4f624f]">{item.title}</p>
+                <p className="mt-0.5 text-xs leading-snug text-[#4f624f]/70">{item.blurb}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -428,7 +456,7 @@ function Home() {
       </section>
 
       {config?.section_locations_visible !== false && (
-      <section className="mx-auto max-w-7xl px-4 py-16 md:px-6">
+      <section id="locations" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 md:px-6">
         <SectionHeading
           eyebrow="Where to stay"
           title="Explore our locations"
@@ -541,7 +569,7 @@ function Home() {
       </section>
       )}
 
-      <section className="mx-auto max-w-7xl px-4 py-16 md:px-6">
+      <section id="experience-video" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 md:px-6">
         <div className="max-w-2xl">
           <span className="inline-flex items-center rounded-full bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.28em] text-primary">
             Experience the Plix

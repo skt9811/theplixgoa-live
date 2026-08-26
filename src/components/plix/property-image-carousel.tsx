@@ -73,7 +73,7 @@ export function PropertyImageCarousel({ images, propertyName }: Props) {
   if (images.length === 0) return null;
 
   return (
-    <section className="mt-10">
+    <section id="spaces" className="mt-10">
       <h2 className="text-2xl font-semibold text-navy">Photo gallery</h2>
       <div
         className="relative mt-4"

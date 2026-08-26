@@ -20,8 +20,9 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
 import { toast } from "sonner";
-import { SmartImage } from "@/components/plix/smart-image";
 import { PropertyImageCarousel } from "@/components/plix/property-image-carousel";
+import { PropertyHeroGallery } from "@/components/plix/property-hero-gallery";
+import { PropertySubNav } from "@/components/plix/property-sub-nav";
 
 const CheckoutModal = lazy(() =>
   import("@/components/plix/checkout-modal").then((m) => ({ default: m.CheckoutModal })),
@@ -322,27 +323,16 @@ function PropertyDetail() {
         </p>
       </header>
 
-      <section className="mt-6 grid aspect-[4/3] grid-cols-1 gap-2 overflow-hidden rounded-2xl md:h-[min(42vw,620px)] md:aspect-auto md:grid-cols-4 md:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
-        {images.slice(0, 5).map((src, i) => (
-          <div
-            key={src + i}
-            className={`relative min-h-0 overflow-hidden ${i === 0 ? "md:col-span-2 md:row-span-2" : ""}`}
-          >
-            <SmartImage
-              src={src}
-              alt={`${property.name} — ${property.bedrooms} bedroom luxury ${property.bedrooms >= 8 ? "bungalow" : "villa"} in ${property.location}, North Goa${i === 0 ? " with private pool" : ""}`}
-              loading="eager"
-              width={1200}
-              height={800}
-              className="block h-full w-full object-cover object-center"
-            />
-          </div>
-        ))}
-      </section>
+      <PropertyHeroGallery images={images} propertyName={property.name} propertySlug={property.slug} />
+
+      <PropertySubNav />
 
       <div className="mt-10 grid gap-10 lg:grid-cols-[1.6fr_1fr]">
         <div>
-          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-border bg-card p-5 shadow-soft sm:grid-cols-4 sm:gap-4">
+          <div
+            id="highlights"
+            className="grid grid-cols-2 gap-3 rounded-2xl border border-border bg-card p-5 shadow-soft sm:grid-cols-4 sm:gap-4"
+          >
             <Stat icon={Users} label="Max guests" value={String(property.max_guests)} />
             <Stat icon={BedDouble} label="Bedrooms" value={String(property.bedrooms)} />
             <Stat icon={Bath} label="Bathrooms" value={String(property.bathrooms)} />
@@ -353,12 +343,12 @@ function PropertyDetail() {
             />
           </div>
 
-          <section className="mt-10">
+          <section id="overview" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">About this sanctuary</h2>
             <p className="mt-3 leading-relaxed text-muted-foreground">{property.description}</p>
           </section>
 
-          <section className="mt-10">
+          <section id="amenities" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">Amenities</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {property.amenity_tags.map((a) => {
@@ -376,7 +366,7 @@ function PropertyDetail() {
             </div>
           </section>
 
-          <section className="mt-10">
+          <section id="location" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">Where you'll be staying</h2>
             {property.google_maps_embed_url ? (
               <div className="mt-4 h-[380px] w-full overflow-hidden rounded-2xl border border-border shadow-soft">
@@ -426,29 +416,31 @@ function PropertyDetail() {
             </ul>
           </section>
 
-          {propertyReviews.length > 0 && (
-            <section className="mt-10">
-              <h2 className="text-2xl font-semibold text-navy">Guest experiences</h2>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                {propertyReviews.map((r) => (
-                  <figure key={r.id} className="rounded-2xl border border-border bg-card p-5">
-                    <div className="flex gap-0.5 text-primary">
-                      {Array.from({ length: r.rating }).map((_, i) => (
-                        <Star key={i} className="size-3.5 fill-current" aria-hidden />
-                      ))}
-                    </div>
-                    <blockquote className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                      {r.comment}
-                    </blockquote>
-                    <figcaption className="mt-3 text-sm font-semibold text-navy">
-                      {r.guest_name}
-                      {r.guest_city ? `, ${r.guest_city}` : ""}
-                    </figcaption>
-                  </figure>
-                ))}
-              </div>
-            </section>
-          )}
+          <section id="reviews" className="mt-10">
+            {propertyReviews.length > 0 && (
+              <>
+                <h2 className="text-2xl font-semibold text-navy">Guest experiences</h2>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  {propertyReviews.map((r) => (
+                    <figure key={r.id} className="rounded-2xl border border-border bg-card p-5">
+                      <div className="flex gap-0.5 text-primary">
+                        {Array.from({ length: r.rating }).map((_, i) => (
+                          <Star key={i} className="size-3.5 fill-current" aria-hidden />
+                        ))}
+                      </div>
+                      <blockquote className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                        {r.comment}
+                      </blockquote>
+                      <figcaption className="mt-3 text-sm font-semibold text-navy">
+                        {r.guest_name}
+                        {r.guest_city ? `, ${r.guest_city}` : ""}
+                      </figcaption>
+                    </figure>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
 
           <PropertyImageCarousel images={images} propertyName={property.name} />
         </div>

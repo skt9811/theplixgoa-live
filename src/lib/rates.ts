@@ -341,7 +341,7 @@ export async function autoBlockDatesForStay(
 }
 
 export function isMultiRoomProperty(propertyId: string): boolean {
-  return propertyId === "harbor-court" || propertyId === "morjim-pride";
+  return propertyId === "harbor-court" || propertyId === "morjim-pride" || propertyId === "the-plix-resort-morjim";
 }
 
 export const GUESTS_PER_ROOM = 3;
@@ -353,6 +353,7 @@ export function maxGuestsForRooms(rooms: number, propertyMaxGuests: number): num
 export function maxRoomsForProperty(propertyId: string): number {
   if (propertyId === "harbor-court") return 10;
   if (propertyId === "morjim-pride") return 22;
+  if (propertyId === "the-plix-resort-morjim") return 10;
   return 1;
 }
 

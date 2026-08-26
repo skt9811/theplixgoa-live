@@ -97,6 +97,33 @@ import plix12 from "@/assets/plix12.JPEG";
 import plix13 from "@/assets/plix13.JPEG";
 import plix14 from "@/assets/plix14.JPEG";
 
+// The Plix Resort - Morjim
+import plixResort1 from "@/assets/plixresort1.JPG";
+import plixResort2 from "@/assets/plixresort2.JPG";
+import plixResort3 from "@/assets/plixresort3.JPG";
+import plixResort4 from "@/assets/plixresort4.JPG";
+import plixResort5 from "@/assets/plixresort5.JPG";
+import plixResort6 from "@/assets/plixresort6.JPG";
+import plixResort7 from "@/assets/plixresort7.JPG";
+import plixResort8 from "@/assets/plixresort8.JPG";
+
+// Villa Madera
+import madera1 from "@/assets/madera1.jpg";
+import madera2 from "@/assets/madera2.jpg";
+import madera3 from "@/assets/madera3.jpg";
+import madera4 from "@/assets/madera4.jpg";
+import madera5 from "@/assets/madera5.jpg";
+import madera6 from "@/assets/madera6.jpg";
+
+// Casa Serenita — asset files are named serenity* despite belonging to Casa Serenita
+import serenity1 from "@/assets/serenity1.jpeg";
+import serenity2 from "@/assets/serenity2.jpeg";
+import serenity3 from "@/assets/serenity3.jpeg";
+import serenity4 from "@/assets/serenity4.jpeg";
+import serenity5 from "@/assets/serenity5.jpeg";
+import serenity6 from "@/assets/serenity6.jpeg";
+import serenity7 from "@/assets/serenity7.jpeg";
+
 export const imageMap: Record<string, string> = {
   "hero-goa": heroGoa,
   "morjim-1": morjim1,
@@ -186,6 +213,30 @@ export const imageMap: Record<string, string> = {
   plix12,
   plix13,
   plix14,
+  // The Plix Resort - Morjim
+  plixResort1,
+  plixResort2,
+  plixResort3,
+  plixResort4,
+  plixResort5,
+  plixResort6,
+  plixResort7,
+  plixResort8,
+  // Villa Madera
+  madera1,
+  madera2,
+  madera3,
+  madera4,
+  madera5,
+  madera6,
+  // Casa Serenita — asset files are named serenity* despite belonging to Casa Serenita
+  serenity1,
+  serenity2,
+  serenity3,
+  serenity4,
+  serenity5,
+  serenity6,
+  serenity7,
 };
 
 export const heroImage = heroGoa;
@@ -527,6 +578,110 @@ export const PROPERTIES: Property[] = [
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3844.3223041428723!2d73.76651777478182!3d15.520843253885856!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfc105cc2ac883%3A0x47be2befb7da01d3!2sVivenda%20Chico!5e0!3m2!1sen!2sin!4v1787225678244!5m2!1sen!2sin",
     total_inventory: 1,
   },
+  {
+    id: "the-plix-resort-morjim",
+    slug: "the-plix-resort-morjim",
+    name: "The Plix Resort - Morjim",
+    location: "Morjim",
+    region: "North Goa",
+    tagline: "MORJIM, NORTH GOA • BEACHSIDE RESORT WITH POOL",
+    description:
+      "Welcome to The Plix Resort - Morjim, our serene beachside retreat just 100 meters from the ocean. Our resort features a swimming pool and chill-out area for unwinding. With 10 cozy rooms, your stay promises tranquility and scenic beauty. Wake up to the soothing sound of waves and indulge in coastal charm. The Plix Resort - Morjim offers the ideal escape for unforgettable memories by the sea.",
+    seo_title: "The Plix Resort - Morjim | Beachside Resort Near Morjim Beach",
+    seo_description:
+      "Book The Plix Resort - Morjim, a beachside resort just 100 meters from Morjim Beach. Featuring a swimming pool, on-site restaurant, and bar across 10 cozy rooms. Direct booking, zero commission.",
+    seo_keywords: ["Resort near Morjim Beach", "Beachside Resort Morjim", "Swimming Pool Resort Goa", "Morjim Beach Stay", "North Goa Resort with Bar"],
+    enclave: null,
+    bedrooms: 10,
+    bathrooms: 10,
+    max_guests: 30,
+    base_price: 4500,
+    distance_to_beach: "2 mins walk to Morjim Beach",
+    image_keys: ["plixResort1", "plixResort2", "plixResort3", "plixResort4", "plixResort5", "plixResort6", "plixResort7", "plixResort8"],
+    amenity_tags: ["Swimming Pool", "Restaurant", "Power Backup", "Housekeeping", "Airport Transfers", "Bar"],
+    nearby: [
+      { name: "Morjim Beach", distance: "2 mins walk" },
+      { name: "Ashwem Beach", distance: "8 mins drive" },
+      { name: "Chapora Fort", distance: "20 mins drive" },
+      { name: "Anjuna Flea Market", distance: "25 mins drive" },
+      { name: "Goa International Airport (Mopa)", distance: "40 mins drive" },
+    ],
+    latitude: 15.62227255124889,
+    longitude: 73.73172887478368,
+    google_maps_embed_url:
+      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.4262803934816!2d73.73172887478368!3d15.62227255124889!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfe994333c6b37%3A0xad13d91db2c953db!2sThe%20Plix%20Resort%20-%20Morjim!5e0!3m2!1sen!2sin!4v1787767469702!5m2!1sen!2sin",
+    total_inventory: 10,
+  },
+  {
+    id: "villa-madera",
+    slug: "villa-madera",
+    name: "Villa Madera",
+    location: "Anjuna",
+    region: "North Goa",
+    tagline: "ANJUNA, NORTH GOA • 3 BHK PRIVATE POOL VILLA",
+    description:
+      "Tucked away from the bustle of the main streets, this boutique property offers a rare sense of privacy and calm, reached by a picturesque 200-meter road that winds gently through lush jungle surroundings. The journey itself sets the tone—quiet, green, and refreshing—where the sounds of traffic fade and nature takes over.",
+    seo_title: "Villa Madera | 3 BHK Private Pool Villa in Anjuna",
+    seo_description:
+      "Book Villa Madera, a boutique 3 BHK private pool villa tucked away in a jungle setting in Anjuna, North Goa. Accommodates up to 9 guests. Direct booking, zero commission.",
+    seo_keywords: ["3 BHK Villa Anjuna", "Private Pool Villa Goa", "Boutique Villa Anjuna", "Jungle Villa Goa", "North Goa Private Villa"],
+    enclave: null,
+    bedrooms: 3,
+    bathrooms: 3,
+    max_guests: 9,
+    base_price: 10500,
+    distance_to_beach: "10 mins drive to Anjuna Beach",
+    image_keys: ["madera1", "madera2", "madera3", "madera4", "madera5", "madera6"],
+    amenity_tags: ["Restaurant", "Private Pool", "Kitchenette", "Parking", "Power Backup", "Free Wi-Fi", "Housekeeping"],
+    nearby: [
+      { name: "Anjuna Beach", distance: "10 mins drive" },
+      { name: "Vagator Beach", distance: "12 mins drive" },
+      { name: "Hilltop", distance: "12 mins drive" },
+      { name: "Chapora Fort", distance: "15 mins drive" },
+      { name: "Anjuna Flea Market", distance: "8 mins drive" },
+      { name: "Goa International Airport (Mopa)", distance: "40 mins drive" },
+    ],
+    latitude: 15.576005352453787,
+    longitude: 73.74978257478291,
+    google_maps_embed_url:
+      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3843.2926498215197!2d73.74978257478291!3d15.576005352453787!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfea2660f92eef%3A0xf5cfad3d7e077ecf!2sHouse%20of%20Anjuna%20by%20PAS%20RESORTS!5e0!3m2!1sen!2sin!4v1787767854466!5m2!1sen!2sin",
+    total_inventory: 1,
+  },
+  {
+    id: "casa-serenita",
+    slug: "casa-serenita",
+    name: "Casa Serenita",
+    location: "Anjuna",
+    region: "North Goa",
+    tagline: "ANJUNA / ARPORA, NORTH GOA • 3 BHK PRIVATE POOL VILLA",
+    description:
+      "Welcome to our cozy and stylish villa in the heart of Goa, nestled in a vibrant and lively new society in Arpora. Located in the picturesque area of Arpora, just a stone's throw away from the charming local church, our abode offers the perfect retreat for your North Goa adventure. As you step into our home, you'll be greeted by a serene ambiance that truly reflects the essence of Goa. The living room boasts a delightful blue sofa set, and the walls are adorned with captivating photographs of Goa, allowing you to soak in the local culture and beauty.",
+    seo_title: "Casa Serenita | 3 BHK Private Pool Villa in Arpora, Anjuna",
+    seo_description:
+      "Book Casa Serenita, a cozy 3 BHK private pool villa in Arpora near Anjuna, North Goa. Accommodates up to 9 guests with a stylish living room and private pool. Direct booking, zero commission.",
+    seo_keywords: ["3 BHK Villa Arpora", "Private Pool Villa Anjuna", "Villa near Anjuna Church", "North Goa Private Villa", "Family Villa Goa"],
+    enclave: null,
+    bedrooms: 3,
+    bathrooms: 3,
+    max_guests: 9,
+    base_price: 10000,
+    distance_to_beach: "12 mins drive to Anjuna Beach",
+    image_keys: ["serenity1", "serenity2", "serenity3", "serenity4", "serenity5", "serenity6", "serenity7"],
+    amenity_tags: ["Private Pool", "Power Backup", "Free Wi-Fi", "Parking", "Living Room", "Kitchenette"],
+    nearby: [
+      { name: "Anjuna Beach", distance: "12 mins drive" },
+      { name: "Vagator Beach", distance: "15 mins drive" },
+      { name: "Hilltop", distance: "15 mins drive" },
+      { name: "Chapora Fort", distance: "18 mins drive" },
+      { name: "Anjuna Flea Market", distance: "10 mins drive" },
+      { name: "Goa International Airport (Mopa)", distance: "35 mins drive" },
+    ],
+    latitude: 15.601282951795916,
+    longitude: 73.7467028747833,
+    google_maps_embed_url:
+      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.819628501188!2d73.7467028747833!3d15.601282951795916!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfeb0016b21bd1%3A0xd5b237e52549808a!2sCasa%20Vida!5e0!3m2!1sen!2sin!4v1787769594533!5m2!1sen!2sin",
+    total_inventory: 1,
+  },
 ].sort((a, b) => a.base_price - b.base_price);
 
 export type Review = {
@@ -592,5 +747,32 @@ export const REVIEWS: Review[] = [
     comment:
       "Steps from Morjim Beach — couldn't ask for a better location. The resort has a wonderful tropical feel and the staff were exceptional.",
     property_id: "morjim-pride",
+  },
+  {
+    id: "rev-7",
+    guest_name: "Karan Mehta",
+    guest_city: "Mumbai",
+    rating: 5,
+    comment:
+      "Waking up to the ocean sound just 100 meters away was magic. Pure serenity in Morjim!",
+    property_id: "the-plix-resort-morjim",
+  },
+  {
+    id: "rev-8",
+    guest_name: "Isha Kulkarni",
+    guest_city: "Bangalore",
+    rating: 5,
+    comment:
+      "The winding jungle path leading to Villa Madera makes you feel miles away from the noise, yet you're minutes from Anjuna.",
+    property_id: "villa-madera",
+  },
+  {
+    id: "rev-9",
+    guest_name: "Meera Iyer",
+    guest_city: "Chennai",
+    rating: 5,
+    comment:
+      "Cozy, beautifully decorated, and perfectly located in Arpora. Loved relaxing in the living room after exploring Anjuna.",
+    property_id: "casa-serenita",
   },
 ];

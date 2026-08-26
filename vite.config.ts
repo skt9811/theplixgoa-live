@@ -12,4 +12,14 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Hard-pin the Vercel preset rather than relying on Nitro's platform
+  // auto-detection (NITRO_PRESET / Vercel env vars) — this repo is
+  // hosted on Vercel (confirmed via `server: Vercel` response headers on
+  // theplixgoa.com), so this removes any ambiguity about which deploy
+  // target a given build run resolves to. Local builds outside Vercel's
+  // own CI will now also produce Vercel-shaped output instead of the
+  // Cloudflare default.
+  nitro: {
+    preset: "vercel",
+  },
 });

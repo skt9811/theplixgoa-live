@@ -137,11 +137,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { src: "https://www.googletagmanager.com/gtag/js?id=G-98T2N1CNMW", async: true },
       {
         type: "text/javascript",
+        // AW-18001047926 (Google Ads) is intentionally NOT configured here —
+        // it's hardcoded directly into the static <head> in RootShell below
+        // so it's present on every response body regardless of this dynamic
+        // head-config mechanism. Configuring it in both places would fire
+        // `gtag('config', 'AW-18001047926')` twice per page load, double
+        // counting conversions.
         children: `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', 'G-98T2N1CNMW');
-gtag('config', 'AW-18001047926');`,
+gtag('config', 'G-98T2N1CNMW');`,
       },
       { type: "application/ld+json", children: jsonLdScript(websiteJsonLd()) },
       { type: "application/ld+json", children: jsonLdScript(localBusinessJsonLd()) },
@@ -176,6 +181,21 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
+        {/* Google Ads Tag — hardcoded directly in the static shell (not via
+            the dynamic head() scripts config below) so it's present on the
+            raw response body of every GET request, independent of the
+            per-route head-config mechanism. See the note next to
+            G-98T2N1CNMW in the route's head() for why it's deliberately
+            only configured once, here. */}
+        <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18001047926" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'AW-18001047926');`,
+          }}
+        />
         <HeadContent />
         <noscript>
           <link rel="stylesheet" href={GOOGLE_FONTS_HREF} />

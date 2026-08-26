@@ -3,6 +3,7 @@ import { Car, Mail, MapPin, Phone, Plane } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ObfuscatedEmail } from "@/components/plix/obfuscated-email";
+import { SmartImage } from "@/components/plix/smart-image";
 import { heroImage, resolveImages } from "@/lib/plix";
 import {
   SITE_URL,
@@ -41,7 +42,10 @@ export const Route = createFileRoute("/contact")({
 // Generic decorative resort photography (same pool/garden imagery used
 // elsewhere as brand-level, non-property-specific stock) — appropriate here
 // since this is the general contact page, not a single property's page.
-const [stackedPhoto1, stackedPhoto2, stackedPhoto3] = resolveImages(["harbor-1", "harbor-2", "morjim-2"]);
+const resolvedStackedPhotos = resolveImages(["harbor-1", "harbor-2", "morjim-2"]);
+const stackedPhoto1 = resolvedStackedPhotos[0] ?? heroImage;
+const stackedPhoto2 = resolvedStackedPhotos[1] ?? heroImage;
+const stackedPhoto3 = resolvedStackedPhotos[2] ?? heroImage;
 
 function Contact() {
   const [sent, setSent] = useState(false);
@@ -138,19 +142,19 @@ function Contact() {
 
         {/* Stacked resort imagery */}
         <div className="grid grid-cols-2 gap-4">
-          <img
+          <SmartImage
             src={stackedPhoto1}
             alt="The Plix Goa — main property architecture"
             loading="lazy"
             className="col-span-2 aspect-[16/10] w-full rounded-2xl object-cover shadow-soft"
           />
-          <img
+          <SmartImage
             src={stackedPhoto2}
             alt="The Plix Goa — lounge area"
             loading="lazy"
             className="aspect-square w-full rounded-2xl object-cover shadow-soft"
           />
-          <img
+          <SmartImage
             src={stackedPhoto3}
             alt="The Plix Goa — poolside seating"
             loading="lazy"

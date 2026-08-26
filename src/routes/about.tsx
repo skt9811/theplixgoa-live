@@ -1,5 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  BadgeIndianRupee,
+  BatteryCharging,
+  ConciergeBell,
+  MapPin,
+  PartyPopper,
+  Plane,
+  ShieldCheck,
+  Sparkles,
+  Wifi,
+} from "lucide-react";
 import { heroImage } from "@/lib/plix";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 import {
@@ -41,6 +51,36 @@ const stats = [
   { value: "4.9", label: "Average guest rating" },
   { value: "100%", label: "Direct bookings" },
   { value: "24/7", label: "On-ground support" },
+];
+
+const corePillars = [
+  {
+    icon: BadgeIndianRupee,
+    title: "Direct Booking Savings",
+    blurb: "Skip third-party OTA commissions and get guaranteed best rates when you book direct.",
+  },
+  {
+    icon: MapPin,
+    title: "Handpicked Coastal Locations",
+    blurb: "Exclusive luxury private pool villas across Morjim, Anjuna, Vagator, and Arpora.",
+  },
+  {
+    icon: ConciergeBell,
+    title: "Dedicated On-Ground Hospitality",
+    blurb: "In-house caretakers, housekeeping staff, and private chefs on call throughout your stay.",
+  },
+  {
+    icon: PartyPopper,
+    title: "Group & Event Friendly Stays",
+    blurb: "Tailored setups for family vacations, corporate retreats, and intimate celebrations.",
+  },
+];
+
+const hospitalityPromises = [
+  { icon: BatteryCharging, title: "100% Power Backup", blurb: "Uninterrupted comfort, even through Goa's monsoon outages." },
+  { icon: Wifi, title: "High-Speed Optical Fiber Wi-Fi", blurb: "Reliable connectivity for work calls, streaming, and staying in touch." },
+  { icon: Sparkles, title: "Daily Housekeeping", blurb: "A tidy, well-kept home throughout your stay, not just on arrival." },
+  { icon: Plane, title: "Airport Pick-Up Concierge", blurb: "Arranged on request so your journey starts the moment you land." },
 ];
 
 function About() {
@@ -96,6 +136,112 @@ function About() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Section 1: Our Core Pillars */}
+      <section className="bg-accent/30 py-16">
+        <div className="mx-auto max-w-7xl px-4 md:px-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+            Why book with Plix
+          </p>
+          <h2 className="mt-3 max-w-xl text-3xl font-semibold text-navy">Our core pillars</h2>
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {corePillars.map((p) => (
+              <div key={p.title} className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+                <p.icon className="size-6 text-primary" aria-hidden />
+                <h3 className="mt-4 text-base font-semibold text-navy">{p.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.blurb}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section 2: The Plix Experience — location spotlight, SEO-targeted copy */}
+      <section className="mx-auto max-w-4xl px-4 py-16 md:px-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+          The Plix experience
+        </p>
+        <h2 className="mt-3 text-3xl font-semibold text-navy">
+          Luxury private pool villas in North Goa, done properly
+        </h2>
+        <div className="mt-5 grid gap-4 text-muted-foreground">
+          <p className="leading-relaxed">
+            The Plix Goa curates{" "}
+            <strong className="font-semibold text-navy">luxury private pool villas in North Goa</strong>{" "}
+            for travellers who want more than a listing photo — every home in our collection is
+            personally vetted, styled, and staffed by our own team before a single guest checks in.
+          </p>
+          <p className="leading-relaxed">
+            Our{" "}
+            <strong className="font-semibold text-navy">boutique resorts in Morjim &amp; Anjuna</strong>{" "}
+            pair beachfront calm with the design sensibility of a private villa, while our{" "}
+            <strong className="font-semibold text-navy">group holiday homes near Vagator Beach</strong>{" "}
+            are built for the way friends and families actually travel — shared pools, shared
+            kitchens, and enough bedrooms that nobody's left out.
+          </p>
+          <p className="leading-relaxed">
+            Whether you're chasing a quiet Morjim sunrise, Anjuna's flea-market energy, or a Vagator
+            cliff-top sundowner, there's a Plix property built around that exact version of North Goa.
+          </p>
+        </div>
+      </section>
+
+      {/* Section 3: Hospitality Promises */}
+      <section className="bg-navy py-16 text-navy-foreground">
+        <div className="mx-auto max-w-7xl px-4 md:px-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-bronze">
+            What to expect
+          </p>
+          <h2 className="mt-3 max-w-xl font-serif text-3xl font-normal text-navy-foreground">
+            Our hospitality promises
+          </h2>
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {hospitalityPromises.map((p) => (
+              <div
+                key={p.title}
+                className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-sm"
+              >
+                <p.icon className="size-6 text-bronze" aria-hidden />
+                <h3 className="mt-4 text-base font-semibold text-navy-foreground">{p.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-navy-foreground/70">{p.blurb}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section 4: Corporate Transparency Statement */}
+      <section className="mx-auto max-w-4xl px-4 py-16 text-center md:px-6">
+        <ShieldCheck className="mx-auto size-8 text-primary" aria-hidden />
+        <h2 className="mt-4 text-2xl font-semibold text-navy">A note on who runs your stay</h2>
+        <p className="mt-4 leading-relaxed text-muted-foreground">
+          The Plix Goa is proudly owned and operated by{" "}
+          <strong className="font-semibold text-navy">Plix Hospitality Private Limited</strong>, the
+          parent company behind our hospitality services. We manage and operate every stay in our
+          collection directly — not through a third-party listing agency — so that housekeeping,
+          caretaking, and guest support stay consistent across every property, every time. Our
+          business is GST-registered, ensuring transparency and compliance at every step.
+        </p>
+      </section>
+
+      {/* Section 5: Call to action banner */}
+      <section className="bg-gradient-to-br from-navy to-[#1a2a1a] py-16 text-center text-navy-foreground">
+        <div className="mx-auto max-w-2xl px-4 md:px-6">
+          <h2 className="font-serif text-3xl font-normal md:text-4xl">
+            Ready for your dream Goa escape?
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-sm text-navy-foreground/80">
+            Browse our handpicked villas and resorts across North Goa and book direct — best price
+            guaranteed, zero commission.
+          </p>
+          <Link
+            to="/stays"
+            className="mt-6 inline-flex items-center gap-2 rounded-full bg-bronze px-8 py-3.5 text-sm font-semibold text-bronze-foreground shadow-lg transition-transform hover:scale-[1.03]"
+          >
+            Explore All Stays
+          </Link>
         </div>
       </section>
     </div>

@@ -15,7 +15,6 @@ import { SiteFooter } from "@/components/plix/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
-import { WhatsAppFab } from "@/components/plix/whatsapp-fab";
 import { SITE_NAME, websiteJsonLd, localBusinessJsonLd, jsonLdScript } from "@/lib/seo";
 import { chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
 
@@ -215,7 +214,6 @@ function RootComponent() {
       <Toaster position="top-center" richColors />
       <SpeedInsights />
       <Analytics />
-      <WhatsAppFab />
     </QueryClientProvider>
   );
 }

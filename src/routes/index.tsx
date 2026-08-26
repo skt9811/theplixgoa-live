@@ -5,6 +5,7 @@ import { BadgeIndianRupee, Building2, ConciergeBell, HeartHandshake, Hop as Home
 import { PropertyCard } from "@/components/plix/property-card";
 import { ReviewCarousel } from "@/components/plix/review-carousel";
 import { HeroSearchBar } from "@/components/plix/hero-search-bar";
+import { NewsletterModal } from "@/components/plix/newsletter-modal";
 import { propertiesQuery, reviewsQuery } from "@/lib/plix-queries";
 import { chicoHeroImage, chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
@@ -648,6 +649,8 @@ function Home() {
         </Accordion>
       </section>
       )}
+
+      <NewsletterModal />
     </>
   );
 }

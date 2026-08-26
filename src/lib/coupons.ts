@@ -14,6 +14,7 @@ export const COUPONS: Coupon[] = [
   { code: "PLIX10", type: "percentage", value: 10, description: "10% off your stay" },
   { code: "WELCOME500", type: "flat", value: 500, description: "₹500 off for new guests", minSubtotal: 2000 },
   { code: "GOAVIBES", type: "percentage", value: 15, description: "15% off — Goa vibes special" },
+  { code: "PLIX5", type: "percentage", value: 5, description: "5% off — newsletter subscriber exclusive" },
 ];
 
 export type CouponValidationResult =

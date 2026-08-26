@@ -19,6 +19,7 @@ import { PropertyQuickFacts } from "@/components/plix/property-quick-facts";
 import { PropertyRefundTimeline } from "@/components/plix/property-refund-timeline";
 import { PropertyFaq } from "@/components/plix/property-faq";
 import { PropertyConnectHostCard } from "@/components/plix/property-connect-host-card";
+import { PropertyCheckinRulesCard } from "@/components/plix/property-checkin-rules-card";
 import { amenityIcon } from "@/components/plix/amenity-icons";
 import { useStickyHeaderOffset } from "@/lib/use-sticky-header-offset";
 
@@ -328,8 +329,8 @@ function PropertyDetail() {
 
       <PropertySubNav />
 
-      <div className="mt-6 grid gap-10 lg:grid-cols-[1.85fr_1fr]">
-        <div>
+      <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-12 items-start">
+        <div className="lg:col-span-8">
           <PropertyQuickFacts
             propertyName={property.name}
             roomsLabel={roomsLabel}
@@ -359,6 +360,7 @@ function PropertyDetail() {
           <section id="overview" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">About this sanctuary</h2>
             <p className="mt-3 leading-relaxed text-muted-foreground">{property.description}</p>
+            <PropertyCheckinRulesCard />
           </section>
 
           <PropertyRefundTimeline />
@@ -488,7 +490,10 @@ function PropertyDetail() {
           <PropertyFaq propertyName={property.name} isPetFriendly={isPetFriendly} />
         </div>
 
-        <aside className="lg:sticky lg:self-start" style={{ top: asideTop }}>
+        <aside
+          className="lg:col-span-4 sticky top-24 self-start max-h-[calc(100vh-7rem)] overflow-y-auto"
+          style={{ top: asideTop }}
+        >
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
             <div className="flex items-end gap-1">
               <span className="text-3xl font-semibold text-navy">

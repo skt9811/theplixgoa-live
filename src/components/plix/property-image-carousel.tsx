@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SmartImage } from "@/components/plix/smart-image";
@@ -7,6 +7,8 @@ type Props = {
   images: string[];
   propertyName: string;
 };
+
+const AUTOPLAY_INTERVAL_MS = 3500;
 
 /**
  * Strictly scoped to the `images` array passed in — the caller is
@@ -17,6 +19,10 @@ type Props = {
 export function PropertyImageCarousel({ images, propertyName }: Props) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: images.length > 1, align: "start" });
   const [selectedIndex, setSelectedIndex] = useState(0);
+  // Refs, not state — autoplay just reads these on each tick, so toggling
+  // them on hover/drag doesn't need to re-run the interval-setup effect.
+  const hoverPausedRef = useRef(false);
+  const dragPausedRef = useRef(false);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -34,12 +40,50 @@ export function PropertyImageCarousel({ images, propertyName }: Props) {
     };
   }, [emblaApi, onSelect]);
 
+  // Pause autoplay while the guest is actively dragging/swiping, so it never
+  // fights a manual gesture — resumes once the swipe settles.
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onPointerDown = () => {
+      dragPausedRef.current = true;
+    };
+    const onPointerUp = () => {
+      dragPausedRef.current = false;
+    };
+    emblaApi.on("pointerDown", onPointerDown);
+    emblaApi.on("pointerUp", onPointerUp);
+    return () => {
+      emblaApi.off("pointerDown", onPointerDown);
+      emblaApi.off("pointerUp", onPointerUp);
+    };
+  }, [emblaApi]);
+
+  // Auto-play: advance every 3.5s. `loop: true` (set above whenever there's
+  // more than one image) makes scrollNext() wrap seamlessly from the last
+  // photo back to the first, so the loop never visibly "resets".
+  useEffect(() => {
+    if (!emblaApi || images.length <= 1) return;
+    const id = window.setInterval(() => {
+      if (hoverPausedRef.current || dragPausedRef.current) return;
+      emblaApi.scrollNext();
+    }, AUTOPLAY_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [emblaApi, images.length]);
+
   if (images.length === 0) return null;
 
   return (
     <section className="mt-10">
       <h2 className="text-2xl font-semibold text-navy">Photo gallery</h2>
-      <div className="relative mt-4">
+      <div
+        className="relative mt-4"
+        onMouseEnter={() => {
+          hoverPausedRef.current = true;
+        }}
+        onMouseLeave={() => {
+          hoverPausedRef.current = false;
+        }}
+      >
         <div className="overflow-hidden rounded-2xl" ref={emblaRef}>
           <div className="flex touch-pan-y">
             {images.map((src, i) => (
@@ -47,13 +91,13 @@ export function PropertyImageCarousel({ images, propertyName }: Props) {
                 key={src + i}
                 className="min-w-0 shrink-0 grow-0 basis-[85%] pl-3 first:pl-0 sm:basis-[60%] md:basis-[45%]"
               >
-                <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-muted">
+                <div className="h-[260px] overflow-hidden rounded-2xl bg-muted sm:h-[340px] md:h-[420px] lg:h-[480px]">
                   <SmartImage
                     src={src}
                     alt={`${propertyName} — photo ${i + 1} of ${images.length}`}
                     loading="lazy"
-                    width={800}
-                    height={600}
+                    width={1000}
+                    height={480}
                     className="h-full w-full object-cover"
                   />
                 </div>

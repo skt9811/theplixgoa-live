@@ -3,26 +3,24 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   Bath,
   BedDouble,
-  Car,
-  Coffee,
-  ConciergeBell,
   Footprints,
   Loader as Loader2,
   MapPin,
-  PawPrint,
-  Snowflake,
   Star,
   Tag,
-  Tv,
   Users,
-  Waves,
-  Wifi,
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
 import { toast } from "sonner";
 import { PropertyImageCarousel } from "@/components/plix/property-image-carousel";
 import { PropertyHeroGallery } from "@/components/plix/property-hero-gallery";
-import { PropertySubNav } from "@/components/plix/property-sub-nav";
+import { PropertySubNav, SUB_NAV_HEIGHT } from "@/components/plix/property-sub-nav";
+import { PropertyQuickFacts } from "@/components/plix/property-quick-facts";
+import { PropertyRefundTimeline } from "@/components/plix/property-refund-timeline";
+import { PropertyFaq } from "@/components/plix/property-faq";
+import { PropertyConnectHostCard } from "@/components/plix/property-connect-host-card";
+import { amenityIcon } from "@/components/plix/amenity-icons";
+import { useStickyHeaderOffset } from "@/lib/use-sticky-header-offset";
 
 const CheckoutModal = lazy(() =>
   import("@/components/plix/checkout-modal").then((m) => ({ default: m.CheckoutModal })),
@@ -162,17 +160,6 @@ function Fallback({ title }: { title: string }) {
   );
 }
 
-const amenityIcons: Record<string, ComponentType<{ className?: string }>> = {
-  "Swimming Pool": Waves,
-  "Free Wi-Fi": Wifi,
-  "Air Conditioning": Snowflake,
-  Caretaker: ConciergeBell,
-  "Breakfast Included": Coffee,
-  "Pet Friendly": PawPrint,
-  "Free Parking": Car,
-  "Smart TV": Tv,
-};
-
 function PropertyDetail() {
   const { slug } = Route.useParams();
   const urlSearch = Route.useSearch();
@@ -215,6 +202,20 @@ function PropertyDetail() {
   const insufficientRooms = isMultiRoom ? hasInsufficientRooms(availability, rooms) : false;
   const datesBlocked = hasBlockedOverlap(blockedDates, checkIn, checkOut) || insufficientRooms;
   const propertyReviews = property ? reviews.filter((r) => r.property_id === property.id) : [];
+  const avgRating =
+    propertyReviews.length > 0
+      ? propertyReviews.reduce((sum, r) => sum + r.rating, 0) / propertyReviews.length
+      : null;
+  const hasRestaurant = property?.amenity_tags.includes("Restaurant") ?? false;
+  const hasBreakfast = property?.amenity_tags.includes("Breakfast Included") ?? false;
+  const isPetFriendly = property?.amenity_tags.includes("Pet Friendly") ?? false;
+  const roomsLabel = isMultiRoom ? "Rooms" : "Bedrooms";
+  const roomsCount = property ? (isMultiRoom ? property.total_inventory : property.bedrooms) : 0;
+
+  // Docks the booking sidebar directly beneath the site header + sub-nav,
+  // measured live rather than guessed, so it never overlaps either sticky bar.
+  const headerOffset = useStickyHeaderOffset();
+  const asideTop = headerOffset + SUB_NAV_HEIGHT + 16;
 
   async function handleApplyCoupon() {
     setCouponChecking(true);
@@ -327,11 +328,23 @@ function PropertyDetail() {
 
       <PropertySubNav />
 
-      <div className="mt-10 grid gap-10 lg:grid-cols-[1.6fr_1fr]">
+      <div className="mt-6 grid gap-10 lg:grid-cols-[1.85fr_1fr]">
         <div>
+          <PropertyQuickFacts
+            propertyName={property.name}
+            roomsLabel={roomsLabel}
+            roomsCount={roomsCount}
+            bathrooms={property.bathrooms}
+            maxGuests={property.max_guests}
+            amenityTags={property.amenity_tags}
+            hasMeals={hasRestaurant || hasBreakfast}
+            avgRating={avgRating}
+            reviewCount={propertyReviews.length}
+          />
+
           <div
             id="highlights"
-            className="grid grid-cols-2 gap-3 rounded-2xl border border-border bg-card p-5 shadow-soft sm:grid-cols-4 sm:gap-4"
+            className="mt-10 grid grid-cols-2 gap-3 rounded-2xl border border-border bg-card p-5 shadow-soft sm:grid-cols-4 sm:gap-4"
           >
             <Stat icon={Users} label="Max guests" value={String(property.max_guests)} />
             <Stat icon={BedDouble} label="Bedrooms" value={String(property.bedrooms)} />
@@ -348,11 +361,41 @@ function PropertyDetail() {
             <p className="mt-3 leading-relaxed text-muted-foreground">{property.description}</p>
           </section>
 
+          <PropertyRefundTimeline />
+
+          <PropertyImageCarousel images={images} propertyName={property.name} />
+
+          <section id="reviews" className="mt-10">
+            {propertyReviews.length > 0 && (
+              <>
+                <h2 className="text-2xl font-semibold text-navy">Guest experiences</h2>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  {propertyReviews.map((r) => (
+                    <figure key={r.id} className="rounded-2xl border border-border bg-card p-5">
+                      <div className="flex gap-0.5 text-primary">
+                        {Array.from({ length: r.rating }).map((_, i) => (
+                          <Star key={i} className="size-3.5 fill-current" aria-hidden />
+                        ))}
+                      </div>
+                      <blockquote className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                        {r.comment}
+                      </blockquote>
+                      <figcaption className="mt-3 text-sm font-semibold text-navy">
+                        {r.guest_name}
+                        {r.guest_city ? `, ${r.guest_city}` : ""}
+                      </figcaption>
+                    </figure>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+
           <section id="amenities" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">Amenities</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
               {property.amenity_tags.map((a) => {
-                const Icon = amenityIcons[a] ?? Star;
+                const Icon = amenityIcon(a);
                 return (
                   <div
                     key={a}
@@ -364,6 +407,32 @@ function PropertyDetail() {
                 );
               })}
             </div>
+            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+              Popular add-ons — BBQ setup, bonfire evenings, and a private chef — can be arranged by
+              your caretaker, priced on request.
+            </p>
+          </section>
+
+          <section id="meals" className="mt-10">
+            <h2 className="text-2xl font-semibold text-navy">Meals</h2>
+            {hasRestaurant ? (
+              <p className="mt-3 leading-relaxed text-muted-foreground">
+                {property.name} has an on-site restaurant serving local and international dishes, so
+                you can eat in without leaving the property.
+              </p>
+            ) : hasBreakfast ? (
+              <p className="mt-3 leading-relaxed text-muted-foreground">
+                Breakfast is included during your stay. For lunch and dinner, the villa's kitchen is
+                fully equipped — cook your own meals, or ask your caretaker to arrange a private chef
+                or a home-cooked Goan spread.
+              </p>
+            ) : (
+              <p className="mt-3 leading-relaxed text-muted-foreground">
+                This is a self-catered stay with a fully equipped kitchen — cook your own meals, or ask
+                your caretaker to arrange a private chef, a local market run, or a home-cooked Goan
+                spread on request.
+              </p>
+            )}
           </section>
 
           <section id="location" className="mt-10">
@@ -404,7 +473,7 @@ function PropertyDetail() {
             )}
           </section>
 
-          <section className="mt-10">
+          <section id="experiences" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">Nearby attractions & experiences</h2>
             <ul className="mt-4 divide-y divide-border rounded-2xl border border-border bg-card">
               {property.nearby.map((n) => (
@@ -416,36 +485,10 @@ function PropertyDetail() {
             </ul>
           </section>
 
-          <section id="reviews" className="mt-10">
-            {propertyReviews.length > 0 && (
-              <>
-                <h2 className="text-2xl font-semibold text-navy">Guest experiences</h2>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  {propertyReviews.map((r) => (
-                    <figure key={r.id} className="rounded-2xl border border-border bg-card p-5">
-                      <div className="flex gap-0.5 text-primary">
-                        {Array.from({ length: r.rating }).map((_, i) => (
-                          <Star key={i} className="size-3.5 fill-current" aria-hidden />
-                        ))}
-                      </div>
-                      <blockquote className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                        {r.comment}
-                      </blockquote>
-                      <figcaption className="mt-3 text-sm font-semibold text-navy">
-                        {r.guest_name}
-                        {r.guest_city ? `, ${r.guest_city}` : ""}
-                      </figcaption>
-                    </figure>
-                  ))}
-                </div>
-              </>
-            )}
-          </section>
-
-          <PropertyImageCarousel images={images} propertyName={property.name} />
+          <PropertyFaq propertyName={property.name} isPetFriendly={isPetFriendly} />
         </div>
 
-        <aside className="lg:sticky lg:top-44 lg:self-start">
+        <aside className="lg:sticky lg:self-start" style={{ top: asideTop }}>
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
             <div className="flex items-end gap-1">
               <span className="text-3xl font-semibold text-navy">
@@ -456,6 +499,10 @@ function PropertyDetail() {
             {hasCustomRate && (
               <p className="mt-1 text-xs text-primary">Seasonal pricing applied for selected dates</p>
             )}
+
+            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-emerald-700">
+              Book direct & save — zero OTA commission on this rate
+            </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -569,9 +616,9 @@ function PropertyDetail() {
                   <p className="mt-1.5 text-xs text-red-600">{appliedCoupon.error}</p>
                 )}
                 {appliedCoupon?.valid && (
-                  <p className="mt-1.5 text-xs font-medium text-primary">
+                  <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
                     ✓ Applied {formatINR(appliedCoupon.discountAmount)} discount
-                  </p>
+                  </div>
                 )}
               </div>
               {discountAmount > 0 && appliedCoupon?.valid && (
@@ -603,11 +650,18 @@ function PropertyDetail() {
               onClick={() => setCheckoutOpen(true)}
               className="mt-5 w-full rounded-full bg-gradient-emerald px-6 py-4 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 min-h-[44px]"
             >
-              {nights === 0 ? "Select valid dates" : datesBlocked ? "Dates unavailable" : "Book Direct Now"}
+              {nights === 0 ? "Select Dates" : datesBlocked ? "Dates unavailable" : "Book Direct Now"}
             </button>
             <p className="mt-3 text-center text-xs text-muted-foreground">
-              Best price guaranteed · Zero commission · Free cancellation up to 14 days
+              Best price guaranteed · Zero commission ·{" "}
+              <Link to="/cancellation" className="underline hover:text-foreground">
+                See cancellation policy
+              </Link>
             </p>
+          </div>
+
+          <div className="mt-4">
+            <PropertyConnectHostCard propertyName={property.name} />
           </div>
         </aside>
       </div>

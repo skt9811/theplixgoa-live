@@ -1,36 +1,29 @@
 import { useEffect, useState } from "react";
+import { useStickyHeaderOffset } from "@/lib/use-sticky-header-offset";
 
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "highlights", label: "Highlights" },
+  { id: "refund-policy", label: "Refund Policy" },
   { id: "spaces", label: "Spaces" },
   { id: "reviews", label: "Reviews" },
   { id: "amenities", label: "Amenities" },
+  { id: "meals", label: "Meals" },
   { id: "location", label: "Location" },
+  { id: "experiences", label: "Experiences" },
+  { id: "faqs", label: "FAQ's" },
 ] as const;
 
-const SUB_NAV_HEIGHT = 52;
+export const SUB_NAV_HEIGHT = 52;
 
 /**
- * Sticky in-page tab bar. Measures the site's own sticky header at runtime
- * (rather than a hardcoded pixel guess) so it docks directly beneath it
- * instead of overlapping, and offsets anchor scrolling by the same amount
- * plus its own height so a jumped-to section never lands underneath either
- * bar.
+ * Sticky in-page tab bar. Docks directly beneath the site's own sticky
+ * header (measured live, not hardcoded) and highlights the active tab with
+ * a bottom border as the guest scrolls, via IntersectionObserver.
  */
 export function PropertySubNav() {
-  const [headerOffset, setHeaderOffset] = useState(0);
+  const headerOffset = useStickyHeaderOffset();
   const [activeId, setActiveId] = useState<string>(TABS[0].id);
-
-  useEffect(() => {
-    function measure() {
-      const header = document.querySelector("header");
-      setHeaderOffset(header ? header.getBoundingClientRect().height : 0);
-    }
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, []);
 
   useEffect(() => {
     const sections = TABS.map((t) => document.getElementById(t.id)).filter(
@@ -78,10 +71,10 @@ export function PropertySubNav() {
             key={tab.id}
             type="button"
             onClick={() => handleClick(tab.id)}
-            className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+            className={`shrink-0 whitespace-nowrap border-b-2 px-3.5 py-2 text-sm font-medium transition-colors ${
               activeId === tab.id
-                ? "bg-navy text-navy-foreground"
-                : "text-foreground/70 hover:bg-accent hover:text-accent-foreground"
+                ? "border-primary text-navy font-semibold"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             {tab.label}

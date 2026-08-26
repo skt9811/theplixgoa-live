@@ -140,17 +140,23 @@ export function HeroCarousel({
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
               <div className="absolute inset-0 bg-gradient-to-b from-[#2a1810]/70 via-transparent to-[#1a0e05]/70" />
 
-              <div className="relative z-10 mx-auto flex h-full w-full max-w-4xl flex-col items-center justify-center px-4 pb-16 pt-24 text-center">
+              {/* justify-start (not justify-between) is deliberate: the dot
+                  indicators live inside this same full-height wrapper, and
+                  since this block spans the whole hero, justify-between
+                  would drag them all the way to the bottom edge — directly
+                  behind the floating search widget. Top-biased padding
+                  achieves the same "upper-middle" placement without that risk. */}
+              <div className="relative z-10 mx-auto flex h-full w-full max-w-4xl flex-col items-center justify-start px-4 pb-6 pt-20 text-center">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
                   The Plix Goa · North Goa, India
                 </p>
-                <h1 className="mt-5 max-w-3xl font-serif text-4xl font-normal leading-[1.15] tracking-wide text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.35)] md:text-6xl lg:text-7xl">
+                <h1 className="my-2 max-w-3xl font-serif text-3xl font-normal leading-[1.15] tracking-wide text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.35)] lg:text-4xl xl:text-5xl">
                   {slide.heading}
                 </h1>
-                <p className="mt-5 max-w-2xl text-base font-light text-white/90 md:text-lg">
+                <p className="my-2 max-w-2xl mx-auto text-sm font-light text-white/90 lg:text-base">
                   {slide.subheading}
                 </p>
-                <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
                   {slide.ctaTo === "/stays" ? (
                     <Link
                       to="/stays"
@@ -173,7 +179,7 @@ export function HeroCarousel({
                     rather than pinned to a fixed bottom offset, so they can
                     never collide with the floating search widget below,
                     regardless of the widget's height at any breakpoint. */}
-                <div className="mt-6 flex gap-2">
+                <div className="mt-4 flex gap-2">
                   {slides.map((s, dotIndex) => (
                     <button
                       key={s.heading}

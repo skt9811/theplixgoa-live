@@ -336,7 +336,7 @@ function Home() {
 
   return (
     <>
-      <section className="relative isolate flex min-h-[100dvh] w-full flex-col items-center justify-center overflow-hidden">
+      <section className="relative isolate flex h-[calc(100dvh-4rem)] w-full flex-col items-center justify-center overflow-hidden">
         <HeroCarousel
           slide1Image={isDefaultHeroImage ? chicoHeroImage : heroImageSrc}
           slide1Heading={heroHeading}

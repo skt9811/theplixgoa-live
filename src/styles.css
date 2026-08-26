@@ -63,30 +63,33 @@
 
 :root {
   --radius: 0.75rem;
-  --background: oklch(0.995 0.002 240);
-  --foreground: oklch(0.208 0.042 265.755);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.208 0.042 265.755);
+  /* Luxury warm cream + deep plum theme (replaces the prior neutral
+     white/navy palette). Values are hex-to-oklch conversions of the
+     requested colors — this file's colors must stay in oklch format. */
+  --background: oklch(0.9705 0.0098 87.471); /* #F8F5EE — Warm Sand Cream */
+  --foreground: oklch(0.2821 0.0524 347.762); /* #3C1E2E — Deep Luxury Plum */
+  --card: oklch(1 0 0); /* #FFFFFF — kept pure white so cards pop against the cream page bg */
+  --card-foreground: oklch(0.2821 0.0524 347.762); /* #3C1E2E */
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.2821 0.0524 347.762); /* #3C1E2E */
   --primary: oklch(0.596 0.128 163.2);
   --primary-foreground: oklch(0.99 0.005 160);
   --primary-glow: oklch(0.72 0.135 165);
-  --navy: oklch(0.208 0.042 265.755);
+  --navy: oklch(0.2821 0.0524 347.762); /* #3C1E2E — Deep Luxury Plum (headings/serif titles) */
   --navy-foreground: oklch(0.984 0.003 247.858);
   --sand: oklch(0.955 0.018 85);
   --bronze: oklch(0.72 0.09 70);
   --bronze-foreground: oklch(0.99 0.005 240);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.52 0.032 257.417);
+  --secondary: oklch(0.9528 0.0127 86.830); /* #F3EFE6 — Elevated Soft Cream */
+  --secondary-foreground: oklch(0.2821 0.0524 347.762); /* #3C1E2E */
+  --muted: oklch(0.9528 0.0127 86.830); /* #F3EFE6 — Elevated Soft Cream */
+  --muted-foreground: oklch(0.4383 0.0193 342.012); /* #5A4E55 — Muted Warm Taupe */
   --accent: oklch(0.955 0.03 165);
   --accent-foreground: oklch(0.35 0.09 163);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.922 0.011 255.508);
-  --input: oklch(0.922 0.011 255.508);
+  --border: oklch(0.9014 0.0405 96.264); /* #E6DFC1 — Soft Gold border */
+  --input: oklch(0.9014 0.0405 96.264); /* #E6DFC1 — Soft Gold border */
   --ring: oklch(0.596 0.128 163.2);
   --gradient-hero: linear-gradient(
     180deg,
@@ -252,7 +255,7 @@
 @layer components {
   .prose-blog {
     line-height: 1.75;
-    color: oklch(0.3 0.02 265);
+    color: var(--foreground);
   }
   .prose-blog p {
     margin-bottom: 1.25rem;
@@ -314,6 +317,6 @@
     padding-left: 1rem;
     border-left: 3px solid var(--bronze);
     font-style: italic;
-    color: oklch(0.4 0.02 265);
+    color: var(--muted-foreground);
   }
 }

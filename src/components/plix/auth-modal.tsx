@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { heroImage } from "@/lib/plix";
 import {
   getGuestUser,
+  MIN_PASSWORD_LENGTH,
   signInWithGoogle,
   signInWithPassword,
   signUpWithPassword,
@@ -214,13 +215,19 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
                   <input
                     required
                     type="password"
-                    minLength={6}
+                    minLength={MIN_PASSWORD_LENGTH}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className={input}
                     placeholder="••••••••"
                     autoComplete={mode === "signin" ? "current-password" : "new-password"}
                   />
+                  {mode === "signup" && (
+                    <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                      At least {MIN_PASSWORD_LENGTH} characters — letters and numbers, no special
+                      symbols required.
+                    </span>
+                  )}
                 </label>
                 {error && <p className="text-xs text-red-600">{error}</p>}
                 <button

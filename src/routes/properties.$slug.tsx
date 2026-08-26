@@ -21,6 +21,7 @@ import {
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
 import { toast } from "sonner";
 import { SmartImage } from "@/components/plix/smart-image";
+import { PropertyImageCarousel } from "@/components/plix/property-image-carousel";
 
 const CheckoutModal = lazy(() =>
   import("@/components/plix/checkout-modal").then((m) => ({ default: m.CheckoutModal })),
@@ -448,6 +449,8 @@ function PropertyDetail() {
               </div>
             </section>
           )}
+
+          <PropertyImageCarousel images={images} propertyName={property.name} />
         </div>
 
         <aside className="lg:sticky lg:top-44 lg:self-start">

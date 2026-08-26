@@ -103,9 +103,25 @@ export async function signInWithPassword(email: string, password: string): Promi
 
 export type SignUpResult = { success: boolean; needsEmailConfirmation?: boolean; error?: string };
 
+// Simple friction-free signup: length only, no required uppercase/number/
+// symbol mix — matches the "standard alphanumeric" password policy the
+// product wants for guests booking a stay, not a security-critical account.
+export const MIN_PASSWORD_LENGTH = 6;
+
+export function validatePassword(password: string): string | null {
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+  return null;
+}
+
 export async function signUpWithPassword(email: string, password: string, fullName: string): Promise<SignUpResult> {
   if (!isSupabaseConfigured) {
     return { success: false, error: "Sign-up isn't available right now. Please try again later." };
+  }
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return { success: false, error: passwordError };
   }
   try {
     const { data, error } = await supabase.auth.signUp({
@@ -114,9 +130,25 @@ export async function signUpWithPassword(email: string, password: string, fullNa
       options: { data: { full_name: fullName } },
     });
     if (error) throw error;
+    // Fire-and-log, not fire-and-forget: the account is already created at
+    // this point, so an email failure here must never block or reverse the
+    // signup — it's just logged for diagnosis.
+    void sendWelcomeEmail(email, fullName);
     return { success: true, needsEmailConfirmation: !data.session };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Sign-up failed. Please try again." };
+  }
+}
+
+async function sendWelcomeEmail(email: string, fullName: string): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  try {
+    const { error } = await supabase.functions.invoke("send-welcome-email", {
+      body: { email, full_name: fullName },
+    });
+    if (error) console.error("[send-welcome-email] invoke error:", error.message);
+  } catch (err) {
+    console.error("[send-welcome-email] failed:", err instanceof Error ? err.message : err);
   }
 }
 

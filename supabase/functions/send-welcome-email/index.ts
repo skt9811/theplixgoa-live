@@ -1,0 +1,163 @@
+import { createClient } from "npm:@supabase/supabase-js@2.112.3";
+import { getSecrets } from "../_shared/secrets.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+};
+
+const STAYS_URL = "https://theplixgoa.com/stays";
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  try {
+    const body = await req.json();
+    const email = typeof body?.email === "string" ? body.email.trim() : "";
+    const fullName = typeof body?.full_name === "string" ? body.full_name.trim() : "";
+
+    if (!email) {
+      return new Response(
+        JSON.stringify({ error: "Missing email" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const secrets = await getSecrets(supabase, ["RESEND_API_KEY", "PLIX_FROM_EMAIL"]);
+    const resendApiKey = secrets["RESEND_API_KEY"] ?? "";
+    // Resend can only send from a domain that's been DNS-verified in the Resend
+    // dashboard — a personal @gmail.com address can never work as a "from"
+    // here, so this always uses the configured, verified sender identity.
+    const fromEmail = secrets["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
+
+    if (!resendApiKey) {
+      return new Response(
+        JSON.stringify({
+          simulation: true,
+          email_sent: false,
+          message: "Welcome email skipped (no RESEND_API_KEY configured).",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const html = buildWelcomeEmail(fullName);
+    const result = await sendResendEmail(
+      resendApiKey,
+      fromEmail,
+      email,
+      "Welcome to The Plix — Your Gateway to Luxury Goa Stays",
+      html,
+    );
+
+    if (!result.ok) {
+      const text = await result.text().catch(() => "");
+      console.error("[send-welcome-email] Resend error:", result.status, text);
+    }
+
+    return new Response(
+      JSON.stringify({ simulation: false, email_sent: result.ok }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return new Response(
+      JSON.stringify({ error: message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+});
+
+async function sendResendEmail(
+  apiKey: string,
+  from: string,
+  to: string,
+  subject: string,
+  html: string,
+): Promise<Response> {
+  return fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from, to: [to], subject, html }),
+  });
+}
+
+function buildWelcomeEmail(fullName: string): string {
+  const firstName = fullName.split(" ")[0] || "there";
+
+  return `<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background-color:#f4f1ea;font-family:Manrope,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f1ea;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
+            <tr>
+              <td style="background-color:#1a2238;padding:40px 40px 32px;text-align:center;">
+                <p style="margin:0;color:#c29b72;font-size:12px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">The Plix Goa</p>
+                <h1 style="margin:16px 0 0;color:#ffffff;font-size:26px;font-weight:700;line-height:1.3;">Welcome to The Plix family!</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:36px 40px 8px;color:#1a2238;">
+                <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">Hi ${firstName},</p>
+                <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">
+                  Thank you for creating an account with The Plix Goa. You're now part of a community
+                  that gets first access to our handpicked collection of luxury private pool villas and
+                  boutique resorts across North Goa's most coveted neighborhoods.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 40px 0;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8e6d3;border-radius:12px;">
+                  <tr>
+                    <td style="padding:24px 28px;">
+                      <p style="margin:0 0 14px;color:#1a2238;font-size:14px;font-weight:700;">As a member, you get:</p>
+                      <table role="presentation" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="padding:0 0 10px;color:#8a6a48;font-size:14px;line-height:1.5;">✓&nbsp;&nbsp;Best-price-guaranteed direct booking — zero commission markups</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:0 0 10px;color:#8a6a48;font-size:14px;line-height:1.5;">✓&nbsp;&nbsp;Exclusive access to villas in Vagator, Anjuna, and Morjim</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:0;color:#8a6a48;font-size:14px;line-height:1.5;">✓&nbsp;&nbsp;Personal caretaker service and flexible booking support</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px 40px 8px;text-align:center;">
+                <a href="${STAYS_URL}" style="display:inline-block;background-color:#c29b72;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:999px;">
+                  Explore Our Villas
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px 40px 40px;color:#1a2238;">
+                <p style="margin:0 0 4px;font-size:15px;line-height:1.6;">Warm regards,</p>
+                <p style="margin:0;font-size:15px;font-weight:700;line-height:1.6;">Rohit Thakur &amp; The Plix Team</p>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:20px 0 0;color:#9a9a9a;font-size:12px;">The Plix Goa · North Goa, India</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}

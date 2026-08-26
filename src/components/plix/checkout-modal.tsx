@@ -12,6 +12,7 @@ import {
 } from "@/lib/booking";
 import { redeemCoupon, validateCoupon, type CouponValidationResult } from "@/lib/coupons";
 import { getGuestUser, onGuestAuthChange, type GuestUser } from "@/lib/guest-auth";
+import { GOOGLE_ADS_ACCOUNT_ID, trackConversion } from "@/lib/gtag";
 import { formatINR, gstLabel, type Property } from "@/lib/plix";
 import { autoBlockDatesForStay, isMultiRoomProperty, quoteWithDiscount } from "@/lib/rates";
 
@@ -208,6 +209,14 @@ export function CheckoutModal({
       if (!isMultiRoomProperty(property.id)) {
         void autoBlockDatesForStay(property.id, checkIn, checkOut);
       }
+
+      // Google Ads conversion — real payments only, same as the rest of
+      // this block; never blocks or reverses the already-successful payment.
+      trackConversion(GOOGLE_ADS_ACCOUNT_ID, {
+        value: total,
+        currency: "INR",
+        transaction_id: order.booking_id,
+      });
     }
 
     // Guest + host confirmation emails, via the send-booking-confirmation edge

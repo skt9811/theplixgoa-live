@@ -115,7 +115,12 @@ export async function confirmBookingAndSendEmails(
 
   const resendApiKey = process.env["RESEND_API_KEY"] ?? "";
   const fromEmail = process.env["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
-  const hostEmail = process.env["PLIX_HOST_EMAIL"] ?? "reservations@theplixgoa.com";
+  // PLIX_HOST_EMAIL, if set, overrides this default list (comma-separated
+  // for more than one address) — otherwise every new-booking notification
+  // goes to both addresses the team actually watches.
+  const hostEmail = process.env["PLIX_HOST_EMAIL"]
+    ? process.env["PLIX_HOST_EMAIL"].split(",").map((e) => e.trim()).filter(Boolean)
+    : ["theplixvilla@gmail.com", "reservation@theplixgoa.com"];
 
   if (!resendApiKey) {
     return {
@@ -154,8 +159,22 @@ export async function confirmBookingAndSendEmails(
   ]);
 
   const emailsFailed: string[] = [];
-  if (!guestResult.ok) emailsFailed.push("guest");
-  if (!hostResult.ok) emailsFailed.push("host");
+  if (!guestResult.ok) {
+    emailsFailed.push("guest");
+    console.error(
+      `[confirmBookingAndSendEmails] guest email failed for booking ${booking.id}:`,
+      guestResult.status,
+      await guestResult.text().catch(() => "<no body>"),
+    );
+  }
+  if (!hostResult.ok) {
+    emailsFailed.push("host");
+    console.error(
+      `[confirmBookingAndSendEmails] host email failed for booking ${booking.id}:`,
+      hostResult.status,
+      await hostResult.text().catch(() => "<no body>"),
+    );
+  }
 
   return {
     ok: emailsFailed.length === 0,
@@ -170,7 +189,7 @@ export async function confirmBookingAndSendEmails(
 async function sendResendEmail(
   apiKey: string,
   from: string,
-  to: string,
+  to: string | string[],
   subject: string,
   html: string,
   attachments?: { filename: string; content: string; content_type: string }[],
@@ -181,7 +200,7 @@ async function sendResendEmail(
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from, to: [to], subject, html, attachments }),
+    body: JSON.stringify({ from, to: Array.isArray(to) ? to : [to], subject, html, attachments }),
   });
 }
 

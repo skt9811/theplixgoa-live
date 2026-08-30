@@ -5,6 +5,7 @@
 // (inventory blocking, conversion tracking) without waiting on emails too.
 import { createServerFn } from "@tanstack/react-start";
 import postgres from "postgres";
+import { verifyRazorpayCheckoutSignature } from "@/lib/razorpay-verify.server";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
 
@@ -41,6 +42,15 @@ export const updateBookingPaymentServerFn = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }): Promise<{ ok: boolean }> => {
+    if (!verifyRazorpayCheckoutSignature(data.order_id, data.payment_id, data.signature)) {
+      console.error(
+        "[updateBookingPaymentServerFn] Razorpay signature verification FAILED for booking",
+        data.booking_id,
+        "— refusing to mark as paid",
+      );
+      return { ok: false };
+    }
+
     const sql = getSql();
     if (!sql) return { ok: false };
 

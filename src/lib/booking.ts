@@ -138,13 +138,14 @@ export type SendConfirmationResult = {
 // just reports back for the caller to surface, not throw.
 export async function sendBookingConfirmationEmails(
   bookingId: string,
-  payment: { razorpay_payment_id?: string; razorpay_signature?: string },
+  payment: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string },
 ): Promise<SendConfirmationResult> {
   try {
     const result = await confirmBookingServerFn({
       data: {
         booking_id: bookingId,
         razorpay_payment_id: payment.razorpay_payment_id,
+        razorpay_order_id: payment.razorpay_order_id,
         razorpay_signature: payment.razorpay_signature,
       },
     });

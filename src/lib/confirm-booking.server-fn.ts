@@ -10,7 +10,6 @@ function isConfirmInput(data: unknown): data is {
   booking_id: string;
   razorpay_payment_id?: string;
   razorpay_signature?: string;
-  simulation?: boolean;
 } {
   if (!data || typeof data !== "object") return false;
   const d = data as Record<string, unknown>;
@@ -29,6 +28,5 @@ export const confirmBookingServerFn = createServerFn({ method: "POST" })
       bookingId: data.booking_id,
       razorpayPaymentId: data.razorpay_payment_id,
       razorpaySignature: data.razorpay_signature,
-      simulation: data.simulation,
     });
   });

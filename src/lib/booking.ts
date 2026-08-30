@@ -53,12 +53,11 @@ export type CreateOrderInput = {
 };
 
 export type CreateOrderResponse = {
-  simulation: boolean;
   booking_id: string;
   order_id: string;
   amount: number;
   currency: string;
-  key_id: string | null;
+  key_id: string;
 };
 
 export type RazorpayHandlerResult = {
@@ -139,7 +138,7 @@ export type SendConfirmationResult = {
 // just reports back for the caller to surface, not throw.
 export async function sendBookingConfirmationEmails(
   bookingId: string,
-  payment: { razorpay_payment_id?: string; razorpay_signature?: string; simulation?: boolean },
+  payment: { razorpay_payment_id?: string; razorpay_signature?: string },
 ): Promise<SendConfirmationResult> {
   try {
     const result = await confirmBookingServerFn({
@@ -147,7 +146,6 @@ export async function sendBookingConfirmationEmails(
         booking_id: bookingId,
         razorpay_payment_id: payment.razorpay_payment_id,
         razorpay_signature: payment.razorpay_signature,
-        simulation: payment.simulation ?? false,
       },
     });
 
@@ -166,22 +164,15 @@ export async function sendBookingConfirmationEmails(
   }
 }
 
-// Local, fully client-side fallback — used only when createRazorpayOrderServerFn
-// is unreachable (Neon misconfigured, network down). Never produces a real
-// Razorpay order; the guest always sees demo/simulation mode in this case,
-// same as when Razorpay itself isn't configured.
-function localFallbackOrder(input: CreateOrderInput, total: number): CreateOrderResponse {
-  const bookingId = `pending_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-  return {
-    simulation: true,
-    booking_id: bookingId,
-    order_id: `client_${bookingId}`,
-    amount: Math.round(total * 100),
-    currency: "INR",
-    key_id: null,
-  };
-}
-
+// Real order creation happens server-side (createRazorpayOrderServerFn): it
+// calls Razorpay's Orders API for a real order_id and inserts the booking
+// row into Neon with that order_id attached, before payment even starts.
+// That's what lets the razorpay-webhook reliably match an incoming payment
+// event back to a booking, independent of whether the client is still
+// around to see the Razorpay success callback fire. No fallback: if
+// Razorpay isn't configured, the API call fails, or the booking can't be
+// persisted, this throws — the caller (checkout-modal.tsx) surfaces that as
+// a real error instead of silently proceeding with a fake booking.
 export async function createRazorpayOrder(
   input: CreateOrderInput,
 ): Promise<CreateOrderResponse> {
@@ -191,43 +182,31 @@ export async function createRazorpayOrder(
     : Array.from({ length: nights }, () => property.base_price);
   const { subtotal, taxes, total } = quoteWithDiscount(effectiveNightlyRates, property.bedrooms, discountAmount);
 
-  // Real order creation happens server-side (createRazorpayOrderServerFn): it
-  // calls Razorpay's Orders API for a real order_id and inserts the booking
-  // row into Neon with that order_id attached, before payment even starts.
-  // That's what lets the razorpay-webhook reliably match an incoming payment
-  // event back to a booking, independent of whether the client is still
-  // around to see the Razorpay success callback fire.
-  try {
-    const data = await createRazorpayOrderServerFn({
-      data: {
-        property_id: property.id,
-        property_name: property.name,
-        property_location: property.location,
-        guest_name: guestName,
-        guest_email: guestEmail,
-        guest_mobile: guestMobile,
-        check_in: checkIn,
-        check_out: checkOut,
-        guests,
-        nights,
-        subtotal,
-        taxes,
-        total_amount: total,
-      },
-    });
+  const data = await createRazorpayOrderServerFn({
+    data: {
+      property_id: property.id,
+      property_name: property.name,
+      property_location: property.location,
+      guest_name: guestName,
+      guest_email: guestEmail,
+      guest_mobile: guestMobile,
+      check_in: checkIn,
+      check_out: checkOut,
+      guests,
+      nights,
+      subtotal,
+      taxes,
+      total_amount: total,
+    },
+  });
 
-    return {
-      simulation: Boolean(data.simulation),
-      booking_id: data.booking_id,
-      order_id: data.order_id,
-      amount: data.amount,
-      currency: data.currency,
-      key_id: data.key_id ?? null,
-    };
-  } catch (error) {
-    console.error("[Razorpay Init Error]: createRazorpayOrderServerFn unreachable", error);
-    return localFallbackOrder(input, total);
-  }
+  return {
+    booking_id: data.booking_id,
+    order_id: data.order_id,
+    amount: data.amount,
+    currency: data.currency,
+    key_id: data.key_id,
+  };
 }
 
 declare global {
@@ -296,18 +275,6 @@ export async function openRazorpayCheckout(params: {
   onDismiss: () => void;
 }): Promise<void> {
   const { order, property, guestName, guestEmail, guestMobile, onSuccess, onDismiss } = params;
-
-  if (order.simulation || !order.key_id) {
-    // Simulation mode — simulate a successful payment after a brief delay
-    setTimeout(() => {
-      onSuccess({
-        razorpay_payment_id: `sim_pay_${Math.random().toString(36).slice(2, 14)}`,
-        razorpay_order_id: order.order_id,
-        razorpay_signature: "sim_signature",
-      });
-    }, 1500);
-    return;
-  }
 
   // Ensure the Razorpay checkout script is loaded before opening
   try {

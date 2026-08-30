@@ -23,7 +23,6 @@ export type ConfirmBookingInput = {
   bookingId: string;
   razorpayPaymentId?: string | undefined;
   razorpaySignature?: string | undefined;
-  simulation?: boolean | undefined;
 };
 
 export type ConfirmBookingResult = {
@@ -69,11 +68,10 @@ export async function confirmBookingAndSendEmails(
 
   let booking: BookingRow;
   try {
-    const paymentStatus = input.simulation ? "simulated" : "paid";
     const rows = await sql<RawBookingRow[]>`
       UPDATE public.bookings
       SET
-        payment_status = ${paymentStatus},
+        payment_status = 'paid',
         razorpay_payment_id = COALESCE(${input.razorpayPaymentId ?? null}, razorpay_payment_id),
         razorpay_signature = COALESCE(${input.razorpaySignature ?? null}, razorpay_signature)
       WHERE id = ${input.bookingId}

@@ -65,7 +65,6 @@ export function CheckoutModal({
   const [form, setForm] = useState({ name: "", email: "", mobile: "" });
   const [status, setStatus] = useState<Status>("idle");
   const [bookingId, setBookingId] = useState<string | null>(null);
-  const [simulation, setSimulation] = useState(false);
   const [guestUser, setGuestUser] = useState<GuestUser | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
 
@@ -154,16 +153,12 @@ export function CheckoutModal({
         discountAmount: appliedCoupon?.valid ? appliedCoupon.discountAmount : undefined,
       });
       setBookingId(order.booking_id);
-      setSimulation(order.simulation);
     } catch (error) {
       console.error("[Razorpay Init Error]:", error);
       setStatus("error");
-      toast.error("We couldn't start the checkout. Please try again or contact us.");
+      const message = error instanceof Error ? error.message : "We couldn't start the checkout. Please try again or contact us.";
+      toast.error(message);
       return;
-    }
-
-    if (order.simulation) {
-      toast.info("Demo mode: simulating payment (no live payment was created).");
     }
 
     setStatus("checkout_open");
@@ -194,55 +189,43 @@ export function CheckoutModal({
   ) {
     setStatus("confirming");
 
-    let paymentConfirmed = true;
-    if (!order.simulation) {
-      // Write payment details directly to the bookings table
-      paymentConfirmed = await updateBookingPayment(
-        order.booking_id,
-        result.razorpay_payment_id,
-        result.razorpay_order_id,
-        result.razorpay_signature,
-      );
+    // Write payment details directly to the bookings table
+    const paymentConfirmed = await updateBookingPayment(
+      order.booking_id,
+      result.razorpay_payment_id,
+      result.razorpay_order_id,
+      result.razorpay_signature,
+    );
 
-      // Whole-villa properties: auto-block every night of the stay so the
-      // property reads as fully unavailable — a demo/simulation booking
-      // doesn't consume real inventory, so this only runs for real payments.
-      // Fire-and-log like the email call below: this must never block or
-      // reverse an already-successful payment.
-      //
-      // Multi-room resorts need no equivalent step here: availability is
-      // computed live from bookings.payment_status = "paid" (see
-      // lib/inventory.ts), so the row updateBookingPayment() just wrote is
-      // already all the "deduction" that's needed — nothing separate to
-      // decrement or store.
-      if (!isMultiRoomProperty(property.id)) {
-        void autoBlockDatesForStay(property.id, checkIn, checkOut);
-      }
-
-      // Google Ads conversion — real payments only, same as the rest of
-      // this block; never blocks or reverses the already-successful payment.
-      trackConversion(GOOGLE_ADS_ACCOUNT_ID, {
-        value: total,
-        currency: "INR",
-        transaction_id: order.booking_id,
-      });
+    // Whole-villa properties: auto-block every night of the stay so the
+    // property reads as fully unavailable. Fire-and-log like the email call
+    // below: this must never block or reverse an already-successful payment.
+    //
+    // Multi-room resorts need no equivalent step here: availability is
+    // computed live from bookings.payment_status = "paid" (see
+    // lib/inventory.ts), so the row updateBookingPayment() just wrote is
+    // already all the "deduction" that's needed — nothing separate to
+    // decrement or store.
+    if (!isMultiRoomProperty(property.id)) {
+      void autoBlockDatesForStay(property.id, checkIn, checkOut);
     }
 
-    // Guest + host confirmation emails, via the send-booking-confirmation edge
-    // function. Fire-and-log, not fire-and-forget: failures are console-logged
-    // for diagnosis but never block or reverse the already-successful payment.
+    trackConversion(GOOGLE_ADS_ACCOUNT_ID, {
+      value: total,
+      currency: "INR",
+      transaction_id: order.booking_id,
+    });
+
+    // Guest + host confirmation emails. Fire-and-log, not fire-and-forget:
+    // failures are console-logged for diagnosis but never block or reverse
+    // the already-successful payment.
     void sendBookingConfirmationEmails(order.booking_id, {
       razorpay_payment_id: result.razorpay_payment_id,
       razorpay_signature: result.razorpay_signature,
-      simulation: order.simulation,
     });
 
     if (paymentConfirmed) {
-      if (order.simulation) {
-        toast.success("Booking confirmed (demo mode). No real payment was processed.");
-      } else {
-        toast.success("Payment successful! Your booking is confirmed.");
-      }
+      toast.success("Payment successful! Your booking is confirmed.");
     } else {
       toast.success("Payment received! We'll confirm your booking shortly.");
     }
@@ -267,7 +250,6 @@ export function CheckoutModal({
           nights: String(nights),
           total: String(total),
           payment: result.razorpay_payment_id,
-          sim: order.simulation ? "1" : "",
         },
       });
     }, 1800);
@@ -280,7 +262,7 @@ export function CheckoutModal({
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-              {simulation ? "Demo Checkout" : "Razorpay Secure Checkout"}
+              Razorpay Secure Checkout
             </p>
             <h2 className="mt-1 text-xl font-semibold text-navy">{property.name}</h2>
           </div>
@@ -317,7 +299,7 @@ export function CheckoutModal({
               Recording payment and saving your booking.
             </p>
           </div>
-        ) : status === "checkout_open" && !simulation ? (
+        ) : status === "checkout_open" ? (
           <div className="py-12 text-center">
             <Loader2 className="mx-auto size-10 animate-spin text-primary" aria-hidden />
             <h3 className="mt-4 text-lg font-semibold text-navy">Checkout open</h3>
@@ -457,9 +439,7 @@ export function CheckoutModal({
             </button>
             <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
               <ShieldCheck className="size-3.5 text-primary" aria-hidden />
-              {simulation
-                ? "Demo mode — no real payment is processed."
-                : "Secured by Razorpay — your payment is encrypted and protected."}
+              Secured by Razorpay — your payment is encrypted and protected.
             </p>
           </form>
         )}

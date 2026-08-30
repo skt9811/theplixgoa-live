@@ -141,7 +141,6 @@ async function handlePaymentCaptured(event: RazorpayWebhookEvent): Promise<Respo
   const result = await confirmBookingAndSendEmails({
     bookingId: booking.id,
     razorpayPaymentId: payment.id,
-    simulation: false,
   });
 
   return new Response(

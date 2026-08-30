@@ -1,6 +1,12 @@
 // Server-only. createServerFn splits this into a server-side handler bundle
 // — the Neon connection string and Razorpay secret key never reach the
 // client bundle. Ported from supabase/functions/create-razorpay-order.
+//
+// No demo/simulation fallback: missing Razorpay credentials, a failed
+// Razorpay API call, or a failed booking insert all throw — the client
+// (booking.ts's createRazorpayOrder) surfaces the real error to the guest
+// instead of silently proceeding with a fake order that isn't backed by a
+// real payment or a real booking row.
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import postgres from "postgres";
@@ -34,12 +40,11 @@ type OrderInput = {
 };
 
 export type CreateRazorpayOrderResult = {
-  simulation: boolean;
   booking_id: string;
   order_id: string;
   amount: number;
   currency: string;
-  key_id: string | null;
+  key_id: string;
 };
 
 function isOrderInput(data: unknown): data is OrderInput {
@@ -83,32 +88,29 @@ async function getAuthenticatedUserId(): Promise<number | null> {
 
 async function insertBooking(
   input: OrderInput,
-  extra: { razorpay_order_id?: string; payment_status: string; host_email: string; user_id: number | null },
-): Promise<string | null> {
+  extra: { razorpay_order_id: string; host_email: string; user_id: number | null },
+): Promise<string> {
   const sql = getSql();
-  if (!sql) return null;
-  try {
-    const rows = await sql<{ id: string }[]>`
-      INSERT INTO public.bookings (
-        property_id, property_name, property_location,
-        guest_name, guest_email, guest_mobile,
-        check_in, check_out, guests, nights,
-        subtotal, taxes, total_amount,
-        razorpay_order_id, payment_status, host_email, user_id
-      ) VALUES (
-        ${input.property_id}, ${input.property_name}, ${input.property_location},
-        ${input.guest_name}, ${input.guest_email}, ${input.guest_mobile},
-        ${input.check_in}, ${input.check_out}, ${input.guests}, ${input.nights},
-        ${input.subtotal}, ${input.taxes}, ${input.total_amount},
-        ${extra.razorpay_order_id ?? null}, ${extra.payment_status}, ${extra.host_email}, ${extra.user_id}
-      )
-      RETURNING id
-    `;
-    return rows[0]?.id ?? null;
-  } catch (err) {
-    console.error("[createRazorpayOrderServerFn] booking insert failed:", err instanceof Error ? err.message : err);
-    return null;
-  }
+  if (!sql) throw new Error("DATABASE_URL not configured on the server.");
+  const rows = await sql<{ id: string }[]>`
+    INSERT INTO public.bookings (
+      property_id, property_name, property_location,
+      guest_name, guest_email, guest_mobile,
+      check_in, check_out, guests, nights,
+      subtotal, taxes, total_amount,
+      razorpay_order_id, payment_status, host_email, user_id
+    ) VALUES (
+      ${input.property_id}, ${input.property_name}, ${input.property_location},
+      ${input.guest_name}, ${input.guest_email}, ${input.guest_mobile},
+      ${input.check_in}, ${input.check_out}, ${input.guests}, ${input.nights},
+      ${input.subtotal}, ${input.taxes}, ${input.total_amount},
+      ${extra.razorpay_order_id}, 'pending', ${extra.host_email}, ${extra.user_id}
+    )
+    RETURNING id
+  `;
+  const id = rows[0]?.id;
+  if (!id) throw new Error("Booking insert returned no row");
+  return id;
 }
 
 export const createRazorpayOrderServerFn = createServerFn({ method: "POST" })
@@ -119,72 +121,47 @@ export const createRazorpayOrderServerFn = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }): Promise<CreateRazorpayOrderResult> => {
-    const razorpayKeyId = process.env["RAZORPAY_KEY_ID"] ?? "";
+    const razorpayKeyId = process.env["RAZORPAY_KEY_ID"] || process.env["VITE_RAZORPAY_KEY_ID"] || "";
     const razorpayKeySecret = process.env["RAZORPAY_KEY_SECRET"] ?? "";
     const hostEmail = process.env["PLIX_HOST_EMAIL"] ?? "reservations@theplixgoa.com";
-    const userId = await getAuthenticatedUserId();
 
-    // Simulation mode: no Razorpay credentials configured on this deployment.
     if (!razorpayKeyId || !razorpayKeySecret) {
-      const bookingId = await insertBooking(data, { payment_status: "simulated", host_email: hostEmail, user_id: userId });
-      const id = bookingId ?? `sim_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-      return {
-        simulation: true,
-        booking_id: id,
-        order_id: `sim_${id.slice(0, 12)}`,
-        amount: Math.round(data.total_amount * 100),
-        currency: "INR",
-        key_id: null,
-      };
+      console.error("[createRazorpayOrderServerFn] Razorpay credentials not configured in Vercel");
+      throw new Error("Razorpay credentials not configured in Vercel");
     }
 
+    const userId = await getAuthenticatedUserId();
     const amountInPaise = Math.round(data.total_amount * 100);
     const auth = Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString("base64");
 
-    let order: { id: string };
-    try {
-      const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Basic ${auth}`,
-        },
-        body: JSON.stringify({
-          amount: amountInPaise,
-          currency: "INR",
-          receipt: `plix_${Date.now()}`,
-          notes: { property_id: data.property_id, guest_email: data.guest_email },
-        }),
-      });
-      if (!rzpRes.ok) {
-        const errText = await rzpRes.text();
-        throw new Error(`Razorpay API error: ${errText}`);
-      }
-      order = await rzpRes.json();
-    } catch (err) {
-      const fallbackId = `fallback_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-      console.error("[createRazorpayOrderServerFn] Razorpay API failed, returning fallback:", err instanceof Error ? err.message : err);
-      return {
-        simulation: true,
-        booking_id: fallbackId,
-        order_id: `fallback_${fallbackId.slice(0, 12)}`,
+    const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${auth}`,
+      },
+      body: JSON.stringify({
         amount: amountInPaise,
         currency: "INR",
-        key_id: razorpayKeyId,
-      };
+        receipt: `plix_${Date.now()}`,
+        notes: { property_id: data.property_id, guest_email: data.guest_email },
+      }),
+    });
+    if (!rzpRes.ok) {
+      const errText = await rzpRes.text();
+      console.error("[createRazorpayOrderServerFn] Razorpay API error:", rzpRes.status, errText);
+      throw new Error("Unable to start payment. Please try again.");
     }
+    const order = (await rzpRes.json()) as { id: string };
 
     const bookingId = await insertBooking(data, {
       razorpay_order_id: order.id,
-      payment_status: "pending",
       host_email: hostEmail,
       user_id: userId,
     });
-    const id = bookingId ?? `pending_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
     return {
-      simulation: false,
-      booking_id: id,
+      booking_id: bookingId,
       order_id: order.id,
       amount: amountInPaise,
       currency: "INR",

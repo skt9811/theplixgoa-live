@@ -13,7 +13,6 @@ type BookingSuccessSearch = {
   nights?: string;
   total?: string;
   payment?: string;
-  sim?: string;
 };
 
 export const Route = createFileRoute("/booking-success")({
@@ -27,7 +26,6 @@ export const Route = createFileRoute("/booking-success")({
     nights: typeof search["nights"] === "string" ? search["nights"] : undefined,
     total: typeof search["total"] === "string" ? search["total"] : undefined,
     payment: typeof search["payment"] === "string" ? search["payment"] : undefined,
-    sim: typeof search["sim"] === "string" ? search["sim"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -42,12 +40,9 @@ export const Route = createFileRoute("/booking-success")({
 function BookingSuccess() {
   const s = Route.useSearch();
   const bookingRef = s.id ? s.id.slice(0, 8).toUpperCase() : "PLIX-XXXX";
-  const isSimulation = s.sim === "1";
   const [downloading, setDownloading] = useState(false);
 
-  // Real booking ids are plain UUIDs (no underscores); pending_/sim_/fallback_/
-  // client_ prefixed ids are local placeholders with no row to fetch.
-  const hasRealBookingId = Boolean(s.id) && !s.id!.includes("_");
+  const hasRealBookingId = Boolean(s.id);
 
   async function handleDownloadVoucher() {
     if (!s.id) return;
@@ -76,9 +71,7 @@ function BookingSuccess() {
         <CheckCircle2 className="mx-auto size-16 text-primary" aria-hidden />
         <h1 className="mt-4 text-3xl font-semibold text-navy">Booking Confirmed</h1>
         <p className="mt-2 text-muted-foreground">
-          {isSimulation
-            ? "This was a demo booking — no real payment was processed."
-            : "Your payment is complete and confirmation emails are on their way."}
+          Your payment is complete and confirmation emails are on their way.
         </p>
       </div>
 

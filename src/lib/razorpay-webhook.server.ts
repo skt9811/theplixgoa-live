@@ -42,9 +42,17 @@ type RazorpayWebhookEvent = {
     payment: {
       entity: {
         id: string;
-        order_id: string;
+        order_id?: string;
         amount: number;
         status: string;
+      };
+    };
+    // Only present on order.paid, not payment.captured — see Razorpay's own
+    // reference webhook implementations, which read the order id from here
+    // for order.paid rather than payload.payment.entity.order_id.
+    order?: {
+      entity: {
+        id: string;
       };
     };
   };
@@ -90,12 +98,21 @@ export async function handleRazorpayWebhook(req: Request): Promise<Response> {
   }
 
   try {
-    if (event.event === "payment.captured") {
+    // Both fire when a payment succeeds — which one Razorpay actually sends
+    // depends on what the dashboard's webhook was subscribed to when it was
+    // set up (payment.captured and order.paid are both valid, distinct
+    // event types for the same underlying success). Handling only one of
+    // them here would mean every delivery of the other silently falls into
+    // the `ignored` branch below — a 200 response, so Razorpay never
+    // retries, and no email ever goes out, with nothing in the logs to
+    // suggest why beyond an easy-to-miss "ignored: order.paid" line.
+    if (event.event === "payment.captured" || event.event === "order.paid") {
       return await handlePaymentCaptured(event);
     }
     if (event.event === "payment.failed") {
       return await handlePaymentFailed(event);
     }
+    console.log(`[razorpay-webhook] ignoring unhandled event type: ${event.event}`);
     return new Response(JSON.stringify({ ok: true, ignored: event.event }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -112,11 +129,24 @@ export async function handleRazorpayWebhook(req: Request): Promise<Response> {
 
 async function handlePaymentCaptured(event: RazorpayWebhookEvent): Promise<Response> {
   const payment = event.payload.payment.entity;
+  // payment.captured always has order_id on the payment entity itself;
+  // order.paid's official reference implementations read it from
+  // payload.order.entity.id instead. Try both rather than assume which one
+  // this specific event payload populated.
+  const orderId = payment.order_id ?? event.payload.order?.entity.id;
+  if (!orderId) {
+    console.error(`[razorpay-webhook] ${event.event} payload had no resolvable order id`, JSON.stringify(event.payload));
+    return new Response(JSON.stringify({ ok: true, matched: false, error: "No order id in payload" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const sql = getSql();
   if (!sql) throw new Error("DATABASE_URL not configured on the server.");
 
   const rows = await sql<{ id: string; confirmation_sent_at: string | Date | null }[]>`
-    SELECT id, confirmation_sent_at FROM public.bookings WHERE razorpay_order_id = ${payment.order_id} LIMIT 1
+    SELECT id, confirmation_sent_at FROM public.bookings WHERE razorpay_order_id = ${orderId} LIMIT 1
   `;
   const booking = rows[0];
 
@@ -124,7 +154,7 @@ async function handlePaymentCaptured(event: RazorpayWebhookEvent): Promise<Respo
     // No matching booking — most likely a payment created outside this app,
     // or createRazorpayOrderServerFn's DB insert failed after the Razorpay
     // order itself succeeded. Ack anyway; retrying won't produce a match either.
-    console.error("[razorpay-webhook] no booking found for order_id:", payment.order_id);
+    console.error("[razorpay-webhook] no booking found for order_id:", orderId);
     return new Response(JSON.stringify({ ok: true, matched: false }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -159,6 +189,11 @@ async function handlePaymentCaptured(event: RazorpayWebhookEvent): Promise<Respo
 
 async function handlePaymentFailed(event: RazorpayWebhookEvent): Promise<Response> {
   const payment = event.payload.payment.entity;
+  if (!payment.order_id) {
+    console.error("[razorpay-webhook] payment.failed payload had no order_id", JSON.stringify(event.payload));
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+
   const sql = getSql();
   if (!sql) throw new Error("DATABASE_URL not configured on the server.");
 

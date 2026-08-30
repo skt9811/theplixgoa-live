@@ -167,6 +167,14 @@ export async function confirmBookingAndSendEmails(
   const attachments = voucherAttachment ? [voucherAttachment] : undefined;
 
   console.log("Dispatching Booking Email for:", booking.guest_email);
+  console.log(
+    "Resend request payload (guest):",
+    JSON.stringify({ from: fromEmail, to: [booking.guest_email], subject: "Your Plix Hospitality booking is confirmed", hasAttachment: Boolean(attachments) }),
+  );
+  console.log(
+    "Resend request payload (host):",
+    JSON.stringify({ from: fromEmail, to: hostEmail, subject: `New booking: ${booking.property_name} — ${booking.guest_name}`, hasAttachment: Boolean(attachments) }),
+  );
 
   const [guestResult, hostResult] = await Promise.all([
     sendResendEmail(resendApiKey, fromEmail, booking.guest_email, "Your Plix Hospitality booking is confirmed", guestHtml, attachments),

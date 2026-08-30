@@ -126,6 +126,15 @@ export function CheckoutModal({
       return;
     }
 
+    await proceedToCheckout();
+  }
+
+  // Split out of handlePay so a successful sign-in/sign-up from the auth
+  // modal can resume checkout immediately afterward, without requiring the
+  // guest to press "Pay" a second time — the modal only opens because this
+  // same form already passed its native `required` validation, so form.*
+  // is already filled in by the time either caller reaches here.
+  async function proceedToCheckout() {
     setStatus("creating_order");
 
     let order: CreateOrderResponse;
@@ -466,6 +475,11 @@ export function CheckoutModal({
           email: f.email || user.email,
           name: f.name || user.fullName || f.name,
         }));
+        setAuthOpen(false);
+        // The auth modal only opened because this checkout form had already
+        // passed submission — resume straight into Razorpay checkout instead
+        // of making the guest press "Pay" again.
+        void proceedToCheckout();
       }}
     />
     </>

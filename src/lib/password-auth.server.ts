@@ -82,8 +82,12 @@ type UserRow = { id: number; name: string | null; email: string; image: string |
 export async function findUserByEmail(email: string): Promise<UserRow | null> {
   const pool = getAuthPool();
   if (!pool) return null;
+  // Defense in depth: callers already normalize with .trim().toLowerCase()
+  // before this ever runs, but matching TRIM(LOWER(...)) on both sides here
+  // too means a row that somehow got stored with different casing (a stray
+  // direct INSERT, a future OAuth-linked row, etc.) still gets found.
   const { rows } = await pool.query<UserRow>(
-    `SELECT id, name, email, image, password_hash FROM users WHERE email = $1 LIMIT 1`,
+    `SELECT id, name, email, image, password_hash FROM users WHERE TRIM(LOWER(email)) = TRIM(LOWER($1)) LIMIT 1`,
     [email],
   );
   return rows[0] ?? null;
@@ -94,7 +98,7 @@ export async function createUserWithPassword(email: string, password: string, na
   if (!pool) throw new Error("DATABASE_URL not configured on the server.");
   const passwordHash = await hashPassword(password);
   const { rows } = await pool.query<UserRow>(
-    `INSERT INTO users (name, email, "emailVerified", password_hash) VALUES ($1, $2, now(), $3)
+    `INSERT INTO users (name, email, "emailVerified", password_hash) VALUES ($1, TRIM(LOWER($2)), now(), $3)
      RETURNING id, name, email, image, password_hash`,
     [name, email, passwordHash],
   );

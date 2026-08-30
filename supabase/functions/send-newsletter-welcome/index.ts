@@ -30,11 +30,15 @@ Deno.serve(async (req: Request) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const secrets = await getSecrets(supabase, ["RESEND_API_KEY", "PLIX_FROM_EMAIL"]);
+    const secrets = await getSecrets(supabase, ["RESEND_API_KEY", "PLIX_FROM_EMAIL", "PLIX_HOST_EMAIL"]);
     const resendApiKey = secrets["RESEND_API_KEY"] ?? "";
     // Resend can only send from a DNS-verified domain, so this always uses
     // the configured, verified sender identity — never a raw guess.
     const fromEmail = secrets["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
+    // Same admin/host inbox already used for new-booking alerts in
+    // send-booking-confirmation — reused here so subscriber notifications
+    // land in the same place the team already watches.
+    const hostEmail = secrets["PLIX_HOST_EMAIL"] ?? "reservations@theplixgoa.com";
 
     if (!resendApiKey) {
       return new Response(
@@ -61,8 +65,26 @@ Deno.serve(async (req: Request) => {
       console.error("[send-newsletter-welcome] Resend error:", result.status, text);
     }
 
+    // Admin alert — fire-and-log like the guest email above: a failure here
+    // must never affect the response the guest's signup request gets back.
+    const adminResult = await sendResendEmail(
+      resendApiKey,
+      fromEmail,
+      hostEmail,
+      "🎉 New Subscriber on The Plix Club!",
+      buildAdminAlertEmail(email),
+    );
+    if (!adminResult.ok) {
+      const text = await adminResult.text().catch(() => "");
+      console.error("[send-newsletter-welcome] admin alert Resend error:", adminResult.status, text);
+    }
+
     return new Response(
-      JSON.stringify({ simulation: false, email_sent: result.ok }),
+      JSON.stringify({
+        simulation: false,
+        email_sent: result.ok,
+        admin_alert_sent: adminResult.ok,
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
@@ -89,6 +111,45 @@ async function sendResendEmail(
     },
     body: JSON.stringify({ from, to: [to], subject, html }),
   });
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildAdminAlertEmail(rawEmail: string): string {
+  const email = escapeHtml(rawEmail);
+  const timestamp = new Date().toLocaleString("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Kolkata",
+  });
+  return `<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background-color:#f4f1ea;font-family:Manrope,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f1ea;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
+            <tr>
+              <td style="padding:32px;color:#1a2238;">
+                <p style="margin:0 0 12px;font-size:18px;font-weight:700;">🎉 New Subscriber on The Plix Club!</p>
+                <p style="margin:0;font-size:15px;line-height:1.6;">
+                  New subscriber added: <strong>${email}</strong> at ${timestamp} IST
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
 }
 
 function buildNewsletterEmail(): string {

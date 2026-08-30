@@ -43,10 +43,7 @@ export async function handleSendWelcomeEmail(req: Request): Promise<Response> {
   const html = buildWelcomeEmail(fullName);
   const result = await sendResendEmail(resendApiKey, fromEmail, email, "Welcome to The Plix — Your Gateway to Luxury Goa Stays", html);
 
-  if (!result.ok) {
-    const text = await result.text().catch(() => "");
-    console.error("[send-welcome-email] Resend error:", result.status, text);
-  }
+  if (!result.ok) await logResendError("RESEND WELCOME EMAIL ERROR", email, result);
 
   return new Response(JSON.stringify({ simulation: false, email_sent: result.ok }), {
     status: 200,
@@ -60,6 +57,20 @@ async function sendResendEmail(apiKey: string, from: string, to: string, subject
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from, to: [to], subject, html }),
   });
+}
+
+// Resend returns { message, name, statusCode } as JSON on failure — logged
+// in full, pretty-printed, so a misconfigured API key vs. an unverified
+// sender domain vs. a malformed request are all distinguishable at a glance.
+async function logResendError(tag: string, context: string, res: Response): Promise<void> {
+  const rawBody = await res.text().catch(() => "<no body>");
+  let parsed: unknown = rawBody;
+  try {
+    parsed = JSON.parse(rawBody);
+  } catch {
+    // not JSON — log the raw text as-is
+  }
+  console.error(`${tag} — ${context} — HTTP ${res.status}:`, JSON.stringify(parsed, null, 2));
 }
 
 function buildWelcomeEmail(fullName: string): string {

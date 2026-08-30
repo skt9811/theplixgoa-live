@@ -6,7 +6,6 @@ import { AuthModal } from "@/components/plix/auth-modal";
 import {
   createRazorpayOrder,
   openRazorpayCheckout,
-  sendBookingConfirmationEmails,
   updateBookingPayment,
   type CreateOrderResponse,
 } from "@/lib/booking";
@@ -198,8 +197,8 @@ export function CheckoutModal({
     );
 
     // Whole-villa properties: auto-block every night of the stay so the
-    // property reads as fully unavailable. Fire-and-log like the email call
-    // below: this must never block or reverse an already-successful payment.
+    // property reads as fully unavailable. Fire-and-forget: this must never
+    // block or reverse an already-successful payment.
     //
     // Multi-room resorts need no equivalent step here: availability is
     // computed live from bookings.payment_status = "paid" (see
@@ -216,14 +215,11 @@ export function CheckoutModal({
       transaction_id: order.booking_id,
     });
 
-    // Guest + host confirmation emails. Fire-and-log, not fire-and-forget:
-    // failures are console-logged for diagnosis but never block or reverse
-    // the already-successful payment.
-    void sendBookingConfirmationEmails(order.booking_id, {
-      razorpay_payment_id: result.razorpay_payment_id,
-      razorpay_order_id: result.razorpay_order_id,
-      razorpay_signature: result.razorpay_signature,
-    });
+    // Guest + host confirmation emails are no longer triggered from here.
+    // The Razorpay webhook (razorpay-webhook.server.ts) is the sole trigger
+    // for confirmBookingAndSendEmails now — server-to-server, independently
+    // signature-verified, and doesn't depend on this browser tab staying
+    // open or this request succeeding at all.
 
     if (paymentConfirmed) {
       toast.success("Payment successful! Your booking is confirmed.");

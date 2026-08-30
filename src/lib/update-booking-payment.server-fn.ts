@@ -1,8 +1,11 @@
-// Server-only. Fast, synchronous payment write — separate from
-// confirm-booking.server-fn.ts (which does the same update plus the slower
-// PDF-generation + email-sending work) so the caller can await just the DB
-// write before doing anything that depends on payment_status = 'paid'
-// (inventory blocking, conversion tracking) without waiting on emails too.
+// Server-only. Fast, synchronous payment write — the client (checkout-
+// modal.tsx) awaits just this before doing anything that depends on
+// payment_status = 'paid' (inventory blocking, conversion tracking, UI
+// feedback). Confirmation emails are handled entirely separately, by the
+// Razorpay webhook (razorpay-webhook.server.ts) calling
+// confirmBookingAndSendEmails — not triggered from here or from the client
+// at all. See booking-confirmation.server.ts's confirmation_sent_at comment
+// for why "paid" and "emails sent" are deliberately independent signals.
 import { createServerFn } from "@tanstack/react-start";
 import postgres from "postgres";
 import { verifyRazorpayCheckoutSignature } from "@/lib/razorpay-verify.server";

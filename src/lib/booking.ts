@@ -1,7 +1,6 @@
 import { PROPERTIES, type Property } from "@/lib/plix";
 import { quoteWithDiscount } from "@/lib/rates";
 import { createRazorpayOrderServerFn } from "@/lib/create-razorpay-order.server-fn";
-import { confirmBookingServerFn } from "@/lib/confirm-booking.server-fn";
 import { updateBookingPaymentServerFn } from "@/lib/update-booking-payment.server-fn";
 import {
   fetchUpcomingBookingsServerFn,
@@ -122,46 +121,6 @@ export async function fetchBookingsForGuest(email: string): Promise<BookingRow[]
   } catch (err) {
     console.error("[fetchBookingsForGuest]:", err instanceof Error ? err.message : err);
     return [];
-  }
-}
-
-export type SendConfirmationResult = {
-  ok: boolean;
-  emailsFailed: string[];
-  error: string | null;
-};
-
-// Triggers the guest + host confirmation emails via confirmBookingServerFn
-// (Neon + Resend, see confirm-booking.server-fn.ts). Payment already
-// succeeded and the booking row is already updated by this point — an email
-// failure here must never block or roll back that, so every failure path
-// just reports back for the caller to surface, not throw.
-export async function sendBookingConfirmationEmails(
-  bookingId: string,
-  payment: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string },
-): Promise<SendConfirmationResult> {
-  try {
-    const result = await confirmBookingServerFn({
-      data: {
-        booking_id: bookingId,
-        razorpay_payment_id: payment.razorpay_payment_id,
-        razorpay_order_id: payment.razorpay_order_id,
-        razorpay_signature: payment.razorpay_signature,
-      },
-    });
-
-    if (result.error) {
-      console.error("[confirmBookingServerFn] error:", result.error);
-      return { ok: false, emailsFailed: [], error: result.error };
-    }
-    if (result.emails_failed.length > 0) {
-      console.error("[confirmBookingServerFn] emails failed to send:", result.emails_failed);
-    }
-    return { ok: result.ok, emailsFailed: result.emails_failed, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("[confirmBookingServerFn] unexpected error:", message);
-    return { ok: false, emailsFailed: [], error: message };
   }
 }
 

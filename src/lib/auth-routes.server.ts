@@ -92,15 +92,24 @@ export async function handlePasswordSignUp(req: Request): Promise<Response> {
     image: user.image,
   });
 
-  // Fire-and-log, not fire-and-forget: the account already exists at this
-  // point, so an email failure here must never block or reverse the signup.
-  void handleSendWelcomeEmail(
-    new Request("http://internal/api/send-welcome-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, full_name: fullName }),
-    }),
-  ).catch((err: unknown) => console.error("[handlePasswordSignUp] welcome email failed:", err));
+  // Awaited, not fire-and-forget: this used to be `void`'d, which is unsafe
+  // on Vercel — a serverless function instance can be frozen the moment its
+  // response is sent, with no guarantee an un-awaited promise still in
+  // flight ever gets to finish. The account already exists at this point,
+  // so an email failure here must still never block or reverse the signup
+  // — it's awaited only so it actually runs to completion, and only the
+  // failure is swallowed, not the whole attempt.
+  try {
+    await handleSendWelcomeEmail(
+      new Request("http://internal/api/send-welcome-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, full_name: fullName }),
+      }),
+    );
+  } catch (err) {
+    console.error("[handlePasswordSignUp] welcome email failed:", err);
+  }
 
   return json({ success: true }, 200, { "Set-Cookie": cookie });
 }

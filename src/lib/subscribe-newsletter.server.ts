@@ -96,10 +96,7 @@ async function sendNewsletterWelcomeEmail(email: string): Promise<void> {
     "Welcome to The Plix Club — Here's Your 5% Off Code",
     buildNewsletterEmail(),
   );
-  if (!guestResult.ok) {
-    const text = await guestResult.text().catch(() => "");
-    console.error("[send-newsletter-welcome] Resend error:", guestResult.status, text);
-  }
+  if (!guestResult.ok) await logResendError("RESEND NEWSLETTER EMAIL ERROR (guest)", email, guestResult);
 
   const adminResult = await sendResendEmail(
     resendApiKey,
@@ -108,10 +105,7 @@ async function sendNewsletterWelcomeEmail(email: string): Promise<void> {
     "🎉 New Subscriber on The Plix Club!",
     buildAdminAlertEmail(email),
   );
-  if (!adminResult.ok) {
-    const text = await adminResult.text().catch(() => "");
-    console.error("[send-newsletter-welcome] admin alert Resend error:", adminResult.status, text);
-  }
+  if (!adminResult.ok) await logResendError("RESEND NEWSLETTER EMAIL ERROR (admin alert)", email, adminResult);
 }
 
 async function sendResendEmail(apiKey: string, from: string, to: string, subject: string, html: string): Promise<Response> {
@@ -120,6 +114,20 @@ async function sendResendEmail(apiKey: string, from: string, to: string, subject
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from, to: [to], subject, html }),
   });
+}
+
+// Resend returns { message, name, statusCode } as JSON on failure — logged
+// in full, pretty-printed, so a misconfigured API key vs. an unverified
+// sender domain vs. a malformed request are all distinguishable at a glance.
+async function logResendError(tag: string, context: string, res: Response): Promise<void> {
+  const rawBody = await res.text().catch(() => "<no body>");
+  let parsed: unknown = rawBody;
+  try {
+    parsed = JSON.parse(rawBody);
+  } catch {
+    // not JSON — log the raw text as-is
+  }
+  console.error(`${tag} — ${context} — HTTP ${res.status}:`, JSON.stringify(parsed, null, 2));
 }
 
 function escapeHtml(value: string): string {

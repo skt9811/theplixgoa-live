@@ -3,13 +3,17 @@
 // need a fixed, plain HTTP URL to POST to, and the client bundle never calls
 // this at all). Ported from supabase/functions/razorpay-webhook.
 //
-// Server-side safety net for booking confirmation. The client already
-// triggers confirmBookingServerFn right after Razorpay's success callback
-// fires (see checkout-modal.tsx), but that's a best-effort call from a
-// browser tab that might close before it completes. Razorpay sends this
-// webhook from its own servers regardless of what the guest's browser does,
-// so it's what actually guarantees the booking gets marked paid and the
-// confirmation emails go out.
+// The sole trigger for confirmBookingAndSendEmails (DB confirmation +
+// guest/host emails) — checkout-modal.tsx used to also trigger it directly
+// after Razorpay's client-side success callback, but that was a best-effort
+// call from a browser tab that might close before it completed, and it's
+// been removed. This webhook, arriving from Razorpay's own servers
+// regardless of what the guest's browser does, is what actually guarantees
+// confirmation emails go out. (checkout-modal.tsx's updateBookingPayment
+// still marks payment_status = 'paid' client-side for fast UI feedback and
+// inventory blocking — see booking-confirmation.server.ts's
+// confirmation_sent_at comment for why that's tracked separately from
+// "emails sent".)
 //
 // Configure in the Razorpay dashboard: Settings > Webhooks > Add New Webhook,
 // pointing at <deployment-url>/api/razorpay-webhook, subscribed to at least
@@ -111,8 +115,8 @@ async function handlePaymentCaptured(event: RazorpayWebhookEvent): Promise<Respo
   const sql = getSql();
   if (!sql) throw new Error("DATABASE_URL not configured on the server.");
 
-  const rows = await sql<{ id: string; payment_status: string }[]>`
-    SELECT id, payment_status FROM public.bookings WHERE razorpay_order_id = ${payment.order_id} LIMIT 1
+  const rows = await sql<{ id: string; confirmation_sent_at: string | Date | null }[]>`
+    SELECT id, confirmation_sent_at FROM public.bookings WHERE razorpay_order_id = ${payment.order_id} LIMIT 1
   `;
   const booking = rows[0];
 
@@ -127,11 +131,15 @@ async function handlePaymentCaptured(event: RazorpayWebhookEvent): Promise<Respo
     });
   }
 
-  // Idempotency: if the client-side flow already got here first (the normal
-  // case — this webhook is the fallback, not the primary path), the booking
-  // is already paid and its confirmation emails already sent. Re-running the
-  // confirmation here would just double-send them.
-  if (booking.payment_status === "paid") {
+  // Idempotency keys off confirmation_sent_at, not payment_status —
+  // checkout-modal.tsx's updateBookingPayment already marks payment_status
+  // 'paid' as soon as Razorpay checkout succeeds, well before this webhook
+  // typically arrives, but that write never sends emails. This webhook is
+  // now the ONLY thing that ever calls confirmBookingAndSendEmails, so
+  // gating on payment_status here would make every webhook delivery a
+  // silent no-op post-migration — see booking-confirmation.server.ts's
+  // comment on confirmation_sent_at for the full reasoning.
+  if (booking.confirmation_sent_at) {
     return new Response(JSON.stringify({ ok: true, already_processed: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },

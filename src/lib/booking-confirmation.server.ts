@@ -1,9 +1,11 @@
-// Server-only. Not wrapped in createServerFn itself — this is the shared
-// confirm-and-email logic called from two different server-side entry
-// points: confirm-booking.server-fn.ts (the client-triggered RPC, right
-// after Razorpay's success callback fires in the browser) and src/server.ts
-// (the Razorpay webhook, which is the real source of truth since it comes
-// from Razorpay's own servers regardless of what the guest's browser does).
+// Server-only. Not wrapped in createServerFn — this is called from exactly
+// one place, src/server.ts's Razorpay webhook handler (src/lib/razorpay-
+// webhook.server.ts), which is the sole trigger for booking confirmation
+// emails. There used to also be a client-triggered RPC path
+// (confirm-booking.server-fn.ts, calling this right after Razorpay's
+// checkout success callback fired in the browser); it was removed in favor
+// of relying solely on the webhook, which comes from Razorpay's own servers
+// regardless of what the guest's browser does.
 // Ported from the Supabase edge function supabase/functions/send-booking-confirmation.
 import postgres from "postgres";
 import { generateVoucherPdf, type VoucherBooking } from "@/lib/pdf-voucher";
@@ -78,12 +80,23 @@ export async function confirmBookingAndSendEmails(
 
   let booking: BookingRow;
   try {
+    // confirmation_sent_at is set here, not payment_status — deliberately a
+    // separate signal. payment_status can already be 'paid' by the time
+    // this runs (checkout-modal.tsx's updateBookingPayment sets it
+    // immediately after Razorpay checkout succeeds, before this function —
+    // whether reached via the client RPC or the webhook — ever gets a
+    // chance to run). If callers used payment_status to decide "have emails
+    // already gone out", a webhook arriving after that faster write would
+    // see 'paid' and skip sending them, permanently. confirmation_sent_at
+    // marks specifically "an email dispatch attempt happened here", which
+    // is what actually needs to be idempotent — see razorpay-webhook.server.ts.
     const rows = await sql<RawBookingRow[]>`
       UPDATE public.bookings
       SET
         payment_status = 'paid',
         razorpay_payment_id = COALESCE(${input.razorpayPaymentId ?? null}, razorpay_payment_id),
-        razorpay_signature = COALESCE(${input.razorpaySignature ?? null}, razorpay_signature)
+        razorpay_signature = COALESCE(${input.razorpaySignature ?? null}, razorpay_signature),
+        confirmation_sent_at = now()
       WHERE id = ${input.bookingId}
       RETURNING *
     `;
@@ -153,6 +166,8 @@ export async function confirmBookingAndSendEmails(
 
   const attachments = voucherAttachment ? [voucherAttachment] : undefined;
 
+  console.log("Dispatching Booking Email for:", booking.guest_email);
+
   const [guestResult, hostResult] = await Promise.all([
     sendResendEmail(resendApiKey, fromEmail, booking.guest_email, "Your Plix Hospitality booking is confirmed", guestHtml, attachments),
     sendResendEmail(resendApiKey, fromEmail, hostEmail, `New booking: ${booking.property_name} — ${booking.guest_name}`, hostHtml, attachments),
@@ -161,19 +176,11 @@ export async function confirmBookingAndSendEmails(
   const emailsFailed: string[] = [];
   if (!guestResult.ok) {
     emailsFailed.push("guest");
-    console.error(
-      `[confirmBookingAndSendEmails] guest email failed for booking ${booking.id}:`,
-      guestResult.status,
-      await guestResult.text().catch(() => "<no body>"),
-    );
+    await logResendError("RESEND BOOKING EMAIL ERROR (guest)", booking.id, guestResult);
   }
   if (!hostResult.ok) {
     emailsFailed.push("host");
-    console.error(
-      `[confirmBookingAndSendEmails] host email failed for booking ${booking.id}:`,
-      hostResult.status,
-      await hostResult.text().catch(() => "<no body>"),
-    );
+    await logResendError("RESEND BOOKING EMAIL ERROR (host)", booking.id, hostResult);
   }
 
   return {
@@ -204,12 +211,34 @@ async function sendResendEmail(
   });
 }
 
+// Resend returns { message, name, statusCode } as JSON on failure — logged
+// in full, pretty-printed, so a misconfigured API key vs. an unverified
+// sender domain vs. a malformed request are all distinguishable at a glance
+// from the deployment logs, not just "email failed".
+async function logResendError(tag: string, bookingId: string, res: Response): Promise<void> {
+  const rawBody = await res.text().catch(() => "<no body>");
+  let parsed: unknown = rawBody;
+  try {
+    parsed = JSON.parse(rawBody);
+  } catch {
+    // not JSON — log the raw text as-is
+  }
+  console.error(`${tag} — booking ${bookingId} — HTTP ${res.status}:`, JSON.stringify(parsed, null, 2));
+}
+
 function formatINR(value: number): string {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(Math.round(value));
+}
+
+// Same short-ref format the PDF voucher's filename and booking-success.tsx
+// already use — the full UUID as "Booking ID" wasn't a bug (never
+// undefined), just inconsistent with what the guest sees everywhere else.
+function bookingRef(b: BookingRow): string {
+  return b.id.slice(0, 8).toUpperCase();
 }
 
 function buildGuestEmail(b: BookingRow): string {
@@ -229,7 +258,7 @@ function buildGuestEmail(b: BookingRow): string {
 <tr><td style="padding:12px 8px;font-weight:700;color:#1a2238">Total Paid</td><td style="padding:12px 8px;font-weight:700;font-size:18px;color:#0f766e">${formatINR(b.total_amount)}</td></tr>
 </table>
 <p style="font-size:13px;color:#666">Payment Reference: ${b.razorpay_payment_id ?? "N/A"}</p>
-<p style="font-size:13px;color:#666">Booking ID: ${b.id}</p>
+<p style="font-size:13px;color:#666">Booking Reference: ${bookingRef(b)}</p>
 <p style="margin-top:24px;font-size:13px;color:#666">We look forward to hosting you. For any questions, reply to this email or call us.</p>
 <p style="margin-top:24px;color:#0f766e;font-weight:600">Plix Hospitality Team</p>
 </body></html>`;
@@ -255,6 +284,6 @@ function buildHostEmail(b: BookingRow): string {
 <tr><td style="padding:12px 8px;font-weight:700">Revenue Collected</td><td style="padding:12px 8px;font-weight:700;font-size:18px;color:#0f766e">${formatINR(b.total_amount)}</td></tr>
 </table>
 <p style="font-size:13px;color:#666">Payment ID: ${b.razorpay_payment_id ?? "N/A"}</p>
-<p style="font-size:13px;color:#666">Booking ID: ${b.id}</p>
+<p style="font-size:13px;color:#666">Booking Reference: ${bookingRef(b)}</p>
 </body></html>`;
 }

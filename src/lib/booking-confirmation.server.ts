@@ -89,7 +89,21 @@ export async function confirmBookingAndSendEmails(
     // already gone out", a webhook arriving after that faster write would
     // see 'paid' and skip sending them, permanently. confirmation_sent_at
     // marks specifically "an email dispatch attempt happened here", which
-    // is what actually needs to be idempotent — see razorpay-webhook.server.ts.
+    // is what actually needs to be idempotent.
+    //
+    // The "AND confirmation_sent_at IS NULL" below is what makes that
+    // idempotency safe against two callers racing each other — this
+    // function has two independent triggers now (the client RPC via
+    // confirm-booking.server-fn.ts, right after Razorpay checkout succeeds
+    // in the browser, and the webhook, arriving from Razorpay's own servers
+    // seconds later as a reliability backstop). Both can legitimately fire
+    // for the same booking. A plain UPDATE without this guard would let
+    // whichever one runs second re-send both emails; a separate
+    // SELECT-then-UPDATE in each caller would leave a race window where
+    // both callers could pass the check before either writes. Making the
+    // claim atomic at the database level — this UPDATE only matches (and
+    // only proceeds to send emails) for whichever caller gets there first —
+    // closes that window regardless of which path wins.
     const rows = await sql<RawBookingRow[]>`
       UPDATE public.bookings
       SET
@@ -97,11 +111,29 @@ export async function confirmBookingAndSendEmails(
         razorpay_payment_id = COALESCE(${input.razorpayPaymentId ?? null}, razorpay_payment_id),
         razorpay_signature = COALESCE(${input.razorpaySignature ?? null}, razorpay_signature),
         confirmation_sent_at = now()
-      WHERE id = ${input.bookingId}
+      WHERE id = ${input.bookingId} AND confirmation_sent_at IS NULL
       RETURNING *
     `;
     const row = rows[0];
     if (!row) {
+      // Zero rows means either the booking doesn't exist, or it does but
+      // confirmation_sent_at was already set (the normal case when the
+      // other trigger — client RPC or webhook — already won the race).
+      // Distinguish them so the caller gets an accurate result rather than
+      // a misleading "not found" for what's actually a harmless no-op.
+      const existing = await sql<{ id: string; payment_status: string }[]>`
+        SELECT id, payment_status FROM public.bookings WHERE id = ${input.bookingId}
+      `;
+      if (existing[0]) {
+        return {
+          ok: true,
+          booking_id: existing[0].id,
+          payment_status: existing[0].payment_status,
+          emails_sent: false,
+          emails_failed: [],
+          error: null,
+        };
+      }
       return {
         ok: false,
         booking_id: null,
@@ -185,10 +217,14 @@ export async function confirmBookingAndSendEmails(
   if (!guestResult.ok) {
     emailsFailed.push("guest");
     await logResendError("RESEND BOOKING EMAIL ERROR (guest)", booking.id, guestResult);
+  } else {
+    await logResendSuccess("RESEND BOOKING EMAIL SENT (guest)", booking.id, guestResult);
   }
   if (!hostResult.ok) {
     emailsFailed.push("host");
     await logResendError("RESEND BOOKING EMAIL ERROR (host)", booking.id, hostResult);
+  } else {
+    await logResendSuccess("RESEND BOOKING EMAIL SENT (host)", booking.id, hostResult);
   }
 
   return {
@@ -232,6 +268,14 @@ async function logResendError(tag: string, bookingId: string, res: Response): Pr
     // not JSON — log the raw text as-is
   }
   console.error(`${tag} — booking ${bookingId} — HTTP ${res.status}:`, JSON.stringify(parsed, null, 2));
+}
+
+// Resend returns { id } as JSON on success — logging it confirms the send
+// was genuinely accepted (not just that .ok was true) and gives a concrete
+// id to look up in the Resend dashboard if a recipient says it never arrived.
+async function logResendSuccess(tag: string, bookingId: string, res: Response): Promise<void> {
+  const rawBody = await res.clone().text().catch(() => "<no body>");
+  console.log(`${tag} — booking ${bookingId} — HTTP ${res.status}:`, rawBody);
 }
 
 function formatINR(value: number): string {

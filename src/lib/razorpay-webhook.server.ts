@@ -161,14 +161,15 @@ async function handlePaymentCaptured(event: RazorpayWebhookEvent): Promise<Respo
     });
   }
 
-  // Idempotency keys off confirmation_sent_at, not payment_status —
-  // checkout-modal.tsx's updateBookingPayment already marks payment_status
-  // 'paid' as soon as Razorpay checkout succeeds, well before this webhook
-  // typically arrives, but that write never sends emails. This webhook is
-  // now the ONLY thing that ever calls confirmBookingAndSendEmails, so
-  // gating on payment_status here would make every webhook delivery a
-  // silent no-op post-migration — see booking-confirmation.server.ts's
-  // comment on confirmation_sent_at for the full reasoning.
+  // Fast-path check, not the actual safety guarantee: confirmBookingAndSendEmails
+  // itself makes the confirmation_sent_at claim atomic (an UPDATE...WHERE
+  // confirmation_sent_at IS NULL), which is what actually prevents a double
+  // send if this webhook and the client-triggered RPC
+  // (confirm-booking.server-fn.ts, right after Razorpay checkout succeeds in
+  // the browser) both fire for the same booking. This check here just skips
+  // the wasted PDF-generation + Resend calls in the common case where the
+  // client already won that race — it's an optimization layered on top of
+  // the real guard, not a substitute for it.
   if (booking.confirmation_sent_at) {
     return new Response(JSON.stringify({ ok: true, already_processed: true }), {
       status: 200,

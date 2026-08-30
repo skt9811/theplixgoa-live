@@ -6,6 +6,7 @@ import { AuthModal } from "@/components/plix/auth-modal";
 import {
   createRazorpayOrder,
   openRazorpayCheckout,
+  sendBookingConfirmationEmails,
   updateBookingPayment,
   type CreateOrderResponse,
 } from "@/lib/booking";
@@ -196,6 +197,22 @@ export function CheckoutModal({
       result.razorpay_signature,
     );
 
+    // Guest + host confirmation emails — awaited, not fire-and-forget, so
+    // the guest's "confirmed" state only shows once dispatch has actually
+    // been attempted. This is the fast, client-triggered path; the Razorpay
+    // webhook (razorpay-webhook.server.ts) fires independently as a
+    // reliability backstop that doesn't depend on this browser tab staying
+    // open. Both can legitimately run for the same booking —
+    // confirmBookingAndSendEmails's own atomic confirmation_sent_at guard
+    // is what prevents a double send, not anything here. A failure here
+    // must never block or reverse the already-successful payment, so it's
+    // reported (via the toast below) but never thrown.
+    const emailResult = await sendBookingConfirmationEmails(order.booking_id, {
+      razorpay_payment_id: result.razorpay_payment_id,
+      razorpay_order_id: result.razorpay_order_id,
+      razorpay_signature: result.razorpay_signature,
+    });
+
     // Whole-villa properties: auto-block every night of the stay so the
     // property reads as fully unavailable. Fire-and-forget: this must never
     // block or reverse an already-successful payment.
@@ -215,11 +232,9 @@ export function CheckoutModal({
       transaction_id: order.booking_id,
     });
 
-    // Guest + host confirmation emails are no longer triggered from here.
-    // The Razorpay webhook (razorpay-webhook.server.ts) is the sole trigger
-    // for confirmBookingAndSendEmails now — server-to-server, independently
-    // signature-verified, and doesn't depend on this browser tab staying
-    // open or this request succeeding at all.
+    if (!emailResult.ok) {
+      console.error("[handlePaymentSuccess] confirmation email dispatch failed:", emailResult.error ?? emailResult.emailsFailed);
+    }
 
     if (paymentConfirmed) {
       toast.success("Payment successful! Your booking is confirmed.");

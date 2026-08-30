@@ -1,4 +1,5 @@
-import { supabase, notifyDataChange } from "@/lib/rates";
+import { notifyDataChange } from "@/lib/rates";
+import { fetchSiteConfigServerFn, saveSiteConfigServerFn } from "@/lib/site-config-query.server-fn";
 
 export type SiteConfig = {
   hero_heading: string;
@@ -68,13 +69,8 @@ function writeLocalConfig(config: SiteConfig): void {
 
 export async function fetchSiteConfig(): Promise<SiteConfig> {
   try {
-    const { data, error } = await supabase
-      .from("site_config")
-      .select("*")
-      .eq("id", 1)
-      .maybeSingle();
-
-    if (!error && data) {
+    const data = await fetchSiteConfigServerFn();
+    if (data) {
       const merged = { ...DEFAULT_CONFIG, ...data } as SiteConfig;
       writeLocalConfig(merged);
       return merged;
@@ -92,13 +88,10 @@ export async function saveSiteConfig(
   const updated = { ...current, ...config };
 
   try {
-    const { error } = await supabase
-      .from("site_config")
-      .upsert({ id: 1, ...updated, updated_at: new Date().toISOString() });
-
-    if (error) throw error;
+    const result = await saveSiteConfigServerFn({ data: { config: updated } });
+    if (result.error) throw new Error(result.error);
   } catch {
-    // Supabase failed — continue to localStorage
+    // Neon failed — continue to localStorage
   }
 
   writeLocalConfig(updated);

@@ -1,4 +1,5 @@
-import { supabase, eachNight } from "@/lib/rates";
+import { eachNight } from "@/lib/rates";
+import { fetchOverlappingPaidBookingsServerFn } from "@/lib/inventory-query.server-fn";
 
 export type NightlyAvailability = Record<string, number>; // date -> rooms still available
 
@@ -31,15 +32,7 @@ export async function computeAvailableRooms(
   if (nights.length === 0) return availability;
 
   try {
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("check_in, check_out")
-      .eq("property_id", propertyId)
-      .eq("payment_status", "paid")
-      .lt("check_in", checkOut)
-      .gt("check_out", checkIn);
-
-    if (error) throw error;
+    const data = await fetchOverlappingPaidBookingsServerFn({ data: { propertyId, checkIn, checkOut } });
 
     for (const booking of data ?? []) {
       for (const night of eachNight(booking.check_in, booking.check_out)) {

@@ -1,93 +1,63 @@
-import { createClient } from "npm:@supabase/supabase-js@2.112.3";
-import { getSecrets } from "../_shared/secrets.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
-};
-
+// Server-only. Called from src/server.ts's raw fetch handler at
+// POST /api/send-welcome-email. Ported from supabase/functions/send-welcome-email.
 const STAYS_URL = "https://theplixgoa.com/stays";
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 200, headers: corsHeaders });
+export async function handleSendWelcomeEmail(req: Request): Promise<Response> {
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
+  let body: unknown;
   try {
-    const body = await req.json();
-    const email = typeof body?.email === "string" ? body.email.trim() : "";
-    const fullName = typeof body?.full_name === "string" ? body.full_name.trim() : "";
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
-    if (!email) {
-      return new Response(
-        JSON.stringify({ error: "Missing email" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+  const email = typeof (body as { email?: unknown })?.email === "string" ? (body as { email: string }).email.trim() : "";
+  const fullName = typeof (body as { full_name?: unknown })?.full_name === "string" ? (body as { full_name: string }).full_name.trim() : "";
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+  if (!email) {
+    return new Response(JSON.stringify({ error: "Missing email" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
-    const secrets = await getSecrets(supabase, ["RESEND_API_KEY", "PLIX_FROM_EMAIL"]);
-    const resendApiKey = secrets["RESEND_API_KEY"] ?? "";
-    // Resend can only send from a domain that's been DNS-verified in the Resend
-    // dashboard — a personal @gmail.com address can never work as a "from"
-    // here, so this always uses the configured, verified sender identity.
-    const fromEmail = secrets["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
+  const resendApiKey = process.env["RESEND_API_KEY"] ?? "";
+  const fromEmail = process.env["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
 
-    if (!resendApiKey) {
-      return new Response(
-        JSON.stringify({
-          simulation: true,
-          email_sent: false,
-          message: "Welcome email skipped (no RESEND_API_KEY configured).",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const html = buildWelcomeEmail(fullName);
-    const result = await sendResendEmail(
-      resendApiKey,
-      fromEmail,
-      email,
-      "Welcome to The Plix — Your Gateway to Luxury Goa Stays",
-      html,
-    );
-
-    if (!result.ok) {
-      const text = await result.text().catch(() => "");
-      console.error("[send-welcome-email] Resend error:", result.status, text);
-    }
-
+  if (!resendApiKey) {
     return new Response(
-      JSON.stringify({ simulation: false, email_sent: result.ok }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({ simulation: true, email_sent: false, message: "Welcome email skipped (no RESEND_API_KEY configured)." }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
     );
   }
-});
 
-async function sendResendEmail(
-  apiKey: string,
-  from: string,
-  to: string,
-  subject: string,
-  html: string,
-): Promise<Response> {
+  const html = buildWelcomeEmail(fullName);
+  const result = await sendResendEmail(resendApiKey, fromEmail, email, "Welcome to The Plix — Your Gateway to Luxury Goa Stays", html);
+
+  if (!result.ok) {
+    const text = await result.text().catch(() => "");
+    console.error("[send-welcome-email] Resend error:", result.status, text);
+  }
+
+  return new Response(JSON.stringify({ simulation: false, email_sent: result.ok }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+async function sendResendEmail(apiKey: string, from: string, to: string, subject: string, html: string): Promise<Response> {
   return fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from, to: [to], subject, html }),
   });
 }

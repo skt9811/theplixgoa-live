@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { supabase, isSupabaseConfigured } from "@/lib/rates";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase-auth-client";
 
 const LS_KEY = "plix_guest_user";
 const AUTH_EVENT = "plix-guest-auth-change";
@@ -141,12 +141,13 @@ export async function signUpWithPassword(email: string, password: string, fullNa
 }
 
 async function sendWelcomeEmail(email: string, fullName: string): Promise<void> {
-  if (!isSupabaseConfigured) return;
   try {
-    const { error } = await supabase.functions.invoke("send-welcome-email", {
-      body: { email, full_name: fullName },
+    const res = await fetch("/api/send-welcome-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, full_name: fullName }),
     });
-    if (error) console.error("[send-welcome-email] invoke error:", error.message);
+    if (!res.ok) console.error("[send-welcome-email] request failed:", res.status);
   } catch (err) {
     console.error("[send-welcome-email] failed:", err instanceof Error ? err.message : err);
   }

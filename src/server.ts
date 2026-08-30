@@ -2,6 +2,9 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { handleRazorpayWebhook } from "./lib/razorpay-webhook.server";
+import { handleSubscribeRequest } from "./lib/subscribe-newsletter.server";
+import { handleSendWelcomeEmail } from "./lib/send-welcome-email.server";
 
 // ── React 19 dev renderer writeChunk buffer overflow patch ──────────────
 // react-dom-server.node.development.js allocates a 2048-byte Uint8Array and
@@ -111,6 +114,44 @@ async function bufferHtmlResponse(response: Response): Promise<Response> {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    // Handled directly here, before the SSR/router handler: Razorpay's
+    // servers POST to this fixed URL, so it needs to exist independent of
+    // TanStack Start's client-triggered RPC (createServerFn) mechanism.
+    const url = new URL(request.url);
+    if (url.pathname === "/api/razorpay-webhook") {
+      try {
+        return await handleRazorpayWebhook(request);
+      } catch (error) {
+        console.error("[razorpay-webhook] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    if (url.pathname === "/api/subscribe") {
+      try {
+        return await handleSubscribeRequest(request);
+      } catch (error) {
+        console.error("[subscribe] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    if (url.pathname === "/api/send-welcome-email") {
+      try {
+        return await handleSendWelcomeEmail(request);
+      } catch (error) {
+        console.error("[send-welcome-email] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

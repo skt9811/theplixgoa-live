@@ -1,114 +1,123 @@
-import { createClient } from "npm:@supabase/supabase-js@2.112.3";
-import { getSecrets } from "../_shared/secrets.ts";
+// Server-only. Called directly from src/server.ts's raw fetch handler at
+// POST /api/subscribe — a plain HTTP endpoint (not TanStack Start's
+// createServerFn RPC), matching what was originally asked for and giving any
+// external tool (a form, Zapier, etc.) a stable URL to POST an email to,
+// same shape as the previous subscribe-newsletter Supabase edge function.
+import postgres from "postgres";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
-};
+let sqlClient: ReturnType<typeof postgres> | null = null;
+
+function getSql() {
+  const connectionString = process.env["DATABASE_URL"];
+  if (!connectionString) return null;
+  if (!sqlClient) {
+    sqlClient = postgres(connectionString, { ssl: "require" });
+  }
+  return sqlClient;
+}
+
+export type SubscribeNewsletterResult = { saved: boolean; reason?: string };
+
+export async function subscribeNewsletter(rawEmail: string): Promise<SubscribeNewsletterResult> {
+  const email = rawEmail.trim().toLowerCase();
+  if (!email || !email.includes("@")) {
+    return { saved: false, reason: "Enter a valid email address." };
+  }
+
+  const sql = getSql();
+  if (!sql) {
+    return { saved: false, reason: "DATABASE_URL not configured on the server." };
+  }
+
+  try {
+    await sql`
+      INSERT INTO public.newsletter_subscribers (email, source)
+      VALUES (${email}, 'homepage_modal')
+      ON CONFLICT (email) DO NOTHING
+    `;
+    return { saved: true };
+  } catch (err) {
+    console.error("[subscribeNewsletter] insert failed:", err);
+    return { saved: false, reason: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
+export async function handleSubscribeRequest(req: Request): Promise<Response> {
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ saved: false, reason: "Invalid JSON body" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const email = typeof (body as { email?: unknown })?.email === "string" ? (body as { email: string }).email : "";
+  const result = await subscribeNewsletter(email);
+
+  // Fire-and-log, not fire-and-forget: the subscriber is already recorded (or
+  // the caller already knows it wasn't) by this point, so a welcome-email
+  // failure here must never surface as a subscribe failure — it's awaited
+  // only so it actually completes before this serverless invocation ends,
+  // but its result is swallowed either way.
+  if (result.saved) {
+    await sendNewsletterWelcomeEmail(email.trim().toLowerCase()).catch((err) => {
+      console.error("[subscribeNewsletter] welcome email failed:", err instanceof Error ? err.message : err);
+    });
+  }
+
+  return new Response(JSON.stringify(result), {
+    status: result.saved ? 200 : 400,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 const STAYS_URL = "https://theplixgoa.com/stays";
 const DISCOUNT_CODE = "PLIX5";
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 200, headers: corsHeaders });
+async function sendNewsletterWelcomeEmail(email: string): Promise<void> {
+  const resendApiKey = process.env["RESEND_API_KEY"] ?? "";
+  const fromEmail = process.env["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
+  const hostEmail = process.env["PLIX_HOST_EMAIL"] ?? "reservations@theplixgoa.com";
+  if (!resendApiKey) return;
+
+  const guestResult = await sendResendEmail(
+    resendApiKey,
+    fromEmail,
+    email,
+    "Welcome to The Plix Club — Here's Your 5% Off Code",
+    buildNewsletterEmail(),
+  );
+  if (!guestResult.ok) {
+    const text = await guestResult.text().catch(() => "");
+    console.error("[send-newsletter-welcome] Resend error:", guestResult.status, text);
   }
 
-  try {
-    const body = await req.json();
-    const email = typeof body?.email === "string" ? body.email.trim() : "";
-
-    if (!email) {
-      return new Response(
-        JSON.stringify({ error: "Missing email" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-    const secrets = await getSecrets(supabase, ["RESEND_API_KEY", "PLIX_FROM_EMAIL", "PLIX_HOST_EMAIL"]);
-    const resendApiKey = secrets["RESEND_API_KEY"] ?? "";
-    // Resend can only send from a DNS-verified domain, so this always uses
-    // the configured, verified sender identity — never a raw guess.
-    const fromEmail = secrets["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
-    // Same admin/host inbox already used for new-booking alerts in
-    // send-booking-confirmation — reused here so subscriber notifications
-    // land in the same place the team already watches.
-    const hostEmail = secrets["PLIX_HOST_EMAIL"] ?? "reservations@theplixgoa.com";
-
-    if (!resendApiKey) {
-      return new Response(
-        JSON.stringify({
-          simulation: true,
-          email_sent: false,
-          message: "Newsletter welcome email skipped (no RESEND_API_KEY configured).",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const html = buildNewsletterEmail();
-    const result = await sendResendEmail(
-      resendApiKey,
-      fromEmail,
-      email,
-      "Welcome to The Plix Club — Here's Your 5% Off Code",
-      html,
-    );
-
-    if (!result.ok) {
-      const text = await result.text().catch(() => "");
-      console.error("[send-newsletter-welcome] Resend error:", result.status, text);
-    }
-
-    // Admin alert — fire-and-log like the guest email above: a failure here
-    // must never affect the response the guest's signup request gets back.
-    const adminResult = await sendResendEmail(
-      resendApiKey,
-      fromEmail,
-      hostEmail,
-      "🎉 New Subscriber on The Plix Club!",
-      buildAdminAlertEmail(email),
-    );
-    if (!adminResult.ok) {
-      const text = await adminResult.text().catch(() => "");
-      console.error("[send-newsletter-welcome] admin alert Resend error:", adminResult.status, text);
-    }
-
-    return new Response(
-      JSON.stringify({
-        simulation: false,
-        email_sent: result.ok,
-        admin_alert_sent: adminResult.ok,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+  const adminResult = await sendResendEmail(
+    resendApiKey,
+    fromEmail,
+    hostEmail,
+    "🎉 New Subscriber on The Plix Club!",
+    buildAdminAlertEmail(email),
+  );
+  if (!adminResult.ok) {
+    const text = await adminResult.text().catch(() => "");
+    console.error("[send-newsletter-welcome] admin alert Resend error:", adminResult.status, text);
   }
-});
+}
 
-async function sendResendEmail(
-  apiKey: string,
-  from: string,
-  to: string,
-  subject: string,
-  html: string,
-): Promise<Response> {
+async function sendResendEmail(apiKey: string, from: string, to: string, subject: string, html: string): Promise<Response> {
   return fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from, to: [to], subject, html }),
   });
 }
@@ -124,11 +133,7 @@ function escapeHtml(value: string): string {
 
 function buildAdminAlertEmail(rawEmail: string): string {
   const email = escapeHtml(rawEmail);
-  const timestamp = new Date().toLocaleString("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Kolkata",
-  });
+  const timestamp = new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" });
   return `<!DOCTYPE html>
 <html>
   <body style="margin:0;padding:0;background-color:#f4f1ea;font-family:Manrope,Arial,sans-serif;">

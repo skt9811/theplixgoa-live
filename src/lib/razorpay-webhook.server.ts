@@ -1,8 +1,10 @@
-import { createClient } from "npm:@supabase/supabase-js@2.112.3";
-import { getSecrets } from "../_shared/secrets.ts";
-
+// Server-only. Called directly from src/server.ts's raw fetch handler (not
+// through TanStack Start's router/createServerFn RPC — Razorpay's servers
+// need a fixed, plain HTTP URL to POST to, and the client bundle never calls
+// this at all). Ported from supabase/functions/razorpay-webhook.
+//
 // Server-side safety net for booking confirmation. The client already
-// triggers send-booking-confirmation right after Razorpay's success callback
+// triggers confirmBookingServerFn right after Razorpay's success callback
 // fires (see checkout-modal.tsx), but that's a best-effort call from a
 // browser tab that might close before it completes. Razorpay sends this
 // webhook from its own servers regardless of what the guest's browser does,
@@ -10,14 +12,41 @@ import { getSecrets } from "../_shared/secrets.ts";
 // confirmation emails go out.
 //
 // Configure in the Razorpay dashboard: Settings > Webhooks > Add New Webhook,
-// pointing at this function's URL, subscribed to at least "payment.captured"
-// (and optionally "payment.failed"). Set the webhook secret there and store
-// the same value as RAZORPAY_WEBHOOK_SECRET (app_secrets table or edge
-// function secrets) — signature verification below refuses to process
-// anything if that secret isn't configured, since an unverified webhook body
-// is just an anonymous POST anyone could forge.
+// pointing at <deployment-url>/api/razorpay-webhook, subscribed to at least
+// "payment.captured" (and optionally "payment.failed"). Set the webhook
+// secret there and the same value as the RAZORPAY_WEBHOOK_SECRET env var on
+// this deployment — signature verification below refuses to process
+// anything if that env var isn't configured, since an unverified webhook
+// body is just an anonymous POST anyone could forge.
+import postgres from "postgres";
+import { confirmBookingAndSendEmails } from "@/lib/booking-confirmation.server";
 
-Deno.serve(async (req: Request) => {
+let sqlClient: ReturnType<typeof postgres> | null = null;
+
+function getSql() {
+  const connectionString = process.env["DATABASE_URL"];
+  if (!connectionString) return null;
+  if (!sqlClient) {
+    sqlClient = postgres(connectionString, { ssl: "require" });
+  }
+  return sqlClient;
+}
+
+type RazorpayWebhookEvent = {
+  event: string;
+  payload: {
+    payment: {
+      entity: {
+        id: string;
+        order_id: string;
+        amount: number;
+        status: string;
+      };
+    };
+  };
+};
+
+export async function handleRazorpayWebhook(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
@@ -28,13 +57,7 @@ Deno.serve(async (req: Request) => {
   const rawBody = await req.text();
   const signature = req.headers.get("x-razorpay-signature") ?? "";
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-  const secrets = await getSecrets(supabase, ["RAZORPAY_WEBHOOK_SECRET"]);
-  const webhookSecret = secrets["RAZORPAY_WEBHOOK_SECRET"] ?? "";
-
+  const webhookSecret = process.env["RAZORPAY_WEBHOOK_SECRET"] ?? "";
   if (!webhookSecret) {
     console.error("[razorpay-webhook] RAZORPAY_WEBHOOK_SECRET not configured — refusing to process");
     return new Response(JSON.stringify({ error: "Webhook not configured" }), {
@@ -64,12 +87,11 @@ Deno.serve(async (req: Request) => {
 
   try {
     if (event.event === "payment.captured") {
-      return await handlePaymentCaptured(supabase, supabaseUrl, serviceRoleKey, event);
+      return await handlePaymentCaptured(event);
     }
     if (event.event === "payment.failed") {
-      return await handlePaymentFailed(supabase, event);
+      return await handlePaymentFailed(event);
     }
-    // Any other subscribed event: acknowledge, nothing to do.
     return new Response(JSON.stringify({ ok: true, ignored: event.event }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -82,43 +104,22 @@ Deno.serve(async (req: Request) => {
       headers: { "Content-Type": "application/json" },
     });
   }
-});
+}
 
-type RazorpayWebhookEvent = {
-  event: string;
-  payload: {
-    payment: {
-      entity: {
-        id: string;
-        order_id: string;
-        amount: number;
-        status: string;
-      };
-    };
-  };
-};
-
-async function handlePaymentCaptured(
-  supabase: ReturnType<typeof createClient>,
-  supabaseUrl: string,
-  serviceRoleKey: string,
-  event: RazorpayWebhookEvent,
-): Promise<Response> {
+async function handlePaymentCaptured(event: RazorpayWebhookEvent): Promise<Response> {
   const payment = event.payload.payment.entity;
+  const sql = getSql();
+  if (!sql) throw new Error("DATABASE_URL not configured on the server.");
 
-  const { data: booking, error: findError } = await supabase
-    .from("bookings")
-    .select("id, payment_status")
-    .eq("razorpay_order_id", payment.order_id)
-    .maybeSingle();
+  const rows = await sql<{ id: string; payment_status: string }[]>`
+    SELECT id, payment_status FROM public.bookings WHERE razorpay_order_id = ${payment.order_id} LIMIT 1
+  `;
+  const booking = rows[0];
 
-  if (findError) {
-    throw new Error(`Booking lookup failed: ${findError.message}`);
-  }
   if (!booking) {
     // No matching booking — most likely a payment created outside this app,
-    // or create-razorpay-order's DB insert failed after the Razorpay order
-    // itself succeeded. Ack anyway; retrying won't produce a match either.
+    // or createRazorpayOrderServerFn's DB insert failed after the Razorpay
+    // order itself succeeded. Ack anyway; retrying won't produce a match either.
     console.error("[razorpay-webhook] no booking found for order_id:", payment.order_id);
     return new Response(JSON.stringify({ ok: true, matched: false }), {
       status: 200,
@@ -128,8 +129,8 @@ async function handlePaymentCaptured(
 
   // Idempotency: if the client-side flow already got here first (the normal
   // case — this webhook is the fallback, not the primary path), the booking
-  // is already paid and its confirmation emails already sent. Re-invoking
-  // send-booking-confirmation here would just double-send them.
+  // is already paid and its confirmation emails already sent. Re-running the
+  // confirmation here would just double-send them.
   if (booking.payment_status === "paid") {
     return new Response(JSON.stringify({ ok: true, already_processed: true }), {
       status: 200,
@@ -137,46 +138,29 @@ async function handlePaymentCaptured(
     });
   }
 
-  const confirmRes = await fetch(`${supabaseUrl}/functions/v1/send-booking-confirmation`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${serviceRoleKey}`,
-    },
-    body: JSON.stringify({
-      booking_id: booking.id,
-      razorpay_payment_id: payment.id,
-      simulation: false,
-    }),
+  const result = await confirmBookingAndSendEmails({
+    bookingId: booking.id,
+    razorpayPaymentId: payment.id,
+    simulation: false,
   });
 
-  if (!confirmRes.ok) {
-    const text = await confirmRes.text();
-    throw new Error(`send-booking-confirmation failed: ${text}`);
-  }
-
-  const confirmData = await confirmRes.json();
   return new Response(
-    JSON.stringify({ ok: true, matched: true, booking_id: booking.id, ...confirmData }),
+    JSON.stringify({ matched: true, ...result }),
     { status: 200, headers: { "Content-Type": "application/json" } },
   );
 }
 
-async function handlePaymentFailed(
-  supabase: ReturnType<typeof createClient>,
-  event: RazorpayWebhookEvent,
-): Promise<Response> {
+async function handlePaymentFailed(event: RazorpayWebhookEvent): Promise<Response> {
   const payment = event.payload.payment.entity;
+  const sql = getSql();
+  if (!sql) throw new Error("DATABASE_URL not configured on the server.");
 
-  const { error } = await supabase
-    .from("bookings")
-    .update({ payment_status: "failed" })
-    .eq("razorpay_order_id", payment.order_id)
-    .neq("payment_status", "paid"); // never downgrade an already-paid booking
-
-  if (error) {
-    throw new Error(`Failed to mark booking as failed: ${error.message}`);
-  }
+  // never downgrade an already-paid booking
+  await sql`
+    UPDATE public.bookings
+    SET payment_status = 'failed'
+    WHERE razorpay_order_id = ${payment.order_id} AND payment_status != 'paid'
+  `;
 
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,

@@ -1,10 +1,16 @@
-import { createClient } from "@supabase/supabase-js";
 import { PROPERTIES, type Property } from "@/lib/plix";
 import { quoteWithDiscount } from "@/lib/rates";
+import { createRazorpayOrderServerFn } from "@/lib/create-razorpay-order.server-fn";
+import { confirmBookingServerFn } from "@/lib/confirm-booking.server-fn";
+import { updateBookingPaymentServerFn } from "@/lib/update-booking-payment.server-fn";
+import {
+  fetchUpcomingBookingsServerFn,
+  fetchBookingByIdServerFn,
+  fetchBookingsForGuestServerFn,
+  type BookingRow as ServerBookingRow,
+} from "@/lib/bookings-query.server-fn";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
+const RAZORPAY_KEY_ID = import.meta.env["VITE_RAZORPAY_KEY_ID"] || "";
 
 export type BookingRecord = {
   property_id: string;
@@ -62,12 +68,7 @@ export type RazorpayHandlerResult = {
 };
 
 export function isRazorpayConfigured(): boolean {
-  return Boolean(RAZORPAY_KEY_ID && SUPABASE_URL && SUPABASE_ANON_KEY);
-}
-
-function getSupabase() {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return Boolean(RAZORPAY_KEY_ID);
 }
 
 export async function updateBookingPayment(
@@ -76,24 +77,15 @@ export async function updateBookingPayment(
   orderId: string,
   signature: string,
 ): Promise<boolean> {
-  const supabase = getSupabase();
-  if (!supabase) return false;
-
-  const { error } = await supabase
-    .from("bookings")
-    .update({
-      razorpay_payment_id: paymentId,
-      razorpay_order_id: orderId,
-      razorpay_signature: signature,
-      payment_status: "paid",
-    })
-    .eq("id", bookingId);
-
-  if (error) {
-    console.error("[Booking Update Error]:", error.message);
+  try {
+    const result = await updateBookingPaymentServerFn({
+      data: { booking_id: bookingId, payment_id: paymentId, order_id: orderId, signature },
+    });
+    return result.ok;
+  } catch (err) {
+    console.error("[Booking Update Error]:", err instanceof Error ? err.message : err);
     return false;
   }
-  return true;
 }
 
 export type BookingRow = BookingRecord & {
@@ -103,60 +95,35 @@ export type BookingRow = BookingRecord & {
 
 /** Direct bookings with a check-in today or later, soonest first — for the admin dashboard. */
 export async function fetchUpcomingBookings(): Promise<BookingRow[]> {
-  const supabase = getSupabase();
-  if (!supabase) return [];
-
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("*")
-    .gte("check_in", todayStr)
-    .order("check_in", { ascending: true });
-
-  if (error) {
-    console.error("[fetchUpcomingBookings]:", error.message);
+  try {
+    return (await fetchUpcomingBookingsServerFn()) as ServerBookingRow[] as BookingRow[];
+  } catch (err) {
+    console.error("[fetchUpcomingBookings]:", err instanceof Error ? err.message : err);
     return [];
   }
-  return (data ?? []) as BookingRow[];
 }
 
-/** A signed-in guest's own bookings, most recent check-in first — for the account page. */
 /** A single booking by id — for the booking-success page's voucher download,
  * where only the id (not the guest's full contact details) is in the URL. */
 export async function fetchBookingById(id: string): Promise<BookingRow | null> {
-  const supabase = getSupabase();
-  if (!supabase || !id) return null;
-
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error) {
-    console.error("[fetchBookingById]:", error.message);
+  if (!id) return null;
+  try {
+    const row = await fetchBookingByIdServerFn({ data: { id } });
+    return row as ServerBookingRow as BookingRow | null;
+  } catch (err) {
+    console.error("[fetchBookingById]:", err instanceof Error ? err.message : err);
     return null;
   }
-  return (data as BookingRow) ?? null;
 }
 
 export async function fetchBookingsForGuest(email: string): Promise<BookingRow[]> {
-  const supabase = getSupabase();
-  if (!supabase || !email) return [];
-
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("*")
-    .eq("guest_email", email)
-    .order("check_in", { ascending: false });
-
-  if (error) {
-    console.error("[fetchBookingsForGuest]:", error.message);
+  if (!email) return [];
+  try {
+    return (await fetchBookingsForGuestServerFn({ data: { email } })) as ServerBookingRow[] as BookingRow[];
+  } catch (err) {
+    console.error("[fetchBookingsForGuest]:", err instanceof Error ? err.message : err);
     return [];
   }
-  return (data ?? []) as BookingRow[];
 }
 
 export type SendConfirmationResult = {
@@ -165,22 +132,18 @@ export type SendConfirmationResult = {
   error: string | null;
 };
 
-// Triggers the guest + host confirmation emails via the send-booking-confirmation
-// edge function. Payment already succeeded and the booking row is already updated
-// by this point — an email failure here must never block or roll back that, so
-// every failure path just reports back for the caller to surface, not throw.
+// Triggers the guest + host confirmation emails via confirmBookingServerFn
+// (Neon + Resend, see confirm-booking.server-fn.ts). Payment already
+// succeeded and the booking row is already updated by this point — an email
+// failure here must never block or roll back that, so every failure path
+// just reports back for the caller to surface, not throw.
 export async function sendBookingConfirmationEmails(
   bookingId: string,
   payment: { razorpay_payment_id?: string; razorpay_signature?: string; simulation?: boolean },
 ): Promise<SendConfirmationResult> {
-  const supabase = getSupabase();
-  if (!supabase) {
-    return { ok: false, emailsFailed: [], error: "Supabase not configured" };
-  }
-
   try {
-    const { data, error } = await supabase.functions.invoke("send-booking-confirmation", {
-      body: {
+    const result = await confirmBookingServerFn({
+      data: {
         booking_id: bookingId,
         razorpay_payment_id: payment.razorpay_payment_id,
         razorpay_signature: payment.razorpay_signature,
@@ -188,30 +151,25 @@ export async function sendBookingConfirmationEmails(
       },
     });
 
-    if (error) {
-      console.error("[send-booking-confirmation] invoke error:", error.message);
-      return { ok: false, emailsFailed: [], error: error.message };
+    if (result.error) {
+      console.error("[confirmBookingServerFn] error:", result.error);
+      return { ok: false, emailsFailed: [], error: result.error };
     }
-    if (data?.error) {
-      console.error("[send-booking-confirmation] function error:", data.error);
-      return { ok: false, emailsFailed: [], error: data.error };
+    if (result.emails_failed.length > 0) {
+      console.error("[confirmBookingServerFn] emails failed to send:", result.emails_failed);
     }
-    const emailsFailed: string[] = data?.emails_failed ?? [];
-    if (emailsFailed.length > 0) {
-      console.error("[send-booking-confirmation] emails failed to send:", emailsFailed);
-    }
-    return { ok: emailsFailed.length === 0, emailsFailed, error: null };
+    return { ok: result.ok, emailsFailed: result.emails_failed, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("[send-booking-confirmation] unexpected error:", message);
+    console.error("[confirmBookingServerFn] unexpected error:", message);
     return { ok: false, emailsFailed: [], error: message };
   }
 }
 
-// Local, fully client-side fallback — used only when the create-razorpay-order
-// edge function is unreachable (Supabase misconfigured, network down). Never
-// produces a real Razorpay order; the guest always sees demo/simulation mode
-// in this case, same as when Razorpay itself isn't configured.
+// Local, fully client-side fallback — used only when createRazorpayOrderServerFn
+// is unreachable (Neon misconfigured, network down). Never produces a real
+// Razorpay order; the guest always sees demo/simulation mode in this case,
+// same as when Razorpay itself isn't configured.
 function localFallbackOrder(input: CreateOrderInput, total: number): CreateOrderResponse {
   const bookingId = `pending_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   return {
@@ -233,20 +191,15 @@ export async function createRazorpayOrder(
     : Array.from({ length: nights }, () => property.base_price);
   const { subtotal, taxes, total } = quoteWithDiscount(effectiveNightlyRates, property.bedrooms, discountAmount);
 
-  const supabase = getSupabase();
-  if (!supabase) {
-    return localFallbackOrder(input, total);
-  }
-
-  // Real order creation happens server-side (create-razorpay-order edge
-  // function): it calls Razorpay's Orders API for a real order_id and inserts
-  // the booking row with that order_id attached, before payment even starts.
-  // That's what lets razorpay-webhook reliably match an incoming payment
+  // Real order creation happens server-side (createRazorpayOrderServerFn): it
+  // calls Razorpay's Orders API for a real order_id and inserts the booking
+  // row into Neon with that order_id attached, before payment even starts.
+  // That's what lets the razorpay-webhook reliably match an incoming payment
   // event back to a booking, independent of whether the client is still
   // around to see the Razorpay success callback fire.
   try {
-    const { data, error } = await supabase.functions.invoke("create-razorpay-order", {
-      body: {
+    const data = await createRazorpayOrderServerFn({
+      data: {
         property_id: property.id,
         property_name: property.name,
         property_location: property.location,
@@ -263,11 +216,6 @@ export async function createRazorpayOrder(
       },
     });
 
-    if (error || !data) {
-      console.error("[Razorpay Init Error]: create-razorpay-order failed", error);
-      return localFallbackOrder(input, total);
-    }
-
     return {
       simulation: Boolean(data.simulation),
       booking_id: data.booking_id,
@@ -277,7 +225,7 @@ export async function createRazorpayOrder(
       key_id: data.key_id ?? null,
     };
   } catch (error) {
-    console.error("[Razorpay Init Error]: create-razorpay-order unreachable", error);
+    console.error("[Razorpay Init Error]: createRazorpayOrderServerFn unreachable", error);
     return localFallbackOrder(input, total);
   }
 }

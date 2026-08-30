@@ -1,5 +1,3 @@
-import { supabase, isSupabaseConfigured, logSupabaseError } from "@/lib/rates";
-
 export type SubscribeResult = { success: boolean; error?: string };
 
 const LS_KEY = "plix_newsletter_subscribers_fallback";
@@ -20,18 +18,18 @@ function saveLocalSubscriber(email: string): void {
 }
 
 /**
- * Subscriber storage now lives in Neon Postgres, not this project's own
- * Supabase database — see the "Migrate Database to Neon Postgres" task.
- * Writing there from the browser is not an option: postgres/pg use raw TCP
- * (net/tls), which doesn't exist in browsers, and even if it did, that
- * would mean shipping the database password to every visitor. So this
- * calls the subscribe-newsletter edge function (server-side, holds the
- * Neon connection string as a secret) instead of querying any database
- * directly. If that call fails for any reason — function not yet deployed,
- * network hiccup, Neon down — this falls back to localStorage (same
- * resilience pattern already used by blog.ts, rates.ts, and
- * properties-data.ts) so the guest still sees a clean success state, and
- * the welcome/admin-alert emails still fire regardless.
+ * Subscriber storage lives in Neon Postgres, not this project's own Supabase
+ * database — see the "Migrate Database to Neon Postgres" task. Writing there
+ * from the browser is not an option: postgres/pg use raw TCP (net/tls),
+ * which doesn't exist in browsers, and even if it did, that would mean
+ * shipping the database password to every visitor. So this posts to
+ * /api/subscribe — a plain Vercel serverless route (src/server.ts +
+ * lib/subscribe-newsletter.server.ts) — which does the Neon insert AND
+ * fires the guest welcome + admin alert emails server-side before
+ * responding. If that call fails for any reason — Neon down, DATABASE_URL
+ * not yet configured on the deployment, network hiccup — this falls back to
+ * localStorage (same resilience pattern already used by blog.ts, rates.ts,
+ * and properties-data.ts) so the guest still sees a clean success state.
  */
 export async function subscribeToNewsletter(rawEmail: string): Promise<SubscribeResult> {
   const email = rawEmail.trim().toLowerCase();
@@ -39,37 +37,18 @@ export async function subscribeToNewsletter(rawEmail: string): Promise<Subscribe
     return { success: false, error: "Enter a valid email address." };
   }
 
-  if (!isSupabaseConfigured) {
-    return { success: false, error: "Sign-up isn't available right now. Please try again later." };
-  }
-
   try {
-    const { data, error } = await supabase.functions.invoke("subscribe-newsletter", {
-      body: { email },
+    const res = await fetch("/api/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
     });
-    if (error) throw error;
-    if (!data?.saved) saveLocalSubscriber(email);
+    const result = (await res.json()) as { saved: boolean };
+    if (!result.saved) saveLocalSubscriber(email);
   } catch (err) {
-    logSupabaseError("subscribeToNewsletter", err);
+    console.error("[subscribeToNewsletter] /api/subscribe failed:", err instanceof Error ? err.message : err);
     saveLocalSubscriber(email);
   }
 
-  // Fire-and-log, not fire-and-forget: the subscriber is already recorded
-  // (in Neon, or the localStorage fallback above) at this point, so an
-  // email failure here must never surface as a sign-up failure — it's just
-  // logged for diagnosis.
-  void sendNewsletterWelcomeEmail(email);
-
   return { success: true };
-}
-
-async function sendNewsletterWelcomeEmail(email: string): Promise<void> {
-  try {
-    const { error } = await supabase.functions.invoke("send-newsletter-welcome", {
-      body: { email },
-    });
-    if (error) console.error("[send-newsletter-welcome] invoke error:", error.message);
-  } catch (err) {
-    console.error("[send-newsletter-welcome] failed:", err instanceof Error ? err.message : err);
-  }
 }

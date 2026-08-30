@@ -1,4 +1,9 @@
-import { supabase, notifyDataChange } from "@/lib/rates";
+import { notifyDataChange } from "@/lib/rates";
+import {
+  fetchLocationGridsServerFn,
+  saveLocationGridServerFn,
+  deleteLocationGridServerFn,
+} from "@/lib/locations-query.server-fn";
 
 export type LocationGrid = {
   id: string;
@@ -116,12 +121,8 @@ function writeLocalLocations(locations: LocationGrid[]): void {
 
 export async function fetchLocationGrids(): Promise<LocationGrid[]> {
   try {
-    const { data, error } = await supabase
-      .from("location_grids")
-      .select("*")
-      .order("sort_order", { ascending: true });
-
-    if (!error && data && data.length > 0) {
+    const data = await fetchLocationGridsServerFn();
+    if (data && data.length > 0) {
       const merged = data as LocationGrid[];
       writeLocalLocations(merged);
       return merged;
@@ -153,13 +154,10 @@ export async function saveLocationGrid(
 
   if (location.id && !location.id.startsWith("seed-") && !location.id.startsWith("local-")) {
     try {
-      const { error } = await supabase
-        .from("location_grids")
-        .update({ ...payload, updated_at: new Date().toISOString() })
-        .eq("id", location.id);
-      if (error) throw error;
+      const result = await saveLocationGridServerFn({ data: { id: location.id, location: payload } });
+      if (result.error) throw new Error(result.error);
     } catch {
-      // Supabase failed — update localStorage
+      // Neon failed — update localStorage
     }
     const locations = readLocalLocations();
     const idx = locations.findIndex((l) => l.id === location.id);
@@ -173,20 +171,15 @@ export async function saveLocationGrid(
 
   // Insert
   try {
-    const { data, error } = await supabase
-      .from("location_grids")
-      .insert(payload)
-      .select("id")
-      .maybeSingle();
-
-    if (!error && data) {
+    const result = await saveLocationGridServerFn({ data: { location: payload } });
+    if (!result.error && result.id) {
       const locations = readLocalLocations();
-      locations.push({ id: data.id, ...payload } as LocationGrid);
+      locations.push({ id: result.id, ...payload } as LocationGrid);
       writeLocalLocations(locations);
       notifyDataChange();
       return { error: null };
     }
-    throw error ?? new Error("No data returned");
+    throw new Error(result.error ?? "No id returned");
   } catch {
     // Fallback: add to localStorage
     const locations = readLocalLocations();
@@ -203,10 +196,10 @@ export async function saveLocationGrid(
 
 export async function deleteLocationGrid(id: string): Promise<{ error: string | null }> {
   try {
-    const { error } = await supabase.from("location_grids").delete().eq("id", id);
-    if (error) throw error;
+    const result = await deleteLocationGridServerFn({ data: { id } });
+    if (result.error) throw new Error(result.error);
   } catch {
-    // Supabase failed — continue to localStorage
+    // Neon failed — continue to localStorage
   }
   const locations = readLocalLocations();
   writeLocalLocations(locations.filter((l) => l.id !== id));

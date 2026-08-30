@@ -1,5 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
-import { supabase, logSupabaseError } from "@/lib/rates";
+import { logDbError } from "@/lib/rates";
+import {
+  fetchAllBlogsServerFn,
+  fetchBlogBySlugServerFn,
+  saveBlogPostServerFn,
+  deleteBlogPostServerFn,
+} from "@/lib/blogs-query.server-fn";
 
 export type BlogPost = {
   id: string;
@@ -190,42 +196,28 @@ function filterPublished(posts: BlogPost[]): BlogPost[] {
 
 export async function fetchBlogs(): Promise<BlogPost[]> {
   try {
-    const { data, error } = await supabase
-      .from("blogs")
-      .select(
-        "id, title, slug, excerpt, content, cover_image, category, author, published_at, created_at",
-      )
-      .order("published_at", { ascending: false });
-
-    if (error) throw error;
+    const data = await fetchAllBlogsServerFn();
     // Database is authoritative — an empty table is a valid (if unlikely)
     // state, not a signal to fall back to stale localStorage seed data.
     if (data) {
       return sortByPublished(filterPublished(data as BlogPost[]));
     }
   } catch (err) {
-    logSupabaseError("fetchBlogs", err);
+    logDbError("fetchBlogs", err);
   }
 
-  // Fallback to localStorage only when Supabase is unreachable/misconfigured
+  // Fallback to localStorage only when Neon is unreachable/misconfigured
   return sortByPublished(filterPublished(readLocalBlogs()));
 }
 
 export async function fetchAllBlogsAdmin(): Promise<BlogPost[]> {
   try {
-    const { data, error } = await supabase
-      .from("blogs")
-      .select(
-        "id, title, slug, excerpt, content, cover_image, category, author, published_at, created_at",
-      )
-      .order("published_at", { ascending: false });
-
-    if (error) throw error;
+    const data = await fetchAllBlogsServerFn();
     if (data) {
       return sortByPublished(data as BlogPost[]);
     }
   } catch (err) {
-    logSupabaseError("fetchAllBlogsAdmin", err);
+    logDbError("fetchAllBlogsAdmin", err);
   }
 
   return sortByPublished(readLocalBlogs());
@@ -233,15 +225,7 @@ export async function fetchAllBlogsAdmin(): Promise<BlogPost[]> {
 
 export async function fetchBlogBySlug(slug: string): Promise<BlogPost | null> {
   try {
-    const { data, error } = await supabase
-      .from("blogs")
-      .select(
-        "id, title, slug, excerpt, content, cover_image, category, author, published_at, created_at",
-      )
-      .eq("slug", slug)
-      .maybeSingle();
-
-    if (error) throw error;
+    const data = await fetchBlogBySlugServerFn({ data: { slug } });
     // Database is authoritative — a successful query with no match means
     // the post doesn't exist (or was deleted), not a signal to fall back.
     if (data) {
@@ -251,10 +235,10 @@ export async function fetchBlogBySlug(slug: string): Promise<BlogPost | null> {
     }
     return null;
   } catch (err) {
-    logSupabaseError("fetchBlogBySlug", err);
+    logDbError("fetchBlogBySlug", err);
   }
 
-  // Fallback to localStorage only when Supabase is unreachable/misconfigured
+  // Fallback to localStorage only when Neon is unreachable/misconfigured
   const local = readLocalBlogs().find((p) => p.slug === slug);
   if (local && new Date(local.published_at).getTime() <= Date.now()) return local;
   return null;
@@ -275,17 +259,15 @@ export async function saveBlogPost(
   };
 
   if (post.id) {
-    // Update — Supabase is the source of truth for writes. A failure here
-    // must be reported to the caller, not masked by a silent localStorage
-    // write that leaves the admin believing the post is live for everyone.
-    try {
-      const { error } = await supabase.from("blogs").update(payload).eq("id", post.id);
-      if (error) throw error;
-    } catch (err) {
-      const message = logSupabaseError("saveBlogPost (update)", err);
-      return { error: message };
+    // Update — Neon is the source of truth for writes. A failure here must
+    // be reported to the caller, not masked by a silent localStorage write
+    // that leaves the admin believing the post is live for everyone.
+    const result = await saveBlogPostServerFn({ data: { id: post.id, post: payload } });
+    if (result.error) {
+      logDbError("saveBlogPost (update)", result.error);
+      return { error: result.error };
     }
-    // Mirror to localStorage only after the Supabase write succeeded.
+    // Mirror to localStorage only after the Neon write succeeded.
     const posts = readLocalBlogs();
     const idx = posts.findIndex((p) => p.id === post.id);
     if (idx >= 0) {
@@ -296,41 +278,31 @@ export async function saveBlogPost(
   }
 
   // Insert
-  try {
-    const { data, error } = await supabase
-      .from("blogs")
-      .insert(payload)
-      .select("id")
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!data) throw new Error("No data returned");
-
-    // Mirror to localStorage only after the Supabase write succeeded.
-    const posts = readLocalBlogs();
-    const newPost: BlogPost = {
-      id: data.id,
-      ...payload,
-      created_at: new Date().toISOString(),
-    };
-    posts.push(newPost);
-    writeLocalBlogs(posts);
-    return { error: null };
-  } catch (err) {
-    const message = logSupabaseError("saveBlogPost (insert)", err);
+  const result = await saveBlogPostServerFn({ data: { post: payload } });
+  if (result.error || !result.id) {
+    const message = result.error ?? "No id returned";
+    logDbError("saveBlogPost (insert)", message);
     return { error: message };
   }
+
+  // Mirror to localStorage only after the Neon write succeeded.
+  const posts = readLocalBlogs();
+  const newPost: BlogPost = {
+    id: result.id,
+    ...payload,
+    created_at: new Date().toISOString(),
+  };
+  posts.push(newPost);
+  writeLocalBlogs(posts);
+  return { error: null };
 }
 
 export async function deleteBlogPost(id: string): Promise<{ error: string | null }> {
-  try {
-    const { error } = await supabase.from("blogs").delete().eq("id", id);
-    if (error) throw error;
-  } catch (err) {
-    const message = logSupabaseError("deleteBlogPost", err);
-    return { error: message };
-  }
-  // Mirror to localStorage only after the Supabase delete succeeded.
+  const result = await deleteBlogPostServerFn({ data: { id } }).catch((err: unknown) => ({
+    error: logDbError("deleteBlogPost", err),
+  }));
+  if (result.error) return result;
+  // Mirror to localStorage only after the Neon delete succeeded.
   const posts = readLocalBlogs();
   writeLocalBlogs(posts.filter((p) => p.id !== id));
   return { error: null };

@@ -1,60 +1,12 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { gstRateForRoomRate } from "@/lib/plix";
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-
-export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
-
-let _supabase: SupabaseClient | null = null;
-
-export function getSupabase(): SupabaseClient | null {
-  if (!isSupabaseConfigured) return null;
-  if (!_supabase) {
-    _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
-  return _supabase;
-}
-
-export const supabase = new Proxy({} as SupabaseClient, {
-  get(_target, prop) {
-    const client = getSupabase();
-    if (!client) {
-      if (prop === "from") {
-        return () => ({
-          select: () => ({
-            eq: () => ({
-              gte: () => ({
-                lte: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
-              }),
-              in: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
-            }),
-            order: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
-            eq: () => ({
-              maybeSingle: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
-              gte: () => ({
-                lte: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
-              }),
-            }),
-          }),
-          insert: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
-          update: () => ({
-            eq: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
-          }),
-          delete: () => ({
-            eq: () => ({
-              in: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
-            }),
-          }),
-          upsert: () => Promise.resolve({ data: null, error: { message: "Supabase not configured" } }),
-        });
-      }
-      return undefined;
-    }
-    const value = (client as Record<string | symbol, unknown>)[prop];
-    return typeof value === "function" ? value.bind(client) : value;
-  },
-});
+import {
+  fetchRateOverridesServerFn,
+  fetchBlockedDatesServerFn,
+  saveRateOverridesServerFn,
+  deleteRateOverridesServerFn,
+  toggleBlockedDateServerFn,
+  autoBlockDatesForStayServerFn,
+} from "@/lib/rates-query.server-fn";
 
 export type PropertyRate = {
   id: string;
@@ -73,7 +25,7 @@ export type BlockedDate = {
 export type RateOverride = Record<string, number>;
 
 // --- localStorage fallback layer ---
-// When Supabase queries fail (RLS errors, network, table missing), we persist
+// When Neon queries fail (network, DATABASE_URL not configured), we persist
 // rate overrides and blocked dates to localStorage so the admin UI and booking
 // checkout continue to work. The key stores a single object with both maps.
 
@@ -105,22 +57,10 @@ function writeLocalRates(data: LocalRateData): void {
   }
 }
 
-type SupabaseErrorLike = {
-  message?: string;
-  code?: string;
-  details?: string;
-  hint?: string;
-};
-
-export function logSupabaseError(context: string, err: unknown): string {
-  const error = err as SupabaseErrorLike;
-  console.error(`[rates] ${context} failed:`, {
-    message: error?.message,
-    code: error?.code,
-    details: error?.details,
-    hint: error?.hint,
-  });
-  return error?.message || `${context} failed`;
+export function logDbError(context: string, err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`[rates] ${context} failed:`, message);
+  return message || `${context} failed`;
 }
 
 export function notifyDataChange(): void {
@@ -143,27 +83,15 @@ export async function fetchRateOverrides(
   endDate: string,
 ): Promise<RateOverride> {
   try {
-    const { data, error } = await supabase
-      .from("property_rates")
-      .select("date, rate")
-      .eq("property_id", propertyId)
-      .gte("date", startDate)
-      .lte("date", endDate);
-
-    if (error) throw error;
-
+    const map = await fetchRateOverridesServerFn({ data: { propertyId, startDate, endDate } });
     // Database is authoritative — do not let stale localStorage values
-    // override rows that actually exist (or were removed) in Supabase.
-    const map: RateOverride = {};
-    for (const row of data ?? []) {
-      map[row.date] = Number(row.rate);
-    }
+    // override rows that actually exist (or were removed) in Neon.
     return map;
   } catch (err) {
-    logSupabaseError("fetchRateOverrides", err);
+    logDbError("fetchRateOverrides", err);
   }
 
-  // Fallback to localStorage only when Supabase is unreachable/misconfigured
+  // Fallback to localStorage only when Neon is unreachable/misconfigured
   const local = readLocalRates().rates[propertyId] ?? {};
   const map: RateOverride = {};
   for (const [date, rate] of Object.entries(local)) {
@@ -179,17 +107,10 @@ export async function fetchBlockedDates(
 ): Promise<Set<string>> {
   const blocked = new Set<string>();
   try {
-    const { data, error } = await supabase
-      .from("blocked_dates")
-      .select("date")
-      .eq("property_id", propertyId)
-      .gte("date", startDate)
-      .lte("date", endDate);
-
-    if (error) throw error;
-    for (const row of data ?? []) blocked.add(row.date);
+    const dates = await fetchBlockedDatesServerFn({ data: { propertyId, startDate, endDate } });
+    for (const date of dates) blocked.add(date);
   } catch (err) {
-    logSupabaseError("fetchBlockedDates", err);
+    logDbError("fetchBlockedDates", err);
   }
 
   // merge localStorage blocked dates
@@ -212,16 +133,10 @@ export async function saveRateOverrides(
     rate: row.rate,
   }));
 
-  try {
-    const { error } = await supabase
-      .from("property_rates")
-      .upsert(payload, { onConflict: "property_id,date" });
-
-    if (error) throw error;
-  } catch (err) {
-    const message = logSupabaseError("saveRateOverrides", err);
-    return { error: message };
-  }
+  const result = await saveRateOverridesServerFn({ data: { rows: payload } }).catch((err: unknown) => ({
+    error: logDbError("saveRateOverrides", err),
+  }));
+  if (result.error) return result;
 
   // Mirror to localStorage so the calendar stays consistent offline.
   const local = readLocalRates();
@@ -238,18 +153,10 @@ export async function deleteRateOverrides(
   propertyId: string,
   dates: string[],
 ): Promise<{ error: string | null }> {
-  try {
-    const { error } = await supabase
-      .from("property_rates")
-      .delete()
-      .eq("property_id", String(propertyId))
-      .in("date", dates.map(String));
-
-    if (error) throw error;
-  } catch (err) {
-    const message = logSupabaseError("deleteRateOverrides", err);
-    return { error: message };
-  }
+  const result = await deleteRateOverridesServerFn({ data: { propertyId, dates: dates.map(String) } }).catch(
+    (err: unknown) => ({ error: logDbError("deleteRateOverrides", err) }),
+  );
+  if (result.error) return result;
 
   const local = readLocalRates();
   if (local.rates[propertyId]) {
@@ -267,48 +174,26 @@ export async function toggleBlockedDate(
   date: string,
   isBlocked: boolean,
 ): Promise<{ error: string | null }> {
-  if (isBlocked) {
-    // Unblock — remove from Supabase
-    try {
-      const { error } = await supabase
-        .from("blocked_dates")
-        .delete()
-        .eq("property_id", String(propertyId))
-        .eq("date", String(date));
-      if (error) throw error;
-    } catch (err) {
-      const message = logSupabaseError("toggleBlockedDate (unblock)", err);
-      return { error: message };
-    }
+  const result = await toggleBlockedDateServerFn({ data: { propertyId, date, isBlocked } }).catch(
+    (err: unknown) => ({ error: logDbError(isBlocked ? "toggleBlockedDate (unblock)" : "toggleBlockedDate (block)", err) }),
+  );
+  if (result.error) return result;
 
-    const local = readLocalRates();
+  const local = readLocalRates();
+  if (isBlocked) {
     if (local.blocked[propertyId]) {
       local.blocked[propertyId] = local.blocked[propertyId].filter((d) => d !== date);
       writeLocalRates(local);
     }
-    notifyDataChange();
-    return { error: null };
   } else {
-    // Block — insert to Supabase
-    try {
-      const { error } = await supabase
-        .from("blocked_dates")
-        .insert({ property_id: String(propertyId), date: String(date) });
-      if (error) throw error;
-    } catch (err) {
-      const message = logSupabaseError("toggleBlockedDate (block)", err);
-      return { error: message };
-    }
-
-    const local = readLocalRates();
     if (!local.blocked[propertyId]) local.blocked[propertyId] = [];
     if (!local.blocked[propertyId].includes(date)) {
       local.blocked[propertyId].push(date);
       writeLocalRates(local);
     }
-    notifyDataChange();
-    return { error: null };
   }
+  notifyDataChange();
+  return { error: null };
 }
 
 /**
@@ -323,21 +208,11 @@ export async function autoBlockDatesForStay(
   checkIn: string,
   checkOut: string,
 ): Promise<{ error: string | null }> {
-  const nights = eachNight(checkIn, checkOut);
-  if (nights.length === 0) return { error: null };
-
-  try {
-    const { error } = await supabase.from("blocked_dates").upsert(
-      nights.map((date) => ({ property_id: propertyId, date, reason: "Booked" })),
-      { onConflict: "property_id,date", ignoreDuplicates: true },
-    );
-    if (error) throw error;
-    notifyDataChange();
-    return { error: null };
-  } catch (err) {
-    const message = logSupabaseError("autoBlockDatesForStay", err);
-    return { error: message };
-  }
+  const result = await autoBlockDatesForStayServerFn({ data: { propertyId, checkIn, checkOut } }).catch(
+    (err: unknown) => ({ error: logDbError("autoBlockDatesForStay", err) }),
+  );
+  if (!result.error) notifyDataChange();
+  return result;
 }
 
 export function isMultiRoomProperty(propertyId: string): boolean {

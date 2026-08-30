@@ -1,4 +1,5 @@
-import { supabase, notifyDataChange } from "@/lib/rates";
+import { notifyDataChange } from "@/lib/rates";
+import { fetchActivePropertiesServerFn, savePropertyServerFn } from "@/lib/properties-query.server-fn";
 import { PROPERTIES, imageMap, type Property } from "@/lib/plix";
 
 type PropertyOverride = {
@@ -125,16 +126,12 @@ export async function fetchPropertiesWithOverrides(): Promise<Property[]> {
   const overrides = readLocalOverrides();
 
   try {
-    const { data, error } = await supabase
-      .from("properties")
-      .select("*")
-      .eq("is_active", true)
-      .order("created_at", { ascending: true });
+    const data = await fetchActivePropertiesServerFn();
 
-    if (!error && data && data.length > 0) {
+    if (data && data.length > 0) {
       const dbMap: Record<string, PropertyOverride> = {};
       for (const row of data) {
-        dbMap[row.slug ?? row.id] = row as PropertyOverride;
+        dbMap[row.slug ?? row.id] = row as unknown as PropertyOverride;
       }
       // Database is authoritative — do not let stale localStorage values
       // override rows that actually exist in Supabase (mirrors rates.ts).
@@ -215,11 +212,12 @@ export async function savePropertyOverride(
     google_maps_embed_url: override.google_maps_embed_url ?? existing.google_maps_embed_url,
   };
 
-  // Write to Supabase
+  // Write to Neon. Note: total_inventory/seo_title/seo_description/
+  // seo_keywords/enclave have no column in the `properties` table — they're
+  // cached to localStorage only below, same as google_maps_embed_url.
   try {
-    const { error } = await supabase
-      .from("properties")
-      .upsert({
+    const result = await savePropertyServerFn({
+      data: {
         slug,
         name: merged.name,
         tagline: merged.tagline,
@@ -232,21 +230,16 @@ export async function savePropertyOverride(
         image_keys: merged.image_keys,
         description: merged.description,
         is_active: merged.is_active,
-        total_inventory: merged.total_inventory,
         region: existing.region,
-        seo_title: existing.seo_title,
-        seo_description: existing.seo_description,
-        seo_keywords: existing.seo_keywords,
         nearby: existing.nearby,
         latitude: existing.latitude,
         longitude: existing.longitude,
         distance_to_beach: existing.distance_to_beach,
-        enclave: existing.enclave,
-      });
-
-    if (error) throw error;
-  } catch {
-    // Supabase failed — continue to localStorage
+      },
+    });
+    if (result.error) throw new Error(result.error);
+  } catch (err) {
+    console.error("[savePropertyOverride]:", err instanceof Error ? err.message : err);
   }
 
   // Always write to localStorage

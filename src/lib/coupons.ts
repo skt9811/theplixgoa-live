@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/rates";
+import { fetchDbCouponServerFn, redeemCouponServerFn, type DbCouponRow } from "@/lib/coupons-query.server-fn";
 
 export type CouponType = "percentage" | "flat";
 
@@ -20,14 +20,6 @@ export const COUPONS: Coupon[] = [
 export type CouponValidationResult =
   | { valid: true; code: string; description: string; discountAmount: number; source: "static" | "db" | "offline" }
   | { valid: false; error: string };
-
-type DbCouponRow = {
-  code: string;
-  discount_amount: number;
-  max_uses: number;
-  current_uses: number;
-  is_active: boolean;
-};
 
 // The 20 seeded single-use codes follow a fixed, deterministic naming
 // pattern (amount + letter). If the live is_active/current_uses check
@@ -52,13 +44,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: T): Promise<
 
 async function fetchDbCoupon(code: string): Promise<{ ok: true; row: DbCouponRow | null } | { ok: false }> {
   try {
-    const { data, error } = await supabase
-      .from("coupons")
-      .select("code, discount_amount, max_uses, current_uses, is_active")
-      .eq("code", code)
-      .maybeSingle();
-    if (error) return { ok: false };
-    return { ok: true, row: data as DbCouponRow | null };
+    const row = await fetchDbCouponServerFn({ data: { code } });
+    return { ok: true, row };
   } catch {
     return { ok: false };
   }
@@ -145,7 +132,7 @@ export async function validateCoupon(rawCode: string, subtotal: number): Promise
 export async function redeemCoupon(code: string, source: "static" | "db" | "offline"): Promise<void> {
   if (source === "static") return;
   try {
-    await supabase.rpc("redeem_coupon", { p_code: code.trim().toUpperCase() });
+    await redeemCouponServerFn({ data: { code: code.trim().toUpperCase() } });
   } catch {
     // best-effort bookkeeping only
   }

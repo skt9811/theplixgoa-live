@@ -9,7 +9,11 @@ import { handlePasswordSignIn, handlePasswordSignUp, handleLogout } from "./lib/
 import { getAuthConfig } from "./lib/auth.server";
 import { StartAuthJS } from "start-authjs";
 
-const authHandlers = StartAuthJS(getAuthConfig());
+// Built fresh per-request (StartAuthJS accepts an async config factory) so
+// useSecureCookies is derived from *this* request's headers — see
+// getAuthConfig's comment for why that has to be per-request, not computed
+// once at module load.
+const authHandlers = StartAuthJS(async (context: { request: Request }) => getAuthConfig(context.request));
 
 // ── React 19 dev renderer writeChunk buffer overflow patch ──────────────
 // react-dom-server.node.development.js allocates a 2048-byte Uint8Array and

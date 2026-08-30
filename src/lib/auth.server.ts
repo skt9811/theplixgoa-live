@@ -15,6 +15,7 @@ import PostgresAdapter from "@auth/pg-adapter";
 import Google from "@auth/core/providers/google";
 import type { AuthConfig } from "@auth/core/types";
 import { Pool } from "pg";
+import { isSecureRequest } from "@/lib/session-cookie.server";
 
 let pool: Pool | null = null;
 
@@ -31,7 +32,15 @@ export function isGoogleAuthConfigured(): boolean {
   return Boolean(process.env["AUTH_GOOGLE_ID"] && process.env["AUTH_GOOGLE_SECRET"]);
 }
 
-export function getAuthConfig(): AuthConfig {
+// `req` is optional only so this stays callable without one (e.g. tooling);
+// pass the real incoming Request whenever one is available — see
+// src/server.ts, which builds the config fresh per-request specifically so
+// useSecureCookies is derived the same X-Forwarded-Proto-aware way as
+// password-auth.server.ts's cookie issuing (session-cookie.server.ts).
+// Without this, Auth.js's own built-in cookie logic falls back to checking
+// only the request URL's protocol, which can disagree with what actually
+// issued the cookie behind Vercel's proxy and break session recognition.
+export function getAuthConfig(req?: Request): AuthConfig {
   const pgPool = getAuthPool();
 
   return {
@@ -41,6 +50,7 @@ export function getAuthConfig(): AuthConfig {
     // the request's own Host header is the standard way to handle that.
     trustHost: true,
     session: { strategy: "jwt" },
+    ...(req ? { useSecureCookies: isSecureRequest(req) } : {}),
     ...(pgPool ? { adapter: PostgresAdapter(pgPool) } : {}),
     providers: isGoogleAuthConfigured() ? [Google] : [],
     pages: {

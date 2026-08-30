@@ -10,18 +10,11 @@ import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:cry
 import { promisify } from "node:util";
 import { encode as encodeSessionJwt } from "@auth/core/jwt";
 import { getAuthPool } from "@/lib/auth.server";
+import { isSecureRequest, sessionCookieName } from "@/lib/session-cookie.server";
 
 const scrypt = promisify(scryptCallback);
 
 const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days, matches Auth.js's own default
-
-export function isSecureRequest(req: Request): boolean {
-  return new URL(req.url).protocol === "https:";
-}
-
-export function sessionCookieName(secure: boolean): string {
-  return `${secure ? "__Secure-" : ""}authjs.session-token`;
-}
 
 // Friction-free password policy by design, not an oversight — these are
 // guest booking accounts, not a security-critical system (matches the

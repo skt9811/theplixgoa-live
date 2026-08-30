@@ -3,16 +3,23 @@ import { useEffect } from "react";
 import { PROPERTIES, REVIEWS, type Property, type Review } from "@/lib/plix";
 import { fetchPropertiesWithOverrides } from "@/lib/properties-data";
 
-export const propertiesQuery = queryOptions({
-  queryKey: ["properties"],
-  queryFn: async (): Promise<Property[]> => {
-    try {
-      return await fetchPropertiesWithOverrides();
-    } catch {
-      return PROPERTIES;
-    }
-  },
-});
+/**
+ * @param targetDate "YYYY-MM-DD" — e.g. the guest's selected check-in date
+ * on /stays, so card prices reflect that date's rate rather than today's.
+ * Omit for the homepage grid, which has no search state (prices default to
+ * today server-side — see fetchRatesForDateServerFn).
+ */
+export const propertiesQuery = (targetDate?: string) =>
+  queryOptions({
+    queryKey: ["properties", targetDate ?? "today"],
+    queryFn: async (): Promise<Property[]> => {
+      try {
+        return await fetchPropertiesWithOverrides(targetDate);
+      } catch {
+        return PROPERTIES;
+      }
+    },
+  });
 
 export const propertyQuery = (slug: string) =>
   queryOptions({

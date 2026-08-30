@@ -64,13 +64,14 @@ export const Route = createFileRoute("/stays")({
       { type: "application/ld+json", children: jsonLdScript(organizationJsonLd()) },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(propertiesQuery),
+  loader: ({ context, location }) =>
+    context.queryClient.ensureQueryData(propertiesQuery((location.search as StaySearch).checkIn)),
   component: Stays,
 });
 
 function Stays() {
   const { location, guests, rooms, checkIn, checkOut } = Route.useSearch();
-  const { data: properties } = useSuspenseQuery(propertiesQuery);
+  const { data: properties } = useSuspenseQuery(propertiesQuery(checkIn));
   usePropertiesLiveRefresh();
 
   const activeFilter = location ?? "All";

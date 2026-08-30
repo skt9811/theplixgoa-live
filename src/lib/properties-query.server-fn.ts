@@ -39,44 +39,29 @@ export type PropertyDbRow = {
   latitude: number | null;
   longitude: number | null;
   is_active: boolean;
-  /** LEAST(base_price, cheapest property_rates.rate in the next 90 days) —
-   * a card's "from" price should reflect the best deal a guest can actually
-   * book soon, not the static list price, and not just today's rate (which
-   * could be higher than a promo a few days out). Falls back to base_price
-   * when there are no upcoming custom rates at all. */
-  starting_price: number;
 };
 
+// Deliberately NOT joined/correlated against `properties` here — several
+// properties that DO have real property_rates data (morjim-pride,
+// vivenda-chico) have no row in the `properties` table at all (this app's
+// full property list lives in the static PROPERTIES array in plix.ts; the
+// DB table only ever covered a subset). A correlated subquery keyed off
+// `properties` rows — what this used to do — silently never considered
+// those properties' rates at all, so their cards always showed the static
+// base price no matter what override existed. This query is intentionally
+// independent of `properties` so properties-data.ts can apply it against
+// every property in the static list, DB row or not.
 export const fetchActivePropertiesServerFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<PropertyDbRow[]> => {
     const sql = getSql();
     if (!sql) return [];
     try {
-      // property_rates.property_id is keyed on the slug (matching how the
-      // admin panel writes it), not properties.id — see property-card.tsx's
-      // note on the same convention.
       const rows = await sql<PropertyDbRow[]>`
-        SELECT p.*,
-          LEAST(
-            p.base_price,
-            COALESCE(
-              (
-                SELECT MIN(pr.rate) FROM public.property_rates pr
-                WHERE pr.property_id = p.slug
-                  AND pr.date >= CURRENT_DATE
-                  AND pr.date <= CURRENT_DATE + INTERVAL '90 days'
-              ),
-              p.base_price
-            )
-          ) AS starting_price
-        FROM public.properties p
-        WHERE p.is_active = true
-        ORDER BY p.created_at ASC
+        SELECT * FROM public.properties WHERE is_active = true ORDER BY created_at ASC
       `;
       return rows.map((r) => ({
         ...r,
         base_price: Number(r.base_price),
-        starting_price: Number(r.starting_price),
         latitude: r.latitude === null ? null : Number(r.latitude),
         longitude: r.longitude === null ? null : Number(r.longitude),
       }));

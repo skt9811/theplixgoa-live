@@ -80,7 +80,7 @@ export const Route = createFileRoute("/")({
     ],
   }),
   loader: ({ context }) => {
-    void context.queryClient.ensureQueryData(propertiesQuery);
+    void context.queryClient.ensureQueryData(propertiesQuery());
     void context.queryClient.ensureQueryData(reviewsQuery);
   },
   component: Home,
@@ -287,7 +287,7 @@ const DESTINATION_ILLUSTRATIONS = {
 };
 
 function Home() {
-  const { data: properties } = useSuspenseQuery(propertiesQuery);
+  const { data: properties } = useSuspenseQuery(propertiesQuery());
   const { data: reviews } = useSuspenseQuery(reviewsQuery);
   usePropertiesLiveRefresh();
   const featured = properties.slice(0, 3);

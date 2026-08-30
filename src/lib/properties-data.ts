@@ -1,5 +1,6 @@
 import { notifyDataChange } from "@/lib/rates";
 import { fetchActivePropertiesServerFn, savePropertyServerFn } from "@/lib/properties-query.server-fn";
+import { fetchRatesForDateServerFn } from "@/lib/rates-query.server-fn";
 import { PROPERTIES, imageMap, type Property } from "@/lib/plix";
 
 type PropertyOverride = {
@@ -123,8 +124,29 @@ function writeLocalOverrides(data: Record<string, PropertyOverride>): void {
   }
 }
 
-export async function fetchPropertiesWithOverrides(): Promise<Property[]> {
+/**
+ * @param targetDate "YYYY-MM-DD" to price against (e.g. the guest's selected
+ * check-in date on /stays) — defaults to today server-side when omitted
+ * (the homepage grid, which has no search state).
+ */
+export async function fetchPropertiesWithOverrides(targetDate?: string): Promise<Property[]> {
   const overrides = readLocalOverrides();
+
+  // Independent of the properties-table fetch below: property_rates has
+  // real data for properties (morjim-pride, vivenda-chico) that have no
+  // `properties` row at all, so this must apply to every property in the
+  // static list, not just ones the DB fetch below happens to return. A
+  // failure here shouldn't take down the whole properties list — just means
+  // no card gets a discounted price this load.
+  const ratesMap = await fetchRatesForDateServerFn({ data: { date: targetDate ?? "" } }).catch((err: unknown) => {
+    console.error("[fetchPropertiesWithOverrides] rate lookup failed:", err instanceof Error ? err.message : err);
+    return {} as Record<string, number>;
+  });
+
+  function withStartingPrice(p: Property, effectiveBasePrice: number): number | undefined {
+    const rate = ratesMap[p.slug];
+    return rate === undefined ? undefined : Math.min(effectiveBasePrice, rate);
+  }
 
   try {
     const data = await fetchActivePropertiesServerFn();
@@ -141,6 +163,7 @@ export async function fetchPropertiesWithOverrides(): Promise<Property[]> {
       return applyCanonicalOverrides(
         PROPERTIES.map((p) => {
           const override: Partial<PropertyOverride> = merged[p.slug] ?? {};
+          const effectiveBasePrice = override.base_price ?? p.base_price;
           return {
             ...p,
             ...override,
@@ -157,12 +180,7 @@ export async function fetchPropertiesWithOverrides(): Promise<Property[]> {
             // backfilled, don't let an empty/null value blank out plix.ts's
             // static embed URL.
             google_maps_embed_url: override.google_maps_embed_url || p.google_maps_embed_url,
-            // Only a live DB fetch actually computes this (it needs a join
-            // against property_rates) — never trust a stale cached value
-            // from localStorage over a fresh one, and never let it silently
-            // stick around from a previous property once merged[] is built
-            // fresh per row here.
-            starting_price: override.starting_price,
+            starting_price: withStartingPrice(p, effectiveBasePrice),
           };
         }) as Property[],
       );
@@ -171,17 +189,18 @@ export async function fetchPropertiesWithOverrides(): Promise<Property[]> {
     // network error — fall through
   }
 
-  // Fallback: static PROPERTIES with localStorage overrides. No live
-  // starting_price available here — property-card.tsx already falls back
-  // to base_price when it's undefined.
+  // Fallback: static PROPERTIES with localStorage overrides. Rate overrides
+  // still apply here (that fetch is independent of the one that failed).
   return applyCanonicalOverrides(
     PROPERTIES.map((p) => {
       const override: Partial<PropertyOverride> = overrides[p.slug] ?? {};
+      const effectiveBasePrice = override.base_price ?? p.base_price;
       return {
         ...p,
         ...override,
         image_keys: hasValidImageKeys(override.image_keys) ? override.image_keys : p.image_keys,
         google_maps_embed_url: override.google_maps_embed_url || p.google_maps_embed_url,
+        starting_price: withStartingPrice(p, effectiveBasePrice),
       };
     }) as Property[],
   );

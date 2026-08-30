@@ -20,6 +20,39 @@ function str(data: unknown, key: string): string {
   return typeof v === "string" ? v : "";
 }
 
+// Batch rate lookup for a single target date across every property that has
+// a property_rates row for it — deliberately not joined against the
+// `properties` table (see properties-query.server-fn.ts's header comment on
+// fetchActivePropertiesServerFn: several properties with real rate data,
+// like morjim-pride, have no `properties` row at all). Backs the homepage/
+// search/location-grid property cards' displayed price: properties-data.ts
+// applies this map against every property in the static PROPERTIES list.
+export const fetchRatesForDateServerFn = createServerFn({ method: "GET" })
+  .validator((data: unknown) => {
+    const raw = str(data, "date");
+    // A specific "YYYY-MM-DD" wins (e.g. the guest's selected check-in
+    // date); anything else — no search dates picked yet, or a malformed
+    // value — falls through to CURRENT_DATE, computed server-side so it's
+    // never stale relative to whatever timezone the client happens to be in.
+    return { date: /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null };
+  })
+  .handler(async ({ data }): Promise<Record<string, number>> => {
+    const sql = getSql();
+    if (!sql) return {};
+    try {
+      const rows = await sql<{ property_id: string; rate: string | number }[]>`
+        SELECT property_id, rate FROM public.property_rates
+        WHERE date = COALESCE(${data.date}::date, CURRENT_DATE)
+      `;
+      const map: Record<string, number> = {};
+      for (const row of rows) map[row.property_id] = Number(row.rate);
+      return map;
+    } catch (err) {
+      console.error("[fetchRatesForDateServerFn]:", err instanceof Error ? err.message : err);
+      return {};
+    }
+  });
+
 export const fetchRateOverridesServerFn = createServerFn({ method: "GET" })
   .validator((data: unknown) => ({
     propertyId: str(data, "propertyId"),

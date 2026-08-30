@@ -41,12 +41,23 @@ export type BookingRow = {
   created_at: string;
 };
 
-type RawBookingRow = Omit<BookingRow, "subtotal" | "taxes" | "total_amount" | "created_at"> & {
+type RawBookingRow = Omit<BookingRow, "subtotal" | "taxes" | "total_amount" | "created_at" | "check_in" | "check_out"> & {
   subtotal: string | number;
   taxes: string | number;
   total_amount: string | number;
   created_at: string | Date;
+  check_in: string | Date;
+  check_out: string | Date;
 };
+
+// check_in/check_out are `date` columns — postgres.js parses those into
+// Date objects (UTC midnight) by default, not "YYYY-MM-DD" strings. Slicing
+// toISOString() is safe specifically because it's always UTC, so it can't
+// drift a day depending on the server's local timezone the way local-time
+// getters (getDate()/getMonth()) would.
+function toDateString(value: string | Date): string {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : value;
+}
 
 function normalizeRow(row: RawBookingRow): BookingRow {
   return {
@@ -55,6 +66,8 @@ function normalizeRow(row: RawBookingRow): BookingRow {
     taxes: Number(row.taxes),
     total_amount: Number(row.total_amount),
     created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    check_in: toDateString(row.check_in),
+    check_out: toDateString(row.check_out),
   };
 }
 

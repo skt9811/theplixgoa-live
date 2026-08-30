@@ -30,9 +30,17 @@ export const fetchRateOverridesServerFn = createServerFn({ method: "GET" })
     const sql = getSql();
     if (!sql) return {};
     try {
+      // date::text, not the bare column: postgres.js parses a `date` column
+      // into a JS Date object by default, not a "YYYY-MM-DD" string — using
+      // that as an object key here (`map[row.date]`) previously produced
+      // Date.toString() output ("Wed Aug 19 2026...") as the key, which
+      // never matched the "YYYY-MM-DD" strings every caller looks dates up
+      // by (rates.ts's computeNightlyRates, checkout-modal.tsx, etc.) — so
+      // every rate override silently missed and fell back to the base
+      // price. Casting to text in SQL sidesteps the parser entirely.
       const rows = await sql<{ date: string; rate: string | number }[]>`
-        SELECT date, rate FROM public.property_rates
-        WHERE property_id = ${data.propertyId} AND date >= ${data.startDate} AND date <= ${data.endDate}
+        SELECT date::text AS date, rate FROM public.property_rates
+        WHERE property_id = ${data.propertyId} AND date::date BETWEEN ${data.startDate}::date AND ${data.endDate}::date
       `;
       const map: Record<string, number> = {};
       for (const row of rows) map[row.date] = Number(row.rate);
@@ -53,9 +61,12 @@ export const fetchBlockedDatesServerFn = createServerFn({ method: "GET" })
     const sql = getSql();
     if (!sql) return [];
     try {
+      // date::text — same reasoning as fetchRateOverridesServerFn above:
+      // without it these come back as Date objects, which never match the
+      // "YYYY-MM-DD" strings hasBlockedOverlap() checks the Set against.
       const rows = await sql<{ date: string }[]>`
-        SELECT date FROM public.blocked_dates
-        WHERE property_id = ${data.propertyId} AND date >= ${data.startDate} AND date <= ${data.endDate}
+        SELECT date::text AS date FROM public.blocked_dates
+        WHERE property_id = ${data.propertyId} AND date::date BETWEEN ${data.startDate}::date AND ${data.endDate}::date
       `;
       return rows.map((r) => r.date);
     } catch (err) {

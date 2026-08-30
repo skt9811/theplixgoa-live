@@ -42,14 +42,24 @@ type BookingRow = VoucherBooking & {
   razorpay_payment_id: string | null;
 };
 
-// postgres.js returns `numeric` columns as strings and `timestamptz` as a
-// Date object, not the plain JS number/string BookingRow assumes.
-type RawBookingRow = Omit<BookingRow, "subtotal" | "taxes" | "total_amount" | "created_at"> & {
+// postgres.js returns `numeric` columns as strings, `timestamptz` as a Date
+// object, and `date` columns (check_in/check_out) also as a Date object —
+// none of that matches the plain JS number/string BookingRow assumes.
+type RawBookingRow = Omit<BookingRow, "subtotal" | "taxes" | "total_amount" | "created_at" | "check_in" | "check_out"> & {
   subtotal: string | number;
   taxes: string | number;
   total_amount: string | number;
   created_at: string | Date;
+  check_in: string | Date;
+  check_out: string | Date;
 };
+
+// Safe specifically because toISOString() is always UTC, so it can't drift
+// a day depending on the server's local timezone the way local-time getters
+// (getDate()/getMonth()) would.
+function toDateString(value: string | Date): string {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : value;
+}
 
 export async function confirmBookingAndSendEmails(
   input: ConfirmBookingInput,
@@ -94,6 +104,8 @@ export async function confirmBookingAndSendEmails(
       taxes: Number(row.taxes),
       total_amount: Number(row.total_amount),
       created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+      check_in: toDateString(row.check_in),
+      check_out: toDateString(row.check_out),
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

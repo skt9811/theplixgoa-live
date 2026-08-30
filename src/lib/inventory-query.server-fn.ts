@@ -27,10 +27,15 @@ export const fetchOverlappingPaidBookingsServerFn = createServerFn({ method: "GE
     const sql = getSql();
     if (!sql) return [];
     try {
+      // check_in/check_out::text — without it these come back as Date
+      // objects (postgres.js's default for a `date` column), which
+      // eachNight() in inventory.ts can't call .split("-") on; that threw
+      // and was silently swallowed by this function's own fail-open catch
+      // below, so multi-room availability always reported everything free.
       return await sql<{ check_in: string; check_out: string }[]>`
-        SELECT check_in, check_out FROM public.bookings
+        SELECT check_in::text AS check_in, check_out::text AS check_out FROM public.bookings
         WHERE property_id = ${data.propertyId} AND payment_status = 'paid'
-          AND check_in < ${data.checkOut} AND check_out > ${data.checkIn}
+          AND check_in::date < ${data.checkOut}::date AND check_out::date > ${data.checkIn}::date
       `;
     } catch (err) {
       console.error("[fetchOverlappingPaidBookingsServerFn]:", err instanceof Error ? err.message : err);

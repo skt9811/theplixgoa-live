@@ -35,14 +35,30 @@ function isConfirmInput(data: unknown): data is {
   );
 }
 
+// Field-level diagnostic for a live payload that fails the shape check — a
+// generic "missing X, Y, or Z" throw gives no way to tell, from production
+// logs, which field a real Razorpay callback actually sent wrong or omitted
+// (e.g. a checkout widget version that renames a field, or a browser
+// extension stripping something from the callback payload).
+function describeConfirmInputShape(data: unknown): string {
+  if (!data || typeof data !== "object") return `payload is not an object (got ${typeof data})`;
+  const d = data as Record<string, unknown>;
+  const fields = ["booking_id", "razorpay_payment_id", "razorpay_order_id", "razorpay_signature"] as const;
+  return fields
+    .map((f) => `${f}=${typeof d[f] === "string" && d[f] ? "ok" : JSON.stringify(d[f])}`)
+    .join(", ");
+}
+
 export const confirmBookingServerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => {
     if (!isConfirmInput(data)) {
+      console.error("[confirmBookingServerFn] payload failed validation:", describeConfirmInputShape(data));
       throw new Error("Missing booking_id, razorpay_payment_id, razorpay_order_id, or razorpay_signature");
     }
     return data;
   })
   .handler(async ({ data }): Promise<ConfirmBookingResult> => {
+    console.log("LIVE CHECKOUT EMAIL DISPATCH STARTED FOR:", data.booking_id);
     if (!verifyRazorpayCheckoutSignature(data.razorpay_order_id, data.razorpay_payment_id, data.razorpay_signature)) {
       console.error(
         "[confirmBookingServerFn] Razorpay signature verification FAILED for booking",

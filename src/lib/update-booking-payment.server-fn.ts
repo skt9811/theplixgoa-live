@@ -37,9 +37,17 @@ function isUpdatePaymentInput(data: unknown): data is {
   );
 }
 
+function describeUpdatePaymentInputShape(data: unknown): string {
+  if (!data || typeof data !== "object") return `payload is not an object (got ${typeof data})`;
+  const d = data as Record<string, unknown>;
+  const fields = ["booking_id", "payment_id", "order_id", "signature"] as const;
+  return fields.map((f) => `${f}=${typeof d[f] === "string" && d[f] ? "ok" : JSON.stringify(d[f])}`).join(", ");
+}
+
 export const updateBookingPaymentServerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => {
     if (!isUpdatePaymentInput(data)) {
+      console.error("[updateBookingPaymentServerFn] payload failed validation:", describeUpdatePaymentInputShape(data));
       throw new Error("Missing required payment fields");
     }
     return data;

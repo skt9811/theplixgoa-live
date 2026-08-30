@@ -113,9 +113,31 @@ async function insertBooking(
   return id;
 }
 
+// Field-level diagnostic for a live checkout payload that fails the shape
+// check — the guest-facing checkout form can legitimately produce empty
+// strings (e.g. an optional field left blank) that still pass typeof checks,
+// but a genuinely missing/wrong-typed field here throws before a booking row
+// or Razorpay order ever gets created, so this needs to be visible from
+// production logs rather than a generic "missing required booking fields".
+function describeOrderInputShape(data: unknown): string {
+  if (!data || typeof data !== "object") return `payload is not an object (got ${typeof data})`;
+  const d = data as Record<string, unknown>;
+  const stringFields = [
+    "property_id", "property_name", "property_location",
+    "guest_name", "guest_email", "guest_mobile", "check_in", "check_out",
+  ] as const;
+  const numberFields = ["guests", "nights", "subtotal", "taxes", "total_amount"] as const;
+  const parts = [
+    ...stringFields.map((f) => `${f}=${typeof d[f] === "string" ? "ok" : JSON.stringify(d[f])}`),
+    ...numberFields.map((f) => `${f}=${typeof d[f] === "number" ? "ok" : JSON.stringify(d[f])}`),
+  ];
+  return parts.join(", ");
+}
+
 export const createRazorpayOrderServerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => {
     if (!isOrderInput(data)) {
+      console.error("[createRazorpayOrderServerFn] payload failed validation:", describeOrderInputShape(data));
       throw new Error("Missing required booking fields");
     }
     return data;

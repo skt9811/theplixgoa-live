@@ -167,6 +167,16 @@ export async function confirmBookingAndSendEmails(
     ? process.env["PLIX_HOST_EMAIL"].split(",").map((e) => e.trim()).filter(Boolean)
     : ["theplixvilla@gmail.com", "reservation@theplixgoa.com"];
 
+  // Explicit and unconditional so a deployment where this env var never made
+  // it into the running process (wrong environment scope in Vercel, a
+  // preview/production mismatch, a deploy that predates the var being added)
+  // is visible in the logs as exactly that, rather than as silence — the
+  // early return below produces `ok:true, emails_sent:false, error:null`,
+  // which looks identical to "no emails needed" unless this line is here.
+  console.log(
+    `[confirmBookingAndSendEmails] RESEND_API_KEY loaded in this deployment: ${resendApiKey ? "yes" : "NO — emails will not be sent"}`,
+  );
+
   if (!resendApiKey) {
     return {
       ok: true,

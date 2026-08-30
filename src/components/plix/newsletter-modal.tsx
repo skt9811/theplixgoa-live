@@ -4,14 +4,14 @@ import { toast } from "sonner";
 import { heroImage } from "@/lib/plix";
 import { subscribeToNewsletter } from "@/lib/newsletter";
 
-const SEEN_KEY = "has_seen_newsletter_modal";
+const PLIX_NEWSLETTER_DISMISSED = "plix_newsletter_dismissed";
 const SHOW_AFTER_MS = 4000;
 const SHOW_AFTER_SCROLL_RATIO = 0.3;
 
 function hasSeenModal(): boolean {
   if (typeof localStorage === "undefined") return true;
   try {
-    return localStorage.getItem(SEEN_KEY) === "true";
+    return localStorage.getItem(PLIX_NEWSLETTER_DISMISSED) === "true";
   } catch {
     return true;
   }
@@ -20,7 +20,7 @@ function hasSeenModal(): boolean {
 function markModalSeen(): void {
   if (typeof localStorage === "undefined") return;
   try {
-    localStorage.setItem(SEEN_KEY, "true");
+    localStorage.setItem(PLIX_NEWSLETTER_DISMISSED, "true");
   } catch {
     // storage full or unavailable — the modal may reappear next visit, harmless
   }
@@ -45,6 +45,11 @@ export function NewsletterModal() {
     const timer = window.setTimeout(() => setOpen(true), SHOW_AFTER_MS);
 
     function onScroll() {
+      // Redundant with the hasSeenModal() gate above this effect never even
+      // arming the listener when already dismissed — kept as an explicit
+      // second check directly in the trigger so this stays safe even if a
+      // future change ever attaches the listener unconditionally.
+      if (localStorage.getItem(PLIX_NEWSLETTER_DISMISSED)) return;
       const scrollable = document.documentElement.scrollHeight - window.innerHeight;
       if (scrollable <= 0) return;
       if (window.scrollY / scrollable >= SHOW_AFTER_SCROLL_RATIO) {

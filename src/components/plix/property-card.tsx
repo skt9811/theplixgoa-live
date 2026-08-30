@@ -1,8 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Bath, BedDouble, ChevronLeft, ChevronRight, MapPin, Users, Waves } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { formatINR, resolveImages, type Property } from "@/lib/plix";
-import { fetchTodayRate } from "@/lib/rates";
 import { SmartImage } from "@/components/plix/smart-image";
 
 function propertyCardSubtitle(p: Property): string {
@@ -19,33 +18,13 @@ function propertyCardSubtitle(p: Property): string {
 export function PropertyCard({ property }: { property: Property }) {
   const images = resolveImages(property.image_keys);
   const [index, setIndex] = useState(0);
-  const [todayRate, setTodayRate] = useState<number | null>(null);
   const go = (dir: number) => setIndex((i) => (i + dir + images.length) % images.length);
 
-  const loadRate = useCallback(() => {
-    // property_rates keys on the slug, matching how the admin panel writes
-    // property_id — not property.id.
-    void fetchTodayRate(property.slug, property.base_price).then(setTodayRate);
-  }, [property.slug, property.base_price]);
-
-  useEffect(() => {
-    loadRate();
-  }, [loadRate]);
-
-  // Refetch when the admin updates rates — same tab (custom event) or another tab (storage event)
-  useEffect(() => {
-    function onStorageChange(e: StorageEvent) {
-      if (e.key === "plix_data_updated") loadRate();
-    }
-    window.addEventListener("plix-data-change", loadRate);
-    window.addEventListener("storage", onStorageChange);
-    return () => {
-      window.removeEventListener("plix-data-change", loadRate);
-      window.removeEventListener("storage", onStorageChange);
-    };
-  }, [loadRate]);
-
-  const displayRate = todayRate ?? property.base_price;
+  // Computed server-side (properties-query.server-fn.ts) as LEAST(base_price,
+  // cheapest upcoming property_rates override) — the query that fetches the
+  // whole grid already carries this, so no per-card fetch is needed. Falls
+  // back to base_price for the static-data path (no DB round trip made).
+  const displayRate = property.starting_price ?? property.base_price;
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-lift">
@@ -137,8 +116,8 @@ export function PropertyCard({ property }: { property: Property }) {
               {formatINR(displayRate)}
             </span>
             <span className="text-sm text-muted-foreground"> / night</span>
-            {todayRate !== null && todayRate !== property.base_price && (
-              <span className="ml-2 text-xs font-medium text-primary">Today&apos;s Rate</span>
+            {displayRate < property.base_price && (
+              <span className="ml-2 text-xs font-medium text-primary">Special Rate</span>
             )}
           </div>
           <Link

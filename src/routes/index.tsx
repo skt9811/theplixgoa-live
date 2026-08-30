@@ -7,7 +7,7 @@ import { ReviewCarousel } from "@/components/plix/review-carousel";
 import { HeroSearchBar } from "@/components/plix/hero-search-bar";
 import { HeroCarousel } from "@/components/plix/hero-carousel";
 import { NewsletterModal } from "@/components/plix/newsletter-modal";
-import { propertiesQuery, reviewsQuery } from "@/lib/plix-queries";
+import { propertiesQuery, reviewsQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
 import { chicoHeroImage } from "@/lib/plix";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 import {
@@ -289,6 +289,7 @@ const DESTINATION_ILLUSTRATIONS = {
 function Home() {
   const { data: properties } = useSuspenseQuery(propertiesQuery);
   const { data: reviews } = useSuspenseQuery(reviewsQuery);
+  usePropertiesLiveRefresh();
   const featured = properties.slice(0, 3);
 
   const [config, setConfig] = useState<SiteConfig | null>(null);

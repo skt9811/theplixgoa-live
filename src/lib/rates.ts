@@ -307,9 +307,3 @@ export function quoteWithDiscount(nightlyRates: number[], bedrooms: number, disc
     rate,
   };
 }
-
-export async function fetchTodayRate(propertyId: string, basePrice: number): Promise<number> {
-  const today = toLocalISODate(new Date());
-  const overrides = await fetchRateOverrides(propertyId, today, today);
-  return overrides[today] ?? basePrice;
-}

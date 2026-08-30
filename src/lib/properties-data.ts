@@ -17,6 +17,7 @@ type PropertyOverride = {
   is_active: boolean;
   google_maps_embed_url?: string | null;
   total_inventory?: number;
+  starting_price?: number;
 };
 
 // Generic stock photos used as decorative fallbacks elsewhere (location
@@ -156,6 +157,12 @@ export async function fetchPropertiesWithOverrides(): Promise<Property[]> {
             // backfilled, don't let an empty/null value blank out plix.ts's
             // static embed URL.
             google_maps_embed_url: override.google_maps_embed_url || p.google_maps_embed_url,
+            // Only a live DB fetch actually computes this (it needs a join
+            // against property_rates) — never trust a stale cached value
+            // from localStorage over a fresh one, and never let it silently
+            // stick around from a previous property once merged[] is built
+            // fresh per row here.
+            starting_price: override.starting_price,
           };
         }) as Property[],
       );
@@ -164,7 +171,9 @@ export async function fetchPropertiesWithOverrides(): Promise<Property[]> {
     // network error — fall through
   }
 
-  // Fallback: static PROPERTIES with localStorage overrides
+  // Fallback: static PROPERTIES with localStorage overrides. No live
+  // starting_price available here — property-card.tsx already falls back
+  // to base_price when it's undefined.
   return applyCanonicalOverrides(
     PROPERTIES.map((p) => {
       const override: Partial<PropertyOverride> = overrides[p.slug] ?? {};

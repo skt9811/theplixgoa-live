@@ -3,7 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { BedDouble, CalendarDays, Users } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
-import { propertiesQuery } from "@/lib/plix-queries";
+import { propertiesQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
 import { LOCATIONS, type Property } from "@/lib/plix";
 import { fetchBlockedDates, hasBlockedOverlap, isMultiRoomProperty } from "@/lib/rates";
 import { computeAvailableRooms, hasInsufficientRooms } from "@/lib/inventory";
@@ -71,6 +71,7 @@ export const Route = createFileRoute("/stays")({
 function Stays() {
   const { location, guests, rooms, checkIn, checkOut } = Route.useSearch();
   const { data: properties } = useSuspenseQuery(propertiesQuery);
+  usePropertiesLiveRefresh();
 
   const activeFilter = location ?? "All";
 

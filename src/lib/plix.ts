@@ -301,6 +301,11 @@ export type Property = {
    * properties-data.ts; see isMultiRoomProperty in lib/rates.ts for which
    * properties actually use per-room inventory tracking. */
   total_inventory: number;
+  /** LEAST(base_price, cheapest upcoming property_rates override) — computed
+   * server-side in properties-query.server-fn.ts. Absent for the static
+   * PROPERTIES fallback (no DB round trip to compute it from); callers
+   * should fall back to base_price with `property.starting_price ?? property.base_price`. */
+  starting_price?: number;
 };
 
 export function formatINR(value: number): string {

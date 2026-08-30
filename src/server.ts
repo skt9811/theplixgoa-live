@@ -5,6 +5,11 @@ import { renderErrorPage } from "./lib/error-page";
 import { handleRazorpayWebhook } from "./lib/razorpay-webhook.server";
 import { handleSubscribeRequest } from "./lib/subscribe-newsletter.server";
 import { handleSendWelcomeEmail } from "./lib/send-welcome-email.server";
+import { handlePasswordSignIn, handlePasswordSignUp, handleLogout } from "./lib/auth-routes.server";
+import { getAuthConfig } from "./lib/auth.server";
+import { StartAuthJS } from "start-authjs";
+
+const authHandlers = StartAuthJS(getAuthConfig());
 
 // ── React 19 dev renderer writeChunk buffer overflow patch ──────────────
 // react-dom-server.node.development.js allocates a 2048-byte Uint8Array and
@@ -145,6 +150,56 @@ export default {
         return await handleSendWelcomeEmail(request);
       } catch (error) {
         console.error("[send-welcome-email] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    // Custom email+password routes — checked before the /api/auth/* catch-all
+    // below, which only handles Auth.js's own protocol (Google OAuth,
+    // session, csrf, signout).
+    if (url.pathname === "/api/auth/password-signin") {
+      try {
+        return await handlePasswordSignIn(request);
+      } catch (error) {
+        console.error("[password-signin] unhandled error:", error);
+        return new Response(JSON.stringify({ success: false, error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    if (url.pathname === "/api/auth/password-signup") {
+      try {
+        return await handlePasswordSignUp(request);
+      } catch (error) {
+        console.error("[password-signup] unhandled error:", error);
+        return new Response(JSON.stringify({ success: false, error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    if (url.pathname === "/api/auth/logout") {
+      try {
+        return await handleLogout(request);
+      } catch (error) {
+        console.error("[logout] unhandled error:", error);
+        return new Response(JSON.stringify({ success: false, error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    // Auth.js's own protocol: /api/auth/signin/google, /api/auth/callback/google,
+    // /api/auth/session, /api/auth/csrf, /api/auth/signout, /api/auth/providers.
+    if (url.pathname.startsWith("/api/auth/")) {
+      try {
+        const handler = request.method === "POST" ? authHandlers.POST : authHandlers.GET;
+        return await handler({ request });
+      } catch (error) {
+        console.error("[auth] unhandled error:", error);
         return new Response(JSON.stringify({ error: "Internal error" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },

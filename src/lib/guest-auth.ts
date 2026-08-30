@@ -1,6 +1,3 @@
-import type { User } from "@supabase/supabase-js";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase-auth-client";
-
 const LS_KEY = "plix_guest_user";
 const AUTH_EVENT = "plix-guest-auth-change";
 
@@ -36,19 +33,12 @@ export function clearGuestUser(): void {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(AUTH_EVENT));
 }
 
-/**
- * Ends the real Supabase session, not just the local mirror — clearGuestUser()
- * alone would get silently undone by the onAuthStateChange listener below the
- * next time it fires (token refresh, tab focus, etc.) since the session would
- * still be active.
- */
+/** Ends the real Auth.js session (httpOnly cookie), not just the local mirror. */
 export async function signOutGuest(): Promise<void> {
-  if (isSupabaseConfigured) {
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      // fall through — still clear local state
-    }
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+  } catch {
+    // fall through — still clear local state
   }
   clearGuestUser();
 }
@@ -64,38 +54,50 @@ export function onGuestAuthChange(callback: () => void): () => void {
   };
 }
 
-function guestUserFromSupabaseUser(user: User): GuestUser {
-  const metadata = user.user_metadata as Record<string, unknown> | null;
-  const fullName = metadata?.["full_name"];
-  const base: GuestUser = { email: user.email ?? "", verifiedAt: new Date().toISOString() };
-  return typeof fullName === "string" ? { ...base, fullName } : base;
-}
+type AuthJsSession = { user?: { name?: string | null; email?: string | null; image?: string | null }; expires?: string } | null;
 
-// Keeps plix_guest_user (and everything that reads it — header, checkout,
-// coupon UI) in sync with the real Supabase Auth session. This is what
-// picks up a session after signInWithPassword/signUp resolve, and — since
-// Google OAuth is a full-page redirect — after the browser comes back from
-// Google and the SDK parses the callback on this module's next load.
-if (isSupabaseConfigured) {
-  supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      setGuestUser(guestUserFromSupabaseUser(session.user));
+/**
+ * Pulls the current session from Auth.js's own GET /api/auth/session (reads
+ * the httpOnly cookie server-side — this is the one Auth.js endpoint that
+ * correctly recognizes a session regardless of whether it came from the
+ * Google OAuth flow or the hand-written password login, since both issue
+ * the identically-formatted cookie; see password-auth.server.ts) and mirrors
+ * it into localStorage so getGuestUser() stays a synchronous read for every
+ * component that already calls it. Called once eagerly below, and safe to
+ * call again any time (e.g. after returning from a Google redirect).
+ */
+export async function refreshGuestSession(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const res = await fetch("/api/auth/session");
+    const session = (await res.json()) as AuthJsSession;
+    if (session?.user?.email) {
+      const base: GuestUser = { email: session.user.email, verifiedAt: new Date().toISOString() };
+      setGuestUser(session.user.name ? { ...base, fullName: session.user.name } : base);
     } else {
       clearGuestUser();
     }
-  });
+  } catch (err) {
+    console.error("[refreshGuestSession] failed:", err instanceof Error ? err.message : err);
+  }
+}
+
+if (typeof window !== "undefined") {
+  void refreshGuestSession();
 }
 
 export type AuthResult = { success: boolean; error?: string };
 
 export async function signInWithPassword(email: string, password: string): Promise<AuthResult> {
-  if (!isSupabaseConfigured) {
-    return { success: false, error: "Sign-in isn't available right now. Please try again later." };
-  }
   try {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    return { success: true };
+    const res = await fetch("/api/auth/password-signin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const result = (await res.json()) as AuthResult;
+    if (result.success) await refreshGuestSession();
+    return result;
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Sign-in failed. Please try again." };
   }
@@ -116,85 +118,38 @@ export function validatePassword(password: string): string | null {
 }
 
 export async function signUpWithPassword(email: string, password: string, fullName: string): Promise<SignUpResult> {
-  if (!isSupabaseConfigured) {
-    return { success: false, error: "Sign-up isn't available right now. Please try again later." };
-  }
   const passwordError = validatePassword(password);
   if (passwordError) {
     return { success: false, error: passwordError };
   }
   try {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
+    const res = await fetch("/api/auth/password-signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, fullName }),
     });
-    if (error) throw error;
-    // Fire-and-log, not fire-and-forget: the account is already created at
-    // this point, so an email failure here must never block or reverse the
-    // signup — it's just logged for diagnosis.
-    void sendWelcomeEmail(email, fullName);
-    return { success: true, needsEmailConfirmation: !data.session };
+    const result = (await res.json()) as AuthResult;
+    if (!result.success) return { success: false, error: result.error ?? "Sign-up failed. Please try again." };
+    await refreshGuestSession();
+    // Auth.js sets the session cookie immediately on signup (no separate
+    // email-confirmation step in this system), unlike the old Supabase Auth
+    // flow which could require confirming an email first.
+    return { success: true, needsEmailConfirmation: false };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Sign-up failed. Please try again." };
   }
 }
 
-async function sendWelcomeEmail(email: string, fullName: string): Promise<void> {
-  try {
-    const res = await fetch("/api/send-welcome-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, full_name: fullName }),
-    });
-    if (!res.ok) console.error("[send-welcome-email] request failed:", res.status);
-  } catch (err) {
-    console.error("[send-welcome-email] failed:", err instanceof Error ? err.message : err);
-  }
-}
-
-const GOOGLE_MAINTENANCE_MESSAGE = "Google sign-in is undergoing maintenance. Please sign in with Email & Password.";
-
 export async function signInWithGoogle(): Promise<AuthResult> {
-  if (!isSupabaseConfigured) {
+  if (typeof window === "undefined") {
     return { success: false, error: "Sign-in isn't available right now. Please try again later." };
   }
-  try {
-    // signInWithOAuth() never actually validates the provider server-side
-    // when it drives the redirect itself — it just builds the authorize URL
-    // and navigates there, so a disabled provider only surfaces as a raw
-    // JSON error page after the browser has already left the app (a
-    // try/catch around the call can't see that; the promise resolves fine
-    // right before the navigation happens). skipBrowserRedirect hands us
-    // the URL instead, so we can pre-flight it ourselves and only navigate
-    // once we know it's actually going to redirect to Google.
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin, skipBrowserRedirect: true },
-    });
-    if (error) throw error;
-    if (!data?.url) throw new Error("Google sign-in failed. Please try again.");
-
-    const preflight = await fetch(data.url, { redirect: "manual" });
-    if (preflight.type === "opaqueredirect" || (preflight.status >= 300 && preflight.status < 400)) {
-      window.location.assign(data.url);
-      return { success: true };
-    }
-
-    let unsupportedProvider = false;
-    try {
-      const body = (await preflight.json()) as { error_code?: string; msg?: string };
-      unsupportedProvider =
-        body.error_code === "validation_failed" || /provider is not enabled/i.test(body.msg ?? "");
-    } catch {
-      // non-JSON response — treat as a generic failure below
-    }
-
-    return {
-      success: false,
-      error: unsupportedProvider ? GOOGLE_MAINTENANCE_MESSAGE : "Google sign-in failed. Please try again.",
-    };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Google sign-in failed. Please try again." };
-  }
+  // A plain top-level navigation, same as a `<a href="/api/auth/signin/google">`
+  // link — Auth.js's signin action redirects straight to Google's
+  // authorization URL for a GET request naming a specific OAuth provider, no
+  // CSRF token or XHR handling needed for this path. If Google isn't
+  // configured on this deployment (no AUTH_GOOGLE_ID/SECRET), Auth.js falls
+  // back to its own generic sign-in page rather than erroring.
+  window.location.assign(`/api/auth/signin/google?callbackUrl=${encodeURIComponent(window.location.href)}`);
+  return { success: true };
 }

@@ -1,7 +1,6 @@
 import { useEffect, useState, type ComponentType, type FormEvent } from "react";
 import {
   CalendarCheck,
-  ChevronUp,
   Compass,
   MessageCircleQuestion,
   Mic,
@@ -133,86 +132,82 @@ export function PropertyConciergeWidget({ propertyName }: Props) {
     recognition.start();
   }
 
-  return (
-    // Lower-right per the reference design, z-50. Sits at bottom-36 rather
-    // than the site-wide WhatsApp pill + back-to-top stack's own bottom-6 —
-    // that stack (site-footer.tsx) already had one real overlap bug fixed
-    // here before; bottom-36 clears its full height (pill + gap + back-to-
-    // top button, ~144px) with room to spare instead of recreating it.
-    <div className="fixed bottom-36 right-6 z-50">
-      {open && (
-        <div className="animate-rise mb-3 w-[calc(100vw-3rem)] max-w-sm overflow-hidden rounded-3xl border border-border bg-card shadow-lift">
-          <div className="flex items-start justify-between gap-3 bg-navy px-5 py-4">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bronze">
-                Your private concierge
-              </p>
-              <p className="mt-1 text-sm leading-snug text-navy-foreground/85">
-                At your service, throughout your stay.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Close concierge"
-              className="shrink-0 rounded-full p-1 text-navy-foreground/70 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <X className="size-4" aria-hidden />
-            </button>
-          </div>
-
-          <div className="max-h-[45vh] overflow-y-auto p-2">
-            {actions.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                onClick={action.onSelect}
-                className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
-              >
-                <action.icon className="size-4 shrink-0 text-primary" aria-hidden />
-                {action.label}
-              </button>
-            ))}
-          </div>
-
-          <form onSubmit={handleAsk} className="flex items-center gap-2 border-t border-border p-3">
-            <input
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Ask about this villa..."
-              className="min-w-0 flex-1 rounded-full border border-input bg-background px-4 py-2.5 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40"
-            />
-            <button
-              type="button"
-              aria-label="Ask by voice"
-              onClick={handleMicClick}
-              className={`flex size-9 shrink-0 items-center justify-center rounded-full transition-colors ${
-                listening ? "bg-red-100 text-red-600" : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              }`}
-            >
-              <Mic className="size-4" aria-hidden />
-            </button>
-            <button
-              type="submit"
-              aria-label="Send"
-              disabled={!question.trim()}
-              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-emerald text-primary-foreground disabled:opacity-50"
-            >
-              <Send className="size-4" aria-hidden />
-            </button>
-          </form>
+  // Collapsed trigger and expanded card occupy the exact same fixed slot —
+  // right above the WhatsApp button (site-footer.tsx's pill sits at
+  // bottom-6; bottom-20 clears it) — rendered mutually exclusively rather
+  // than stacked, so there's never a second control floating below the open
+  // card (the card's own header X already closes it).
+  return open ? (
+    <div className="animate-rise fixed bottom-20 right-6 z-50 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div className="flex items-start justify-between gap-3 bg-navy px-5 py-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bronze">
+            Your private concierge
+          </p>
+          <p className="mt-1 text-sm leading-snug text-navy-foreground/85">
+            At your service, throughout your stay.
+          </p>
         </div>
-      )}
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          aria-label="Close concierge"
+          className="shrink-0 rounded-full p-1 text-navy-foreground/70 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          <X className="size-4" aria-hidden />
+        </button>
+      </div>
 
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex items-center gap-2 rounded-full bg-navy px-4 py-3 text-sm font-semibold text-navy-foreground shadow-lg transition-transform hover:scale-105"
-      >
-        {open ? <ChevronUp className="size-4" aria-hidden /> : <MessageCircleQuestion className="size-4" aria-hidden />}
-        Concierge
-      </button>
+      <div className="max-h-[45vh] overflow-y-auto p-2">
+        {actions.map((action) => (
+          <button
+            key={action.label}
+            type="button"
+            onClick={action.onSelect}
+            className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+          >
+            <action.icon className="size-4 shrink-0 text-primary" aria-hidden />
+            {action.label}
+          </button>
+        ))}
+      </div>
+
+      <form onSubmit={handleAsk} className="flex items-center gap-2 border-t border-border p-3">
+        <input
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="Ask about this villa..."
+          className="min-w-0 flex-1 rounded-full border border-input bg-background px-4 py-2.5 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40"
+        />
+        <button
+          type="button"
+          aria-label="Ask by voice"
+          onClick={handleMicClick}
+          className={`flex size-9 shrink-0 items-center justify-center rounded-full transition-colors ${
+            listening ? "bg-red-100 text-red-600" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+          }`}
+        >
+          <Mic className="size-4" aria-hidden />
+        </button>
+        <button
+          type="submit"
+          aria-label="Send"
+          disabled={!question.trim()}
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-emerald text-primary-foreground disabled:opacity-50"
+        >
+          <Send className="size-4" aria-hidden />
+        </button>
+      </form>
     </div>
+  ) : (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      aria-expanded={false}
+      className="fixed bottom-20 right-6 z-50 flex items-center gap-2 rounded-full bg-navy px-4 py-3 text-sm font-semibold text-navy-foreground shadow-2xl transition-transform hover:scale-105"
+    >
+      <MessageCircleQuestion className="size-4" aria-hidden />
+      Concierge
+    </button>
   );
 }

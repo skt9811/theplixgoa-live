@@ -154,7 +154,13 @@ export function CheckoutModal({
       });
       setBookingId(order.booking_id);
     } catch (error) {
-      console.error("[Razorpay Init Error]:", error);
+      // Order creation (createRazorpayOrderServerFn) failed — most commonly
+      // missing RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET in the deployment (see
+      // that function's own "[createRazorpayOrderServerFn] Razorpay
+      // credentials not configured" server-side log), or a Razorpay API
+      // error. Returning here means the popup is never opened — there is no
+      // path from this catch block to new window.Razorpay(...).
+      console.error("[RAZORPAY ORDER CREATION FAILED]", error);
       setStatus("error");
       const message = error instanceof Error ? error.message : "We couldn't start the checkout. Please try again or contact us.";
       toast.error(message);

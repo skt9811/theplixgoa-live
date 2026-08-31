@@ -222,6 +222,12 @@ declare global {
 
 type RazorpayOptions = {
   key: string;
+  // The order created server-side (createRazorpayOrderServerFn, via
+  // Razorpay's Orders API) before this widget ever opens. Passing it here is
+  // what actually links this checkout session to that pre-created order —
+  // without it, the widget runs in bare amount-only mode, disconnected from
+  // the order confirm-booking.server-fn.ts's signature check assumes.
+  order_id: string;
   amount: number;
   currency: string;
   name: string;
@@ -294,6 +300,7 @@ export async function openRazorpayCheckout(params: {
 
   const options: RazorpayOptions = {
     key: order.key_id,
+    order_id: order.order_id,
     amount: order.amount,
     currency: order.currency,
     name: "Plix Hospitality",

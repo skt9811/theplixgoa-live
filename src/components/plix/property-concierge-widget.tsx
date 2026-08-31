@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Bot, Languages, Mic, RotateCcw, Send, X } from "lucide-react";
+import { Bot, Globe, Mic, RotateCcw, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { conciergeChatServerFn, type ConciergeCard } from "@/lib/concierge-chat.server-fn";
 
@@ -43,6 +43,7 @@ type SpeechRecognitionLike = {
 };
 
 type Lang = "en" | "hi";
+type ChipKey = "amenities" | "spaces" | "dining" | "pets" | "nearby" | "rules" | "pricing" | "enquiry" | "maps";
 
 // The Language control switches this widget's own chrome (labels, chip
 // text, placeholder) between English and Hindi. It does NOT translate the
@@ -52,16 +53,22 @@ type Lang = "en" | "hi";
 // scope here; this toggle is honest about covering UI text only.
 const UI_STRINGS: Record<Lang, {
   subtitle: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  quickQuestions: string;
   placeholder: string;
   greeting: (name: string) => string;
   reset: string;
   close: string;
   language: string;
   typing: string;
-  chips: { nearby: string; rules: string; pricing: string; enquiry: string; maps: string };
+  chips: Record<ChipKey, string>;
 }> = {
   en: {
     subtitle: "Your Personal Villa Concierge",
+    heroTitle: "Let's Plan Your Stay",
+    heroSubtitle: "I'm here to help you plan your stay. Ask me anything about this villa.",
+    quickQuestions: "Quick Questions",
     placeholder: "Ask about this villa...",
     greeting: (name) =>
       `Hi! I'm Plix AI, here to help with anything about ${name}. Ask me about house rules, pricing, what's nearby, or tap a quick option below.`,
@@ -70,6 +77,10 @@ const UI_STRINGS: Record<Lang, {
     language: "Switch to Hindi",
     typing: "Plix AI is typing…",
     chips: {
+      amenities: "View amenities",
+      spaces: "View spaces",
+      dining: "Explore dining",
+      pets: "Are pets allowed?",
       nearby: "What's nearby?",
       rules: "House Rules",
       pricing: "Check availability and pricing",
@@ -79,6 +90,9 @@ const UI_STRINGS: Record<Lang, {
   },
   hi: {
     subtitle: "आपका निजी विला कंसीयज",
+    heroTitle: "आपकी स्टे प्लान करें",
+    heroSubtitle: "मैं आपकी स्टे प्लान करने में मदद के लिए यहां हूं। इस विला के बारे में कुछ भी पूछें।",
+    quickQuestions: "त्वरित प्रश्न",
     placeholder: "इस विला के बारे में पूछें...",
     greeting: (name) =>
       `नमस्ते! मैं Plix AI हूं, ${name} के बारे में किसी भी सवाल में मदद के लिए यहां हूं। हाउस रूल्स, कीमत, या आस-पास की जगहों के बारे में पूछें।`,
@@ -87,6 +101,10 @@ const UI_STRINGS: Record<Lang, {
     language: "Switch to English",
     typing: "Plix AI लिख रहा है…",
     chips: {
+      amenities: "सुविधाएं देखें",
+      spaces: "स्थान देखें",
+      dining: "भोजन विकल्प",
+      pets: "क्या पालतू जानवर की अनुमति है?",
       nearby: "आस-पास क्या है?",
       rules: "हाउस रूल्स",
       pricing: "उपलब्धता और कीमत देखें",
@@ -99,31 +117,35 @@ const UI_STRINGS: Record<Lang, {
 // The chip's displayed label follows the language toggle; the query actually
 // sent to the server is always this fixed English text, matching what
 // concierge-chat.server-fn.ts's keyword patterns understand.
-const CHIP_QUERIES = {
-  nearby: "What's nearby?",
-  rules: "What are the house rules?",
-  pricing: "What's the availability and pricing?",
-  enquiry: "I'd like to make an enquiry.",
-  maps: "Show me on Google Maps.",
-} as const;
+const CHIPS: { key: ChipKey; emoji: string; query: string }[] = [
+  { key: "amenities", emoji: "🛋️", query: "What amenities does this villa have?" },
+  { key: "spaces", emoji: "🏠", query: "Tell me about the rooms and spaces." },
+  { key: "dining", emoji: "🍴", query: "What are the dining options?" },
+  { key: "pets", emoji: "🐶", query: "Are pets allowed?" },
+  { key: "nearby", emoji: "🏔️", query: "What's nearby?" },
+  { key: "rules", emoji: "📋", query: "What are the house rules?" },
+  { key: "pricing", emoji: "📅", query: "What's the availability and pricing?" },
+  { key: "enquiry", emoji: "💬", query: "I'd like to make an enquiry." },
+  { key: "maps", emoji: "🗺️", query: "Show me on Google Maps." },
+];
 
 function ConciergeCardView({ card }: { card: ConciergeCard }) {
   const [activeTab, setActiveTab] = useState(0);
   const bullets = card.tabs ? card.tabs[activeTab]?.bullets : card.bullets;
 
   return (
-    <div className="mt-2 overflow-hidden rounded-xl border border-border bg-background">
-      <p className="border-b border-border px-3 py-2 text-xs font-semibold text-navy">{card.title}</p>
+    <div className="mt-2 overflow-hidden rounded-xl border border-[#F3E5DC] bg-white">
+      <p className="border-b border-[#F3E5DC] px-3 py-2 text-xs font-semibold text-navy">{card.title}</p>
 
       {card.tabs && (
-        <div className="flex gap-1 border-b border-border px-2 pt-2">
+        <div className="flex gap-1 border-b border-[#F3E5DC] px-2 pt-2">
           {card.tabs.map((tab, i) => (
             <button
               key={tab.label}
               type="button"
               onClick={() => setActiveTab(i)}
               className={`rounded-t-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-                activeTab === i ? "bg-accent text-navy" : "text-muted-foreground hover:text-foreground"
+                activeTab === i ? "bg-[#F3E5DC]/60 text-navy" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {tab.label}
@@ -136,7 +158,7 @@ function ConciergeCardView({ card }: { card: ConciergeCard }) {
         <ul className="space-y-1.5 p-3 text-xs leading-relaxed text-muted-foreground">
           {bullets.map((b, i) => (
             <li key={i} className="flex gap-1.5">
-              <span className="shrink-0 text-primary">•</span>
+              <span className="shrink-0 text-[#C87D65]">•</span>
               {b}
             </li>
           ))}
@@ -148,7 +170,7 @@ function ConciergeCardView({ card }: { card: ConciergeCard }) {
           href={card.link.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="block border-t border-border px-3 py-2.5 text-center text-xs font-semibold text-primary hover:bg-accent"
+          className="block border-t border-[#F3E5DC] px-3 py-2.5 text-center text-xs font-semibold text-[#C87D65] hover:bg-[#FFFBF9]"
         >
           {card.link.label}
         </a>
@@ -158,7 +180,7 @@ function ConciergeCardView({ card }: { card: ConciergeCard }) {
         <button
           type="button"
           onClick={() => scrollToSection(card.action!.sectionId)}
-          className="block w-full border-t border-border px-3 py-2.5 text-center text-xs font-semibold text-primary hover:bg-accent"
+          className="block w-full border-t border-[#F3E5DC] px-3 py-2.5 text-center text-xs font-semibold text-[#C87D65] hover:bg-[#FFFBF9]"
         >
           {card.action.label}
         </button>
@@ -179,6 +201,7 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
   const streamEndRef = useRef<HTMLDivElement>(null);
 
   const t = UI_STRINGS[lang];
+  const hasUserSent = messages.some((m) => m.role === "user");
 
   // Auto-open on desktop landing. Starts closed (matching SSR, which has no
   // window to check) and flips open on mount if the viewport is desktop-
@@ -232,8 +255,8 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
     }
   }
 
-  function handleChipClick(key: keyof typeof CHIP_QUERIES) {
-    void sendMessage(t.chips[key], CHIP_QUERIES[key]);
+  function handleChipClick(chip: { key: ChipKey; emoji: string; query: string }) {
+    void sendMessage(`${chip.emoji} ${t.chips[chip.key]}`, chip.query);
   }
 
   function handleSubmit(e: FormEvent) {
@@ -286,33 +309,33 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
   }
 
   return (
-    <div className="animate-rise fixed bottom-20 right-6 z-50 flex w-84 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-      <div className="flex items-start justify-between gap-2 bg-navy px-4 py-3.5">
+    <div className="animate-rise fixed bottom-20 right-6 z-50 flex w-84 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-[#F3E5DC] bg-[#FFFBF9] shadow-2xl">
+      <div className="flex items-start justify-between gap-2 border-b border-[#F3E5DC] bg-[#FFFBF9] px-4 py-3.5">
         <div className="flex items-start gap-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-bronze/20 text-bronze">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#F3E5DC] text-[#C87D65]">
             <Bot className="size-4" aria-hidden />
           </span>
           <div>
-            <p className="text-sm font-bold leading-tight text-white">Plix AI</p>
-            <p className="mt-0.5 text-[11px] leading-snug text-navy-foreground/75">{t.subtitle}</p>
+            <p className="font-serif text-base font-bold leading-tight text-navy">Plix AI</p>
+            <p className="mt-0.5 text-[11px] leading-snug text-[#A9786B]">{t.subtitle}</p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
             onClick={handleLanguageToggle}
             aria-label={t.language}
             title={t.language}
-            className="rounded-full p-1.5 text-navy-foreground/70 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex size-7 items-center justify-center rounded-full border border-[#F3E5DC] text-[#A9786B] transition-colors hover:bg-[#F3E5DC]/50 hover:text-navy"
           >
-            <Languages className="size-3.5" aria-hidden />
+            <Globe className="size-3.5" aria-hidden />
           </button>
           <button
             type="button"
             onClick={handleReset}
             aria-label={t.reset}
             title={t.reset}
-            className="rounded-full p-1.5 text-navy-foreground/70 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex size-7 items-center justify-center rounded-full border border-[#F3E5DC] text-[#A9786B] transition-colors hover:bg-[#F3E5DC]/50 hover:text-navy"
           >
             <RotateCcw className="size-3.5" aria-hidden />
           </button>
@@ -321,63 +344,78 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
             onClick={() => setOpen(false)}
             aria-label={t.close}
             title={t.close}
-            className="rounded-full p-1.5 text-navy-foreground/70 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex size-7 items-center justify-center rounded-full border border-[#F3E5DC] text-[#A9786B] transition-colors hover:bg-[#F3E5DC]/50 hover:text-navy"
           >
             <X className="size-4" aria-hidden />
           </button>
         </div>
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto border-b border-border bg-muted/40 px-3 py-2.5">
-        {(Object.keys(CHIP_QUERIES) as (keyof typeof CHIP_QUERIES)[]).map((key) => (
-          <button
-            key={key}
-            type="button"
-            disabled={sending}
-            onClick={() => handleChipClick(key)}
-            className="shrink-0 whitespace-nowrap rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
-          >
-            {t.chips[key]}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex max-h-[380px] min-h-[220px] flex-col gap-3 overflow-y-auto p-3">
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                msg.role === "user" ? "bg-gradient-emerald text-primary-foreground" : "bg-muted text-foreground"
-              }`}
-            >
-              <p>{msg.content}</p>
-              {msg.cards?.map((card, ci) => <ConciergeCardView key={ci} card={card} />)}
+      {hasUserSent ? (
+        <div className="flex max-h-[380px] min-h-[220px] flex-col gap-3 overflow-y-auto bg-white p-3">
+          {messages.map((msg, i) => (
+            <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div
+                className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                  msg.role === "user" ? "bg-[#C87D65] text-white" : "bg-[#FFFBF9] text-foreground"
+                }`}
+              >
+                <p>{msg.content}</p>
+                {msg.cards?.map((card, ci) => <ConciergeCardView key={ci} card={card} />)}
+              </div>
             </div>
+          ))}
+          {sending && (
+            <div className="flex justify-start">
+              <div className="rounded-2xl bg-[#FFFBF9] px-3.5 py-2.5 text-sm text-muted-foreground">{t.typing}</div>
+            </div>
+          )}
+          <div ref={streamEndRef} />
+        </div>
+      ) : (
+        <div className="flex min-h-[220px] flex-col items-center gap-4 bg-white px-5 py-6 text-center">
+          <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-[#F3E5DC] text-3xl" aria-hidden>
+            🤖
+          </span>
+          <div>
+            <p className="font-serif text-xl font-bold text-navy">{t.heroTitle}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{t.heroSubtitle}</p>
           </div>
-        ))}
-        {sending && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl bg-muted px-3.5 py-2.5 text-sm text-muted-foreground">{t.typing}</div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#B8860B]">{t.quickQuestions}</p>
+          <div className="grid w-full grid-cols-2 gap-2">
+            {CHIPS.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                disabled={sending}
+                onClick={() => handleChipClick(chip)}
+                className="flex items-center justify-center gap-1.5 rounded-full border border-[#F3E5DC] bg-white px-3 py-2 text-xs font-semibold text-navy shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#C87D65]/50 hover:shadow-md disabled:opacity-50"
+              >
+                <span aria-hidden>{chip.emoji}</span>
+                {t.chips[chip.key]}
+              </button>
+            ))}
           </div>
-        )}
-        <div ref={streamEndRef} />
-      </div>
+        </div>
+      )}
 
-      <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-border p-3">
+      <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-[#F3E5DC] bg-[#FFFBF9] p-3">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={t.placeholder}
           disabled={sending}
-          className="min-w-0 flex-1 rounded-full border border-input bg-background px-4 py-2.5 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40 disabled:opacity-60"
+          className="min-w-0 flex-1 rounded-full border border-[#E8D5C8] bg-white px-4 py-2.5 text-sm outline-none transition-shadow focus:ring-2 focus:ring-[#C87D65]/30 disabled:opacity-60"
         />
         <button
           type="button"
           aria-label="Ask by voice"
           onClick={handleMicClick}
           disabled={sending}
-          className={`flex size-9 shrink-0 items-center justify-center rounded-full transition-colors ${
-            listening ? "bg-red-100 text-red-600" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+          className={`flex size-9 shrink-0 items-center justify-center rounded-full border transition-colors ${
+            listening
+              ? "border-red-200 bg-red-100 text-red-600"
+              : "border-[#E8D5C8] text-muted-foreground hover:bg-[#FFFBF9] hover:text-[#C87D65]"
           } disabled:opacity-50`}
         >
           <Mic className="size-4" aria-hidden />
@@ -386,7 +424,7 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
           type="submit"
           aria-label="Send"
           disabled={!input.trim() || sending}
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-emerald text-primary-foreground disabled:opacity-50"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#C87D65] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           <Send className="size-4" aria-hidden />
         </button>

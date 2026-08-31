@@ -126,6 +126,17 @@ function amenitiesCard(property: Property): ConciergeCard {
   };
 }
 
+function spacesCard(property: Property): ConciergeCard {
+  return {
+    title: "Spaces",
+    bullets: [
+      `${property.bedrooms} bedroom${property.bedrooms === 1 ? "" : "s"} · ${property.bathrooms} bathroom${property.bathrooms === 1 ? "" : "s"}.`,
+      `Sleeps up to ${property.max_guests} guests.`,
+      poolPolicyLine(property),
+    ],
+  };
+}
+
 function diningAnswer(property: Property): string {
   const hasRestaurant = property.amenity_tags.includes("Restaurant") || property.amenity_tags.includes("On-site Restaurant");
   const hasBreakfast = property.amenity_tags.includes("Breakfast Included");
@@ -169,6 +180,10 @@ const INTENTS: { pattern: RegExp; respond: (p: Property) => ConciergeChatResult 
   {
     pattern: /amenit|wifi|wi-fi|parking|air ?condition|\bac\b|kitchen(?!ette)/i,
     respond: (p) => ({ content: `Here's what ${p.name} offers:`, cards: [amenitiesCard(p)] }),
+  },
+  {
+    pattern: /\bspace|room|bedroom|bathroom|layout\b/i,
+    respond: (p) => ({ content: `Here's a look at the spaces at ${p.name}:`, cards: [spacesCard(p)] }),
   },
   {
     pattern: /dining|food|meal|breakfast|restaurant|eat/i,

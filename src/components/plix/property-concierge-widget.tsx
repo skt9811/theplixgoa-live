@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type FormEvent } from "react";
+import { useEffect, useState, type ComponentType, type FormEvent } from "react";
 import {
   CalendarCheck,
   ChevronUp,
@@ -17,6 +17,19 @@ import { toast } from "sonner";
 import { SITE_PHONE_1 } from "@/lib/seo";
 
 type Props = { propertyName: string };
+
+// PropertySubNav dispatches this when its "FAQ's" tab is clicked, so that
+// click can both open this widget and (separately, in PropertySubNav itself)
+// scroll to the on-page FAQ section — a plain window CustomEvent rather than
+// prop-drilling/lifted state, matching the "plix-data-change" event this
+// codebase already uses for the same kind of decoupled cross-component signal.
+export const OPEN_CONCIERGE_EVENT = "plix-open-concierge";
+
+// Matches the "lg" breakpoint the rest of this page already switches its
+// layout on (e.g. the lg:col-span-8/4 split) — desktop gets the card
+// expanded on landing per the design; mobile stays collapsed since an
+// expanded card would cover most of a phone screen.
+const DESKTOP_QUERY = "(min-width: 1024px)";
 
 type QuickAction = {
   label: string;
@@ -47,6 +60,23 @@ export function PropertyConciergeWidget({ propertyName }: Props) {
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [listening, setListening] = useState(false);
+
+  // Auto-open on desktop landing. Starts closed (matching SSR, which has no
+  // window to check) and flips open on mount if the viewport is desktop-
+  // width — a normal post-hydration state update, not a hydration mismatch.
+  useEffect(() => {
+    if (window.matchMedia(DESKTOP_QUERY).matches) setOpen(true);
+  }, []);
+
+  // The property sub-nav's "FAQ's" tab fires this to open the card directly,
+  // in addition to its own scroll to the on-page FAQ section.
+  useEffect(() => {
+    function handleOpenRequest() {
+      setOpen(true);
+    }
+    window.addEventListener(OPEN_CONCIERGE_EVENT, handleOpenRequest);
+    return () => window.removeEventListener(OPEN_CONCIERGE_EVENT, handleOpenRequest);
+  }, []);
 
   const whatsappNumber = SITE_PHONE_1.replace(/\D/g, "");
 
@@ -104,7 +134,12 @@ export function PropertyConciergeWidget({ propertyName }: Props) {
   }
 
   return (
-    <div className="fixed bottom-6 left-6 z-40">
+    // Lower-right per the reference design, z-50. Sits at bottom-36 rather
+    // than the site-wide WhatsApp pill + back-to-top stack's own bottom-6 —
+    // that stack (site-footer.tsx) already had one real overlap bug fixed
+    // here before; bottom-36 clears its full height (pill + gap + back-to-
+    // top button, ~144px) with room to spare instead of recreating it.
+    <div className="fixed bottom-36 right-6 z-50">
       {open && (
         <div className="animate-rise mb-3 w-[calc(100vw-3rem)] max-w-sm overflow-hidden rounded-3xl border border-border bg-card shadow-lift">
           <div className="flex items-start justify-between gap-3 bg-navy px-5 py-4">

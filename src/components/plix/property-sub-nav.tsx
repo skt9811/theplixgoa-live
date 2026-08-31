@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useStickyHeaderOffset } from "@/lib/use-sticky-header-offset";
+import { OPEN_CONCIERGE_EVENT } from "@/components/plix/property-concierge-widget";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -53,6 +54,12 @@ export function PropertySubNav() {
   }, [headerOffset]);
 
   function handleClick(id: string) {
+    // The FAQ's tab also opens the concierge card directly, not just the
+    // on-page FAQ section — the card itself surfaces quick answers (pets,
+    // house rules, etc.) without waiting for the accordion scroll.
+    if (id === "faqs") {
+      window.dispatchEvent(new CustomEvent(OPEN_CONCIERGE_EVENT));
+    }
     const el = document.getElementById(id);
     if (!el) return;
     const top = el.getBoundingClientRect().top + window.scrollY - headerOffset - SUB_NAV_HEIGHT - 12;

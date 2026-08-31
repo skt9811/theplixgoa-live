@@ -168,34 +168,40 @@ function buildAdminAlertEmail(rawEmail: string): string {
 function buildNewsletterEmail(): string {
   return `<!DOCTYPE html>
 <html>
-  <body style="margin:0;padding:0;background-color:#f4f1ea;font-family:Manrope,Arial,sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f1ea;padding:32px 16px;">
+  <body style="margin:0;padding:0;background-color:#f6f1e7;font-family:Manrope,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f6f1e7;padding:40px 16px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(26,34,56,0.10);">
             <tr>
-              <td style="background-color:#1a2238;padding:40px 40px 32px;text-align:center;">
-                <p style="margin:0;color:#c29b72;font-size:12px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">The Plix Club</p>
-                <h1 style="margin:16px 0 0;color:#ffffff;font-size:26px;font-weight:700;line-height:1.3;">You're in!</h1>
+              <td style="background-color:#1a2238;padding:48px 40px 36px;text-align:center;">
+                <p style="margin:0;color:#c29b72;font-size:11px;font-weight:700;letter-spacing:4px;text-transform:uppercase;">The Plix Club</p>
+                <h1 style="margin:18px 0 0;color:#ffffff;font-family:Georgia,'Times New Roman',serif;font-size:30px;font-weight:700;line-height:1.3;">
+                  Welcome to The Plix Club
+                </h1>
               </td>
             </tr>
             <tr>
-              <td style="padding:36px 40px 8px;color:#1a2238;">
-                <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">
-                  Thanks for joining The Plix Club. You'll now be first to hear about insider North Goa
-                  travel guides, secret villa deals, and offers we don't publish anywhere else.
+              <td style="padding:40px 40px 8px;color:#4b5468;text-align:center;">
+                <p style="margin:0;font-size:15px;line-height:1.7;">
+                  You're now part of an inner circle that hears first — insider North Goa travel guides,
+                  private villa releases, and offers we never publish anywhere else.
                 </p>
               </td>
             </tr>
             <tr>
-              <td style="padding:8px 40px 0;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8e6d3;border-radius:12px;">
+              <td style="padding:28px 40px 0;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8e6d3;border-radius:16px;border:1px solid #e8cba3;">
                   <tr>
-                    <td style="padding:28px;text-align:center;">
-                      <p style="margin:0 0 6px;color:#8a6a48;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Your welcome offer</p>
-                      <p style="margin:0 0 10px;color:#1a2238;font-size:28px;font-weight:800;letter-spacing:2px;">${DISCOUNT_CODE}</p>
-                      <p style="margin:0;color:#8a6a48;font-size:14px;line-height:1.5;">
-                        5% off your first direct booking. Enter this code at checkout on any villa or resort.
+                    <td style="padding:32px;text-align:center;">
+                      <p style="margin:0 0 10px;color:#8a6a48;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:2px;">
+                        Enjoy 5% OFF your next direct stay
+                      </p>
+                      <p style="margin:0 0 12px;color:#1a2238;font-family:Georgia,'Times New Roman',serif;font-size:32px;font-weight:700;letter-spacing:3px;">
+                        ${DISCOUNT_CODE}
+                      </p>
+                      <p style="margin:0;color:#8a6a48;font-size:13px;line-height:1.5;">
+                        Apply this code at checkout on any villa or resort, direct with us — zero OTA commission, always.
                       </p>
                     </td>
                   </tr>
@@ -203,20 +209,20 @@ function buildNewsletterEmail(): string {
               </td>
             </tr>
             <tr>
-              <td style="padding:32px 40px 8px;text-align:center;">
-                <a href="${STAYS_URL}" style="display:inline-block;background-color:#c29b72;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:999px;">
-                  Explore Our Villas
+              <td style="padding:36px 40px 8px;text-align:center;">
+                <a href="${STAYS_URL}" style="display:inline-block;background-color:#c29b72;color:#ffffff;font-size:14px;font-weight:700;letter-spacing:0.5px;text-decoration:none;padding:16px 44px;border-radius:999px;">
+                  Explore Villas
                 </a>
               </td>
             </tr>
             <tr>
-              <td style="padding:32px 40px 40px;color:#1a2238;">
-                <p style="margin:0 0 4px;font-size:15px;line-height:1.6;">Warm regards,</p>
-                <p style="margin:0;font-size:15px;font-weight:700;line-height:1.6;">The Plix Team</p>
+              <td style="padding:40px 40px 40px;text-align:center;border-top:1px solid #eee;">
+                <p style="margin:24px 0 4px;font-size:14px;line-height:1.6;color:#4b5468;">Warm regards,</p>
+                <p style="margin:0;font-size:14px;font-weight:700;line-height:1.6;color:#1a2238;">The Plix Hospitality Team</p>
               </td>
             </tr>
           </table>
-          <p style="margin:20px 0 0;color:#9a9a9a;font-size:12px;">The Plix Goa · North Goa, India</p>
+          <p style="margin:24px 0 0;color:#9a9a9a;font-size:12px;">Plix Hospitality Private Limited · North Goa, India</p>
         </td>
       </tr>
     </table>

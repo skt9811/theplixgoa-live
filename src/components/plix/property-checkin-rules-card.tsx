@@ -25,7 +25,7 @@ export function PropertyCheckinRulesCard() {
   }
 
   return (
-    <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-soft">
+    <div id="house-rules" className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-soft">
       <div className="flex flex-wrap gap-2">
         {TABS.map((tab) => (
           <button

@@ -19,6 +19,7 @@ import { PropertyQuickFacts } from "@/components/plix/property-quick-facts";
 import { PropertyRefundTimeline } from "@/components/plix/property-refund-timeline";
 import { PropertyFaq } from "@/components/plix/property-faq";
 import { PropertyConnectHostCard } from "@/components/plix/property-connect-host-card";
+import { PropertyConciergeWidget } from "@/components/plix/property-concierge-widget";
 import { PropertyCheckinRulesCard } from "@/components/plix/property-checkin-rules-card";
 import { amenityIcon } from "@/components/plix/amenity-icons";
 import { useStickyHeaderOffset } from "@/lib/use-sticky-header-offset";
@@ -491,6 +492,7 @@ function PropertyDetail() {
         </div>
 
         <aside
+          id="book"
           className="lg:col-span-4 sticky top-24 self-start max-h-[calc(100vh-7rem)] overflow-y-auto"
           style={{ top: asideTop }}
         >
@@ -670,6 +672,8 @@ function PropertyDetail() {
           </div>
         </aside>
       </div>
+
+      <PropertyConciergeWidget propertyName={property.name} />
 
       {checkoutOpen && (
         <Suspense fallback={null}>

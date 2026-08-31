@@ -7,7 +7,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { PROPERTIES, formatINR, type Property } from "@/lib/plix";
 import { fetchPropertiesWithOverrides } from "@/lib/properties-data";
-import { SITE_PHONE_1 } from "@/lib/seo";
+import { SITE_PHONE_1, SITE_PHONE_2 } from "@/lib/seo";
 
 export type ConciergeCardTab = { label: string; bullets: string[] };
 export type ConciergeCard = {
@@ -36,8 +36,8 @@ function whatsappLink(property: Property, message: string): string {
 
 function petPolicyLine(property: Property): string {
   return property.amenity_tags.includes("Pet Friendly")
-    ? "Pets are welcome here — let us know ahead of your stay so we can prepare."
-    : "This property doesn't currently list pet-friendly amenities. Contact us directly and we'll check what's possible for your dates.";
+    ? `${property.name} is pet-friendly — furry companions are welcome upon request. Let us know ahead of your stay so we can prepare.`
+    : `${property.name} doesn't currently list pet-friendly amenities. Contact our team directly and we'll check what's possible for your dates.`;
 }
 
 function poolPolicyLine(property: Property): string {
@@ -97,15 +97,37 @@ function pricingCard(property: Property): ConciergeCard {
   };
 }
 
-function enquiryCard(property: Property): ConciergeCard {
+function contactCard(property: Property): ConciergeCard {
   return {
-    title: "Talk to our team",
+    title: "Reach our reservations desk",
     bullets: [
-      "Our team typically replies within minutes on WhatsApp.",
-      "Ask about group bookings, custom itineraries, or anything not covered here.",
+      `Call us: ${SITE_PHONE_1}`,
+      `or: ${SITE_PHONE_2}`,
+      "Our team typically replies within minutes on WhatsApp too — ask about group bookings, custom itineraries, or anything not covered here.",
     ],
     link: { label: "Message us on WhatsApp", href: whatsappLink(property, `Hi! I have a question about ${property.name}.`) },
   };
+}
+
+function petsCard(property: Property): ConciergeCard {
+  return { title: "Pet Policy", bullets: [petPolicyLine(property)] };
+}
+
+function diningCard(property: Property): ConciergeCard {
+  const hasRestaurant = property.amenity_tags.includes("Restaurant") || property.amenity_tags.includes("On-site Restaurant");
+  const hasBreakfast = property.amenity_tags.includes("Breakfast Included");
+  const bullets: string[] = [];
+  if (hasRestaurant) {
+    bullets.push(`${property.name} has an on-site restaurant serving local and international dishes, so you can eat in without leaving the property.`);
+  }
+  if (hasBreakfast) {
+    bullets.push("Breakfast is included during your stay — your caretaker can confirm exact timings once you check in.");
+  }
+  if (!hasRestaurant && !hasBreakfast) {
+    bullets.push("This is a self-catered stay with a fully equipped kitchen — cook your own meals, or ask your caretaker to arrange a private chef or a home-cooked Goan spread on request.");
+  }
+  bullets.push("For nearby restaurants and cafes, ask your caretaker or tap \"What's nearby\" — they'll know the best current spots.");
+  return { title: "Dining", bullets };
 }
 
 function mapsCard(property: Property): ConciergeCard {
@@ -137,25 +159,20 @@ function spacesCard(property: Property): ConciergeCard {
   };
 }
 
-function diningAnswer(property: Property): string {
-  const hasRestaurant = property.amenity_tags.includes("Restaurant") || property.amenity_tags.includes("On-site Restaurant");
-  const hasBreakfast = property.amenity_tags.includes("Breakfast Included");
-  if (hasRestaurant) {
-    return `${property.name} has an on-site restaurant serving local and international dishes, so you can eat in without leaving the property.`;
-  }
-  if (hasBreakfast) {
-    return "Breakfast is included during your stay. For lunch and dinner, the villa's kitchen is fully equipped, or ask your caretaker to arrange a private chef.";
-  }
-  return "This is a self-catered stay with a fully equipped kitchen — cook your own meals, or ask your caretaker to arrange a private chef or a home-cooked Goan spread on request.";
-}
-
-// Matched in order — the first intent whose pattern hits wins, so more
-// specific phrasing (e.g. "pet friendly") should be checked before broader
-// catch-alls (e.g. a generic "amenities" match).
+// Matched in order — the first intent whose pattern hits wins. The
+// contact/phone and dining intents are checked early and deliberately:
+// "room service" (a dining phrase) would otherwise fall into the spaces
+// intent's generic \broom\b match, and "contact"/"call"/"whatsapp" used to
+// be lumped into the generic enquiry intent, which never actually stated a
+// phone number — both were real mismatches this fixes.
 const INTENTS: { pattern: RegExp; respond: (p: Property) => ConciergeChatResult }[] = [
   {
-    pattern: /\bpet|dog|cat\b/i,
-    respond: (p) => ({ content: petPolicyLine(p), cards: [houseRulesCard(p)] }),
+    pattern: /contact no|contact number|\bphone\b|\bcall\b|\bnumber\b|whatsapp/i,
+    respond: (p) => ({ content: "Here's the fastest way to reach us:", cards: [contactCard(p)] }),
+  },
+  {
+    pattern: /\bpets?\b|\bdog\b|\bcat\b/i,
+    respond: (p) => ({ content: petPolicyLine(p), cards: [petsCard(p)] }),
   },
   {
     pattern: /house ?rule|check-?in|check-?out|deposit|id proof|document/i,
@@ -174,20 +191,25 @@ const INTENTS: { pattern: RegExp; respond: (p: Property) => ConciergeChatResult 
     respond: (p) => ({ content: "Here's the current pricing:", cards: [pricingCard(p)] }),
   },
   {
-    pattern: /enquiry|inquiry|contact|call|whatsapp|talk to|host|human/i,
-    respond: (p) => ({ content: "Happy to connect you with our team directly:", cards: [enquiryCard(p)] }),
+    pattern: /enquiry|inquiry|talk to|host|human/i,
+    respond: (p) => ({ content: "Happy to connect you with our team directly:", cards: [contactCard(p)] }),
+  },
+  {
+    pattern: /menu|dining|food|meal|breakfast|restaurant|room service|\beat\b/i,
+    respond: (p) => ({ content: `Here's dining at ${p.name}:`, cards: [diningCard(p)] }),
   },
   {
     pattern: /amenit|wifi|wi-fi|parking|air ?condition|\bac\b|kitchen(?!ette)/i,
     respond: (p) => ({ content: `Here's what ${p.name} offers:`, cards: [amenitiesCard(p)] }),
   },
   {
-    pattern: /\bspace|room|bedroom|bathroom|layout\b/i,
+    // Excludes "room service" defensively too, in case a future caller
+    // reorders this list — dining is checked first above regardless. The
+    // `s?` on each word matters: an unqualified trailing \b (as this used
+    // to have) fails to match the plural ("spaces", "rooms") at all, since
+    // \b requires a boundary immediately after the literal text.
+    pattern: /\bspaces?\b|\brooms?(?!\s*service)\b|\bbedrooms?\b|\bbathrooms?\b|\blayout\b/i,
     respond: (p) => ({ content: `Here's a look at the spaces at ${p.name}:`, cards: [spacesCard(p)] }),
-  },
-  {
-    pattern: /dining|food|meal|breakfast|restaurant|eat/i,
-    respond: (p) => ({ content: diningAnswer(p), cards: [] }),
   },
 ];
 
@@ -196,8 +218,8 @@ function answerConciergeQuery(property: Property, message: string): ConciergeCha
     if (intent.pattern.test(message)) return intent.respond(property);
   }
   return {
-    content: `I couldn't quite match that to something I know about ${property.name} — try asking about house rules, pricing, what's nearby, or tap below and our team will help directly.`,
-    cards: [enquiryCard(property)],
+    content: `I couldn't find an exact match for that in ${property.name}'s listing — but our reservations team can answer it directly:`,
+    cards: [contactCard(property)],
   };
 }
 

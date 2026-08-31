@@ -1,21 +1,15 @@
-import { useEffect, useState, type ComponentType, type FormEvent } from "react";
-import {
-  CalendarCheck,
-  Compass,
-  MessageCircleQuestion,
-  Mic,
-  PawPrint,
-  ScrollText,
-  Send,
-  Sofa,
-  Sparkles,
-  UtensilsCrossed,
-  X,
-} from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Bot, Languages, Mic, RotateCcw, Send, X } from "lucide-react";
 import { toast } from "sonner";
-import { SITE_PHONE_1 } from "@/lib/seo";
+import { conciergeChatServerFn, type ConciergeCard } from "@/lib/concierge-chat.server-fn";
 
-type Props = { propertyName: string };
+type Props = { propertyName: string; propertySlug: string };
+
+type ConciergeMessage = {
+  role: "user" | "assistant";
+  content: string;
+  cards?: ConciergeCard[];
+};
 
 // PropertySubNav dispatches this when its "FAQ's" tab is clicked, so that
 // click can both open this widget and (separately, in PropertySubNav itself)
@@ -30,15 +24,8 @@ export const OPEN_CONCIERGE_EVENT = "plix-open-concierge";
 // expanded card would cover most of a phone screen.
 const DESKTOP_QUERY = "(min-width: 1024px)";
 
-type QuickAction = {
-  label: string;
-  icon: ComponentType<{ className?: string }>;
-  onSelect: () => void;
-};
-
 // Same scrollIntoView pattern PropertySubNav and PropertyCheckinRulesCard
-// already use for in-page navigation — kept consistent rather than adding a
-// second way of doing the same thing.
+// already use for in-page navigation.
 function scrollToSection(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -55,10 +42,143 @@ type SpeechRecognitionLike = {
   start: () => void;
 };
 
-export function PropertyConciergeWidget({ propertyName }: Props) {
+type Lang = "en" | "hi";
+
+// The Language control switches this widget's own chrome (labels, chip
+// text, placeholder) between English and Hindi. It does NOT translate the
+// assistant's actual answers — those come from conciergeChatServerFn's
+// rule-based matcher, which only understands English property data and
+// English question phrasing. A full bilingual answer engine is out of
+// scope here; this toggle is honest about covering UI text only.
+const UI_STRINGS: Record<Lang, {
+  subtitle: string;
+  placeholder: string;
+  greeting: (name: string) => string;
+  reset: string;
+  close: string;
+  language: string;
+  typing: string;
+  chips: { nearby: string; rules: string; pricing: string; enquiry: string; maps: string };
+}> = {
+  en: {
+    subtitle: "Your Personal Villa Concierge",
+    placeholder: "Ask about this villa...",
+    greeting: (name) =>
+      `Hi! I'm Plix AI, here to help with anything about ${name}. Ask me about house rules, pricing, what's nearby, or tap a quick option below.`,
+    reset: "Reset chat",
+    close: "Close concierge",
+    language: "Switch to Hindi",
+    typing: "Plix AI is typing…",
+    chips: {
+      nearby: "What's nearby?",
+      rules: "House Rules",
+      pricing: "Check availability and pricing",
+      enquiry: "Make an Enquiry",
+      maps: "View on Google Maps",
+    },
+  },
+  hi: {
+    subtitle: "आपका निजी विला कंसीयज",
+    placeholder: "इस विला के बारे में पूछें...",
+    greeting: (name) =>
+      `नमस्ते! मैं Plix AI हूं, ${name} के बारे में किसी भी सवाल में मदद के लिए यहां हूं। हाउस रूल्स, कीमत, या आस-पास की जगहों के बारे में पूछें।`,
+    reset: "चैट रीसेट करें",
+    close: "कंसीयज बंद करें",
+    language: "Switch to English",
+    typing: "Plix AI लिख रहा है…",
+    chips: {
+      nearby: "आस-पास क्या है?",
+      rules: "हाउस रूल्स",
+      pricing: "उपलब्धता और कीमत देखें",
+      enquiry: "पूछताछ करें",
+      maps: "गूगल मैप्स पर देखें",
+    },
+  },
+};
+
+// The chip's displayed label follows the language toggle; the query actually
+// sent to the server is always this fixed English text, matching what
+// concierge-chat.server-fn.ts's keyword patterns understand.
+const CHIP_QUERIES = {
+  nearby: "What's nearby?",
+  rules: "What are the house rules?",
+  pricing: "What's the availability and pricing?",
+  enquiry: "I'd like to make an enquiry.",
+  maps: "Show me on Google Maps.",
+} as const;
+
+function ConciergeCardView({ card }: { card: ConciergeCard }) {
+  const [activeTab, setActiveTab] = useState(0);
+  const bullets = card.tabs ? card.tabs[activeTab]?.bullets : card.bullets;
+
+  return (
+    <div className="mt-2 overflow-hidden rounded-xl border border-border bg-background">
+      <p className="border-b border-border px-3 py-2 text-xs font-semibold text-navy">{card.title}</p>
+
+      {card.tabs && (
+        <div className="flex gap-1 border-b border-border px-2 pt-2">
+          {card.tabs.map((tab, i) => (
+            <button
+              key={tab.label}
+              type="button"
+              onClick={() => setActiveTab(i)}
+              className={`rounded-t-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                activeTab === i ? "bg-accent text-navy" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {bullets && bullets.length > 0 && (
+        <ul className="space-y-1.5 p-3 text-xs leading-relaxed text-muted-foreground">
+          {bullets.map((b, i) => (
+            <li key={i} className="flex gap-1.5">
+              <span className="shrink-0 text-primary">•</span>
+              {b}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {card.link && (
+        <a
+          href={card.link.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block border-t border-border px-3 py-2.5 text-center text-xs font-semibold text-primary hover:bg-accent"
+        >
+          {card.link.label}
+        </a>
+      )}
+
+      {card.action && (
+        <button
+          type="button"
+          onClick={() => scrollToSection(card.action!.sectionId)}
+          className="block w-full border-t border-border px-3 py-2.5 text-center text-xs font-semibold text-primary hover:bg-accent"
+        >
+          {card.action.label}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
   const [open, setOpen] = useState(false);
-  const [question, setQuestion] = useState("");
+  const [lang, setLang] = useState<Lang>("en");
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
   const [listening, setListening] = useState(false);
+  const [messages, setMessages] = useState<ConciergeMessage[]>(() => [
+    { role: "assistant", content: UI_STRINGS.en.greeting(propertyName) },
+  ]);
+  const streamEndRef = useRef<HTMLDivElement>(null);
+
+  const t = UI_STRINGS[lang];
 
   // Auto-open on desktop landing. Starts closed (matching SSR, which has no
   // window to check) and flips open on mount if the viewport is desktop-
@@ -77,34 +197,48 @@ export function PropertyConciergeWidget({ propertyName }: Props) {
     return () => window.removeEventListener(OPEN_CONCIERGE_EVENT, handleOpenRequest);
   }, []);
 
-  const whatsappNumber = SITE_PHONE_1.replace(/\D/g, "");
+  useEffect(() => {
+    streamEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, sending]);
 
-  function openEnquiry(message: string) {
-    window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+  function handleReset() {
+    setMessages([{ role: "assistant", content: t.greeting(propertyName) }]);
+    setInput("");
   }
 
-  const actions: QuickAction[] = [
-    { label: "View amenities", icon: Sparkles, onSelect: () => { scrollToSection("amenities"); setOpen(false); } },
-    { label: "View spaces", icon: Sofa, onSelect: () => { scrollToSection("spaces"); setOpen(false); } },
-    { label: "Explore dining", icon: UtensilsCrossed, onSelect: () => { scrollToSection("meals"); setOpen(false); } },
-    { label: "Are pets allowed?", icon: PawPrint, onSelect: () => { scrollToSection("faqs"); setOpen(false); } },
-    { label: "What's nearby?", icon: Compass, onSelect: () => { scrollToSection("experiences"); setOpen(false); } },
-    { label: "House Rules", icon: ScrollText, onSelect: () => { scrollToSection("house-rules"); setOpen(false); } },
-    { label: "Check availability and pricing", icon: CalendarCheck, onSelect: () => { scrollToSection("book"); setOpen(false); } },
-    {
-      label: "Make an Enquiry",
-      icon: MessageCircleQuestion,
-      onSelect: () => { openEnquiry(`Hi! I have a question about ${propertyName}.`); setOpen(false); },
-    },
-  ];
+  function handleLanguageToggle() {
+    setLang((prev) => (prev === "en" ? "hi" : "en"));
+  }
 
-  function handleAsk(e: FormEvent) {
+  async function sendMessage(displayText: string, serverQuery?: string) {
+    const trimmed = displayText.trim();
+    if (!trimmed || sending) return;
+    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+    setInput("");
+    setSending(true);
+    try {
+      const result = await conciergeChatServerFn({
+        data: { property_slug: propertySlug, message: serverQuery ?? trimmed },
+      });
+      setMessages((prev) => [...prev, { role: "assistant", content: result.content, cards: result.cards }]);
+    } catch (err) {
+      console.error("[PropertyConciergeWidget] chat request failed:", err instanceof Error ? err.message : err);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Something went wrong on our end — try again, or tap Make an Enquiry to reach our team directly." },
+      ]);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function handleChipClick(key: keyof typeof CHIP_QUERIES) {
+    void sendMessage(t.chips[key], CHIP_QUERIES[key]);
+  }
+
+  function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const trimmed = question.trim();
-    if (!trimmed) return;
-    openEnquiry(`Hi! Regarding ${propertyName}: ${trimmed}`);
-    setQuestion("");
-    setOpen(false);
+    void sendMessage(input);
   }
 
   function handleMicClick() {
@@ -118,11 +252,11 @@ export function PropertyConciergeWidget({ propertyName }: Props) {
       return;
     }
     const recognition = new SpeechRecognitionCtor();
-    recognition.lang = "en-IN";
+    recognition.lang = lang === "hi" ? "hi-IN" : "en-IN";
     setListening(true);
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      setQuestion((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
       setListening(false);
     };
     recognition.onerror = () => {
@@ -136,78 +270,127 @@ export function PropertyConciergeWidget({ propertyName }: Props) {
   // right above the WhatsApp button (site-footer.tsx's pill sits at
   // bottom-6; bottom-20 clears it) — rendered mutually exclusively rather
   // than stacked, so there's never a second control floating below the open
-  // card (the card's own header X already closes it).
-  return open ? (
-    <div className="animate-rise fixed bottom-20 right-6 z-50 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-      <div className="flex items-start justify-between gap-3 bg-navy px-5 py-4">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bronze">
-            Your private concierge
-          </p>
-          <p className="mt-1 text-sm leading-snug text-navy-foreground/85">
-            At your service, throughout your stay.
-          </p>
+  // card.
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-expanded={false}
+        className="fixed bottom-20 right-6 z-50 flex items-center gap-2 rounded-full bg-navy px-4 py-3 text-sm font-semibold text-navy-foreground shadow-2xl transition-transform hover:scale-105"
+      >
+        <Bot className="size-4" aria-hidden />
+        Plix AI
+      </button>
+    );
+  }
+
+  return (
+    <div className="animate-rise fixed bottom-20 right-6 z-50 flex w-84 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div className="flex items-start justify-between gap-2 bg-navy px-4 py-3.5">
+        <div className="flex items-start gap-2.5">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-bronze/20 text-bronze">
+            <Bot className="size-4" aria-hidden />
+          </span>
+          <div>
+            <p className="text-sm font-bold leading-tight text-white">Plix AI</p>
+            <p className="mt-0.5 text-[11px] leading-snug text-navy-foreground/75">{t.subtitle}</p>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          aria-label="Close concierge"
-          className="shrink-0 rounded-full p-1 text-navy-foreground/70 transition-colors hover:bg-white/10 hover:text-white"
-        >
-          <X className="size-4" aria-hidden />
-        </button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            onClick={handleLanguageToggle}
+            aria-label={t.language}
+            title={t.language}
+            className="rounded-full p-1.5 text-navy-foreground/70 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <Languages className="size-3.5" aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={handleReset}
+            aria-label={t.reset}
+            title={t.reset}
+            className="rounded-full p-1.5 text-navy-foreground/70 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <RotateCcw className="size-3.5" aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label={t.close}
+            title={t.close}
+            className="rounded-full p-1.5 text-navy-foreground/70 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        </div>
       </div>
 
-      <div className="max-h-[45vh] overflow-y-auto p-2">
-        {actions.map((action) => (
+      <div className="flex gap-1.5 overflow-x-auto border-b border-border bg-muted/40 px-3 py-2.5">
+        {(Object.keys(CHIP_QUERIES) as (keyof typeof CHIP_QUERIES)[]).map((key) => (
           <button
-            key={action.label}
+            key={key}
             type="button"
-            onClick={action.onSelect}
-            className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+            disabled={sending}
+            onClick={() => handleChipClick(key)}
+            className="shrink-0 whitespace-nowrap rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
           >
-            <action.icon className="size-4 shrink-0 text-primary" aria-hidden />
-            {action.label}
+            {t.chips[key]}
           </button>
         ))}
       </div>
 
-      <form onSubmit={handleAsk} className="flex items-center gap-2 border-t border-border p-3">
+      <div className="flex max-h-[380px] min-h-[220px] flex-col gap-3 overflow-y-auto p-3">
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div
+              className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                msg.role === "user" ? "bg-gradient-emerald text-primary-foreground" : "bg-muted text-foreground"
+              }`}
+            >
+              <p>{msg.content}</p>
+              {msg.cards?.map((card, ci) => <ConciergeCardView key={ci} card={card} />)}
+            </div>
+          </div>
+        ))}
+        {sending && (
+          <div className="flex justify-start">
+            <div className="rounded-2xl bg-muted px-3.5 py-2.5 text-sm text-muted-foreground">{t.typing}</div>
+          </div>
+        )}
+        <div ref={streamEndRef} />
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-border p-3">
         <input
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask about this villa..."
-          className="min-w-0 flex-1 rounded-full border border-input bg-background px-4 py-2.5 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={t.placeholder}
+          disabled={sending}
+          className="min-w-0 flex-1 rounded-full border border-input bg-background px-4 py-2.5 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40 disabled:opacity-60"
         />
         <button
           type="button"
           aria-label="Ask by voice"
           onClick={handleMicClick}
+          disabled={sending}
           className={`flex size-9 shrink-0 items-center justify-center rounded-full transition-colors ${
             listening ? "bg-red-100 text-red-600" : "text-muted-foreground hover:bg-accent hover:text-foreground"
-          }`}
+          } disabled:opacity-50`}
         >
           <Mic className="size-4" aria-hidden />
         </button>
         <button
           type="submit"
           aria-label="Send"
-          disabled={!question.trim()}
+          disabled={!input.trim() || sending}
           className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-emerald text-primary-foreground disabled:opacity-50"
         >
           <Send className="size-4" aria-hidden />
         </button>
       </form>
     </div>
-  ) : (
-    <button
-      type="button"
-      onClick={() => setOpen(true)}
-      aria-expanded={false}
-      className="fixed bottom-20 right-6 z-50 flex items-center gap-2 rounded-full bg-navy px-4 py-3 text-sm font-semibold text-navy-foreground shadow-2xl transition-transform hover:scale-105"
-    >
-      <MessageCircleQuestion className="size-4" aria-hidden />
-      Concierge
-    </button>
   );
 }

@@ -673,7 +673,7 @@ function PropertyDetail() {
         </aside>
       </div>
 
-      <PropertyConciergeWidget propertyName={property.name} />
+      <PropertyConciergeWidget propertyName={property.name} propertySlug={property.slug} />
 
       {checkoutOpen && (
         <Suspense fallback={null}>

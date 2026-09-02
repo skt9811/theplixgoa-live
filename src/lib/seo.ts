@@ -1,4 +1,4 @@
-import type { Property } from "./plix";
+import { resolveImages, type Property } from "./plix";
 
 type ReviewData = {
   id: string;
@@ -55,8 +55,14 @@ export function propertySeoDescription(p: Property): string {
   return `Book ${p.name}, a ${beds} luxury private pool ${p.bedrooms >= 8 ? "bungalow" : "villa"} in ${p.location}, North Goa from ₹${p.base_price.toLocaleString("en-IN")}/night.${beach} Direct booking, zero commission, best price guaranteed.`;
 }
 
+// There's no dedicated per-property OG-image asset pipeline in this repo
+// (no public/og/ directory exists at all) — this used to point at
+// /og/{slug}.jpg unconditionally, a URL that 404s for every single
+// property. Using the property's own real first gallery image (already
+// bundled and served) instead — resolveImages() always returns at least one
+// entry (it falls back to a generic hero shot), so this is never empty.
 export function propertyOgImage(p: Property): string {
-  return `${SITE_URL}/og/${p.slug}.jpg`;
+  return `${SITE_URL}${resolveImages(p.image_keys)[0]}`;
 }
 
 export function canonicalUrl(path: string): string {
@@ -187,7 +193,7 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
     description: p.description,
     url: `${SITE_URL}/properties/${p.slug}`,
     image: [propertyOgImage(p)],
-    telephone: SITE_PHONE_1,
+    telephone: SITE_PHONE_2,
     priceRange: `₹${p.base_price.toLocaleString("en-IN")}+`,
     numberOfRooms: p.bedrooms,
     numberOfBedrooms: p.bedrooms,

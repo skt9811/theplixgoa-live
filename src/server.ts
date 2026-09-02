@@ -5,6 +5,7 @@ import { renderErrorPage } from "./lib/error-page";
 import { handleRazorpayWebhook } from "./lib/razorpay-webhook.server";
 import { handleSubscribeRequest } from "./lib/subscribe-newsletter.server";
 import { handleContactEnquiryRequest } from "./lib/contact-enquiry.server";
+import { handleSitemapRequest } from "./lib/sitemap.server";
 import { handleSendWelcomeEmail } from "./lib/send-welcome-email.server";
 import { handlePasswordSignIn, handlePasswordSignUp, handleLogout } from "./lib/auth-routes.server";
 import { getAuthConfig } from "./lib/auth.server";
@@ -148,6 +149,14 @@ export default {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });
+      }
+    }
+    if (url.pathname === "/sitemap.xml") {
+      try {
+        return await handleSitemapRequest();
+      } catch (error) {
+        console.error("[sitemap] unhandled error:", error);
+        return new Response("Internal error", { status: 500 });
       }
     }
     if (url.pathname === "/api/contact-enquiry") {

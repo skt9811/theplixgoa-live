@@ -4,6 +4,7 @@ import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { handleRazorpayWebhook } from "./lib/razorpay-webhook.server";
 import { handleSubscribeRequest } from "./lib/subscribe-newsletter.server";
+import { handleContactEnquiryRequest } from "./lib/contact-enquiry.server";
 import { handleSendWelcomeEmail } from "./lib/send-welcome-email.server";
 import { handlePasswordSignIn, handlePasswordSignUp, handleLogout } from "./lib/auth-routes.server";
 import { getAuthConfig } from "./lib/auth.server";
@@ -144,6 +145,17 @@ export default {
       } catch (error) {
         console.error("[subscribe] unhandled error:", error);
         return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    if (url.pathname === "/api/contact-enquiry") {
+      try {
+        return await handleContactEnquiryRequest(request);
+      } catch (error) {
+        console.error("[contact-enquiry] unhandled error:", error);
+        return new Response(JSON.stringify({ sent: false, reason: "Internal error" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });

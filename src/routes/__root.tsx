@@ -15,7 +15,7 @@ import { SiteFooter } from "@/components/plix/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
-import { SITE_NAME, websiteJsonLd, localBusinessJsonLd, jsonLdScript } from "@/lib/seo";
+import { SITE_NAME, websiteJsonLd, localBusinessJsonLd, lodgingBusinessJsonLd, organizationJsonLd, jsonLdScript } from "@/lib/seo";
 import { chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
 
 const GOOGLE_FONTS_HREF =
@@ -103,6 +103,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@theplixgoa" },
       { property: "og:site_name", content: SITE_NAME },
+      // Ensures mobile browsers/dialers and Googlebot recognize the phone
+      // numbers in the LodgingBusiness/Organization schema below as
+      // click-to-call, rather than skipping auto-detection.
+      { name: "format-detection", content: "telephone=yes" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -150,6 +154,8 @@ gtag('config', 'G-98T2N1CNMW');`,
       },
       { type: "application/ld+json", children: jsonLdScript(websiteJsonLd()) },
       { type: "application/ld+json", children: jsonLdScript(localBusinessJsonLd()) },
+      { type: "application/ld+json", children: jsonLdScript(lodgingBusinessJsonLd()) },
+      { type: "application/ld+json", children: jsonLdScript(organizationJsonLd()) },
       {
         type: "text/javascript",
         children: `(function() {

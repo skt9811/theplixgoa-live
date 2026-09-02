@@ -80,8 +80,8 @@ export async function handleSubscribeRequest(req: Request): Promise<Response> {
   });
 }
 
-const STAYS_URL = "https://theplixgoa.com/stays";
-const DISCOUNT_CODE = "PLIX5";
+const SITE_URL = "https://theplixgoa.com";
+const DISCOUNT_CODE = "PLIXCLUB5";
 
 async function sendNewsletterWelcomeEmail(email: string): Promise<void> {
   const resendApiKey = process.env["RESEND_API_KEY"] ?? "";
@@ -93,8 +93,8 @@ async function sendNewsletterWelcomeEmail(email: string): Promise<void> {
     resendApiKey,
     fromEmail,
     email,
-    "Welcome to The Plix Club — Here's Your 5% Off Code",
-    buildNewsletterEmail(),
+    "Welcome to The Plix Club — Here is your private 5% invitation",
+    { text: buildNewsletterEmailText() },
   );
   if (!guestResult.ok) await logResendError("RESEND NEWSLETTER EMAIL ERROR (guest)", email, guestResult);
 
@@ -103,16 +103,22 @@ async function sendNewsletterWelcomeEmail(email: string): Promise<void> {
     fromEmail,
     hostEmail,
     "🎉 New Subscriber on The Plix Club!",
-    buildAdminAlertEmail(email),
+    { html: buildAdminAlertEmail(email) },
   );
   if (!adminResult.ok) await logResendError("RESEND NEWSLETTER EMAIL ERROR (admin alert)", email, adminResult);
 }
 
-async function sendResendEmail(apiKey: string, from: string, to: string, subject: string, html: string): Promise<Response> {
+async function sendResendEmail(
+  apiKey: string,
+  from: string,
+  to: string,
+  subject: string,
+  body: { html: string } | { text: string },
+): Promise<Response> {
   return fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: [to], subject, html }),
+    body: JSON.stringify({ from, to: [to], subject, ...body }),
   });
 }
 
@@ -165,67 +171,36 @@ function buildAdminAlertEmail(rawEmail: string): string {
 </html>`;
 }
 
-function buildNewsletterEmail(): string {
-  return `<!DOCTYPE html>
-<html>
-  <body style="margin:0;padding:0;background-color:#f6f1e7;font-family:Manrope,Arial,sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f6f1e7;padding:40px 16px;">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(26,34,56,0.10);">
-            <tr>
-              <td style="background-color:#1a2238;padding:48px 40px 36px;text-align:center;">
-                <p style="margin:0;color:#c29b72;font-size:11px;font-weight:700;letter-spacing:4px;text-transform:uppercase;">The Plix Club</p>
-                <h1 style="margin:18px 0 0;color:#ffffff;font-family:Georgia,'Times New Roman',serif;font-size:30px;font-weight:700;line-height:1.3;">
-                  Welcome to The Plix Club
-                </h1>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:40px 40px 8px;color:#4b5468;text-align:center;">
-                <p style="margin:0;font-size:15px;line-height:1.7;">
-                  You're now part of an inner circle that hears first — insider North Goa travel guides,
-                  private villa releases, and offers we never publish anywhere else.
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:28px 40px 0;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8e6d3;border-radius:16px;border:1px solid #e8cba3;">
-                  <tr>
-                    <td style="padding:32px;text-align:center;">
-                      <p style="margin:0 0 10px;color:#8a6a48;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:2px;">
-                        Enjoy 5% OFF your next direct stay
-                      </p>
-                      <p style="margin:0 0 12px;color:#1a2238;font-family:Georgia,'Times New Roman',serif;font-size:32px;font-weight:700;letter-spacing:3px;">
-                        ${DISCOUNT_CODE}
-                      </p>
-                      <p style="margin:0;color:#8a6a48;font-size:13px;line-height:1.5;">
-                        Apply this code at checkout on any villa or resort, direct with us — zero OTA commission, always.
-                      </p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:36px 40px 8px;text-align:center;">
-                <a href="${STAYS_URL}" style="display:inline-block;background-color:#c29b72;color:#ffffff;font-size:14px;font-weight:700;letter-spacing:0.5px;text-decoration:none;padding:16px 44px;border-radius:999px;">
-                  Explore Villas
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:40px 40px 40px;text-align:center;border-top:1px solid #eee;">
-                <p style="margin:24px 0 4px;font-size:14px;line-height:1.6;color:#4b5468;">Warm regards,</p>
-                <p style="margin:0;font-size:14px;font-weight:700;line-height:1.6;color:#1a2238;">The Plix Hospitality Team</p>
-              </td>
-            </tr>
-          </table>
-          <p style="margin:24px 0 0;color:#9a9a9a;font-size:12px;">Plix Hospitality Private Limited · North Goa, India</p>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
+// Plain text, matching an exact copy spec — no HTML template here on
+// purpose. WhatsApp Concierge line uses the site's two real numbers
+// (SITE_PHONE_2 / SITE_PHONE_1 in seo.ts, "+91-9009800895" / "+91-9009800809")
+// in the spaced format the copy calls for, not the hyphenated constant
+// formatting used elsewhere on the site.
+function buildNewsletterEmailText(): string {
+  return `Hi there,
+
+Welcome to the inner circle of The Plix Club.
+
+Thank you for connecting with us. At Plix Hospitality, we believe every getaway should feel unhurried, private, and tailored to you—from serene coastal retreats in Vagator and Morjim to handcrafted private villas across Goa.
+
+As a welcome gift, enjoy an exclusive 5% discount on your next direct stay with us.
+
+YOUR WELCOME VOUCHER
+Code: ${DISCOUNT_CODE}
+Discount: 5% OFF
+Valid on: All direct bookings at ${SITE_URL}
+
+WHAT YOU GET WITH THE PLIX CLUB
+• Best Rate Guarantee: Direct bookings always undercut third-party travel platforms.
+• Early Check-in Priority: Complimentary early check-in and room preference (subject to availability).
+• Dedicated Concierge: Direct WhatsApp assistance for custom itineraries, airport transfers, and private dining arrangements.
+
+To plan your escape, explore our collection of stays here:
+${SITE_URL}
+
+Warm regards,
+Reservations Team
+Plix Hospitality Private Limited
+Goa, India
+WhatsApp Concierge: +91 90098 00895 / +91 90098 00809`;
 }

@@ -3,9 +3,12 @@ import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight, Quote } from "lucide-react";
 import type { Review } from "@/lib/plix";
 
+const AUTO_ROTATE_MS = 2000;
+
 export function ReviewCarousel({ reviews }: { reviews: Review[] }) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: "center", containScroll: false });
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -23,10 +26,24 @@ export function ReviewCarousel({ reviews }: { reviews: Review[] }) {
     };
   }, [emblaApi, onSelect]);
 
+  // Auto-advance every 2s — loop:true (above) already makes scrollNext()
+  // wrap smoothly past the last card, and each card's own
+  // `transition-all duration-500` (below) is what makes the advance itself
+  // animate rather than jump.
+  useEffect(() => {
+    if (!emblaApi || paused) return;
+    const id = setInterval(() => emblaApi.scrollNext(), AUTO_ROTATE_MS);
+    return () => clearInterval(id);
+  }, [emblaApi, paused]);
+
   if (reviews.length === 0) return null;
 
   return (
-    <div className="relative px-10 sm:px-14">
+    <div
+      className="relative px-10 sm:px-14"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
       <div className="overflow-hidden" ref={emblaRef}>
         <div className="flex">
           {reviews.map((r, i) => {

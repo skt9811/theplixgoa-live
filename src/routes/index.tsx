@@ -290,7 +290,7 @@ function Home() {
   const { data: properties } = useSuspenseQuery(propertiesQuery());
   const { data: reviews } = useSuspenseQuery(reviewsQuery);
   usePropertiesLiveRefresh();
-  const featured = properties.slice(0, 3);
+  const featured = properties;
 
   const [config, setConfig] = useState<SiteConfig | null>(null);
   const [locations, setLocations] = useState<LocationGrid[]>([]);
@@ -455,20 +455,12 @@ function Home() {
           <SectionHeading
             eyebrow="Featured Sanctuaries"
             title="A taste of the collection"
-            sub="Three of our most-loved homes. Discover the full lineup on the Stays page."
+            sub="Our most-loved homes across North Goa."
           />
           <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {featured.map((p) => (
               <PropertyCard key={p.id} property={p} />
             ))}
-          </div>
-          <div className="mt-8 text-center">
-            <Link
-              to="/stays"
-              className="inline-block rounded-full bg-gradient-emerald px-6 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform duration-200 hover:scale-[1.03]"
-            >
-              Explore the full collection
-            </Link>
           </div>
         </div>
       </section>

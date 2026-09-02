@@ -68,12 +68,16 @@ export function organizationJsonLd() {
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": `${SITE_URL}/#organization`,
-    name: SITE_NAME,
+    name: "Plix Hospitality",
     description:
       "Luxury private pool villas, boutique resorts, and sprawling bungalows in Anjuna, Vagator, Assagao, Morjim, and Candolim, North Goa. Book direct and skip commission.",
     url: SITE_URL,
     logo: `${SITE_URL}/Plix_Transparent_(1).png`,
     telephone: [SITE_PHONE_1, SITE_PHONE_2],
+    contactPoint: [
+      { "@type": "ContactPoint", telephone: SITE_PHONE_2, contactType: "reservations", areaServed: "IN" },
+      { "@type": "ContactPoint", telephone: SITE_PHONE_1, contactType: "customer service", areaServed: "IN" },
+    ],
     email: SITE_EMAIL,
     priceRange: PRICE_RANGE,
     address: {
@@ -142,11 +146,15 @@ export function lodgingBusinessJsonLd() {
     "@context": "https://schema.org",
     "@type": "LodgingBusiness",
     "@id": `${SITE_URL}/#lodgingbusiness`,
-    name: "Plix Hospitality / The Plix Goa",
+    name: "Plix Hospitality",
     description:
       "Luxury private pool villas, boutique resorts, and sprawling bungalows in Anjuna, Vagator, Assagao, Morjim, and Candolim, North Goa. Book direct and skip commission.",
     url: SITE_URL,
-    telephone: "+91 9009800895",
+    telephone: SITE_PHONE_2,
+    contactPoint: [
+      { "@type": "ContactPoint", telephone: SITE_PHONE_2, contactType: "reservations", areaServed: "IN" },
+      { "@type": "ContactPoint", telephone: SITE_PHONE_1, contactType: "customer service", areaServed: "IN" },
+    ],
     priceRange: "₹₹₹",
     address: {
       "@type": "PostalAddress",

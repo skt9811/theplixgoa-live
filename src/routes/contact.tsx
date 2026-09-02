@@ -49,8 +49,35 @@ const stackedPhoto3 = resolvedStackedPhotos[2] ?? heroImage;
 
 function Contact() {
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [form, setForm] = useState({ name: "", phone: "", email: "", stayDetails: "", message: "" });
   const input =
     "mt-1 w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/40";
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSending(true);
+    try {
+      const res = await fetch("/api/contact-enquiry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const result = (await res.json()) as { sent: boolean; reason?: string };
+      if (result.sent) {
+        setSent(true);
+        toast.success("Thanks! Our team will reply within a few hours.");
+        setForm({ name: "", phone: "", email: "", stayDetails: "", message: "" });
+      } else {
+        toast.error(result.reason ?? "Could not send your enquiry. Please try again.");
+      }
+    } catch (err) {
+      console.error("[Contact] enquiry submission failed:", err instanceof Error ? err.message : err);
+      toast.error("Could not send your enquiry. Please try again or contact us directly.");
+    } finally {
+      setSending(false);
+    }
+  }
 
   return (
     <div>
@@ -192,45 +219,69 @@ function Contact() {
           </div>
 
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setSent(true);
-              toast.success("Thanks! Our team will reply within a few hours.");
-            }}
+            onSubmit={(e) => void handleSubmit(e)}
             className="rounded-2xl border border-border bg-card p-6 shadow-card md:p-8"
           >
             <h3 className="text-xl font-semibold text-navy">Send an Enquiry</h3>
             <div className="mt-5 grid gap-4">
               <label className="block text-sm font-medium">
                 Your Name
-                <input required className={input} placeholder="Your name" />
+                <input
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className={input}
+                  placeholder="Your name"
+                />
               </label>
               <label className="block text-sm font-medium">
                 Your Phone
-                <input required type="tel" className={input} placeholder="+91 98765 43210" />
+                <input
+                  required
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  className={input}
+                  placeholder="+91 98765 43210"
+                />
               </label>
               <label className="block text-sm font-medium">
                 Your Email
-                <input required type="email" className={input} placeholder="you@email.com" />
+                <input
+                  required
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className={input}
+                  placeholder="you@email.com"
+                />
               </label>
               <label className="block text-sm font-medium">
-                Subject
-                <input required className={input} placeholder="What can we help with?" />
+                Selected Property / Dates
+                <input
+                  value={form.stayDetails}
+                  onChange={(e) => setForm({ ...form, stayDetails: e.target.value })}
+                  className={input}
+                  placeholder="e.g. Casa Marina, 12–15 Dec"
+                />
               </label>
               <label className="block text-sm font-medium">
                 Your Message
                 <textarea
                   required
                   rows={4}
+                  value={form.message}
+                  onChange={(e) => setForm({ ...form, message: e.target.value })}
                   className={input}
                   placeholder="Dates, group size, preferred location…"
                 />
               </label>
               <button
                 type="submit"
-                className="rounded-full bg-bronze px-6 py-3.5 text-sm font-semibold text-bronze-foreground shadow-soft transition-transform hover:scale-[1.02]"
+                disabled={sending}
+                className="rounded-full bg-bronze px-6 py-3.5 text-sm font-semibold text-bronze-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:opacity-60"
               >
-                {sent ? "Message sent" : "Plan Your Event"}
+                {sending ? "Sending…" : sent ? "Message sent" : "Plan Your Event"}
               </button>
             </div>
           </form>

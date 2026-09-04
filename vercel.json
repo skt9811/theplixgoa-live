@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/properties/chico-estate",
+      "destination": "/properties/vivenda-chico",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/dotgrip",

@@ -22,14 +22,14 @@ import {
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About The Plix Goa — Boutique Villa Hosts in North Goa" },
+      { title: "About Plix Hospitality | Luxury Stays & Villas in Goa" },
       {
         name: "description",
         content:
           "Learn about Plix Hospitality. We provide premium private villas, boutique resorts, and curated stays across North Goa with personalized service.",
       },
       { name: "robots", content: "index, follow" },
-      { property: "og:title", content: "About The Plix Goa — Boutique Villa Hosts in North Goa" },
+      { property: "og:title", content: "About Plix Hospitality | Luxury Stays & Villas in Goa" },
       {
         property: "og:description",
         content: "Meet the team behind The Plix Goa's handpicked luxury villas in North Goa.",
@@ -39,7 +39,7 @@ export const Route = createFileRoute("/about")({
       { property: "og:site_name", content: SITE_NAME },
       { property: "og:image", content: `${SITE_URL}/og-home.jpg` },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "About The Plix Goa — Boutique Villa Hosts in North Goa" },
+      { name: "twitter:title", content: "About Plix Hospitality | Luxury Stays & Villas in Goa" },
     ],
     links: [{ rel: "canonical", href: canonicalUrl("/about") }],
   }),
@@ -47,8 +47,8 @@ export const Route = createFileRoute("/about")({
 });
 
 const stats = [
-  { value: "6", label: "Signature villas" },
-  { value: "4.9", label: "Average guest rating" },
+  { value: "10", label: "Handpicked Luxury Villas & Boutique Resorts" },
+  { value: "4.9 / 5", label: "Guest Rating" },
   { value: "100%", label: "Direct bookings" },
   { value: "24/7", label: "On-ground support" },
 ];

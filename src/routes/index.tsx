@@ -114,9 +114,9 @@ const perks = [
 ];
 
 const stats = [
-  { icon: HeartHandshake, value: "100,000+", label: "Happy Guests" },
-  { icon: Star, value: "5/5", label: "Rated for Excellence" },
-  { icon: Building2, value: "25+", label: "Handpicked Luxury Villas" },
+  { icon: HeartHandshake, value: "5,000+", label: "Happy Guests Hosted" },
+  { icon: Star, value: "4.9 / 5", label: "Guest Rating" },
+  { icon: Building2, value: "10", label: "Handpicked Luxury Villas & Boutique Resorts" },
 ];
 
 const faqs = [

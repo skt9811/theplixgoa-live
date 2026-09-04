@@ -356,7 +356,7 @@ export const PROPERTIES: Property[] = [
       "Contemporary sanctuary for intimate escapes. Casa Marina is an elegant 3 BHK private pool villa in Vagator for up to 6 guests, combining modern aesthetics with cozy privacy. Featuring bespoke interior design, floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes, it offers a tranquil garden setting minutes from Anjuna and Vagator beaches.",
     seo_title: "Casa Marina Vagator | 3 BHK Private Pool Luxury Villa",
     seo_description:
-      "Private 3 BHK luxury villa in Vagator with private pool, caretaker, and modern amenities. Ideal for families and groups. Zero booking fees.",
+      "Private 3 BHK luxury villa in Vagator with private pool, dedicated caretaker, and modern amenities. Ideal for families and groups.",
     seo_keywords: ["3 BHK Villa Vagator", "Boutique Pool Villa Goa", "Private Pool Villa Vagator", "Couple Friendly Villa North Goa", "Luxury Holiday Home Anjuna"],
     enclave: "Marina Villas by The Plix",
     bedrooms: 3,
@@ -649,7 +649,7 @@ export const PROPERTIES: Property[] = [
     latitude: 15.576005352453787,
     longitude: 73.74978257478291,
     google_maps_embed_url:
-      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3843.2926498215197!2d73.74978257478291!3d15.576005352453787!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfea2660f92eef%3A0xf5cfad3d7e077ecf!2sHouse%20of%20Anjuna%20by%20PAS%20RESORTS!5e0!3m2!1sen!2sin!4v1787767854466!5m2!1sen!2sin",
+      "https://www.google.com/maps?q=15.576005352453787,73.74978257478291&output=embed",
     total_inventory: 1,
   },
   {
@@ -684,7 +684,7 @@ export const PROPERTIES: Property[] = [
     latitude: 15.601282951795916,
     longitude: 73.7467028747833,
     google_maps_embed_url:
-      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.819628501188!2d73.7467028747833!3d15.601282951795916!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfeb0016b21bd1%3A0xd5b237e52549808a!2sCasa%20Vida!5e0!3m2!1sen!2sin!4v1787769594533!5m2!1sen!2sin",
+      "https://www.google.com/maps?q=15.601282951795916,73.7467028747833&output=embed",
     total_inventory: 1,
   },
 ].sort((a, b) => a.base_price - b.base_price);

@@ -33,29 +33,29 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "The Plix Goa | Luxury Villas & Resorts in North Goa" },
+      { title: "The Plix Goa — Book Private Pool Villas Direct | Zero Commission" },
       {
         name: "description",
         content:
-          "Book luxury private pool villas, boutique resorts, and bungalows in Anjuna, Vagator, and Assagao. Skip commissions and book direct with Plix Goa.",
+          "10 private-pool villas & boutique resorts across Vagator, Anjuna, Assagao, Morjim & Candolim. Book direct with Plix Hospitality for best guaranteed rates and zero platform fees.",
       },
       { name: "robots", content: "index, follow, max-image-preview:large" },
-      { property: "og:title", content: "The Plix Goa | Luxury Villas & Resorts in North Goa" },
+      { property: "og:title", content: "The Plix Goa — Book Private Pool Villas Direct | Zero Commission" },
       {
         property: "og:description",
         content:
-          "Book luxury private pool villas, boutique resorts, and sprawling bungalows directly in Anjuna, Vagator, Assagao, Morjim, and Candolim. Skip commission and book direct.",
+          "10 private-pool villas & boutique resorts across Vagator, Anjuna, Assagao, Morjim & Candolim. Book direct with Plix Hospitality for best guaranteed rates and zero platform fees.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: SITE_URL },
       { property: "og:site_name", content: SITE_NAME },
       { property: "og:image", content: `${SITE_URL}/og-home.jpg` },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "The Plix Goa | Luxury Villas & Resorts in North Goa" },
+      { name: "twitter:title", content: "The Plix Goa — Book Private Pool Villas Direct | Zero Commission" },
       {
         name: "twitter:description",
         content:
-          "Book luxury private pool villas, boutique resorts, and bungalows in Anjuna, Vagator, and Assagao. Skip commissions and book direct with Plix Goa.",
+          "10 private-pool villas & boutique resorts across Vagator, Anjuna, Assagao, Morjim & Candolim. Book direct with Plix Hospitality for best guaranteed rates and zero platform fees.",
       },
       { name: "twitter:image", content: `${SITE_URL}/og-home.jpg` },
     ],

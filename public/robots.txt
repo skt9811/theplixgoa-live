@@ -2,5 +2,19 @@ User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /booking-success
+Disallow: /api/
+Disallow: /*?*promo=
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
 
 Sitemap: https://theplixgoa.com/sitemap.xml

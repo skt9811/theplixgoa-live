@@ -1,4 +1,15 @@
 {
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+      ]
+    }
+  ],
   "redirects": [
     {
       "source": "/properties/chico-estate",
@@ -24,7 +35,21 @@
     { "source": "/villa-madera", "destination": "/properties/villa-madera", "permanent": true },
     { "source": "/villa-madera/", "destination": "/properties/villa-madera", "permanent": true },
     { "source": "/casa-serenita", "destination": "/properties/casa-serenita", "permanent": true },
-    { "source": "/casa-serenita/", "destination": "/properties/casa-serenita", "permanent": true }
+    { "source": "/casa-serenita/", "destination": "/properties/casa-serenita", "permanent": true },
+    { "source": "/plix-villa", "destination": "/properties/the-plix-villa", "permanent": true },
+    { "source": "/plix-villa/", "destination": "/properties/the-plix-villa", "permanent": true },
+    { "source": "/plix-resort", "destination": "/properties/the-plix-resort-morjim", "permanent": true },
+    { "source": "/plix-resort/", "destination": "/properties/the-plix-resort-morjim", "permanent": true },
+    { "source": "/contact-us", "destination": "/contact", "permanent": true },
+    { "source": "/contact-us/", "destination": "/contact", "permanent": true },
+    { "source": "/about-us", "destination": "/about", "permanent": true },
+    { "source": "/about-us/", "destination": "/about", "permanent": true },
+    { "source": "/photo-gallery-i", "destination": "/stays", "permanent": true },
+    { "source": "/photo-gallery-i/", "destination": "/stays", "permanent": true },
+    { "source": "/photo-gallery-ii", "destination": "/stays", "permanent": true },
+    { "source": "/photo-gallery-ii/", "destination": "/stays", "permanent": true },
+    { "source": "/category/:path*", "destination": "/blog", "permanent": true },
+    { "source": "/tag/:path*", "destination": "/blog", "permanent": true }
   ],
   "rewrites": [
     {

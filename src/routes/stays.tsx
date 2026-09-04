@@ -33,28 +33,28 @@ export const Route = createFileRoute("/stays")({
   }),
   head: () => ({
     meta: [
-      { title: "All Luxury Villas & Resorts in North Goa — The Plix Goa" },
+      { title: "Browse All Villas & Resorts in Goa | Direct Rates, No Commission" },
       {
         name: "description",
         content:
-          "Browse every luxury private pool villa, boutique resort, and bungalow in Vagator, Anjuna, Assagao, Morjim and Candolim across North Goa. Filter by location and book direct.",
+          "Compare 10 private-pool villas and boutique resorts across North Goa — including Marina Villas by The Plix in Vagator and Anjuna — by location, guests, and price. Book direct with Plix Hospitality for the best guaranteed rate.",
       },
       { name: "robots", content: "index, follow, max-image-preview:large" },
-      { property: "og:title", content: "All Luxury Villas & Resorts in North Goa — The Plix Goa" },
+      { property: "og:title", content: "Browse All Villas & Resorts in Goa | Direct Rates, No Commission" },
       {
         property: "og:description",
         content:
-          "Browse private pool villas and boutique resorts across North Goa. Book direct with zero commission.",
+          "Compare 10 private-pool villas and boutique resorts across North Goa. Book direct with Plix Hospitality for the best guaranteed rate.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: `${SITE_URL}/stays` },
       { property: "og:site_name", content: SITE_NAME },
       { property: "og:image", content: `${SITE_URL}/og-home.jpg` },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "All Luxury Villas & Resorts in North Goa — The Plix Goa" },
+      { name: "twitter:title", content: "Browse All Villas & Resorts in Goa | Direct Rates, No Commission" },
       {
         name: "twitter:description",
-        content: "Browse private pool villas and boutique resorts across North Goa. Book direct.",
+        content: "Compare 10 private-pool villas and boutique resorts across North Goa. Book direct with Plix Hospitality.",
       },
     ],
     links: [{ rel: "canonical", href: canonicalUrl("/stays") }],

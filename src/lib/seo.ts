@@ -25,7 +25,7 @@ export const SITE_ADDRESS = {
 };
 export const PRICE_RANGE = "₹4500 - ₹22000";
 
-export function propertySeoTitle(p: Property): string {
+function basePropertyTitle(p: Property): string {
   if (p.seo_title) return p.seo_title;
   const beds =
     p.bedrooms <= 6
@@ -46,6 +46,15 @@ export function propertySeoTitle(p: Property): string {
     return `${p.name} | ${beds} Luxury Bungalow in ${p.location} with Pool`;
   }
   return `${p.name} | ${beds} Luxury Private Pool Villa in ${p.location}, Goa`;
+}
+
+// "The Plix Goa" (the fuller phrasing), not SITE_NAME ("The Plix", reserved
+// for the og:site_name/schema short form — see its own comment above) — the
+// brand suffix every property's rendered <title> was missing until now,
+// despite that split already being the documented intent for these two
+// constants.
+export function propertySeoTitle(p: Property): string {
+  return `${basePropertyTitle(p)} | The Plix Goa`;
 }
 
 export function propertySeoDescription(p: Property): string {

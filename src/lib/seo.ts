@@ -54,15 +54,12 @@ function basePropertyTitle(p: Property): string {
 // despite that split already being the documented intent for these two
 // constants.
 export function propertySeoTitle(p: Property): string {
-  const base = basePropertyTitle(p);
-  // A property whose own name/title already carries "The Plix" (e.g. "The
-  // Plix Villa", "The Plix Resort Morjim") already states the brand — most
-  // of these are also hand-tuned CTR copy ending in a specific conversion
-  // hook ("Zero Commission", "-15%"), so appending the generic suffix here
-  // would both restate the brand redundantly and push the hook past
-  // Google's truncation point. Properties named distinctly (Casa Marina,
-  // Harbor Court, etc.) still get the suffix, same as before.
-  return base.toLowerCase().includes("the plix") ? base : `${base} | The Plix Goa`;
+  // No brand-suffix auto-append: every property's seo_title below is now a
+  // complete, deliberately length-budgeted title (50-60 chars, tuned for
+  // Google's SERP truncation point). All 10 were hand-set together — an
+  // auto-appended " | The Plix Goa" would silently blow that budget on
+  // whichever ones don't already end with it, undoing the whole point.
+  return basePropertyTitle(p);
 }
 
 function basePropertyDescription(p: Property): string {
@@ -72,16 +69,14 @@ function basePropertyDescription(p: Property): string {
   return `Book ${p.name}, a ${beds} luxury private pool ${p.bedrooms >= 8 ? "bungalow" : "villa"} in ${p.location}, North Goa from ₹${p.base_price.toLocaleString("en-IN")}/night.${beach} Direct booking, zero commission, best price guaranteed.`;
 }
 
-// Required verbatim on every property page's meta description — appended
-// once here rather than pasted into all 10 seo_description strings by hand,
-// and skipped if a description already happens to contain it (keeps this
-// idempotent rather than risking a doubled-up sentence).
-const DIRECT_BOOKING_CTA =
-  "Book direct with Plix Hospitality for best guaranteed rates, private pool access, and zero platform fees.";
-
 export function propertySeoDescription(p: Property): string {
-  const base = basePropertyDescription(p);
-  return base.includes(DIRECT_BOOKING_CTA) ? base : `${base} ${DIRECT_BOOKING_CTA}`;
+  // No auto-appended CTA sentence: every property's seo_description below
+  // is now a complete, deliberately length-budgeted description (130-155
+  // chars, USP-first). All 10 were hand-set together, most already ending
+  // in their own direct-booking line ("Zero booking fees.", "Book direct &
+  // save.", etc.) — appending the old ~106-char CTA sentence on top would
+  // blow every one of those budgets, the same problem the title suffix had.
+  return basePropertyDescription(p);
 }
 
 // There's no dedicated per-property OG-image asset pipeline in this repo
@@ -191,7 +186,12 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
 
   const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
-    "@type": p.bedrooms >= 8 ? "LodgingBusiness" : "VacationRental",
+    // Every property uniformly, not just bedrooms >= 8 — a plain string, not
+    // an array. Google's own Rich Results test only recognizes a single
+    // string @type here; ["LodgingBusiness","VacationRental"] is valid
+    // schema.org but silently fails that check (and this repo's own
+    // scripts/seo-audit.mjs, which does a strict === "LodgingBusiness" match).
+    "@type": "LodgingBusiness",
     "@id": `${SITE_URL}/properties/${p.slug}#lodging`,
     name: p.name,
     description: p.description,

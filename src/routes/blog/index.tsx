@@ -8,14 +8,18 @@ import { canonicalUrl } from "@/lib/seo";
 export const Route = createFileRoute("/blog/")({
   head: () => ({
     meta: [
-      { title: "The Plix Goa Blog — Travel Guides, Nightlife & Villa Tips" },
+      { title: "Goa Travel & Luxury Villa Guides | The Plix Goa Blog" },
       {
         name: "description",
         content:
-          "Discover insider guides to North Goa — sunset clubs, beach shacks, luxury villa tips, and curated travel itineraries from The Plix Goa.",
+          "Expert Goa travel guides, luxury stay recommendations, party venues, and insider tips from Plix Hospitality. Plan your North Goa getaway.",
       },
-      { property: "og:title", content: "The Plix Goa Blog — Travel Guides, Nightlife & Villa Tips" },
-      { property: "og:description", content: "Insider guides to North Goa from The Plix Goa." },
+      { property: "og:title", content: "Goa Travel & Luxury Villa Guides | The Plix Goa Blog" },
+      {
+        property: "og:description",
+        content:
+          "Expert Goa travel guides, luxury stay recommendations, party venues, and insider tips from Plix Hospitality. Plan your North Goa getaway.",
+      },
       { property: "og:type", content: "website" },
     ],
     links: [{ rel: "canonical", href: canonicalUrl("/blog") }],

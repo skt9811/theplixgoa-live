@@ -26,7 +26,7 @@ export const Route = createFileRoute("/about")({
       {
         name: "description",
         content:
-          "The Plix Goa is a Goa-based boutique villa operator running handpicked luxury homes in Vagator, Anjuna, Assagao, Morjim and Candolim with in-house caretakers and direct guest support.",
+          "Learn about Plix Hospitality. We provide premium private villas, boutique resorts, and curated stays across North Goa with personalized service.",
       },
       { name: "robots", content: "index, follow" },
       { property: "og:title", content: "About The Plix Goa — Boutique Villa Hosts in North Goa" },

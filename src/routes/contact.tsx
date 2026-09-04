@@ -16,17 +16,17 @@ import {
 export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
-      { title: "Contact The Plix Goa — Luxury Villa Reservations in North Goa" },
+      { title: "Contact The Plix Goa | Villa Reservations & Inquiries" },
       {
         name: "description",
         content:
-          "Talk to The Plix Goa reservations team about luxury villa stays in Vagator, Anjuna, Assagao, Morjim and Candolim, North Goa. Call, WhatsApp or email us directly.",
+          "Get in touch with Plix Hospitality for direct villa bookings, private events, and retreat inquiries in North Goa. Quick response guaranteed.",
       },
       { name: "robots", content: "index, follow" },
-      { property: "og:title", content: "Contact The Plix Goa — Luxury Villa Reservations in North Goa" },
+      { property: "og:title", content: "Contact The Plix Goa | Villa Reservations & Inquiries" },
       {
         property: "og:description",
-        content: "Call, WhatsApp or email The Plix Goa team for direct luxury villa bookings in North Goa.",
+        content: "Get in touch with Plix Hospitality for direct villa bookings, private events, and retreat inquiries in North Goa. Quick response guaranteed.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: `${SITE_URL}/contact` },

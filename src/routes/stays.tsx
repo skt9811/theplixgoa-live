@@ -33,14 +33,14 @@ export const Route = createFileRoute("/stays")({
   }),
   head: () => ({
     meta: [
-      { title: "Browse All Villas & Resorts in Goa | Direct Rates, No Commission" },
+      { title: "Luxury Villas & Boutique Stays in North Goa | The Plix" },
       {
         name: "description",
         content:
-          "Compare 10 private-pool villas and boutique resorts across North Goa — including Marina Villas by The Plix in Vagator and Anjuna — by location, guests, and price. Book direct with Plix Hospitality for the best guaranteed rate.",
+          "Browse handpicked private pool villas and boutique resorts in Vagator, Anjuna, Morjim, and Candolim. Book directly with Plix Hospitality.",
       },
       { name: "robots", content: "index, follow, max-image-preview:large" },
-      { property: "og:title", content: "Browse All Villas & Resorts in Goa | Direct Rates, No Commission" },
+      { property: "og:title", content: "Luxury Villas & Boutique Stays in North Goa | The Plix" },
       {
         property: "og:description",
         content:
@@ -51,7 +51,7 @@ export const Route = createFileRoute("/stays")({
       { property: "og:site_name", content: SITE_NAME },
       { property: "og:image", content: `${SITE_URL}/og-home.jpg` },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Browse All Villas & Resorts in Goa | Direct Rates, No Commission" },
+      { name: "twitter:title", content: "Luxury Villas & Boutique Stays in North Goa | The Plix" },
       {
         name: "twitter:description",
         content: "Compare 10 private-pool villas and boutique resorts across North Goa. Book direct with Plix Hospitality.",

@@ -33,29 +33,29 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "The Plix Goa — Book Private Pool Villas Direct | Zero Commission" },
+      { title: "The Plix Goa | Luxury Boutique Villas & Resorts in Goa" },
       {
         name: "description",
         content:
-          "10 private-pool villas & boutique resorts across Vagator, Anjuna, Assagao, Morjim & Candolim. Book direct with Plix Hospitality for best guaranteed rates and zero platform fees.",
+          "Experience private luxury villas and boutique resorts in North Goa. Enjoy private pools, beach proximity, and zero-commission direct bookings.",
       },
       { name: "robots", content: "index, follow, max-image-preview:large" },
-      { property: "og:title", content: "The Plix Goa — Book Private Pool Villas Direct | Zero Commission" },
+      { property: "og:title", content: "The Plix Goa | Luxury Boutique Villas & Resorts in Goa" },
       {
         property: "og:description",
         content:
-          "10 private-pool villas & boutique resorts across Vagator, Anjuna, Assagao, Morjim & Candolim. Book direct with Plix Hospitality for best guaranteed rates and zero platform fees.",
+          "Experience private luxury villas and boutique resorts in North Goa. Enjoy private pools, beach proximity, and zero-commission direct bookings.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: SITE_URL },
       { property: "og:site_name", content: SITE_NAME },
       { property: "og:image", content: `${SITE_URL}/og-home.jpg` },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "The Plix Goa — Book Private Pool Villas Direct | Zero Commission" },
+      { name: "twitter:title", content: "The Plix Goa | Luxury Boutique Villas & Resorts in Goa" },
       {
         name: "twitter:description",
         content:
-          "10 private-pool villas & boutique resorts across Vagator, Anjuna, Assagao, Morjim & Candolim. Book direct with Plix Hospitality for best guaranteed rates and zero platform fees.",
+          "Experience private luxury villas and boutique resorts in North Goa. Enjoy private pools, beach proximity, and zero-commission direct bookings.",
       },
       { name: "twitter:image", content: `${SITE_URL}/og-home.jpg` },
     ],

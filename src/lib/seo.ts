@@ -78,21 +78,27 @@ export function canonicalUrl(path: string): string {
   return `${SITE_URL}${path}`;
 }
 
-export function organizationJsonLd() {
+// Replaces what used to be three separate blocks — organizationJsonLd,
+// localBusinessJsonLd, lodgingBusinessJsonLd — rendered simultaneously on
+// every page. Schema.org's own type hierarchy is LodgingBusiness extends
+// LocalBusiness extends Organization, so three differently-typed blocks
+// describing the exact same real-world entity was genuine duplication, not
+// three distinct facts. LodgingBusiness is kept as the single type — the
+// most specific one, and the one Google's lodging rich results key off —
+// with the richer fields from the old Organization block (sameAs,
+// aggregateRating, logo) folded in.
+export function brandJsonLd() {
   return {
     "@context": "https://schema.org",
-    "@type": "Organization",
-    "@id": `${SITE_URL}/#organization`,
+    "@type": "LodgingBusiness",
+    "@id": `${SITE_URL}/#business`,
     name: "Plix Hospitality",
     description:
       "Luxury private pool villas, boutique resorts, and sprawling bungalows in Anjuna, Vagator, Assagao, Morjim, and Candolim, North Goa. Book direct and skip commission.",
     url: SITE_URL,
     logo: `${SITE_URL}/Plix_Transparent_(1).png`,
-    telephone: [SITE_PHONE_1, SITE_PHONE_2],
-    contactPoint: [
-      { "@type": "ContactPoint", telephone: SITE_PHONE_2, contactType: "reservations", areaServed: "IN" },
-      { "@type": "ContactPoint", telephone: SITE_PHONE_1, contactType: "customer service", areaServed: "IN" },
-    ],
+    image: `${SITE_URL}/Plix_Transparent_(1).png`,
+    telephone: SITE_PHONE_2,
     email: SITE_EMAIL,
     priceRange: PRICE_RANGE,
     address: {
@@ -104,6 +110,10 @@ export function organizationJsonLd() {
       addressCountry: SITE_ADDRESS.country,
     },
     areaServed: ["Vagator", "Anjuna", "Assagao", "Morjim", "Candolim"],
+    contactPoint: [
+      { "@type": "ContactPoint", telephone: SITE_PHONE_2, contactType: "reservations", areaServed: "IN" },
+      { "@type": "ContactPoint", telephone: SITE_PHONE_1, contactType: "customer service", areaServed: "IN" },
+    ],
     sameAs: [
       "https://facebook.com/theplixgoa",
       "https://instagram.com/theplixgoa",
@@ -114,28 +124,6 @@ export function organizationJsonLd() {
       "@type": "AggregateRating",
       ratingValue: "4.9",
       reviewCount: "6",
-    },
-  };
-}
-
-export function localBusinessJsonLd() {
-  return {
-    "@context": "https://schema.org",
-    "@type": "LocalBusiness",
-    "@id": `${SITE_URL}/#localbusiness`,
-    name: SITE_NAME,
-    image: `${SITE_URL}/Plix_Transparent_(1).png`,
-    url: SITE_URL,
-    telephone: SITE_PHONE_1,
-    email: SITE_EMAIL,
-    priceRange: PRICE_RANGE,
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: SITE_ADDRESS.street,
-      addressLocality: "Anjuna, Vagator",
-      addressRegion: SITE_ADDRESS.region,
-      postalCode: SITE_ADDRESS.postalCode,
-      addressCountry: SITE_ADDRESS.country,
     },
   };
 }
@@ -156,37 +144,16 @@ export function websiteJsonLd() {
   };
 }
 
-export function lodgingBusinessJsonLd() {
-  return {
-    "@context": "https://schema.org",
-    "@type": "LodgingBusiness",
-    "@id": `${SITE_URL}/#lodgingbusiness`,
-    name: "Plix Hospitality",
-    description:
-      "Luxury private pool villas, boutique resorts, and sprawling bungalows in Anjuna, Vagator, Assagao, Morjim, and Candolim, North Goa. Book direct and skip commission.",
-    url: SITE_URL,
-    telephone: SITE_PHONE_2,
-    contactPoint: [
-      { "@type": "ContactPoint", telephone: SITE_PHONE_2, contactType: "reservations", areaServed: "IN" },
-      { "@type": "ContactPoint", telephone: SITE_PHONE_1, contactType: "customer service", areaServed: "IN" },
-    ],
-    priceRange: "₹₹₹",
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: "Pequen, Chivar, 1561/3A, Anjuna, Vagator",
-      addressLocality: "Anjuna, Vagator",
-      addressRegion: "Goa",
-      postalCode: "403413",
-      addressCountry: "IN",
-    },
-    areaServed: ["Anjuna", "Vagator", "Assagao", "Morjim", "Candolim"],
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.9",
-      reviewCount: "6",
-    },
-  };
-}
+// Real, location-specific PIN codes — not one hardcoded code applied to
+// every property regardless of which of these five areas it's actually in
+// (a Candolim villa doesn't share a PIN with an Assagao one).
+const LOCATION_POSTAL_CODES: Record<string, string> = {
+  Vagator: "403509",
+  Anjuna: "403509",
+  Assagao: "403507",
+  Morjim: "403512",
+  Candolim: "403515",
+};
 
 export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
   const avgRating = reviews.length > 0
@@ -217,6 +184,7 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
       streetAddress: p.location,
       addressLocality: p.location,
       addressRegion: "Goa",
+      postalCode: LOCATION_POSTAL_CODES[p.location] ?? "403509",
       addressCountry: "IN",
     },
     geo:
@@ -273,4 +241,15 @@ export function breadcrumbJsonLd(items: { name: string; url: string }[]) {
 
 export function jsonLdScript(data: object): string {
   return JSON.stringify(data);
+}
+
+// Combines multiple schema objects into a single <script> via @graph — the
+// standard way to describe more than one related entity on a page without
+// emitting a separate <script type="application/ld+json"> per entity. Each
+// item's own "@context" is stripped since only one belongs at the top level.
+export function jsonLdGraphScript(...schemas: Record<string, unknown>[]): string {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": schemas.map(({ "@context": _context, ...rest }) => rest),
+  });
 }

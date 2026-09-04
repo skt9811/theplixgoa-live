@@ -15,7 +15,7 @@ import { SiteFooter } from "@/components/plix/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
-import { SITE_NAME, websiteJsonLd, localBusinessJsonLd, lodgingBusinessJsonLd, organizationJsonLd, jsonLdScript } from "@/lib/seo";
+import { SITE_NAME, websiteJsonLd, brandJsonLd, jsonLdGraphScript } from "@/lib/seo";
 import { chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
 
 const GOOGLE_FONTS_HREF =
@@ -153,10 +153,12 @@ function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
 gtag('config', 'G-98T2N1CNMW');`,
       },
-      { type: "application/ld+json", children: jsonLdScript(websiteJsonLd()) },
-      { type: "application/ld+json", children: jsonLdScript(localBusinessJsonLd()) },
-      { type: "application/ld+json", children: jsonLdScript(lodgingBusinessJsonLd()) },
-      { type: "application/ld+json", children: jsonLdScript(organizationJsonLd()) },
+      // The site's sole global JSON-LD block — one <script>, two entities
+      // via @graph (WebSite for the sitelinks search box, LodgingBusiness
+      // for the brand). Route-specific pages (properties.$slug.tsx, etc.)
+      // add their own single additional block on top of this one; they must
+      // not re-render brandJsonLd()/websiteJsonLd() themselves.
+      { type: "application/ld+json", children: jsonLdGraphScript(websiteJsonLd(), brandJsonLd()) },
       {
         type: "text/javascript",
         children: `(function() {

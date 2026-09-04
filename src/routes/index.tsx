@@ -25,8 +25,6 @@ import {
   SITE_URL,
   SITE_NAME,
   canonicalUrl,
-  organizationJsonLd,
-  lodgingBusinessJsonLd,
   faqPageJsonLd,
   jsonLdScript,
 } from "@/lib/seo";
@@ -64,8 +62,8 @@ export const Route = createFileRoute("/")({
       { rel: "canonical", href: canonicalUrl("/") },
     ],
     scripts: [
-      { type: "application/ld+json", children: jsonLdScript(organizationJsonLd()) },
-      { type: "application/ld+json", children: jsonLdScript(lodgingBusinessJsonLd()) },
+      // The brand-level schema is already rendered globally in __root.tsx —
+      // this page only adds its own unique FAQ schema on top of that.
       {
         type: "application/ld+json",
         children: jsonLdScript(

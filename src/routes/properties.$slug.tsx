@@ -53,7 +53,7 @@ import {
   propertyOgImage,
   vacationRentalJsonLd,
   breadcrumbJsonLd,
-  jsonLdScript,
+  jsonLdGraphScript,
 } from "@/lib/seo";
 
 type PropertySearch = {
@@ -106,12 +106,17 @@ export const Route = createFileRoute("/properties/$slug")({
       : `Book ${loaderData.name} in ${loaderData.location}, Goa direct with The Plix Goa. Best price guaranteed, zero commission.`;
     const slug = p?.slug ?? loaderData.slug ?? "";
     const ogImage = p ? propertyOgImage(p) : `${SITE_URL}/og-home.jpg`;
+    // Exactly one JSON-LD block for this page — combining the property's
+    // own VacationRental/LodgingBusiness schema with its breadcrumb via
+    // @graph, on top of the single global brand block __root.tsx already
+    // renders. Two scripts total per property page, not two-plus-however-
+    // many this page used to add on its own.
     const scripts = p
       ? [
-          { type: "application/ld+json", children: jsonLdScript(vacationRentalJsonLd(p, loaderData.reviews)) },
           {
             type: "application/ld+json",
-            children: jsonLdScript(
+            children: jsonLdGraphScript(
+              vacationRentalJsonLd(p, loaderData.reviews),
               breadcrumbJsonLd([
                 { name: "Home", url: "/" },
                 { name: "Stays", url: "/stays" },

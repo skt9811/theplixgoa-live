@@ -11,8 +11,6 @@ import {
   SITE_URL,
   SITE_NAME,
   canonicalUrl,
-  organizationJsonLd,
-  jsonLdScript,
 } from "@/lib/seo";
 
 type StaySearch = {
@@ -60,9 +58,8 @@ export const Route = createFileRoute("/stays")({
       },
     ],
     links: [{ rel: "canonical", href: canonicalUrl("/stays") }],
-    scripts: [
-      { type: "application/ld+json", children: jsonLdScript(organizationJsonLd()) },
-    ],
+    // The brand-level schema is already rendered globally in __root.tsx —
+    // this page has no schema unique to it.
   }),
   loader: ({ context, location }) =>
     context.queryClient.ensureQueryData(propertiesQuery((location.search as StaySearch).checkIn)),

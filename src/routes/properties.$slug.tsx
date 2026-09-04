@@ -53,7 +53,7 @@ import {
   propertyOgImage,
   vacationRentalJsonLd,
   breadcrumbJsonLd,
-  jsonLdGraphScript,
+  jsonLdScript,
 } from "@/lib/seo";
 
 type PropertySearch = {
@@ -106,20 +106,23 @@ export const Route = createFileRoute("/properties/$slug")({
       : `Book ${loaderData.name} in ${loaderData.location}, Goa direct with The Plix Goa. Best price guaranteed, zero commission.`;
     const slug = p?.slug ?? loaderData.slug ?? "";
     const ogImage = p ? propertyOgImage(p) : `${SITE_URL}/og-home.jpg`;
-    // Exactly one JSON-LD block for this page — combining the property's
-    // own VacationRental/LodgingBusiness schema with its breadcrumb via
-    // @graph. __root.tsx only renders WebSite globally; the full brand
+    // Two standalone JSON-LD blocks, each in its own <script> — not @graph-
+    // combined. __root.tsx only renders WebSite globally; the full brand
     // schema renders on the homepage only (index.tsx) — this page's
-    // property entity references it back via a `brand: { "@id": ... }`
-    // pointer (see vacationRentalJsonLd) rather than duplicating it. Two
-    // scripts total per property page (this one + root's WebSite one).
+    // property entity references it back with a plain `brand` string (see
+    // vacationRentalJsonLd) rather than duplicating it. Three scripts total
+    // per property page: this one's two + root's WebSite one.
     const scripts = p
       ? [
           {
             type: "application/ld+json",
             id: "property-jsonld",
-            children: jsonLdGraphScript(
-              vacationRentalJsonLd(p, loaderData.reviews),
+            children: jsonLdScript(vacationRentalJsonLd(p, loaderData.reviews)),
+          },
+          {
+            type: "application/ld+json",
+            id: "property-breadcrumb-jsonld",
+            children: jsonLdScript(
               breadcrumbJsonLd([
                 { name: "Home", url: "/" },
                 { name: "Stays", url: "/stays" },

@@ -210,14 +210,9 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
       bestRating: "5",
       worstRating: "1",
     },
-    // A reference back to the brand entity (rendered once, on the homepage
-    // only — see brandJsonLd()'s own comment), not a second copy of it.
-    // Two full LodgingBusiness objects on the same property page — the
-    // brand's and this property's own — is what was producing Google Rich
-    // Results' "duplicate LodgingBusiness instances" / "multiple aggregate
-    // ratings" errors: with both untethered, its parser couldn't tell they
-    // were different entities and started merging their fields.
-    brand: { "@type": "Brand", "@id": `${SITE_URL}/#business`, name: "Plix Hospitality" },
+    // Plain string, not an @id-linked object — avoids giving any parser a
+    // second entity/URL to potentially conflate with this one.
+    brand: "Plix Hospitality",
   };
 
   if (reviews.length > 0) {

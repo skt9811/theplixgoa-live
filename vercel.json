@@ -4,7 +4,27 @@
       "source": "/properties/chico-estate",
       "destination": "/properties/vivenda-chico",
       "permanent": true
-    }
+    },
+    { "source": "/casa-marina", "destination": "/properties/casa-marina", "permanent": true },
+    { "source": "/casa-marina/", "destination": "/properties/casa-marina", "permanent": true },
+    { "source": "/casa-moana", "destination": "/properties/casa-moana", "permanent": true },
+    { "source": "/casa-moana/", "destination": "/properties/casa-moana", "permanent": true },
+    { "source": "/casa-meadows", "destination": "/properties/casa-meadows", "permanent": true },
+    { "source": "/casa-meadows/", "destination": "/properties/casa-meadows", "permanent": true },
+    { "source": "/harbor-court", "destination": "/properties/harbor-court", "permanent": true },
+    { "source": "/harbor-court/", "destination": "/properties/harbor-court", "permanent": true },
+    { "source": "/the-plix-villa", "destination": "/properties/the-plix-villa", "permanent": true },
+    { "source": "/the-plix-villa/", "destination": "/properties/the-plix-villa", "permanent": true },
+    { "source": "/morjim-pride", "destination": "/properties/morjim-pride", "permanent": true },
+    { "source": "/morjim-pride/", "destination": "/properties/morjim-pride", "permanent": true },
+    { "source": "/vivenda-chico", "destination": "/properties/vivenda-chico", "permanent": true },
+    { "source": "/vivenda-chico/", "destination": "/properties/vivenda-chico", "permanent": true },
+    { "source": "/the-plix-resort-morjim", "destination": "/properties/the-plix-resort-morjim", "permanent": true },
+    { "source": "/the-plix-resort-morjim/", "destination": "/properties/the-plix-resort-morjim", "permanent": true },
+    { "source": "/villa-madera", "destination": "/properties/villa-madera", "permanent": true },
+    { "source": "/villa-madera/", "destination": "/properties/villa-madera", "permanent": true },
+    { "source": "/casa-serenita", "destination": "/properties/casa-serenita", "permanent": true },
+    { "source": "/casa-serenita/", "destination": "/properties/casa-serenita", "permanent": true }
   ],
   "rewrites": [
     {

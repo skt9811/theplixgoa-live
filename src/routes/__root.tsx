@@ -139,20 +139,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://checkout.razorpay.com" },
     ],
     scripts: [
-      { src: "https://www.googletagmanager.com/gtag/js?id=G-KDLB0WS8E2", async: true },
-      {
-        type: "text/javascript",
-        // AW-18001047926 (Google Ads) is intentionally NOT configured here —
-        // it's hardcoded directly into the static <head> in RootShell below
-        // so it's present on every response body regardless of this dynamic
-        // head-config mechanism. Configuring it in both places would fire
-        // `gtag('config', 'AW-18001047926')` twice per page load, double
-        // counting conversions.
-        children: `window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', 'G-KDLB0WS8E2');`,
-      },
+      // The GA4 measurement tag has been removed entirely — Google Ads
+      // (AW-18001047926, hardcoded in RootShell below) is now the only
+      // tracking snippet on the site.
       // WebSite (sitelinks search box) only, globally — this is safe to
       // repeat on every page since it isn't a business entity Google could
       // confuse with a page's own primary schema. The brand LodgingBusiness
@@ -200,12 +189,11 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
-        {/* Google Ads Tag — hardcoded directly in the static shell (not via
-            the dynamic head() scripts config below) so it's present on the
-            raw response body of every GET request, independent of the
-            per-route head-config mechanism. See the note next to
-            G-KDLB0WS8E2 in the route's head() for why it's deliberately
-            only configured once, here. */}
+        {/* Google Ads Tag — the ONLY tracking snippet on the site (GA4 was
+            removed entirely). Hardcoded directly in the static shell, not
+            via the dynamic head() scripts config below, so it's present on
+            the raw response body of every GET request independent of the
+            per-route head-config mechanism. */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18001047926" />
         <script
           dangerouslySetInnerHTML={{

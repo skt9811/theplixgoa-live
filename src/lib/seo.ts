@@ -54,14 +54,34 @@ function basePropertyTitle(p: Property): string {
 // despite that split already being the documented intent for these two
 // constants.
 export function propertySeoTitle(p: Property): string {
-  return `${basePropertyTitle(p)} | The Plix Goa`;
+  const base = basePropertyTitle(p);
+  // A property whose own name/title already carries "The Plix" (e.g. "The
+  // Plix Villa", "The Plix Resort Morjim") already states the brand — most
+  // of these are also hand-tuned CTR copy ending in a specific conversion
+  // hook ("Zero Commission", "-15%"), so appending the generic suffix here
+  // would both restate the brand redundantly and push the hook past
+  // Google's truncation point. Properties named distinctly (Casa Marina,
+  // Harbor Court, etc.) still get the suffix, same as before.
+  return base.toLowerCase().includes("the plix") ? base : `${base} | The Plix Goa`;
 }
 
-export function propertySeoDescription(p: Property): string {
+function basePropertyDescription(p: Property): string {
   if (p.seo_description) return p.seo_description;
   const beds = p.bedrooms <= 6 ? `${p.bedrooms} BHK` : `${p.bedrooms} bedroom`;
   const beach = p.distance_to_beach ? ` ${p.distance_to_beach}.` : "";
   return `Book ${p.name}, a ${beds} luxury private pool ${p.bedrooms >= 8 ? "bungalow" : "villa"} in ${p.location}, North Goa from ₹${p.base_price.toLocaleString("en-IN")}/night.${beach} Direct booking, zero commission, best price guaranteed.`;
+}
+
+// Required verbatim on every property page's meta description — appended
+// once here rather than pasted into all 10 seo_description strings by hand,
+// and skipped if a description already happens to contain it (keeps this
+// idempotent rather than risking a doubled-up sentence).
+const DIRECT_BOOKING_CTA =
+  "Book direct with Plix Hospitality for best guaranteed rates, private pool access, and zero platform fees.";
+
+export function propertySeoDescription(p: Property): string {
+  const base = basePropertyDescription(p);
+  return base.includes(DIRECT_BOOKING_CTA) ? base : `${base} ${DIRECT_BOOKING_CTA}`;
 }
 
 // There's no dedicated per-property OG-image asset pipeline in this repo

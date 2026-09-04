@@ -422,7 +422,7 @@ export const PROPERTIES: Property[] = [
     tagline: "VAGATOR, NORTH GOA • 5 BHK GRAND POOL VILLA",
     description:
       "Contemporary sanctuary for large groups and grand celebrations. Casa Meadows is an expansive 5 BHK luxury private pool villa designed for up to 10-12 guests, featuring floor-to-ceiling glass doors, a personal pool courtyard, wide lawns, and tropical landscapes. With panoramic valley views and premium concierge service, it delivers elite hospitality for unforgettable gatherings in North Goa.",
-    seo_title: "Casa Meadows | 5 BHK Grand Private Pool Villa in Vagator",
+    seo_title: "Casa Meadows Vagator | 5 BHK Grand Private Pool Villa | The Plix Goa",
     seo_description:
       "Book Casa Meadows, an expansive 5 BHK luxury private pool villa in Vagator, North Goa. Accommodates up to 10-12 guests with wide lawns and premium concierge service. Direct booking.",
     seo_keywords: ["5 BHK Villa Vagator", "Large Group Villa Goa", "Grand Pool Villa North Goa", "Wedding Villa Anjuna", "Luxury Villa with Lawn Goa"],
@@ -490,7 +490,7 @@ export const PROPERTIES: Property[] = [
     tagline: "ASSAGAO, NORTH GOA • 3 BHK LUXURY PRIVATE POOL VILLA",
     description:
       "Exclusive private pool haven in Assagao. Set amidst lush greenery, The Plix Villa is an exclusive 3 BHK retreat designed for seamless indoor-outdoor living with a private pool and full-time caretaker. Surrounded by greenery and minutes away from Goa's finest dining cafes, the villa features a private swimming pool, landscaped gardens, high-speed Wi-Fi, fully equipped kitchen, and dedicated full-time housekeeping for up to 6 guests.",
-    seo_title: "The Plix Villa | 3 BHK Luxury Private Pool Villa in Assagao",
+    seo_title: "The Plix Villa Assagao & Anjuna | Luxury Private Pool Villa | Zero Commission",
     seo_description:
       "Book The Plix Villa, a premium 3 BHK private pool villa in Assagao, North Goa. Accommodates up to 6 guests with full-time caretaker, private garden, and modern luxury amenities.",
     seo_keywords: ["3 BHK Villa Assagao", "Luxury Private Pool Villa Goa", "Villa in Assagao near Cafes", "Private Pool Holiday Home"],
@@ -592,7 +592,7 @@ export const PROPERTIES: Property[] = [
     tagline: "MORJIM, NORTH GOA • BEACHSIDE RESORT WITH POOL",
     description:
       "Welcome to The Plix Resort - Morjim, our serene beachside retreat just 100 meters from the ocean. Our resort features a swimming pool and chill-out area for unwinding. With 10 cozy rooms, your stay promises tranquility and scenic beauty. Wake up to the soothing sound of waves and indulge in coastal charm. The Plix Resort - Morjim offers the ideal escape for unforgettable memories by the sea.",
-    seo_title: "The Plix Resort - Morjim | Beachside Resort Near Morjim Beach",
+    seo_title: "The Plix Resort Morjim Goa | Luxury Boutique Resort | Direct Booking -15%",
     seo_description:
       "Book The Plix Resort - Morjim, a beachside resort just 100 meters from Morjim Beach. Featuring a swimming pool, on-site restaurant, and bar across 10 cozy rooms. Direct booking, zero commission.",
     seo_keywords: ["Resort near Morjim Beach", "Beachside Resort Morjim", "Swimming Pool Resort Goa", "Morjim Beach Stay", "North Goa Resort with Bar"],

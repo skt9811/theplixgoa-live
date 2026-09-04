@@ -1,7 +1,8 @@
-// gtag.js itself is loaded globally in src/routes/__root.tsx (Google Ads
-// tag AW-18001047926, alongside the existing GA4 tag) — this file only adds
-// a safe helper for firing conversion events against it from anywhere in
-// the app, most importantly the booking checkout flow.
+// gtag.js itself is loaded globally in src/routes/__root.tsx (Google Ads tag
+// AW-18001047926 — the only tracking snippet on the site, GA4 was removed
+// entirely) — this file only adds a safe helper for firing conversion
+// events against it from anywhere in the app, most importantly the booking
+// checkout flow.
 
 declare global {
   interface Window {

@@ -87,6 +87,14 @@ export function canonicalUrl(path: string): string {
 // most specific one, and the one Google's lodging rich results key off —
 // with the richer fields from the old Organization block (sameAs,
 // aggregateRating, logo) folded in.
+//
+// Render this on the homepage ONLY, not globally in __root.tsx — every
+// property page already has its own primary LodgingBusiness/VacationRental
+// entity (vacationRentalJsonLd), which references this one back via a
+// lightweight `brand: { "@id": ... }` pointer instead of duplicating it.
+// Having this full object present on every page (as it used to be) meant
+// property pages carried two competing LodgingBusiness entities — that's
+// what Google Rich Results was flagging as duplicate instances/ratings.
 export function brandJsonLd() {
   return {
     "@context": "https://schema.org",
@@ -199,7 +207,17 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
       "@type": "AggregateRating",
       ratingValue: avgRating,
       reviewCount,
+      bestRating: "5",
+      worstRating: "1",
     },
+    // A reference back to the brand entity (rendered once, on the homepage
+    // only — see brandJsonLd()'s own comment), not a second copy of it.
+    // Two full LodgingBusiness objects on the same property page — the
+    // brand's and this property's own — is what was producing Google Rich
+    // Results' "duplicate LodgingBusiness instances" / "multiple aggregate
+    // ratings" errors: with both untethered, its parser couldn't tell they
+    // were different entities and started merging their fields.
+    brand: { "@type": "Brand", "@id": `${SITE_URL}/#business`, name: "Plix Hospitality" },
   };
 
   if (reviews.length > 0) {

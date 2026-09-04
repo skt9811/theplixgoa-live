@@ -15,7 +15,7 @@ import { SiteFooter } from "@/components/plix/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
-import { SITE_NAME, websiteJsonLd, brandJsonLd, jsonLdGraphScript } from "@/lib/seo";
+import { SITE_NAME, websiteJsonLd, jsonLdScript } from "@/lib/seo";
 import { chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
 
 const GOOGLE_FONTS_HREF =
@@ -153,12 +153,15 @@ function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
 gtag('config', 'G-KDLB0WS8E2');`,
       },
-      // The site's sole global JSON-LD block — one <script>, two entities
-      // via @graph (WebSite for the sitelinks search box, LodgingBusiness
-      // for the brand). Route-specific pages (properties.$slug.tsx, etc.)
-      // add their own single additional block on top of this one; they must
-      // not re-render brandJsonLd()/websiteJsonLd() themselves.
-      { type: "application/ld+json", children: jsonLdGraphScript(websiteJsonLd(), brandJsonLd()) },
+      // WebSite (sitelinks search box) only, globally — this is safe to
+      // repeat on every page since it isn't a business entity Google could
+      // confuse with a page's own primary schema. The brand LodgingBusiness
+      // itself (brandJsonLd()) is deliberately NOT rendered here anymore —
+      // see its own comment in seo.ts for why doing so on every page,
+      // including property pages that have their own LodgingBusiness/
+      // VacationRental entity, was producing Google Rich Results' duplicate-
+      // instance errors. It now renders on the homepage only (index.tsx).
+      { type: "application/ld+json", children: jsonLdScript(websiteJsonLd()) },
       {
         type: "text/javascript",
         children: `(function() {

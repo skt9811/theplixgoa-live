@@ -26,7 +26,8 @@ import {
   SITE_NAME,
   canonicalUrl,
   faqPageJsonLd,
-  jsonLdScript,
+  brandJsonLd,
+  jsonLdGraphScript,
 } from "@/lib/seo";
 
 export const Route = createFileRoute("/")({
@@ -62,11 +63,16 @@ export const Route = createFileRoute("/")({
       { rel: "canonical", href: canonicalUrl("/") },
     ],
     scripts: [
-      // The brand-level schema is already rendered globally in __root.tsx —
-      // this page only adds its own unique FAQ schema on top of that.
+      // The homepage is the ONE place brandJsonLd() renders in full — every
+      // other page (property pages, /stays, etc.) either omits it entirely
+      // or references it back via a lightweight `brand: { "@id": ... }`
+      // pointer (see vacationRentalJsonLd) rather than repeating the whole
+      // object. That's what fixed Google Rich Results' duplicate-
+      // LodgingBusiness / multiple-aggregateRating errors on property pages.
       {
         type: "application/ld+json",
-        children: jsonLdScript(
+        children: jsonLdGraphScript(
+          brandJsonLd(),
           faqPageJsonLd([
             { q: "Do you charge any booking or platform fees?", a: "No. Booking direct with The Plix Goa means you pay the nightly rate plus applicable taxes — nothing else." },
             { q: "Is the entire villa private to my group?", a: "Yes. Every Plix stay is booked as a whole property, so the pool, kitchen and garden are exclusively yours." },

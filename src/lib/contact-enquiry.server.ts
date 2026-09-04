@@ -87,12 +87,18 @@ async function logResendError(context: string, res: Response): Promise<void> {
   } catch {
     // not JSON — log the raw text as-is
   }
-  console.error(`RESEND CONTACT ENQUIRY ERROR — ${context} — HTTP ${res.status}:`, JSON.stringify(parsed, null, 2));
+  if (res.status === 401) {
+    console.error(`RESEND CONTACT ENQUIRY ERROR — ${context} — HTTP 401: RESEND_API_KEY is missing or invalid.`, JSON.stringify(parsed, null, 2));
+  } else if (res.status === 403) {
+    console.error(`RESEND CONTACT ENQUIRY ERROR — ${context} — HTTP 403: sender domain is not verified in Resend (check the "from" address's domain).`, JSON.stringify(parsed, null, 2));
+  } else {
+    console.error(`RESEND CONTACT ENQUIRY ERROR — ${context} — HTTP ${res.status}:`, JSON.stringify(parsed, null, 2));
+  }
 }
 
 export async function handleContactEnquiryRequest(req: Request): Promise<Response> {
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ sent: false, reason: "Method not allowed" }), {
+    return new Response(JSON.stringify({ success: false, reason: "Method not allowed" }), {
       status: 405,
       headers: { "Content-Type": "application/json" },
     });
@@ -102,7 +108,7 @@ export async function handleContactEnquiryRequest(req: Request): Promise<Respons
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ sent: false, reason: "Invalid JSON body" }), {
+    return new Response(JSON.stringify({ success: false, reason: "Invalid JSON body" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
@@ -110,7 +116,7 @@ export async function handleContactEnquiryRequest(req: Request): Promise<Respons
 
   if (!isContactEnquiryInput(body)) {
     console.error("[handleContactEnquiryRequest] payload failed validation:", JSON.stringify(body));
-    return new Response(JSON.stringify({ sent: false, reason: "Missing required fields" }), {
+    return new Response(JSON.stringify({ success: false, reason: "Missing required fields" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
@@ -119,31 +125,36 @@ export async function handleContactEnquiryRequest(req: Request): Promise<Respons
   const resendApiKey = process.env["RESEND_API_KEY"] ?? "";
   const fromEmail = process.env["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
   if (!resendApiKey) {
-    console.error("[handleContactEnquiryRequest] RESEND_API_KEY not configured on this deployment");
-    return new Response(JSON.stringify({ sent: false, reason: "Email is not configured on the server." }), {
+    console.error("[handleContactEnquiryRequest] HTTP 401 equivalent — RESEND_API_KEY not configured on this deployment. Refusing to call Resend.");
+    return new Response(JSON.stringify({ success: false, reason: "Email is not configured on the server." }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
 
+  console.log(`[handleContactEnquiryRequest] dispatching enquiry email — from=${fromEmail} to=${ENQUIRY_RECIPIENTS.join(",")} name=${body.name}`);
+
   const res = await sendResendEmail(
     resendApiKey,
     fromEmail,
     ENQUIRY_RECIPIENTS,
-    `New enquiry from ${body.name}`,
+    `New Website Enquiry: ${body.name} — ${body.phone}`,
     buildEnquiryEmail(body),
     body.email,
   );
 
   if (!res.ok) {
     await logResendError(body.email, res);
-    return new Response(JSON.stringify({ sent: false, reason: "Could not send your enquiry. Please try again or contact us directly." }), {
+    return new Response(JSON.stringify({ success: false, reason: "Could not send your enquiry. Please try again or contact us directly." }), {
       status: 502,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  return new Response(JSON.stringify({ sent: true }), {
+  const resendId = await res.clone().json().then((j: { id?: string }) => j.id).catch(() => undefined);
+  console.log(`[handleContactEnquiryRequest] Resend accepted the enquiry email — id=${resendId ?? "unknown"}`);
+
+  return new Response(JSON.stringify({ success: true }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });

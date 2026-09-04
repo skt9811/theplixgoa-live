@@ -63,8 +63,8 @@ function Contact() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const result = (await res.json()) as { sent: boolean; reason?: string };
-      if (result.sent) {
+      const result = (await res.json()) as { success: boolean; reason?: string };
+      if (result.success) {
         setSent(true);
         toast.success("Thanks! Our team will reply within a few hours.");
         setForm({ name: "", phone: "", email: "", stayDetails: "", message: "" });

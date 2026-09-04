@@ -139,7 +139,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://checkout.razorpay.com" },
     ],
     scripts: [
-      { src: "https://www.googletagmanager.com/gtag/js?id=G-98T2N1CNMW", async: true },
+      { src: "https://www.googletagmanager.com/gtag/js?id=G-KDLB0WS8E2", async: true },
       {
         type: "text/javascript",
         // AW-18001047926 (Google Ads) is intentionally NOT configured here —
@@ -151,7 +151,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         children: `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', 'G-98T2N1CNMW');`,
+gtag('config', 'G-KDLB0WS8E2');`,
       },
       // The site's sole global JSON-LD block — one <script>, two entities
       // via @graph (WebSite for the sitelinks search box, LodgingBusiness
@@ -194,7 +194,7 @@ function RootShell({ children }: { children: ReactNode }) {
             the dynamic head() scripts config below) so it's present on the
             raw response body of every GET request, independent of the
             per-route head-config mechanism. See the note next to
-            G-98T2N1CNMW in the route's head() for why it's deliberately
+            G-KDLB0WS8E2 in the route's head() for why it's deliberately
             only configured once, here. */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18001047926" />
         <script

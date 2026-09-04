@@ -108,13 +108,16 @@ export const Route = createFileRoute("/properties/$slug")({
     const ogImage = p ? propertyOgImage(p) : `${SITE_URL}/og-home.jpg`;
     // Exactly one JSON-LD block for this page — combining the property's
     // own VacationRental/LodgingBusiness schema with its breadcrumb via
-    // @graph, on top of the single global brand block __root.tsx already
-    // renders. Two scripts total per property page, not two-plus-however-
-    // many this page used to add on its own.
+    // @graph. __root.tsx only renders WebSite globally; the full brand
+    // schema renders on the homepage only (index.tsx) — this page's
+    // property entity references it back via a `brand: { "@id": ... }`
+    // pointer (see vacationRentalJsonLd) rather than duplicating it. Two
+    // scripts total per property page (this one + root's WebSite one).
     const scripts = p
       ? [
           {
             type: "application/ld+json",
+            id: "property-jsonld",
             children: jsonLdGraphScript(
               vacationRentalJsonLd(p, loaderData.reviews),
               breadcrumbJsonLd([

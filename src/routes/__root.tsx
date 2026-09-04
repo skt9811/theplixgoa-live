@@ -161,7 +161,14 @@ gtag('config', 'G-KDLB0WS8E2');`,
       // including property pages that have their own LodgingBusiness/
       // VacationRental entity, was producing Google Rich Results' duplicate-
       // instance errors. It now renders on the homepage only (index.tsx).
-      { type: "application/ld+json", children: jsonLdScript(websiteJsonLd()) },
+      // The `id` attribute here is inert as far as TanStack Router itself is
+      // concerned — its hydration/reconciliation for application/ld+json
+      // scripts doesn't read it (confirmed by reading Asset.js directly: the
+      // imperative append-on-hydrate code path is unconditionally skipped
+      // for any non-standard script `type`, this one included). It's added
+      // purely as a stable query target for manual/automated verification
+      // (e.g. `document.querySelector('#global-website-jsonld')`).
+      { type: "application/ld+json", id: "global-website-jsonld", children: jsonLdScript(websiteJsonLd()) },
       {
         type: "text/javascript",
         children: `(function() {

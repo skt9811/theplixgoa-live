@@ -73,12 +73,21 @@ import bhk4_3 from "@/assets/4bhk3.png";
 import bhk4_4 from "@/assets/4bhk4.png";
 
 // Casa Meadows (5bhk)
-import bhk5 from "@/assets/5bhk.png";
-import bhk5_1 from "@/assets/5bhk1.jpeg";
-import bhk5_2 from "@/assets/5bhk2.png";
-import bhk5_3 from "@/assets/5bhk3.png";
-import bhk5_4 from "@/assets/5bhk4.png";
-import bhk5_5 from "@/assets/5bhk5.png";
+import bhk5 from "@/assets/5bhk.jpg";
+import bhk5_1 from "@/assets/5bhk1.jpg";
+import bhk5_2 from "@/assets/5bhk2.jpg";
+import bhk5_3 from "@/assets/5bhk3.jpg";
+import bhk5_4 from "@/assets/5bhk4.jpg";
+import bhk5_5 from "@/assets/5bhk5.jpg";
+import bhk5_6 from "@/assets/5bhk6.jpg";
+import bhk5_7 from "@/assets/5bhk7.jpg";
+import bhk5_8 from "@/assets/5bhk8.jpg";
+import bhk5_9 from "@/assets/5bhk9.jpg";
+import bhk5_10 from "@/assets/5bhk10.jpg";
+import bhk5_11 from "@/assets/5bhk11.jpg";
+import bhk5_12 from "@/assets/5bhk12.jpg";
+import bhk5_13 from "@/assets/5bhk13.jpg";
+import bhk5_14 from "@/assets/5bhk14.jpg";
 
 // The Plix Villa
 import plix from "@/assets/plix.jpeg";
@@ -197,6 +206,15 @@ export const imageMap: Record<string, string> = {
   "5bhk3": bhk5_3,
   "5bhk4": bhk5_4,
   "5bhk5": bhk5_5,
+  "5bhk6": bhk5_6,
+  "5bhk7": bhk5_7,
+  "5bhk8": bhk5_8,
+  "5bhk9": bhk5_9,
+  "5bhk10": bhk5_10,
+  "5bhk11": bhk5_11,
+  "5bhk12": bhk5_12,
+  "5bhk13": bhk5_13,
+  "5bhk14": bhk5_14,
   // The Plix Villa
   plix,
   plix1,
@@ -443,10 +461,26 @@ export const PROPERTIES: Property[] = [
     max_guests: 10,
     base_price: 15000,
     distance_to_beach: "8 mins drive to Anjuna Beach",
-    // 5bhk, 5bhk2, 5bhk3, 5bhk4, 5bhk5 are genuinely truncated PNGs (same
-    // verification as casa-marina's comment above) — only 5bhk1 is a real,
-    // complete photo. This property urgently needs more replacement photos.
-    image_keys: ["5bhk1"],
+    // Replacement photos uploaded — all 15 5bhk* source files verified valid
+    // (IEND chunk present, healthy bytes-per-pixel ratio) and optimized via
+    // scripts/optimize-meadows-images.mjs (10-61MB PNG -> 150-460KB JPEG).
+    // Slot 0 = pool/exterior, slot 1 = lounge, slot 2 = master bedroom.
+    image_keys: [
+      "5bhk12",
+      "5bhk",
+      "5bhk1",
+      "5bhk2",
+      "5bhk3",
+      "5bhk4",
+      "5bhk6",
+      "5bhk7",
+      "5bhk8",
+      "5bhk9",
+      "5bhk10",
+      "5bhk11",
+      "5bhk13",
+      "5bhk14",
+    ],
     amenity_tags: ["Valley Views", "Private Pool", "Elite Hospitality", "Free Parking"],
     nearby: [
       { name: "Anjuna Beach", distance: "8 mins drive" },

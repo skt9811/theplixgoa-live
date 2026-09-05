@@ -205,7 +205,7 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
           <SmartImage
             src={third}
             alt={`${propertyName} — additional photo`}
-            loading="lazy"
+            loading="eager"
             width={800}
             height={600}
             className="block h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"

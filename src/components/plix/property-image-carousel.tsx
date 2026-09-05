@@ -94,8 +94,9 @@ export function PropertyImageCarousel({ images, propertyName }: Props) {
                 <div className="h-[260px] overflow-hidden rounded-2xl bg-muted sm:h-[340px] md:h-[420px] lg:h-[480px]">
                   <SmartImage
                     src={src}
+                    fallbackSrc={images[0]}
                     alt={`${propertyName} — photo ${i + 1} of ${images.length}`}
-                    loading="lazy"
+                    loading={i < 4 ? "eager" : "lazy"}
                     width={1000}
                     height={480}
                     className="h-full w-full object-cover"

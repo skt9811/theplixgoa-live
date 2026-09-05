@@ -8,6 +8,11 @@ type SmartImageProps = {
   height?: number;
   className?: string;
   style?: CSSProperties;
+  // If the primary src (and its one retry) both fail, fall back to this
+  // src instead of showing the "Image unavailable" placeholder — e.g. a
+  // gallery carousel substituting the property's main photo for a single
+  // broken slide, rather than leaving a hole mid-gallery.
+  fallbackSrc?: string | undefined;
 };
 
 // Previously: one failed load (a transient network blip, a slow connection,
@@ -20,18 +25,25 @@ type SmartImageProps = {
 // an already-failed element does NOT make the browser retry, only a fresh
 // element does. The error state, and the retry count, both reset whenever
 // `src` itself changes, so a new image always gets its own clean attempt.
-export function SmartImage({ src, alt, loading = "lazy", width, height, className, style }: SmartImageProps) {
+export function SmartImage({ src, alt, loading = "lazy", width, height, className, style, fallbackSrc }: SmartImageProps) {
   const [errored, setErrored] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [usedFallback, setUsedFallback] = useState(false);
 
   useEffect(() => {
     setErrored(false);
     setAttempt(0);
+    setUsedFallback(false);
   }, [src]);
 
   function handleError() {
     if (attempt === 0) {
       setAttempt(1);
+      return;
+    }
+    if (!usedFallback && fallbackSrc && fallbackSrc !== src) {
+      setUsedFallback(true);
+      setAttempt(0);
       return;
     }
     setErrored(true);
@@ -50,10 +62,12 @@ export function SmartImage({ src, alt, loading = "lazy", width, height, classNam
     );
   }
 
+  const currentSrc = usedFallback && fallbackSrc ? fallbackSrc : src;
+
   return (
     <img
-      key={`${src}-${attempt}`}
-      src={src}
+      key={`${currentSrc}-${attempt}`}
+      src={currentSrc}
       alt={alt}
       loading={loading}
       width={width}

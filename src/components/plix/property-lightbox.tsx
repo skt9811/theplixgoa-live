@@ -57,7 +57,7 @@ export function PropertyLightbox({ images, propertyName, index, onIndexChange, o
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex items-center justify-between px-4 py-4 sm:px-6">
+      <div className="relative z-30 flex items-center justify-between px-4 py-4 sm:px-6">
         <span className="text-sm font-medium text-white/80">
           {index + 1} of {total}
         </span>
@@ -71,12 +71,12 @@ export function PropertyLightbox({ images, propertyName, index, onIndexChange, o
         </button>
       </div>
 
-      <div className="relative flex flex-1 items-center justify-center px-2 pb-4 sm:px-6">
+      <div className="relative flex w-full flex-1 items-center justify-center p-4 sm:p-6 md:p-8">
         <SmartImage
           src={images[index] ?? ""}
           alt={`${propertyName} — photo ${index + 1} of ${total}`}
           loading="eager"
-          className="max-h-full max-w-full object-contain"
+          className="max-h-[85vh] max-w-[90vw] w-auto h-auto object-contain select-none rounded-lg shadow-2xl"
         />
 
         {total > 1 && (
@@ -85,7 +85,7 @@ export function PropertyLightbox({ images, propertyName, index, onIndexChange, o
               type="button"
               onClick={goPrev}
               aria-label="Previous photo"
-              className="absolute left-2 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:left-6"
+              className="absolute left-2 top-1/2 z-30 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:left-6"
             >
               <ChevronLeft className="size-6" aria-hidden />
             </button>
@@ -93,7 +93,7 @@ export function PropertyLightbox({ images, propertyName, index, onIndexChange, o
               type="button"
               onClick={goNext}
               aria-label="Next photo"
-              className="absolute right-2 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:right-6"
+              className="absolute right-2 top-1/2 z-30 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:right-6"
             >
               <ChevronRight className="size-6" aria-hidden />
             </button>
@@ -102,7 +102,7 @@ export function PropertyLightbox({ images, propertyName, index, onIndexChange, o
       </div>
 
       {total > 1 && (
-        <div className="flex justify-center gap-1.5 overflow-x-auto px-4 pb-5">
+        <div className="relative z-30 flex justify-center gap-1.5 overflow-x-auto px-4 pb-5">
           {images.map((_, i) => (
             <button
               key={i}

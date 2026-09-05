@@ -144,12 +144,42 @@ export async function signInWithGoogle(): Promise<AuthResult> {
   if (typeof window === "undefined") {
     return { success: false, error: "Sign-in isn't available right now. Please try again later." };
   }
-  // A plain top-level navigation, same as a `<a href="/api/auth/signin/google">`
-  // link — Auth.js's signin action redirects straight to Google's
-  // authorization URL for a GET request naming a specific OAuth provider, no
-  // CSRF token or XHR handling needed for this path. If Google isn't
-  // configured on this deployment (no AUTH_GOOGLE_ID/SECRET), Auth.js falls
-  // back to its own generic sign-in page rather than erroring.
-  window.location.assign(`/api/auth/signin/google?callbackUrl=${encodeURIComponent(window.location.href)}`);
+  // Auth.js v5 rejects a plain GET to /signin/:provider outright —
+  // pages/index.js's signin() throws UnknownAction the moment a providerId
+  // is present, precisely to stop a bare <a href> or top-level navigation
+  // from triggering sign-in (CSRF hardening vs. NextAuth v4, where a plain
+  // link used to work). Initiating OAuth now requires a real POST carrying
+  // a CSRF token that matches the "next-auth.csrf-token" cookie's value —
+  // Auth.js's standard double-submit pattern. Fetch that token, then submit
+  // an actual <form> (not fetch/XHR) so the browser follows the resulting
+  // redirect chain to Google exactly like a normal navigation would.
+  const csrfRes = await fetch("/api/auth/csrf");
+  if (!csrfRes.ok) {
+    return { success: false, error: "Google sign-in failed. Please try again." };
+  }
+  const { csrfToken } = (await csrfRes.json()) as { csrfToken?: string };
+  if (!csrfToken) {
+    return { success: false, error: "Google sign-in failed. Please try again." };
+  }
+
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "/api/auth/signin/google";
+  form.style.display = "none";
+
+  const csrfInput = document.createElement("input");
+  csrfInput.type = "hidden";
+  csrfInput.name = "csrfToken";
+  csrfInput.value = csrfToken;
+  form.appendChild(csrfInput);
+
+  const callbackInput = document.createElement("input");
+  callbackInput.type = "hidden";
+  callbackInput.name = "callbackUrl";
+  callbackInput.value = window.location.href;
+  form.appendChild(callbackInput);
+
+  document.body.appendChild(form);
+  form.submit();
   return { success: true };
 }

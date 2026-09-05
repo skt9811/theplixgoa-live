@@ -398,7 +398,9 @@ export const PROPERTIES: Property[] = [
     max_guests: 8,
     base_price: 12000,
     distance_to_beach: "10 mins drive to Anjuna Beach",
-    image_keys: ["3bhk4", "3bhk", "3bhk1", "3bhk2", "3bhk3", "3bhk5", "3bhk6", "3bhk7", "3bhk8", "3bhk9", "3bhk10", "3bhk11"],
+    // 3bhk, 3bhk2, 3bhk8 were dropped — same truncated-PNG issue as
+    // Vivenda Chico's missing keys (see that property's comment).
+    image_keys: ["3bhk4", "3bhk1", "3bhk3", "3bhk5", "3bhk6", "3bhk7", "3bhk9", "3bhk10", "3bhk11"],
     amenity_tags: ["Bespoke Interiors", "Private Pool", "Air Conditioning", "Power Backup"],
     nearby: [
       { name: "Anjuna Beach", distance: "10 mins drive" },
@@ -568,7 +570,13 @@ export const PROPERTIES: Property[] = [
     max_guests: 20,
     base_price: 22000,
     distance_to_beach: "6 mins drive to Candolim Beach",
-    image_keys: ["chico", "chico1", "chico2", "chico3", "chico4", "chico5", "chico6", "chico7", "chico8", "chico9", "chico10", "chico11", "chico12", "chico13", "chico14", "chico15", "chico16", "chico17"],
+    // chico2, chico7, chico11, chico12, chico13, chico14, chico15 were
+    // dropped — those source PNGs are genuinely truncated (valid header,
+    // missing the PNG end-of-file marker, each cut off at a suspiciously
+    // exact power-of-two byte boundary), not a loading/rendering bug. No
+    // replacement photos exist to fill those slots, so they're removed
+    // rather than pointing at broken files or fabricated images.
+    image_keys: ["chico", "chico1", "chico3", "chico4", "chico5", "chico6", "chico8", "chico9", "chico10", "chico16", "chico17"],
     amenity_tags: ["Massive Lawn", "Private Pool", "Party Venue", "Wedding Friendly", "Spacious Dining Halls"],
     nearby: [
       { name: "Candolim Beach", distance: "6 mins drive" },

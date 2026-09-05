@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { ArrowRight, Calendar, Clock, Loader } from "lucide-react";
+import { ArrowRight, Calendar, ChevronDown, Clock, Loader } from "lucide-react";
 import { blogsQuery, BLOG_CATEGORIES, estimateReadingTime, formatDate } from "@/lib/blog";
 import { canonicalUrl } from "@/lib/seo";
 
@@ -30,9 +30,12 @@ export const Route = createFileRoute("/blog/")({
   component: BlogIndex,
 });
 
+const VISIBLE_COUNT = 10;
+
 function BlogIndex() {
   const { data: blogs = [], isLoading } = useQuery(blogsQuery);
   const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [showAll, setShowAll] = useState(false);
 
   const filtered = activeCategory === "All"
     ? blogs
@@ -40,6 +43,7 @@ function BlogIndex() {
 
   const featured = blogs[0] ?? null;
   const gridPosts = activeCategory === "All" ? blogs.slice(1) : filtered.filter((b) => b.id !== featured?.id);
+  const hasMore = gridPosts.length > VISIBLE_COUNT;
 
   if (isLoading) {
     return (
@@ -120,7 +124,10 @@ function BlogIndex() {
           {BLOG_CATEGORIES.map((cat) => (
             <button
               key={cat}
-              onClick={() => setActiveCategory(cat)}
+              onClick={() => {
+                setActiveCategory(cat);
+                setShowAll(false);
+              }}
               className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                 activeCategory === cat
                   ? "bg-navy text-navy-foreground"
@@ -138,12 +145,19 @@ function BlogIndex() {
           </p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {gridPosts.map((post) => (
+            {gridPosts.map((post, index) => (
               <Link
                 key={post.id}
                 to="/blog/$slug"
                 params={{ slug: post.slug }}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-card"
+                // Every post link stays in the server-rendered HTML — hiding
+                // extras past VISIBLE_COUNT with CSS (instead of only
+                // mounting them after a click) keeps them fully crawlable
+                // for internal-link discovery, while giving the same
+                // collapsed look for human visitors.
+                className={`group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-card ${
+                  !showAll && index >= VISIBLE_COUNT ? "hidden" : ""
+                }`}
               >
                 <div className="relative aspect-[16/10] overflow-hidden">
                   {post.cover_image ? (
@@ -180,6 +194,19 @@ function BlogIndex() {
                 </div>
               </Link>
             ))}
+          </div>
+        )}
+
+        {hasMore && !showAll && (
+          <div className="mt-10 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setShowAll(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold text-navy shadow-soft transition-colors hover:bg-accent"
+            >
+              Show more
+              <ChevronDown className="size-4" aria-hidden />
+            </button>
           </div>
         )}
       </div>

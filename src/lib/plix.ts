@@ -364,7 +364,16 @@ export const PROPERTIES: Property[] = [
     max_guests: 6,
     base_price: 9500,
     distance_to_beach: "8 mins drive to Anjuna Beach",
-    image_keys: ["4bhk1", "4bhk", "4bhk2", "4bhk3", "4bhk4"],
+    // All 5 of this property's source photos (4bhk, 4bhk1-4bhk4) are
+    // genuinely truncated PNGs — confirmed via real headless-Chrome
+    // screenshot reproduction plus a bytes-per-pixel check against known-
+    // good sibling images (these run 0.04-0.1 bytes/px vs ~1.1-1.7 for a
+    // complete photo at the same resolution, i.e. 10-60x too small for
+    // their claimed dimensions). None can be repaired without the original
+    // files. Left empty rather than pointing at broken images — resolveImages()
+    // falls back to a generic hero shot for an empty array. This property
+    // urgently needs real replacement photos uploaded.
+    image_keys: [],
     amenity_tags: ["Private Pool", "Panoramic Views", "Luxury Amenities", "Free Wi-Fi"],
     nearby: [
       { name: "Anjuna Beach", distance: "8 mins drive" },
@@ -398,7 +407,9 @@ export const PROPERTIES: Property[] = [
     max_guests: 8,
     base_price: 12000,
     distance_to_beach: "10 mins drive to Anjuna Beach",
-    image_keys: ["3bhk4", "3bhk", "3bhk1", "3bhk2", "3bhk3", "3bhk5", "3bhk6", "3bhk7", "3bhk8", "3bhk9", "3bhk10", "3bhk11"],
+    // 3bhk, 3bhk2, 3bhk8 are genuinely truncated PNGs (same verification as
+    // casa-marina's comment) — the other 9 are real, complete photos.
+    image_keys: ["3bhk4", "3bhk1", "3bhk3", "3bhk5", "3bhk6", "3bhk7", "3bhk9", "3bhk10", "3bhk11"],
     amenity_tags: ["Bespoke Interiors", "Private Pool", "Air Conditioning", "Power Backup"],
     nearby: [
       { name: "Anjuna Beach", distance: "10 mins drive" },
@@ -432,7 +443,10 @@ export const PROPERTIES: Property[] = [
     max_guests: 10,
     base_price: 15000,
     distance_to_beach: "8 mins drive to Anjuna Beach",
-    image_keys: ["5bhk", "5bhk1", "5bhk2", "5bhk3", "5bhk4", "5bhk5"],
+    // 5bhk, 5bhk2, 5bhk3, 5bhk4, 5bhk5 are genuinely truncated PNGs (same
+    // verification as casa-marina's comment above) — only 5bhk1 is a real,
+    // complete photo. This property urgently needs more replacement photos.
+    image_keys: ["5bhk1"],
     amenity_tags: ["Valley Views", "Private Pool", "Elite Hospitality", "Free Parking"],
     nearby: [
       { name: "Anjuna Beach", distance: "8 mins drive" },
@@ -568,7 +582,10 @@ export const PROPERTIES: Property[] = [
     max_guests: 20,
     base_price: 22000,
     distance_to_beach: "6 mins drive to Candolim Beach",
-    image_keys: ["chico", "chico1", "chico2", "chico3", "chico4", "chico5", "chico6", "chico7", "chico8", "chico9", "chico10", "chico11", "chico12", "chico13", "chico14", "chico15", "chico16", "chico17"],
+    // chico2, chico7, chico11, chico12, chico13, chico14, chico15 are
+    // genuinely truncated PNGs (same verification as casa-marina's comment)
+    // — the other 11 are real, complete photos.
+    image_keys: ["chico", "chico1", "chico3", "chico4", "chico5", "chico6", "chico8", "chico9", "chico10", "chico16", "chico17"],
     amenity_tags: ["Massive Lawn", "Private Pool", "Party Venue", "Wedding Friendly", "Spacious Dining Halls"],
     nearby: [
       { name: "Candolim Beach", distance: "6 mins drive" },

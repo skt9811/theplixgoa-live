@@ -4,7 +4,7 @@
 // stable URL any client (this site's Contact form, or an external tool) can
 // POST to. No DB write here — unlike the newsletter subscribe flow, a
 // contact enquiry has nowhere it needs to be persisted; the email itself
-// (to reservation@theplixgoa.com) is the
+// (to reservations@theplixgoa.com) is the
 // record.
 function escapeHtml(value: string): string {
   return value
@@ -35,7 +35,7 @@ function isContactEnquiryInput(data: unknown): data is ContactEnquiryInput {
   );
 }
 
-const ENQUIRY_RECIPIENTS = ["reservation@theplixgoa.com"];
+const ENQUIRY_RECIPIENTS = ["reservations@theplixgoa.com"];
 
 function buildEnquiryEmail(input: ContactEnquiryInput): string {
   const name = escapeHtml(input.name);

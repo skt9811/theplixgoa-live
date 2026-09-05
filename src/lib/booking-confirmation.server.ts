@@ -162,10 +162,10 @@ export async function confirmBookingAndSendEmails(
   const fromEmail = process.env["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
   // PLIX_HOST_EMAIL, if set, overrides this default list (comma-separated
   // for more than one address) — otherwise every new-booking notification
-  // goes to reservation@theplixgoa.com only.
+  // goes to reservations@theplixgoa.com only.
   const hostEmail = process.env["PLIX_HOST_EMAIL"]
     ? process.env["PLIX_HOST_EMAIL"].split(",").map((e) => e.trim()).filter(Boolean)
-    : ["reservation@theplixgoa.com"];
+    : ["reservations@theplixgoa.com"];
 
   // Explicit and unconditional so a deployment where this env var never made
   // it into the running process (wrong environment scope in Vercel, a

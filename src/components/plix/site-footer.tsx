@@ -158,6 +158,7 @@ export function SiteFooter() {
           {/* Bottom bar */}
           <div className="flex flex-col items-center justify-between gap-3 border-t border-white/15 pt-6 text-xs text-navy-foreground/60 sm:flex-row">
             <p>© {new Date().getFullYear()} The Plix Goa | All Rights Reserved.</p>
+            <p>An initiative by Plix Hospitality Private Limited</p>
             <div className="flex items-center gap-5">
               <Link to="/privacy" className="transition-colors hover:text-white">
                 Privacy Policy

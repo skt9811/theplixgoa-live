@@ -49,6 +49,23 @@ export function SmartImage({ src, alt, loading = "lazy", width, height, classNam
     setErrored(true);
   }
 
+  // `onError` alone misses a real failure mode: a response cut short mid
+  // transfer (flaky mobile network, a proxy that truncates) still reports
+  // as "loaded" by the <img> element — the browser paints whatever partial
+  // data it received (often just a rendered top strip) and fills the rest
+  // solid grey, without ever firing `error`. `naturalWidth`/`naturalHeight`
+  // don't catch it either, since those come from the file's header, not
+  // from how much of the body actually arrived. `decode()` forces a real,
+  // full decode pass and rejects if that data is incomplete, so we run it
+  // after every load and route a rejection through the same retry path.
+  function handleLoad(e: React.SyntheticEvent<HTMLImageElement>) {
+    const img = e.currentTarget;
+    if (typeof img.decode !== "function") return;
+    img.decode().catch(() => {
+      handleError();
+    });
+  }
+
   if (errored) {
     return (
       <div
@@ -75,6 +92,7 @@ export function SmartImage({ src, alt, loading = "lazy", width, height, classNam
       className={`block ${className ?? ""}`}
       style={style}
       onError={handleError}
+      onLoad={handleLoad}
     />
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { CircleCheck as CheckCircle2, Loader as Loader2, Mail, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { heroImage } from "@/lib/plix";
@@ -113,7 +114,15 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
   const input =
     "mt-1 w-full rounded-xl border border-input bg-background px-3.5 py-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40 min-h-[44px]";
 
-  return (
+  // Portaled to document.body — mounting this inside SiteHeader means it
+  // would otherwise sit inside whatever <header> is on screen, and on every
+  // non-home route that header has backdrop-blur-xl. A backdrop-filter (like
+  // a transform or filter) makes its element the containing block for any
+  // fixed-position descendant, so this modal's `fixed inset-0` was sizing
+  // itself to the header's own small box instead of the viewport — the
+  // squished-to-the-top-of-the-page bug. Escaping to body sidesteps that
+  // regardless of what CSS any ancestor ever gets.
+  return createPortal(
     <div className="fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
       <div className="animate-rise my-auto flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-card shadow-lift md:flex-row">
         {/* Left hero panel */}
@@ -136,9 +145,10 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
         {/* Right auth panel */}
         <div className="relative p-6 sm:p-8 md:w-1/2">
           <button
+            type="button"
             onClick={handleClose}
             aria-label="Close"
-            className="absolute right-4 top-4 rounded-lg p-1.5 hover:bg-accent"
+            className="absolute right-4 top-4 z-10 flex size-9 items-center justify-center rounded-full bg-muted text-foreground shadow-soft transition-colors hover:bg-accent"
           >
             <X className="size-5" />
           </button>
@@ -272,7 +282,8 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

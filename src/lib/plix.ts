@@ -464,15 +464,15 @@ export const PROPERTIES: Property[] = [
     // Replacement photos uploaded — all 15 5bhk* source files verified valid
     // (IEND chunk present, healthy bytes-per-pixel ratio) and optimized via
     // scripts/optimize-meadows-images.mjs (10-61MB PNG -> 150-460KB JPEG).
-    // Slot 0 = pool/exterior, slot 1 = lounge, slot 2 = master bedroom.
+    // Slot 0 (main hero) = 5bhk6 per explicit request.
     image_keys: [
+      "5bhk6",
       "5bhk12",
       "5bhk",
       "5bhk1",
       "5bhk2",
       "5bhk3",
       "5bhk4",
-      "5bhk6",
       "5bhk7",
       "5bhk8",
       "5bhk9",

@@ -71,12 +71,12 @@ export function PropertyLightbox({ images, propertyName, index, onIndexChange, o
         </button>
       </div>
 
-      <div className="relative flex w-full flex-1 items-center justify-center p-4 sm:p-6 md:p-8">
+      <div className="relative flex w-full flex-1 items-center justify-center p-6 md:p-12">
         <SmartImage
           src={images[index] ?? ""}
           alt={`${propertyName} — photo ${index + 1} of ${total}`}
           loading="eager"
-          className="max-h-[85vh] max-w-[90vw] w-auto h-auto object-contain select-none rounded-lg shadow-2xl"
+          className="max-h-[70vh] max-w-[80vw] w-auto h-auto object-contain select-none rounded-lg shadow-2xl"
         />
 
         {total > 1 && (

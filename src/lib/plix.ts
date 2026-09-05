@@ -52,25 +52,32 @@ import chico16 from "@/assets/chico16.jpg";
 import chico17 from "@/assets/chico17.jpg";
 
 // Casa Moana (4 BHK) images — asset files are named 3bhk* despite belonging to Casa Moana
-import bhk3 from "@/assets/3bhk.png";
+import bhk3 from "@/assets/3bhk.jpg";
 import bhk3_1 from "@/assets/3bhk1.jpg";
-import bhk3_2 from "@/assets/3bhk2.png";
+import bhk3_2 from "@/assets/3bhk2.jpg";
 import bhk3_3 from "@/assets/3bhk3.jpg";
 import bhk3_4 from "@/assets/3bhk4.jpg";
 import bhk3_5 from "@/assets/3bhk5.jpg";
 import bhk3_6 from "@/assets/3bhk6.jpg";
 import bhk3_7 from "@/assets/3bhk7.jpg";
-import bhk3_8 from "@/assets/3bhk8.png";
+import bhk3_8 from "@/assets/3bhk8.jpg";
 import bhk3_9 from "@/assets/3bhk9.jpg";
 import bhk3_10 from "@/assets/3bhk10.jpg";
 import bhk3_11 from "@/assets/3bhk11.jpg";
 
 // Casa Marina (3 BHK) images — asset files are named 4bhk* despite belonging to Casa Marina
-import bhk4 from "@/assets/4bhk.png";
-import bhk4_1 from "@/assets/4bhk1.png";
-import bhk4_2 from "@/assets/4bhk2.png";
-import bhk4_3 from "@/assets/4bhk3.png";
-import bhk4_4 from "@/assets/4bhk4.png";
+import bhk4 from "@/assets/4bhk.jpg";
+import bhk4_1 from "@/assets/4bhk1.jpg";
+import bhk4_2 from "@/assets/4bhk2.jpg";
+import bhk4_3 from "@/assets/4bhk3.jpg";
+import bhk4_4 from "@/assets/4bhk4.jpg";
+import bhk4_5 from "@/assets/4bhk5.jpg";
+import bhk4_6 from "@/assets/4bhk6.jpg";
+import bhk4_7 from "@/assets/4bhk7.jpg";
+import bhk4_8 from "@/assets/4bhk8.jpg";
+import bhk4_9 from "@/assets/4bhk9.jpg";
+import bhk4_10 from "@/assets/4bhk10.jpg";
+import bhk4_11 from "@/assets/4bhk11.jpg";
 
 // Casa Meadows (5bhk)
 import bhk5 from "@/assets/5bhk.jpg";
@@ -199,6 +206,13 @@ export const imageMap: Record<string, string> = {
   "4bhk2": bhk4_2,
   "4bhk3": bhk4_3,
   "4bhk4": bhk4_4,
+  "4bhk5": bhk4_5,
+  "4bhk6": bhk4_6,
+  "4bhk7": bhk4_7,
+  "4bhk8": bhk4_8,
+  "4bhk9": bhk4_9,
+  "4bhk10": bhk4_10,
+  "4bhk11": bhk4_11,
   // Casa Meadows (5bhk)
   "5bhk": bhk5,
   "5bhk1": bhk5_1,
@@ -382,16 +396,23 @@ export const PROPERTIES: Property[] = [
     max_guests: 6,
     base_price: 9500,
     distance_to_beach: "8 mins drive to Anjuna Beach",
-    // All 5 of this property's source photos (4bhk, 4bhk1-4bhk4) are
-    // genuinely truncated PNGs — confirmed via real headless-Chrome
-    // screenshot reproduction plus a bytes-per-pixel check against known-
-    // good sibling images (these run 0.04-0.1 bytes/px vs ~1.1-1.7 for a
-    // complete photo at the same resolution, i.e. 10-60x too small for
-    // their claimed dimensions). None can be repaired without the original
-    // files. Left empty rather than pointing at broken images — resolveImages()
-    // falls back to a generic hero shot for an empty array. This property
-    // urgently needs real replacement photos uploaded.
-    image_keys: [],
+    // Replacement photos uploaded — all 12 4bhk* source files verified valid
+    // and optimized to 1600px-wide JPEGs. Slot 0 (main hero) = 4bhk1, a dusk
+    // pool/exterior shot.
+    image_keys: [
+      "4bhk1",
+      "4bhk",
+      "4bhk2",
+      "4bhk3",
+      "4bhk4",
+      "4bhk5",
+      "4bhk6",
+      "4bhk7",
+      "4bhk8",
+      "4bhk9",
+      "4bhk10",
+      "4bhk11",
+    ],
     amenity_tags: ["Private Pool", "Panoramic Views", "Luxury Amenities", "Free Wi-Fi"],
     nearby: [
       { name: "Anjuna Beach", distance: "8 mins drive" },
@@ -425,9 +446,23 @@ export const PROPERTIES: Property[] = [
     max_guests: 8,
     base_price: 12000,
     distance_to_beach: "10 mins drive to Anjuna Beach",
-    // 3bhk, 3bhk2, 3bhk8 are genuinely truncated PNGs (same verification as
-    // casa-marina's comment) — the other 9 are real, complete photos.
-    image_keys: ["3bhk4", "3bhk1", "3bhk3", "3bhk5", "3bhk6", "3bhk7", "3bhk9", "3bhk10", "3bhk11"],
+    // Replacement photos uploaded for 3bhk, 3bhk2, 3bhk8 (previously
+    // truncated/corrupted) — all 12 are now valid. Main hero (3bhk4)
+    // unchanged; the 3 newly-valid photos are appended at the end.
+    image_keys: [
+      "3bhk4",
+      "3bhk1",
+      "3bhk3",
+      "3bhk5",
+      "3bhk6",
+      "3bhk7",
+      "3bhk9",
+      "3bhk10",
+      "3bhk11",
+      "3bhk",
+      "3bhk2",
+      "3bhk8",
+    ],
     amenity_tags: ["Bespoke Interiors", "Private Pool", "Air Conditioning", "Power Backup"],
     nearby: [
       { name: "Anjuna Beach", distance: "10 mins drive" },

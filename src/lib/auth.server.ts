@@ -45,6 +45,12 @@ export function getAuthConfig(req?: Request): AuthConfig {
 
   return {
     secret: process.env["AUTH_SECRET"] ?? "",
+    // @auth/core defaults this to "/auth", but src/server.ts mounts Auth.js's
+    // routes at /api/auth/* — without this override, parseActionAndProviderId
+    // tries to match "^/auth" against "/api/auth/signin/google", fails, and
+    // throws UnknownAction (surfaced to the browser as the generic
+    // ?error=Configuration redirect).
+    basePath: "/api/auth",
     // Vercel (and localhost) terminate/forward correctly, and this app has
     // no single fixed AUTH_URL across preview/prod deployments — trusting
     // the request's own Host header is the standard way to handle that.

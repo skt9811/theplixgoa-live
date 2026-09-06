@@ -312,7 +312,7 @@ function PropertyDetail() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
+    <div className="mx-auto max-w-7xl px-4 py-8 pb-24 md:px-6 md:pb-8">
       <nav className="text-sm text-muted-foreground">
         <Link to="/stays" className="hover:text-primary">
           Stays
@@ -682,6 +682,36 @@ function PropertyDetail() {
             <PropertyConnectHostCard propertyName={property.name} />
           </div>
         </aside>
+      </div>
+
+      {/* Mobile-only sticky booking bar — the <aside> booking card above
+          just flows inline on mobile (no lg:col-span-4 sidebar), so without
+          this a guest has to scroll all the way back up to book. Mirrors
+          the desktop CTA's own logic: no dates picked yet scrolls to the
+          booking form instead of opening checkout with nothing selected. */}
+      <div className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-between gap-4 border-t border-border bg-card px-4 py-3 shadow-lift md:hidden">
+        <div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-lg font-semibold text-navy">
+              {formatINR(rateOverrides[checkIn] ?? property.base_price)}
+            </span>
+            <span className="text-xs text-muted-foreground">/ night</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">+ taxes</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (nights === 0 || datesBlocked || guestError) {
+              document.getElementById("book")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            } else {
+              setCheckoutOpen(true);
+            }
+          }}
+          className="rounded-full bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground shadow-soft transition-transform active:scale-95"
+        >
+          {nights === 0 ? "Select Dates" : "Book Now"}
+        </button>
       </div>
 
       <PropertyConciergeWidget propertyName={property.name} propertySlug={property.slug} />

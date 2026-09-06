@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Heart, Images, Share2, Video } from "lucide-react";
+import { ArrowLeft, Camera, FileText, Heart, Images, Phone, Share2, Video } from "lucide-react";
 import { toast } from "sonner";
 import { SmartImage } from "@/components/plix/smart-image";
 import { PropertyLightbox } from "@/components/plix/property-lightbox";
+import { SITE_PHONE_1 } from "@/lib/seo";
 
 type Props = {
   images: string[];
@@ -50,6 +51,9 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
   const secondary = images[1] ?? main;
   const third = images[2] ?? main;
   const remaining = Math.max(images.length - 3, 0);
+  // On mobile only the main tile shows; "+N More" there should reflect every
+  // photo beyond it, not just the ones the desktop 3-tile grid hides.
+  const remainingMobile = Math.max(images.length - 1, 0);
 
   function openLightbox(index: number) {
     setLightboxIndex(Math.min(index, images.length - 1));
@@ -94,10 +98,71 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
     toast.info("A video tour of this property is coming soon.");
   }
 
+  function handleDownloadBrochure(e: React.MouseEvent) {
+    e.stopPropagation();
+    toast.info("A detailed brochure for this property is coming soon — contact us for a full info pack.");
+  }
+
+  function handleBack(e: React.MouseEvent) {
+    e.stopPropagation();
+    window.history.back();
+  }
+
   return (
     <>
-      <section className="mt-6 grid grid-cols-1 gap-2 overflow-hidden rounded-2xl md:h-[min(42vw,560px)] md:grid-cols-3 md:grid-rows-2">
-        {/* Left main feature — ~65% width on desktop */}
+      <section className="relative mt-6 grid grid-cols-1 gap-2 overflow-hidden rounded-2xl md:h-[min(42vw,560px)] md:grid-cols-3 md:grid-rows-2">
+        {/* Mobile-only floating top action bar — back, brochure, share, call,
+            wishlist. Desktop keeps the same actions split across the main
+            tile's own overlays (video/photos pill, share/wishlist on the
+            secondary tile) instead of a dedicated bar, so this is hidden at
+            the md breakpoint rather than shown alongside them. */}
+        <div className="absolute inset-x-3 top-3 z-10 flex items-center justify-between md:hidden">
+          <button
+            type="button"
+            onClick={handleBack}
+            aria-label="Go back"
+            className="flex size-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/75"
+          >
+            <ArrowLeft className="size-4" aria-hidden />
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadBrochure}
+              aria-label="Download brochure"
+              className="flex size-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/75"
+            >
+              <FileText className="size-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              aria-label="Share this property"
+              className="flex size-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/75"
+            >
+              <Share2 className="size-4" aria-hidden />
+            </button>
+            <a
+              href={`tel:${SITE_PHONE_1}`}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Call us"
+              className="flex size-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/75"
+            >
+              <Phone className="size-4" aria-hidden />
+            </a>
+            <button
+              type="button"
+              onClick={toggleWishlist}
+              aria-label={wishlisted ? "Remove from wishlist" : "Save to wishlist"}
+              aria-pressed={wishlisted}
+              className="flex size-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/75"
+            >
+              <Heart className={`size-4 ${wishlisted ? "fill-red-500 text-red-500" : ""}`} aria-hidden />
+            </button>
+          </div>
+        </div>
+
+        {/* Left main feature — ~65% width on desktop, full-bleed on mobile */}
         <button
           type="button"
           onClick={() => openLightbox(0)}
@@ -114,8 +179,9 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
           />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
 
-          {/* Floating badges */}
-          <div className="absolute left-3 top-3 flex gap-2 sm:left-4 sm:top-4">
+          {/* Floating badges — desktop only; the mobile top bar covers this
+              same corner, so both would collide on a small hero image. */}
+          <div className="absolute left-3 top-3 hidden gap-2 sm:left-4 sm:top-4 md:flex">
             <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-navy shadow-soft">
               Best Rated
             </span>
@@ -124,8 +190,8 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
             </span>
           </div>
 
-          {/* Floating action buttons */}
-          <div className="absolute bottom-3 right-3 flex gap-2 sm:bottom-4 sm:right-4">
+          {/* Floating action buttons — desktop only */}
+          <div className="absolute bottom-3 right-3 hidden gap-2 sm:bottom-4 sm:right-4 md:flex">
             <span
               role="button"
               tabIndex={0}
@@ -157,14 +223,27 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
               View Photos
             </span>
           </div>
+
+          {/* Mobile-only "View Photos" badge, bottom-right of the single
+              hero image — replaces the desktop text pill above with the
+              compact camera-icon badge the StayVista-style mobile layout
+              uses instead of a 3-tile grid. */}
+          <div className="absolute bottom-3 right-3 md:hidden">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-black/65 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
+              <Camera className="size-3.5" aria-hidden />
+              {remainingMobile > 0 ? `View Photos (${remainingMobile + 1})` : "View Photos"}
+            </span>
+          </div>
         </button>
 
-        {/* Right top tile */}
+        {/* Right top tile — hidden on mobile, where the single main image
+            above is the entire hero and this photo only lives in the
+            lightbox gallery. */}
         <button
           type="button"
           onClick={() => openLightbox(1)}
           aria-label="View property photos"
-          className="group relative aspect-[4/3] min-h-0 overflow-hidden text-left md:aspect-auto"
+          className="group relative hidden aspect-[4/3] min-h-0 overflow-hidden text-left md:aspect-auto md:block"
         >
           <SmartImage
             src={secondary}
@@ -195,12 +274,12 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
           </div>
         </button>
 
-        {/* Right bottom tile — "+N More" overlay */}
+        {/* Right bottom tile — "+N More" overlay, hidden on mobile */}
         <button
           type="button"
           onClick={() => openLightbox(remaining > 0 ? 2 : 0)}
           aria-label={remaining > 0 ? `View ${remaining} more photos` : "View property photos"}
-          className="group relative aspect-[4/3] min-h-0 overflow-hidden text-left md:aspect-auto"
+          className="group relative hidden aspect-[4/3] min-h-0 overflow-hidden text-left md:aspect-auto md:block"
         >
           <SmartImage
             src={third}

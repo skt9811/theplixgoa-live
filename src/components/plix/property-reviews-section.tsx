@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Sparkles, Star, ThumbsUp } from "lucide-react";
+import { Check, Sparkles, Star, ThumbsUp } from "lucide-react";
 import {
   PROPERTY_REVIEWS,
   type PropertyReview,
@@ -130,7 +130,7 @@ function ReviewCard({ review }: { review: PropertyReview }) {
             key={c}
             className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200"
           >
-            <Star className="hidden" aria-hidden />✓ {c}
+            <Check className="size-3" aria-hidden /> {c}
           </span>
         ))}
         <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted-foreground">

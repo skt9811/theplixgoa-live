@@ -19,6 +19,7 @@ export function SiteHeader() {
   const [guestUser, setGuestUser] = useState<GuestUser | null>(null);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const isHome = pathname === "/";
+  const isPropertyDetail = pathname.startsWith("/properties/");
 
   // Auto-close mobile menu on route change
   useEffect(() => {
@@ -248,7 +249,7 @@ export function SiteHeader() {
         </div>
       )}
 
-      {!isHome && (
+      {!isHome && !isPropertyDetail && (
         <div className="border-t border-border/60 bg-background/70">
           <div className="mx-auto max-w-7xl px-4 py-3 md:px-6">
             <SearchBar compact />

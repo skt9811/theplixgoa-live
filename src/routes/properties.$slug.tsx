@@ -6,13 +6,13 @@ import {
   Footprints,
   Loader as Loader2,
   MapPin,
-  Star,
   Tag,
   Users,
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
 import { toast } from "sonner";
 import { PropertyGalleryStream } from "@/components/plix/property-gallery-stream";
+import { PropertyReviewsSection } from "@/components/plix/property-reviews-section";
 import { PropertyHeroGallery } from "@/components/plix/property-hero-gallery";
 import { PropertySubNav, SUB_NAV_HEIGHT } from "@/components/plix/property-sub-nav";
 import { PropertyQuickFacts } from "@/components/plix/property-quick-facts";
@@ -379,31 +379,11 @@ function PropertyDetail() {
 
           <PropertyGalleryStream imageKeys={property.image_keys} propertyName={property.name} />
 
-          <section id="reviews" className="mt-10">
-            {propertyReviews.length > 0 && (
-              <>
-                <h2 className="text-2xl font-semibold text-navy">Guest experiences</h2>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  {propertyReviews.map((r) => (
-                    <figure key={r.id} className="rounded-2xl border border-border bg-card p-5">
-                      <div className="flex gap-0.5 text-primary">
-                        {Array.from({ length: r.rating }).map((_, i) => (
-                          <Star key={i} className="size-3.5 fill-current" aria-hidden />
-                        ))}
-                      </div>
-                      <blockquote className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                        {r.comment}
-                      </blockquote>
-                      <figcaption className="mt-3 text-sm font-semibold text-navy">
-                        {r.guest_name}
-                        {r.guest_city ? `, ${r.guest_city}` : ""}
-                      </figcaption>
-                    </figure>
-                  ))}
-                </div>
-              </>
-            )}
-          </section>
+          <PropertyReviewsSection
+            propertyId={property.id}
+            propertyName={property.name}
+            guestPhotos={images}
+          />
 
           <section id="amenities" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">Amenities</h2>

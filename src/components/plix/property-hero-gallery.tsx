@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Camera, FileText, Heart, Images, Phone, Share2, Video } from "lucide-react";
+import { ArrowLeft, Camera, Heart, Images, Phone, Share2, Video } from "lucide-react";
 import { toast } from "sonner";
 import { SmartImage } from "@/components/plix/smart-image";
 import { PropertyGalleryModal } from "@/components/plix/property-gallery-modal";
@@ -106,11 +106,6 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
     openGallery("Videos");
   }
 
-  function handleDownloadBrochure(e: React.MouseEvent) {
-    e.stopPropagation();
-    toast.info("A detailed brochure for this property is coming soon — contact us for a full info pack.");
-  }
-
   function handleBack(e: React.MouseEvent) {
     e.stopPropagation();
     window.history.back();
@@ -119,11 +114,11 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
   return (
     <>
       <section className="relative mt-6 grid grid-cols-1 gap-2 overflow-hidden rounded-2xl md:h-[min(42vw,560px)] md:grid-cols-3 md:grid-rows-2">
-        {/* Mobile-only floating top action bar — back, brochure, share, call,
-            wishlist. Desktop keeps the same actions split across the main
-            tile's own overlays (video/photos pill, share/wishlist on the
-            secondary tile) instead of a dedicated bar, so this is hidden at
-            the md breakpoint rather than shown alongside them. */}
+        {/* Mobile-only floating top action bar — back, share, call, wishlist.
+            Desktop keeps the same actions split across the main tile's own
+            overlays (video/photos pill, share/wishlist on the secondary
+            tile) instead of a dedicated bar, so this is hidden at the md
+            breakpoint rather than shown alongside them. */}
         <div className="absolute inset-x-3 top-3 z-10 flex items-center justify-between md:hidden">
           <button
             type="button"
@@ -134,14 +129,6 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
             <ArrowLeft className="size-4" aria-hidden />
           </button>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleDownloadBrochure}
-              aria-label="Download brochure"
-              className="flex size-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/75"
-            >
-              <FileText className="size-4" aria-hidden />
-            </button>
             <button
               type="button"
               onClick={handleShare}

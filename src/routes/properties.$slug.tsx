@@ -223,9 +223,13 @@ function PropertyDetail() {
     allPropertyReviews.length > 0
       ? allPropertyReviews.reduce((sum, r) => sum + r.rating, 0) / allPropertyReviews.length
       : null;
-  const hasRestaurant = property?.amenity_tags.includes("Restaurant") ?? false;
-  const hasBreakfast = property?.amenity_tags.includes("Breakfast Included") ?? false;
-  const isPetFriendly = property?.amenity_tags.includes("Pet Friendly") ?? false;
+  // Substring/case-insensitive — amenity_tags now carries varied real-world
+  // wording ("Breakfast in Room", "Full Kitchen (...)") rather than a fixed
+  // set of exact labels, so an exact-string .includes() would silently miss
+  // most of it.
+  const hasRestaurant = property?.amenity_tags.some((t) => t.toLowerCase().includes("restaurant")) ?? false;
+  const hasBreakfast = property?.amenity_tags.some((t) => t.toLowerCase().includes("breakfast")) ?? false;
+  const isPetFriendly = property?.amenity_tags.some((t) => t.toLowerCase().includes("pet")) ?? false;
   const roomsLabel = isMultiRoom ? "Rooms" : "Bedrooms";
   const roomsCount = property ? (isMultiRoom ? property.total_inventory : property.bedrooms) : 0;
 

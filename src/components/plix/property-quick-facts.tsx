@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Accessibility, Eye, FileText, Star, UtensilsCrossed, Wrench, X } from "lucide-react";
-import { toast } from "sonner";
-import { amenityIcon } from "@/components/plix/amenity-icons";
+import { Accessibility, Eye, Star, UtensilsCrossed, Wrench, X } from "lucide-react";
+import { amenityCategory, amenityIcon, type AmenityCategory } from "@/components/plix/amenity-icons";
 
 type Props = {
   propertyName: string;
@@ -15,7 +14,11 @@ type Props = {
   reviewCount: number;
 };
 
-const VISIBLE_AMENITY_COUNT = 6;
+// 6-8 primary highlights up front, per the reference design — the rest live
+// behind "Show all N amenities".
+const VISIBLE_AMENITY_COUNT = 8;
+
+const CATEGORY_ORDER: AmenityCategory[] = ["Outdoor", "Kitchen", "Media", "Services", "Safety", "Comfort"];
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
@@ -53,7 +56,11 @@ export function PropertyQuickFacts({
 }: Props) {
   const [amenityModalOpen, setAmenityModalOpen] = useState(false);
   const visibleAmenities = amenityTags.slice(0, VISIBLE_AMENITY_COUNT);
-  const hiddenCount = Math.max(amenityTags.length - VISIBLE_AMENITY_COUNT, 0);
+
+  const groupedAmenities = CATEGORY_ORDER.map((category) => ({
+    category,
+    tags: amenityTags.filter((tag) => amenityCategory(tag) === category),
+  })).filter((group) => group.tags.length > 0);
 
   function scrollToReviews() {
     document.getElementById("reviews")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -96,19 +103,9 @@ export function PropertyQuickFacts({
         </Pill>
         <Pill>{bathrooms} Baths</Pill>
         {hasMeals && <Pill>Meals Available</Pill>}
-        <button
-          type="button"
-          onClick={() =>
-            toast.info("A detailed brochure for this property is coming soon — contact us for a full info pack.")
-          }
-          className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3.5 py-1.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-200 transition-colors hover:bg-sky-100"
-        >
-          <FileText className="size-3.5" aria-hidden />
-          View Brochure
-        </button>
       </div>
 
-      {/* Key amenities icon grid */}
+      {/* Key amenities icon grid — top 6-8 highlights */}
       {visibleAmenities.length > 0 && (
         <div className="mt-5 flex flex-wrap items-center gap-4">
           {visibleAmenities.map((tag) => {
@@ -120,16 +117,17 @@ export function PropertyQuickFacts({
               </div>
             );
           })}
-          {hiddenCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setAmenityModalOpen(true)}
-              className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
-            >
-              +{hiddenCount} Amenities
-            </button>
-          )}
         </div>
+      )}
+
+      {amenityTags.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setAmenityModalOpen(true)}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
+        >
+          Show all {amenityTags.length} amenities
+        </button>
       )}
 
       {/* Great for */}
@@ -153,7 +151,7 @@ export function PropertyQuickFacts({
             if (e.target === e.currentTarget) setAmenityModalOpen(false);
           }}
         >
-          <div className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-2xl bg-card p-6 shadow-lift">
+          <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-card p-6 shadow-lift">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-navy">All amenities at {propertyName}</h3>
               <button
@@ -165,19 +163,28 @@ export function PropertyQuickFacts({
                 <X className="size-5" aria-hidden />
               </button>
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {amenityTags.map((tag) => {
-                const Icon = amenityIcon(tag);
-                return (
-                  <div
-                    key={tag}
-                    className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm"
-                  >
-                    <Icon className="size-4 text-primary" aria-hidden />
-                    {tag}
+            <div className="mt-4 space-y-5">
+              {groupedAmenities.map(({ category, tags }) => (
+                <div key={category}>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {category}
+                  </p>
+                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                    {tags.map((tag) => {
+                      const Icon = amenityIcon(tag);
+                      return (
+                        <div
+                          key={tag}
+                          className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm"
+                        >
+                          <Icon className="size-4 shrink-0 text-primary" aria-hidden />
+                          {tag}
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </div>
         </div>

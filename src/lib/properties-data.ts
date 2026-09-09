@@ -88,8 +88,12 @@ const LS_KEY = "plix_properties_data";
 // Bumping this key name forces a one-time wipe of cached overrides in every
 // browser — used when static data (plix.ts) changes in a way that makes
 // old cached overrides wrong (e.g. the casa-marina/casa-moana metadata
-// swap). Change the suffix (v2 -> v3, etc.) to force another purge later.
-const CACHE_VERSION_KEY = "plix_cache_v3";
+// swap, or — v3 to v4 — the full amenity_tags rewrite for 8 properties:
+// browsers that cached a property's overrides before that change had no
+// way to notice their amenity_tags snapshot was now stale, since nothing
+// here validates that field the way hasValidImageKeys() does for
+// image_keys). Change the suffix (v3 -> v4, etc.) to force another purge.
+const CACHE_VERSION_KEY = "plix_cache_v4";
 
 function readLocalOverrides(): Record<string, PropertyOverride> {
   if (typeof localStorage === "undefined") return {};

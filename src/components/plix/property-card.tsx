@@ -44,7 +44,7 @@ export function PropertyCard({ property }: { property: Property }) {
         ))}
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-navy/60 to-transparent" />
         <span className="absolute left-3 top-3 rounded-full bg-background/90 px-3 py-1 text-xs font-semibold text-navy shadow-soft">
-          {property.enclave ?? property.location}
+          {property.location}
         </span>
         {images.length > 1 && (
           <>

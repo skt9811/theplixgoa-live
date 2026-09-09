@@ -290,11 +290,20 @@ const DESTINATION_ILLUSTRATIONS = {
   assagao: AssagaoIllustration,
 };
 
+// Homepage "A taste of the collection" display order: Vivenda Chico first,
+// The Plix Resort and Morjim Pride last, everything else keeps DB order.
+const FEATURED_LAST_SLUGS = new Set(["the-plix-resort-morjim", "morjim-pride"]);
+function featuredRank(slug: string): number {
+  if (slug === "vivenda-chico") return 0;
+  if (FEATURED_LAST_SLUGS.has(slug)) return 2;
+  return 1;
+}
+
 function Home() {
   const { data: properties } = useSuspenseQuery(propertiesQuery());
   const { data: reviews } = useSuspenseQuery(reviewsQuery);
   usePropertiesLiveRefresh();
-  const featured = properties;
+  const featured = [...properties].sort((a, b) => featuredRank(a.slug) - featuredRank(b.slug));
 
   const [config, setConfig] = useState<SiteConfig | null>(null);
   const [locations, setLocations] = useState<LocationGrid[]>([]);

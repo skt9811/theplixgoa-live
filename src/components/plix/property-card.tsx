@@ -62,16 +62,6 @@ export function PropertyCard({ property }: { property: Property }) {
             >
               <ChevronRight className="size-4" />
             </button>
-            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
-              {images.map((_, i) => (
-                <span
-                  key={i}
-                  className={`size-1.5 rounded-full transition-all ${
-                    i === index ? "w-4 bg-background" : "bg-background/60"
-                  }`}
-                />
-              ))}
-            </div>
           </>
         )}
       </div>

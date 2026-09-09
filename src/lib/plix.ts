@@ -139,6 +139,46 @@ import serenity4 from "@/assets/serenity4.jpeg";
 import serenity5 from "@/assets/serenity5.jpeg";
 import serenity6 from "@/assets/serenity6.jpeg";
 import serenity7 from "@/assets/serenity7.jpeg";
+import serenity8 from "@/assets/serenity8.jpeg";
+import serenity9 from "@/assets/serenity9.jpeg";
+import serenity10 from "@/assets/serenity10.jpeg";
+import serenity11 from "@/assets/serenity11.jpeg";
+import serenity12 from "@/assets/serenity12.jpeg";
+import serenity13 from "@/assets/serenity13.jpeg";
+import serenity14 from "@/assets/serenity14.jpeg";
+import serenity15 from "@/assets/serenity15.jpeg";
+import serenity16 from "@/assets/serenity16.jpeg";
+import serenity17 from "@/assets/serenity17.jpeg";
+import serenity18 from "@/assets/serenity18.jpeg";
+import serenity19 from "@/assets/serenity19.jpeg";
+import serenity20 from "@/assets/serenity20.jpeg";
+import serenity21 from "@/assets/serenity21.jpeg";
+import serenity22 from "@/assets/serenity22.jpeg";
+import serenity23 from "@/assets/serenity23.jpeg";
+import serenity24 from "@/assets/serenity24.jpeg";
+import serenity25 from "@/assets/serenity25.jpeg";
+import serenity26 from "@/assets/serenity26.jpeg";
+import serenity27 from "@/assets/serenity27.jpeg";
+import serenity28 from "@/assets/serenity28.jpeg";
+import serenity29 from "@/assets/serenity29.jpeg";
+import serenity30 from "@/assets/serenity30.jpeg";
+import serenity31 from "@/assets/serenity31.jpeg";
+import serenity32 from "@/assets/serenity32.jpeg";
+import serenity33 from "@/assets/serenity33.jpeg";
+import serenity34 from "@/assets/serenity34.jpeg";
+import serenity35 from "@/assets/serenity35.jpeg";
+import serenity36 from "@/assets/serenity36.jpeg";
+import serenity37 from "@/assets/serenity37.jpeg";
+import serenity38 from "@/assets/serenity38.jpeg";
+import serenity39 from "@/assets/serenity39.jpeg";
+import serenity40 from "@/assets/serenity40.jpeg";
+import serenity41 from "@/assets/serenity41.jpeg";
+import serenity42 from "@/assets/serenity42.jpeg";
+import serenity43 from "@/assets/serenity43.jpeg";
+import serenity44 from "@/assets/serenity44.jpeg";
+import serenity45 from "@/assets/serenity45.jpeg";
+import serenity46 from "@/assets/serenity46.jpeg";
+import serenity47 from "@/assets/serenity47.jpeg";
 
 export const imageMap: Record<string, string> = {
   "hero-goa": heroGoa,
@@ -269,6 +309,46 @@ export const imageMap: Record<string, string> = {
   serenity5,
   serenity6,
   serenity7,
+  serenity8,
+  serenity9,
+  serenity10,
+  serenity11,
+  serenity12,
+  serenity13,
+  serenity14,
+  serenity15,
+  serenity16,
+  serenity17,
+  serenity18,
+  serenity19,
+  serenity20,
+  serenity21,
+  serenity22,
+  serenity23,
+  serenity24,
+  serenity25,
+  serenity26,
+  serenity27,
+  serenity28,
+  serenity29,
+  serenity30,
+  serenity31,
+  serenity32,
+  serenity33,
+  serenity34,
+  serenity35,
+  serenity36,
+  serenity37,
+  serenity38,
+  serenity39,
+  serenity40,
+  serenity41,
+  serenity42,
+  serenity43,
+  serenity44,
+  serenity45,
+  serenity46,
+  serenity47,
 };
 
 export const heroImage = heroGoa;
@@ -757,7 +837,58 @@ export const PROPERTIES: Property[] = [
     max_guests: 9,
     base_price: 10000,
     distance_to_beach: "12 mins drive to Anjuna Beach",
-    image_keys: ["serenity1", "serenity2", "serenity3", "serenity4", "serenity5", "serenity6", "serenity7"],
+    // Main hero (serenity1) unchanged. Replacement/new photos uploaded —
+    // all 47 serenity* source files verified valid and optimized to
+    // 1600px-wide JPEGs (originals ran 2-6MB each as ~33MP camera exports).
+    image_keys: [
+      "serenity1",
+      "serenity2",
+      "serenity3",
+      "serenity4",
+      "serenity5",
+      "serenity6",
+      "serenity7",
+      "serenity8",
+      "serenity9",
+      "serenity10",
+      "serenity11",
+      "serenity12",
+      "serenity13",
+      "serenity14",
+      "serenity15",
+      "serenity16",
+      "serenity17",
+      "serenity18",
+      "serenity19",
+      "serenity20",
+      "serenity21",
+      "serenity22",
+      "serenity23",
+      "serenity24",
+      "serenity25",
+      "serenity26",
+      "serenity27",
+      "serenity28",
+      "serenity29",
+      "serenity30",
+      "serenity31",
+      "serenity32",
+      "serenity33",
+      "serenity34",
+      "serenity35",
+      "serenity36",
+      "serenity37",
+      "serenity38",
+      "serenity39",
+      "serenity40",
+      "serenity41",
+      "serenity42",
+      "serenity43",
+      "serenity44",
+      "serenity45",
+      "serenity46",
+      "serenity47",
+    ],
     amenity_tags: ["Private Pool", "Power Backup", "Free Wi-Fi", "Parking", "Living Room", "Kitchenette"],
     nearby: [
       { name: "Anjuna Beach", distance: "12 mins drive" },

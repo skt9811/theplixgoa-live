@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Camera, FileText, Heart, Images, Phone, Share2, Video } from "lucide-react";
 import { toast } from "sonner";
 import { SmartImage } from "@/components/plix/smart-image";
-import { PropertyLightbox } from "@/components/plix/property-lightbox";
+import { PropertyGalleryModal } from "@/components/plix/property-gallery-modal";
 import { SITE_PHONE_1 } from "@/lib/seo";
 
 type Props = {
   images: string[];
+  imageKeys: string[];
+  videos?: string[];
   propertyName: string;
   propertySlug: string;
 };
@@ -37,8 +39,9 @@ function writeWishlist(slugs: Set<string>): void {
  * property's own resolved gallery (see properties.$slug.tsx), never mixed
  * with another property's photos.
  */
-export function PropertyHeroGallery({ images, propertyName, propertySlug }: Props) {
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyName, propertySlug }: Props) {
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryInitialFilter, setGalleryInitialFilter] = useState<"All" | "Videos">("All");
   const [wishlisted, setWishlisted] = useState(false);
 
   useEffect(() => {
@@ -55,8 +58,9 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
   // photo beyond it, not just the ones the desktop 3-tile grid hides.
   const remainingMobile = Math.max(images.length - 1, 0);
 
-  function openLightbox(index: number) {
-    setLightboxIndex(Math.min(index, images.length - 1));
+  function openGallery(filter: "All" | "Videos" = "All") {
+    setGalleryInitialFilter(filter);
+    setGalleryOpen(true);
   }
 
   function toggleWishlist(e: React.MouseEvent) {
@@ -95,7 +99,11 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
 
   function handleViewVideo(e: React.MouseEvent) {
     e.stopPropagation();
-    toast.info("A video tour of this property is coming soon.");
+    if (videos.length === 0) {
+      toast.info("A video tour of this property is coming soon.");
+      return;
+    }
+    openGallery("Videos");
   }
 
   function handleDownloadBrochure(e: React.MouseEvent) {
@@ -165,7 +173,7 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
         {/* Left main feature — ~65% width on desktop, full-bleed on mobile */}
         <button
           type="button"
-          onClick={() => openLightbox(0)}
+          onClick={() => openGallery()}
           aria-label="View property photos"
           className="group relative aspect-[4/3] min-h-0 overflow-hidden text-left md:aspect-auto md:col-span-2 md:row-span-2"
         >
@@ -209,12 +217,12 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
               tabIndex={0}
               onClick={(e) => {
                 e.stopPropagation();
-                openLightbox(0);
+                openGallery();
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.stopPropagation();
-                  openLightbox(0);
+                  openGallery();
                 }
               }}
               className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3.5 py-2 text-xs font-semibold text-navy shadow-soft transition-colors hover:bg-white"
@@ -241,7 +249,7 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
             lightbox gallery. */}
         <button
           type="button"
-          onClick={() => openLightbox(1)}
+          onClick={() => openGallery()}
           aria-label="View property photos"
           className="group relative hidden aspect-[4/3] min-h-0 overflow-hidden text-left md:aspect-auto md:block"
         >
@@ -277,7 +285,7 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
         {/* Right bottom tile — "+N More" overlay, hidden on mobile */}
         <button
           type="button"
-          onClick={() => openLightbox(remaining > 0 ? 2 : 0)}
+          onClick={() => openGallery()}
           aria-label={remaining > 0 ? `View ${remaining} more photos` : "View property photos"}
           className="group relative hidden aspect-[4/3] min-h-0 overflow-hidden text-left md:aspect-auto md:block"
         >
@@ -297,13 +305,13 @@ export function PropertyHeroGallery({ images, propertyName, propertySlug }: Prop
         </button>
       </section>
 
-      {lightboxIndex !== null && (
-        <PropertyLightbox
-          images={images}
+      {galleryOpen && (
+        <PropertyGalleryModal
+          imageKeys={imageKeys}
+          videos={videos}
           propertyName={propertyName}
-          index={lightboxIndex}
-          onIndexChange={setLightboxIndex}
-          onClose={() => setLightboxIndex(null)}
+          initialFilter={galleryInitialFilter}
+          onClose={() => setGalleryOpen(false)}
         />
       )}
     </>

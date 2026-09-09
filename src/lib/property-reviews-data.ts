@@ -11,7 +11,7 @@ export type PropertyReview = {
   guest_name: string;
   guest_location: string;
   rating: number;
-  platform: ReviewPlatform;
+  platform?: ReviewPlatform;
   date_label: string;
   categories: ReviewCategory[];
   comment: string;
@@ -25,7 +25,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Sneha Rao",
     "guest_location": "Mumbai",
     "rating": 4,
-    "platform": "Agoda",
     "date_label": "3 days ago",
     "categories": [
       "Amenities",
@@ -40,22 +39,22 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Sarah Thompson",
     "guest_location": "Dubai, UAE",
     "rating": 4,
-    "platform": "Google",
+    "platform": "Agoda",
     "date_label": "5 days ago",
     "categories": [
       "Food",
       "View"
     ],
     "comment": "Honestly one of the nicest stays we've had in a long time. The caretaker organised a lovely home-cooked dinner on request. The balcony view was worth the trip alone. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 24
+    "helpful": 11
   },
   {
     "id": "casa-marina-rev-3",
     "property_id": "casa-marina",
-    "guest_name": "Rajesh Nair",
-    "guest_location": "Kolkata",
+    "guest_name": "James Whitfield",
+    "guest_location": "Amsterdam, Netherlands",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "Google",
     "date_label": "1 week ago",
     "categories": [
       "Amenities",
@@ -63,22 +62,20 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "Service"
     ],
     "comment": "Had an absolutely wonderful stay here. Beautiful interiors with a lot of thoughtful little touches. Breakfast spread was fresh and generous every single morning. Check-in was smooth and the host walked us through everything patiently. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 10
+    "helpful": 41
   },
   {
     "id": "casa-marina-rev-4",
     "property_id": "casa-marina",
-    "guest_name": "Thomas Muller",
-    "guest_location": "Tel Aviv, Israel",
+    "guest_name": "Gaurav Singh",
+    "guest_location": "Nagpur",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "2 weeks ago",
     "categories": [
       "Stay",
-      "Food",
-      "Service"
+      "Food"
     ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. The property was spotlessly clean from the moment we walked in. Loved that the kitchen was fully stocked so we could cook our own meals too. Genuinely warm hospitality — felt like staying with family, not a rental. Great value for what you get — book direct if you can.",
+    "comment": "Came here for a weekend getaway and didn't want to leave. Housekeeping was prompt and unobtrusive, exactly the right balance. Coffee and evening snacks were a nice touch we didn't expect. Great value for what you get — book direct if you can.",
     "helpful": 12
   },
   {
@@ -87,33 +84,32 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Pallavi Malhotra",
     "guest_location": "Chennai",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "MakeMyTrip",
     "date_label": "last week",
     "categories": [
       "Food"
     ],
     "comment": "Booked directly and the whole experience was seamless. Breakfast spread was fresh and generous every single morning. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 36
+    "helpful": 20
   },
   {
     "id": "casa-marina-rev-6",
     "property_id": "casa-marina",
-    "guest_name": "Siddharth Desai",
-    "guest_location": "Chandigarh",
+    "guest_name": "Vivek Joshi",
+    "guest_location": "Ahmedabad",
     "rating": 5,
-    "platform": "Airbnb",
     "date_label": "3 weeks ago",
     "categories": [
       "Amenities"
     ],
-    "comment": "Perfect base for exploring North Goa. The private pool was spotless and so relaxing to lounge around all day. Already planning our next visit.",
-    "helpful": 41
+    "comment": "Came here for a weekend getaway and didn't want to leave. Beautiful interiors with a lot of thoughtful little touches. Great value for what you get — book direct if you can.",
+    "helpful": 23
   },
   {
     "id": "casa-marina-rev-7",
     "property_id": "casa-marina",
-    "guest_name": "Rajesh Patel",
-    "guest_location": "Chandigarh",
+    "guest_name": "Olivia Bennett",
+    "guest_location": "Tel Aviv, Israel",
     "rating": 4,
     "platform": "Google",
     "date_label": "a month ago",
@@ -122,15 +118,14 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "View"
     ],
     "comment": "One of the best villa experiences we've had in Goa. The private pool was spotless and so relaxing to lounge around all day. Being minutes from the beach made evening walks so easy. Great value for what you get — book direct if you can.",
-    "helpful": 2
+    "helpful": 31
   },
   {
     "id": "casa-marina-rev-8",
     "property_id": "casa-marina",
-    "guest_name": "Nisha Singh",
-    "guest_location": "Chennai",
+    "guest_name": "Sophie Larsson",
+    "guest_location": "Singapore",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "1 month ago",
     "categories": [
       "Amenities"
@@ -144,7 +139,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Anjali Verma",
     "guest_location": "Bangalore",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "2 months ago",
     "categories": [
       "Stay",
@@ -160,7 +154,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Kunal Gupta",
     "guest_location": "Indore",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "a few months ago",
     "categories": [
       "Amenities",
@@ -175,90 +168,84 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Chloe Martin",
     "guest_location": "Dubai, UAE",
     "rating": 4,
-    "platform": "Airbnb",
+    "platform": "Agoda",
     "date_label": "3 months ago",
     "categories": [
       "Amenities",
       "Stay"
     ],
     "comment": "One of the best villa experiences we've had in Goa. The AC and hot water worked flawlessly the entire stay. Beds were extremely comfortable and the linen felt premium. Great value for what you get — book direct if you can.",
-    "helpful": 23
+    "helpful": 8
   },
   {
     "id": "casa-marina-rev-12",
     "property_id": "casa-marina",
-    "guest_name": "Ritu Krishnan",
-    "guest_location": "Delhi",
-    "rating": 4,
-    "platform": "MakeMyTrip",
+    "guest_name": "Rajesh Reddy",
+    "guest_location": "Indore",
+    "rating": 5,
     "date_label": "4 months ago",
     "categories": [
       "Food",
-      "Service"
+      "View"
     ],
-    "comment": "This place exceeded every expectation we had. Coffee and evening snacks were a nice touch we didn't expect. The concierge helped us book a boat trip and scooters within the hour. Perfect for couples and families alike.",
-    "helpful": 42
+    "comment": "Perfect base for exploring North Goa. The caretaker organised a lovely home-cooked dinner on request. Waking up to the garden view every morning was pure bliss. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 41
   },
   {
     "id": "casa-marina-rev-13",
     "property_id": "casa-marina",
-    "guest_name": "Charlotte Dubois",
-    "guest_location": "London, UK",
+    "guest_name": "Ananya Desai",
+    "guest_location": "Jaipur",
     "rating": 5,
-    "platform": "Airbnb",
     "date_label": "6 months ago",
     "categories": [
       "Amenities",
-      "Service"
+      "Stay",
+      "View"
     ],
-    "comment": "Booked this for a family trip and it was perfect. Beautiful interiors with a lot of thoughtful little touches. Staff went out of their way to make our anniversary special. Already planning our next visit.",
-    "helpful": 31
+    "comment": "Second time staying and it just keeps getting better. Rooms were spacious, tastefully furnished, and kept impeccably clean. Loved the peaceful, private atmosphere — no noise from neighbours at all. The balcony view was worth the trip alone. Great value for what you get — book direct if you can.",
+    "helpful": 35
   },
   {
     "id": "casa-marina-rev-14",
     "property_id": "casa-marina",
-    "guest_name": "Kavya Shetty",
-    "guest_location": "Kochi",
+    "guest_name": "Vivek Kapoor",
+    "guest_location": "Chennai",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "MakeMyTrip",
     "date_label": "8 months ago",
     "categories": [
       "Amenities",
-      "Food",
-      "Service"
+      "View"
     ],
-    "comment": "Booked directly and the whole experience was seamless. Wi-Fi was fast and reliable throughout, even for work calls. Coffee and evening snacks were a nice touch we didn't expect. Staff went out of their way to make our anniversary special. Can't wait to come back with the rest of the family.",
-    "helpful": 4
+    "comment": "Booked this for a family trip and it was perfect. Wi-Fi was fast and reliable throughout, even for work calls. Being minutes from the beach made evening walks so easy. Would 100% book again on our next Goa trip.",
+    "helpful": 16
   },
   {
     "id": "casa-marina-rev-15",
     "property_id": "casa-marina",
-    "guest_name": "Simran Iyer",
-    "guest_location": "Kolkata",
+    "guest_name": "Nikhil Singh",
+    "guest_location": "Ahmedabad",
     "rating": 5,
-    "platform": "Google",
     "date_label": "a year ago",
     "categories": [
-      "Food",
-      "Service"
+      "Amenities"
     ],
-    "comment": "Our group of friends had the most memorable time here. Arranged a private chef for one evening and the Goan food was outstanding. The caretaker was incredibly attentive and responded within minutes on WhatsApp. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 31
+    "comment": "Perfect base for exploring North Goa. The AC and hot water worked flawlessly the entire stay. Would 100% book again on our next Goa trip.",
+    "helpful": 39
   },
   {
     "id": "casa-marina-rev-16",
     "property_id": "casa-marina",
-    "guest_name": "Lucas Meyer",
-    "guest_location": "Tel Aviv, Israel",
+    "guest_name": "Ritu Sharma",
+    "guest_location": "Kochi",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "1 year ago",
     "categories": [
-      "Stay",
-      "Service",
+      "Amenities",
       "View"
     ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. The property was spotlessly clean from the moment we walked in. The concierge helped us book a boat trip and scooters within the hour. The sunset views from the pool deck were unbeatable. This is now our go-to stay whenever we're in Goa.",
+    "comment": "Honestly one of the nicest stays we've had in a long time. The AC and hot water worked flawlessly the entire stay. The sunset views from the pool deck were unbeatable. This is now our go-to stay whenever we're in Goa.",
     "helpful": 0
   },
   {
@@ -267,7 +254,7 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Daniel Novak",
     "guest_location": "Zurich, Switzerland",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "MakeMyTrip",
     "date_label": "2 years ago",
     "categories": [
       "Amenities",
@@ -275,29 +262,113 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "Food"
     ],
     "comment": "Perfect base for exploring North Goa. Beautiful interiors with a lot of thoughtful little touches. The ambience at night, with the lights around the pool, was gorgeous. Breakfast spread was fresh and generous every single morning. Great value for what you get — book direct if you can.",
-    "helpful": 41
+    "helpful": 17
   },
   {
-    "id": "casa-marina-rev-43",
+    "id": "casa-marina-rev-44",
     "property_id": "casa-marina",
-    "guest_name": "Sophie Larsson",
-    "guest_location": "London, UK",
+    "guest_name": "Rahul Chawla",
+    "guest_location": "Ahmedabad",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "This place exceeded every expectation we had. Arranged a private chef for one evening and the Goan food was outstanding. Great value for what you get — book direct if you can.",
+    "helpful": 18
+  },
+  {
+    "id": "casa-marina-rev-19",
+    "property_id": "casa-marina",
+    "guest_name": "Ritu Iyer",
+    "guest_location": "Kolkata",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Loved the panoramic views across the greenery from the upper floor. Great value for what you get — book direct if you can.",
+    "helpful": 44
+  },
+  {
+    "id": "casa-marina-rev-33",
+    "property_id": "casa-marina",
+    "guest_name": "Daniel Novak",
+    "guest_location": "Tel Aviv, Israel",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. Beautiful interiors with a lot of thoughtful little touches. Would 100% book again on our next Goa trip.",
+    "helpful": 5
+  },
+  {
+    "id": "casa-marina-rev-31",
+    "property_id": "casa-marina",
+    "guest_name": "Emma Clarke",
+    "guest_location": "Tel Aviv, Israel",
     "rating": 4,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "Booked directly and the whole experience was seamless. The on-site restaurant served genuinely great local and continental dishes. Great value for what you get — book direct if you can.",
+    "helpful": 33
+  },
+  {
+    "id": "casa-marina-rev-22",
+    "property_id": "casa-marina",
+    "guest_name": "Gaurav Patel",
+    "guest_location": "Pune",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. The private pool was spotless and so relaxing to lounge around all day. Great value for what you get — book direct if you can.",
+    "helpful": 14
+  },
+  {
+    "id": "casa-marina-rev-41",
+    "property_id": "casa-marina",
+    "guest_name": "Charlotte Dubois",
+    "guest_location": "Berlin, Germany",
+    "rating": 5,
     "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
-      "Service"
+      "Stay",
+      "View"
     ],
-    "comment": "Booked this for a family trip and it was perfect. Housekeeping team was courteous and always asked before entering. Can't wait to come back with the rest of the family.",
-    "helpful": 10
+    "comment": "Celebrated our anniversary here and it was magical. The ambience at night, with the lights around the pool, was gorgeous. The sunset views from the pool deck were unbeatable. Great value for what you get — book direct if you can.",
+    "helpful": 1
   },
   {
-    "id": "casa-marina-rev-36",
+    "id": "casa-marina-rev-42",
+    "property_id": "casa-marina",
+    "guest_name": "Thomas Muller",
+    "guest_location": "Dubai, UAE",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "View"
+    ],
+    "comment": "This place exceeded every expectation we had. Beds were extremely comfortable and the linen felt premium. The caretaker organised a lovely home-cooked dinner on request. Loved the panoramic views across the greenery from the upper floor. Great value for what you get — book direct if you can.",
+    "helpful": 39
+  },
+  {
+    "id": "casa-marina-rev-35",
     "property_id": "casa-marina",
     "guest_name": "Yash Agarwal",
     "guest_location": "Chandigarh",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
       "Service"
@@ -306,249 +377,39 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "helpful": 34
   },
   {
+    "id": "casa-marina-rev-37",
+    "property_id": "casa-marina",
+    "guest_name": "Harsh Joshi",
+    "guest_location": "Surat",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Service"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Rooms were spacious, tastefully furnished, and kept impeccably clean. Housekeeping team was courteous and always asked before entering. Already planning our next visit.",
+    "helpful": 15
+  },
+  {
     "id": "casa-marina-rev-46",
     "property_id": "casa-marina",
-    "guest_name": "Ryan O'Connor",
-    "guest_location": "Tel Aviv, Israel",
+    "guest_name": "Anjali Nair",
+    "guest_location": "Nagpur",
     "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay"
-    ],
-    "comment": "This place exceeded every expectation we had. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Loved the peaceful, private atmosphere — no noise from neighbours at all. Great value for what you get — book direct if you can.",
-    "helpful": 4
-  },
-  {
-    "id": "casa-marina-rev-39",
-    "property_id": "casa-marina",
-    "guest_name": "Aman Bhatia",
-    "guest_location": "Pune",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "View"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. The sunset views from the pool deck were unbeatable. Already planning our next visit.",
-    "helpful": 28
-  },
-  {
-    "id": "casa-marina-rev-42",
-    "property_id": "casa-marina",
-    "guest_name": "Amelia Ross",
-    "guest_location": "Paris, France",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. Housekeeping was prompt and unobtrusive, exactly the right balance. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 9
-  },
-  {
-    "id": "casa-marina-rev-27",
-    "property_id": "casa-marina",
-    "guest_name": "Vivek Singh",
-    "guest_location": "Kochi",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service"
-    ],
-    "comment": "Perfect base for exploring North Goa. Staff went out of their way to make our anniversary special. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 45
-  },
-  {
-    "id": "casa-marina-rev-25",
-    "property_id": "casa-marina",
-    "guest_name": "Ananya Iyer",
-    "guest_location": "Jaipur",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Service"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Beds were extremely comfortable and the linen felt premium. The concierge helped us book a boat trip and scooters within the hour. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 24
-  },
-  {
-    "id": "casa-marina-rev-29",
-    "property_id": "casa-marina",
-    "guest_name": "Swati Patel",
-    "guest_location": "Kolkata",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "View"
-    ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. The private pool was spotless and so relaxing to lounge around all day. Beds were extremely comfortable and the linen felt premium. Surrounded by palms and paddy fields — incredibly scenic setting. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 24
-  },
-  {
-    "id": "casa-marina-rev-38",
-    "property_id": "casa-marina",
-    "guest_name": "Arjun Agarwal",
-    "guest_location": "Chandigarh",
-    "rating": 4,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food",
-      "Service"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. Rooms were spacious, tastefully furnished, and kept impeccably clean. Loved that the kitchen was fully stocked so we could cook our own meals too. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Five stars, no hesitation recommending this place.",
-    "helpful": 40
-  },
-  {
-    "id": "casa-marina-rev-41",
-    "property_id": "casa-marina",
-    "guest_name": "Pooja Shetty",
-    "guest_location": "Delhi",
-    "rating": 5,
-    "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
       "Food",
       "Service"
     ],
-    "comment": "Our group of friends had the most memorable time here. Arranged a private chef for one evening and the Goan food was outstanding. Check-in was smooth and the host walked us through everything patiently. Would 100% book again on our next Goa trip.",
-    "helpful": 17
-  },
-  {
-    "id": "casa-marina-rev-23",
-    "property_id": "casa-marina",
-    "guest_name": "Charlotte Dubois",
-    "guest_location": "Paris, France",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "View"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. Loved the panoramic views across the greenery from the upper floor. Would 100% book again on our next Goa trip.",
-    "helpful": 41
-  },
-  {
-    "id": "casa-marina-rev-26",
-    "property_id": "casa-marina",
-    "guest_name": "Isabella Rossi",
-    "guest_location": "London, UK",
-    "rating": 4,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. Arranged a private chef for one evening and the Goan food was outstanding. Highly recommend to anyone looking for a private, comfortable stay.",
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Breakfast spread was fresh and generous every single morning. Housekeeping team was courteous and always asked before entering. Great value for what you get — book direct if you can.",
     "helpful": 31
   },
   {
-    "id": "casa-marina-rev-19",
-    "property_id": "casa-marina",
-    "guest_name": "Siddharth Malhotra",
-    "guest_location": "Hyderabad",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "View"
-    ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Being minutes from the beach made evening walks so easy. Already planning our next visit.",
-    "helpful": 44
-  },
-  {
-    "id": "casa-marina-rev-44",
-    "property_id": "casa-marina",
-    "guest_name": "Grace Wilson",
-    "guest_location": "London, UK",
-    "rating": 4,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food"
-    ],
-    "comment": "Perfect base for exploring North Goa. The private pool was spotless and so relaxing to lounge around all day. Arranged a private chef for one evening and the Goan food was outstanding. Can't wait to come back with the rest of the family.",
-    "helpful": 41
-  },
-  {
-    "id": "casa-marina-rev-31",
-    "property_id": "casa-marina",
-    "guest_name": "James Whitfield",
-    "guest_location": "Toronto, Canada",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. The private pool was spotless and so relaxing to lounge around all day. Coffee and evening snacks were a nice touch we didn't expect. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 5
-  },
-  {
-    "id": "casa-marina-rev-33",
-    "property_id": "casa-marina",
-    "guest_name": "Pallavi Chatterjee",
-    "guest_location": "Kolkata",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities"
-    ],
-    "comment": "Our group of friends had the most memorable time here. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 13
-  },
-  {
-    "id": "casa-marina-rev-18",
-    "property_id": "casa-marina",
-    "guest_name": "Shreya Reddy",
-    "guest_location": "Hyderabad",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Service",
-      "View"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. Loved the peaceful, private atmosphere — no noise from neighbours at all. Housekeeping team was courteous and always asked before entering. The sunset views from the pool deck were unbeatable. Already planning our next visit.",
-    "helpful": 44
-  },
-  {
-    "id": "casa-marina-rev-32",
-    "property_id": "casa-marina",
-    "guest_name": "Rajesh Kapoor",
-    "guest_location": "Kolkata",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food"
-    ],
-    "comment": "Our group of friends had the most memorable time here. Rooms were spacious, tastefully furnished, and kept impeccably clean. The caretaker organised a lovely home-cooked dinner on request. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 37
-  },
-  {
-    "id": "casa-marina-rev-35",
+    "id": "casa-marina-rev-34",
     "property_id": "casa-marina",
     "guest_name": "Meera Mehta",
     "guest_location": "Bangalore",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
       "Stay",
@@ -559,72 +420,217 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "helpful": 2
   },
   {
+    "id": "casa-marina-rev-25",
+    "property_id": "casa-marina",
+    "guest_name": "Rohan Desai",
+    "guest_location": "Kolkata",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food",
+      "Service"
+    ],
+    "comment": "Perfect base for exploring North Goa. Loved that the kitchen was fully stocked so we could cook our own meals too. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Already planning our next visit.",
+    "helpful": 37
+  },
+  {
+    "id": "casa-marina-rev-43",
+    "property_id": "casa-marina",
+    "guest_name": "Vikram Chawla",
+    "guest_location": "Pune",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food",
+      "Service",
+      "View"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. Breakfast spread was fresh and generous every single morning. Check-in was smooth and the host walked us through everything patiently. Loved the panoramic views across the greenery from the upper floor. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 32
+  },
+  {
     "id": "casa-marina-rev-40",
     "property_id": "casa-marina",
-    "guest_name": "Ryan O'Connor",
-    "guest_location": "Berlin, Germany",
+    "guest_name": "Yash Patel",
+    "guest_location": "Hyderabad",
     "rating": 5,
-    "platform": "Google",
+    "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
       "Service"
     ],
-    "comment": "This place exceeded every expectation we had. Beautiful interiors with a lot of thoughtful little touches. Housekeeping team was courteous and always asked before entering. Five stars, no hesitation recommending this place.",
-    "helpful": 41
+    "comment": "Had an absolutely wonderful stay here. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The concierge helped us book a boat trip and scooters within the hour. Five stars, no hesitation recommending this place.",
+    "helpful": 43
   },
   {
-    "id": "casa-marina-rev-30",
+    "id": "casa-marina-rev-26",
     "property_id": "casa-marina",
-    "guest_name": "Isha Chatterjee",
-    "guest_location": "Hyderabad",
+    "guest_name": "Ritu Joshi",
+    "guest_location": "Ahmedabad",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
-      "Food"
+      "Food",
+      "Service"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. The on-site restaurant served genuinely great local and continental dishes. Would 100% book again on our next Goa trip.",
-    "helpful": 35
+    "comment": "Booked this for a family trip and it was perfect. Breakfast spread was fresh and generous every single morning. The concierge helped us book a boat trip and scooters within the hour. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 34
   },
   {
     "id": "casa-marina-rev-45",
     "property_id": "casa-marina",
-    "guest_name": "Abhishek Desai",
-    "guest_location": "Indore",
+    "guest_name": "Arjun Singh",
+    "guest_location": "Ahmedabad",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
-      "Amenities",
+      "Food"
+    ],
+    "comment": "Perfect base for exploring North Goa. Arranged a private chef for one evening and the Goan food was outstanding. Great value for what you get — book direct if you can.",
+    "helpful": 34
+  },
+  {
+    "id": "casa-marina-rev-30",
+    "property_id": "casa-marina",
+    "guest_name": "Sanjay Pillai",
+    "guest_location": "Indore",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
       "Food",
       "Service"
     ],
-    "comment": "Second time staying and it just keeps getting better. Beautiful interiors with a lot of thoughtful little touches. Arranged a private chef for one evening and the Goan food was outstanding. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Five stars, no hesitation recommending this place.",
-    "helpful": 13
+    "comment": "This place exceeded every expectation we had. Arranged a private chef for one evening and the Goan food was outstanding. Check-in was smooth and the host walked us through everything patiently. Perfect for couples and families alike.",
+    "helpful": 8
+  },
+  {
+    "id": "casa-marina-rev-23",
+    "property_id": "casa-marina",
+    "guest_name": "Alexander Petrov",
+    "guest_location": "London, UK",
+    "rating": 4,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay"
+    ],
+    "comment": "Booked directly and the whole experience was seamless. The AC and hot water worked flawlessly the entire stay. The ambience at night, with the lights around the pool, was gorgeous. Perfect for couples and families alike.",
+    "helpful": 35
+  },
+  {
+    "id": "casa-marina-rev-27",
+    "property_id": "casa-marina",
+    "guest_name": "William Harper",
+    "guest_location": "Berlin, Germany",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "Booked this for a family trip and it was perfect. Arranged a private chef for one evening and the Goan food was outstanding. Already planning our next visit.",
+    "helpful": 4
+  },
+  {
+    "id": "casa-marina-rev-18",
+    "property_id": "casa-marina",
+    "guest_name": "Isha Kulkarni",
+    "guest_location": "Mumbai",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "View"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. Housekeeping was prompt and unobtrusive, exactly the right balance. Arranged a private chef for one evening and the Goan food was outstanding. The sunset views from the pool deck were unbeatable. Already planning our next visit.",
+    "helpful": 0
+  },
+  {
+    "id": "casa-marina-rev-38",
+    "property_id": "casa-marina",
+    "guest_name": "Michael Anderson",
+    "guest_location": "Singapore",
+    "rating": 4,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Beds were extremely comfortable and the linen felt premium. Already planning our next visit.",
+    "helpful": 32
+  },
+  {
+    "id": "casa-marina-rev-29",
+    "property_id": "casa-marina",
+    "guest_name": "Sarah Thompson",
+    "guest_location": "Toronto, Canada",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. Arranged a private chef for one evening and the Goan food was outstanding. Would 100% book again on our next Goa trip.",
+    "helpful": 23
+  },
+  {
+    "id": "casa-marina-rev-24",
+    "property_id": "casa-marina",
+    "guest_name": "Manish Shetty",
+    "guest_location": "Nagpur",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay",
+      "Food"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. Rooms were spacious, tastefully furnished, and kept impeccably clean. Loved the peaceful, private atmosphere — no noise from neighbours at all. Breakfast spread was fresh and generous every single morning. Five stars, no hesitation recommending this place.",
+    "helpful": 31
+  },
+  {
+    "id": "casa-marina-rev-21",
+    "property_id": "casa-marina",
+    "guest_name": "Rohan Chawla",
+    "guest_location": "Pune",
+    "rating": 4,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "Service"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. Check-in and check-out were smooth and completely hassle-free. The on-site restaurant served genuinely great local and continental dishes. Check-in was smooth and the host walked us through everything patiently. Can't wait to come back with the rest of the family.",
+    "helpful": 33
   },
   {
     "id": "casa-marina-rev-28",
     "property_id": "casa-marina",
-    "guest_name": "Emma Clarke",
-    "guest_location": "London, UK",
+    "guest_name": "Alexander Petrov",
+    "guest_location": "Auckland, New Zealand",
     "rating": 5,
-    "platform": "Agoda",
+    "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
+      "Amenities",
       "Stay",
-      "Food"
+      "Service"
     ],
-    "comment": "This place exceeded every expectation we had. Loved the peaceful, private atmosphere — no noise from neighbours at all. The caretaker organised a lovely home-cooked dinner on request. Perfect for couples and families alike.",
-    "helpful": 39
+    "comment": "Had an absolutely wonderful stay here. The AC and hot water worked flawlessly the entire stay. Loved the peaceful, private atmosphere — no noise from neighbours at all. The concierge helped us book a boat trip and scooters within the hour. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 45
   },
   {
-    "id": "casa-marina-rev-37",
+    "id": "casa-marina-rev-36",
     "property_id": "casa-marina",
     "guest_name": "Manish Kapoor",
     "guest_location": "Jaipur",
     "rating": 4,
-    "platform": "Google",
+    "platform": "Airbnb",
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
@@ -632,7 +638,22 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "View"
     ],
     "comment": "Second time staying and it just keeps getting better. Wi-Fi was fast and reliable throughout, even for work calls. The ambience at night, with the lights around the pool, was gorgeous. Being minutes from the beach made evening walks so easy. Can't wait to come back with the rest of the family.",
-    "helpful": 14
+    "helpful": 25
+  },
+  {
+    "id": "casa-marina-rev-32",
+    "property_id": "casa-marina",
+    "guest_name": "Rajesh Mehta",
+    "guest_location": "Surat",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Food",
+      "Service",
+      "View"
+    ],
+    "comment": "Our group of friends had the most memorable time here. Arranged a private chef for one evening and the Goan food was outstanding. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Loved the panoramic views across the greenery from the upper floor. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 13
   },
   {
     "id": "casa-marina-rev-20",
@@ -640,7 +661,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Grace Wilson",
     "guest_location": "Singapore",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
@@ -650,63 +670,19 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "helpful": 18
   },
   {
-    "id": "casa-marina-rev-34",
+    "id": "casa-marina-rev-39",
     "property_id": "casa-marina",
-    "guest_name": "Daniel Novak",
-    "guest_location": "Tel Aviv, Israel",
+    "guest_name": "Nisha Gupta",
+    "guest_location": "Bangalore",
     "rating": 5,
     "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
-      "Amenities"
-    ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Beautiful interiors with a lot of thoughtful little touches. Would 100% book again on our next Goa trip.",
-    "helpful": 5
-  },
-  {
-    "id": "casa-marina-rev-24",
-    "property_id": "casa-marina",
-    "guest_name": "Simran Joshi",
-    "guest_location": "Kochi",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service",
-      "View"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. Staff went out of their way to make our anniversary special. Surrounded by palms and paddy fields — incredibly scenic setting. Would 100% book again on our next Goa trip.",
-    "helpful": 8
-  },
-  {
-    "id": "casa-marina-rev-22",
-    "property_id": "casa-marina",
-    "guest_name": "Charlotte Dubois",
-    "guest_location": "Tel Aviv, Israel",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "This place exceeded every expectation we had. Beds were extremely comfortable and the linen felt premium. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 20
-  },
-  {
-    "id": "casa-marina-rev-21",
-    "property_id": "casa-marina",
-    "guest_name": "Rohan Chawla",
-    "guest_location": "Pune",
-    "rating": 4,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Food",
+      "Amenities",
       "Service"
     ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. Check-in and check-out were smooth and completely hassle-free. The on-site restaurant served genuinely great local and continental dishes. Check-in was smooth and the host walked us through everything patiently. Can't wait to come back with the rest of the family.",
-    "helpful": 0
+    "comment": "This place exceeded every expectation we had. Beautiful interiors with a lot of thoughtful little touches. Housekeeping team was courteous and always asked before entering. Five stars, no hesitation recommending this place.",
+    "helpful": 21
   },
   {
     "id": "casa-moana-rev-1",
@@ -714,104 +690,101 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Vikram Sharma",
     "guest_location": "Jaipur",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "Google",
     "date_label": "3 days ago",
     "categories": [
       "Amenities"
     ],
     "comment": "Second time staying and it just keeps getting better. Beautiful interiors with a lot of thoughtful little touches. Would 100% book again on our next Goa trip.",
-    "helpful": 8
+    "helpful": 30
   },
   {
     "id": "casa-moana-rev-2",
     "property_id": "casa-moana",
-    "guest_name": "Pooja Joshi",
-    "guest_location": "Surat",
+    "guest_name": "Sanjay Agarwal",
+    "guest_location": "Indore",
     "rating": 4,
     "platform": "MakeMyTrip",
     "date_label": "5 days ago",
     "categories": [
       "Stay",
-      "Service",
+      "Food",
       "View"
     ],
-    "comment": "Second time staying and it just keeps getting better. Loved the peaceful, private atmosphere — no noise from neighbours at all. The concierge helped us book a boat trip and scooters within the hour. The sunset views from the pool deck were unbeatable. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 15
+    "comment": "Perfect base for exploring North Goa. Check-in and check-out were smooth and completely hassle-free. Arranged a private chef for one evening and the Goan food was outstanding. Loved the panoramic views across the greenery from the upper floor. Perfect for couples and families alike.",
+    "helpful": 0
   },
   {
     "id": "casa-moana-rev-3",
     "property_id": "casa-moana",
-    "guest_name": "Sarah Thompson",
-    "guest_location": "Paris, France",
+    "guest_name": "Charlotte Dubois",
+    "guest_location": "Dubai, UAE",
     "rating": 5,
     "platform": "MakeMyTrip",
     "date_label": "1 week ago",
     "categories": [
-      "Service"
+      "Amenities",
+      "View"
     ],
-    "comment": "Had an absolutely wonderful stay here. Housekeeping team was courteous and always asked before entering. Perfect for couples and families alike.",
-    "helpful": 38
+    "comment": "This place exceeded every expectation we had. The AC and hot water worked flawlessly the entire stay. Surrounded by palms and paddy fields — incredibly scenic setting. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 23
   },
   {
     "id": "casa-moana-rev-4",
     "property_id": "casa-moana",
-    "guest_name": "Meera Bose",
-    "guest_location": "Indore",
+    "guest_name": "Isabella Rossi",
+    "guest_location": "Auckland, New Zealand",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "2 weeks ago",
     "categories": [
-      "Amenities",
       "Food",
+      "Service",
       "View"
     ],
-    "comment": "Our group of friends had the most memorable time here. The AC and hot water worked flawlessly the entire stay. Coffee and evening snacks were a nice touch we didn't expect. Being minutes from the beach made evening walks so easy. Great value for what you get — book direct if you can.",
-    "helpful": 36
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. The on-site restaurant served genuinely great local and continental dishes. The concierge helped us book a boat trip and scooters within the hour. The balcony view was worth the trip alone. Great value for what you get — book direct if you can.",
+    "helpful": 17
   },
   {
     "id": "casa-moana-rev-5",
     "property_id": "casa-moana",
-    "guest_name": "Siddharth Bhatia",
-    "guest_location": "Chennai",
+    "guest_name": "Abhishek Verma",
+    "guest_location": "Jaipur",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "Agoda",
     "date_label": "last week",
     "categories": [
-      "Food",
       "Service"
     ],
-    "comment": "Booked directly and the whole experience was seamless. Arranged a private chef for one evening and the Goan food was outstanding. Staff went out of their way to make our anniversary special. Perfect for couples and families alike.",
-    "helpful": 17
+    "comment": "Booked this for a family trip and it was perfect. The concierge helped us book a boat trip and scooters within the hour. Already planning our next visit.",
+    "helpful": 9
   },
   {
     "id": "casa-moana-rev-6",
     "property_id": "casa-moana",
-    "guest_name": "Abhishek Patel",
-    "guest_location": "Indore",
+    "guest_name": "Chloe Martin",
+    "guest_location": "Moscow, Russia",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "Agoda",
     "date_label": "3 weeks ago",
-    "categories": [
-      "Stay",
-      "Service",
-      "View"
-    ],
-    "comment": "Our group of friends had the most memorable time here. The property was spotlessly clean from the moment we walked in. Housekeeping team was courteous and always asked before entering. Surrounded by palms and paddy fields — incredibly scenic setting. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 29
-  },
-  {
-    "id": "casa-moana-rev-7",
-    "property_id": "casa-moana",
-    "guest_name": "Sanjay Menon",
-    "guest_location": "Chennai",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "a month ago",
     "categories": [
       "Amenities",
       "Service"
     ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. The private pool was spotless and so relaxing to lounge around all day. Housekeeping team was courteous and always asked before entering. Can't wait to come back with the rest of the family.",
+    "comment": "Our group of friends had the most memorable time here. Wi-Fi was fast and reliable throughout, even for work calls. Genuinely warm hospitality — felt like staying with family, not a rental. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 14
+  },
+  {
+    "id": "casa-moana-rev-7",
+    "property_id": "casa-moana",
+    "guest_name": "Rohan Iyer",
+    "guest_location": "Kochi",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "a month ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Booked directly and the whole experience was seamless. The caretaker was incredibly attentive and responded within minutes on WhatsApp. This is now our go-to stay whenever we're in Goa.",
     "helpful": 16
   },
   {
@@ -820,7 +793,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Swati Nair",
     "guest_location": "Hyderabad",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "1 month ago",
     "categories": [
       "Stay",
@@ -836,141 +808,303 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Sarah Thompson",
     "guest_location": "Paris, France",
     "rating": 4,
-    "platform": "Google",
+    "platform": "MakeMyTrip",
     "date_label": "2 months ago",
     "categories": [
       "Food",
       "Service"
     ],
     "comment": "Celebrated our anniversary here and it was magical. Arranged a private chef for one evening and the Goan food was outstanding. The concierge helped us book a boat trip and scooters within the hour. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 40
+    "helpful": 33
   },
   {
     "id": "casa-moana-rev-10",
     "property_id": "casa-moana",
-    "guest_name": "Daniel Novak",
-    "guest_location": "Moscow, Russia",
+    "guest_name": "Ashish Malhotra",
+    "guest_location": "Ahmedabad",
     "rating": 5,
     "platform": "Airbnb",
     "date_label": "a few months ago",
     "categories": [
-      "Stay",
-      "Food"
+      "Amenities"
     ],
-    "comment": "Second time staying and it just keeps getting better. Beds were extremely comfortable and the linen felt premium. Arranged a private chef for one evening and the Goan food was outstanding. Can't wait to come back with the rest of the family.",
-    "helpful": 15
+    "comment": "Second time staying and it just keeps getting better. Rooms were spacious, tastefully furnished, and kept impeccably clean. Can't wait to come back with the rest of the family.",
+    "helpful": 24
   },
   {
     "id": "casa-moana-rev-11",
     "property_id": "casa-moana",
-    "guest_name": "Sneha Kulkarni",
-    "guest_location": "Kolkata",
-    "rating": 5,
-    "platform": "Agoda",
+    "guest_name": "Divya Chatterjee",
+    "guest_location": "Mumbai",
+    "rating": 4,
     "date_label": "3 months ago",
     "categories": [
       "Amenities",
-      "Food",
-      "View"
+      "Service"
     ],
-    "comment": "Booked directly and the whole experience was seamless. The private pool was spotless and so relaxing to lounge around all day. Arranged a private chef for one evening and the Goan food was outstanding. Surrounded by palms and paddy fields — incredibly scenic setting. Five stars, no hesitation recommending this place.",
-    "helpful": 21
+    "comment": "Honestly one of the nicest stays we've had in a long time. The private pool was spotless and so relaxing to lounge around all day. Staff went out of their way to make our anniversary special. Five stars, no hesitation recommending this place.",
+    "helpful": 27
   },
   {
     "id": "casa-moana-rev-12",
     "property_id": "casa-moana",
-    "guest_name": "Gaurav Bose",
-    "guest_location": "Nagpur",
-    "rating": 5,
-    "platform": "Agoda",
+    "guest_name": "Ananya Malhotra",
+    "guest_location": "Jaipur",
+    "rating": 4,
+    "platform": "Airbnb",
     "date_label": "4 months ago",
     "categories": [
+      "Stay",
       "View"
     ],
-    "comment": "Booked this for a family trip and it was perfect. Waking up to the garden view every morning was pure bliss. Perfect for couples and families alike.",
-    "helpful": 8
+    "comment": "Celebrated our anniversary here and it was magical. Beds were extremely comfortable and the linen felt premium. The sunset views from the pool deck were unbeatable. Can't wait to come back with the rest of the family.",
+    "helpful": 26
   },
   {
     "id": "casa-moana-rev-13",
     "property_id": "casa-moana",
-    "guest_name": "Tanya Gupta",
-    "guest_location": "Pune",
+    "guest_name": "Neha Gupta",
+    "guest_location": "Chandigarh",
     "rating": 5,
-    "platform": "Agoda",
+    "platform": "Google",
     "date_label": "6 months ago",
-    "categories": [
-      "Stay",
-      "Service",
-      "View"
-    ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. Beds were extremely comfortable and the linen felt premium. Check-in was smooth and the host walked us through everything patiently. The sunset views from the pool deck were unbeatable. Can't wait to come back with the rest of the family.",
-    "helpful": 15
-  },
-  {
-    "id": "casa-moana-rev-14",
-    "property_id": "casa-moana",
-    "guest_name": "Meera Agarwal",
-    "guest_location": "Chennai",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "8 months ago",
-    "categories": [
-      "Food"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Arranged a private chef for one evening and the Goan food was outstanding. Great value for what you get — book direct if you can.",
-    "helpful": 43
-  },
-  {
-    "id": "casa-moana-rev-15",
-    "property_id": "casa-moana",
-    "guest_name": "Sarah Thompson",
-    "guest_location": "Zurich, Switzerland",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "a year ago",
-    "categories": [
-      "Food"
-    ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. The on-site restaurant served genuinely great local and continental dishes. Already planning our next visit.",
-    "helpful": 42
-  },
-  {
-    "id": "casa-moana-rev-16",
-    "property_id": "casa-moana",
-    "guest_name": "Deepika Mehta",
-    "guest_location": "Mumbai",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "1 year ago",
-    "categories": [
-      "Amenities",
-      "Food",
-      "View"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Coffee and evening snacks were a nice touch we didn't expect. Loved the panoramic views across the greenery from the upper floor. Can't wait to come back with the rest of the family.",
-    "helpful": 3
-  },
-  {
-    "id": "casa-moana-rev-17",
-    "property_id": "casa-moana",
-    "guest_name": "Ashish Verma",
-    "guest_location": "Surat",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "2 years ago",
     "categories": [
       "Amenities",
       "Food",
       "Service"
     ],
-    "comment": "Our group of friends had the most memorable time here. The AC and hot water worked flawlessly the entire stay. Loved that the kitchen was fully stocked so we could cook our own meals too. Staff went out of their way to make our anniversary special. Perfect for couples and families alike.",
-    "helpful": 9
+    "comment": "Booked directly and the whole experience was seamless. Rooms were spacious, tastefully furnished, and kept impeccably clean. Coffee and evening snacks were a nice touch we didn't expect. Housekeeping team was courteous and always asked before entering. Already planning our next visit.",
+    "helpful": 36
+  },
+  {
+    "id": "casa-moana-rev-14",
+    "property_id": "casa-moana",
+    "guest_name": "Sneha Mehta",
+    "guest_location": "Ahmedabad",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "8 months ago",
+    "categories": [
+      "Amenities",
+      "Food"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Beautiful interiors with a lot of thoughtful little touches. Coffee and evening snacks were a nice touch we didn't expect. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 26
+  },
+  {
+    "id": "casa-moana-rev-15",
+    "property_id": "casa-moana",
+    "guest_name": "Aman Kulkarni",
+    "guest_location": "Surat",
+    "rating": 4,
+    "date_label": "a year ago",
+    "categories": [
+      "Stay",
+      "View"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. Beds were extremely comfortable and the linen felt premium. The balcony view was worth the trip alone. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 22
+  },
+  {
+    "id": "casa-moana-rev-16",
+    "property_id": "casa-moana",
+    "guest_name": "Kunal Gupta",
+    "guest_location": "Delhi",
+    "rating": 5,
+    "date_label": "1 year ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Perfect base for exploring North Goa. The AC and hot water worked flawlessly the entire stay. Great value for what you get — book direct if you can.",
+    "helpful": 16
+  },
+  {
+    "id": "casa-moana-rev-17",
+    "property_id": "casa-moana",
+    "guest_name": "Daniel Novak",
+    "guest_location": "Singapore",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "2 years ago",
+    "categories": [
+      "Amenities",
+      "Food",
+      "View"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. The AC and hot water worked flawlessly the entire stay. Coffee and evening snacks were a nice touch we didn't expect. The sunset views from the pool deck were unbeatable. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 6
+  },
+  {
+    "id": "casa-moana-rev-21",
+    "property_id": "casa-moana",
+    "guest_name": "Kunal Krishnan",
+    "guest_location": "Chennai",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Perfect base for exploring North Goa. Beautiful interiors with a lot of thoughtful little touches. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 12
+  },
+  {
+    "id": "casa-moana-rev-26",
+    "property_id": "casa-moana",
+    "guest_name": "Swati Patel",
+    "guest_location": "Hyderabad",
+    "rating": 4,
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "Had an absolutely wonderful stay here. The caretaker organised a lovely home-cooked dinner on request. Would 100% book again on our next Goa trip.",
+    "helpful": 3
+  },
+  {
+    "id": "casa-moana-rev-32",
+    "property_id": "casa-moana",
+    "guest_name": "Yash Joshi",
+    "guest_location": "Delhi",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. Check-in was smooth and the host walked us through everything patiently. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 30
+  },
+  {
+    "id": "casa-moana-rev-28",
+    "property_id": "casa-moana",
+    "guest_name": "Sophie Larsson",
+    "guest_location": "Moscow, Russia",
+    "rating": 4,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Rooms were spacious, tastefully furnished, and kept impeccably clean. Great value for what you get — book direct if you can.",
+    "helpful": 21
+  },
+  {
+    "id": "casa-moana-rev-31",
+    "property_id": "casa-moana",
+    "guest_name": "Rajesh Singh",
+    "guest_location": "Surat",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Food"
+    ],
+    "comment": "Second time staying and it just keeps getting better. Wi-Fi was fast and reliable throughout, even for work calls. Loved that the kitchen was fully stocked so we could cook our own meals too. Can't wait to come back with the rest of the family.",
+    "helpful": 4
+  },
+  {
+    "id": "casa-moana-rev-20",
+    "property_id": "casa-moana",
+    "guest_name": "Rahul Shetty",
+    "guest_location": "Nagpur",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Service"
+    ],
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Housekeeping was prompt and unobtrusive, exactly the right balance. Genuinely warm hospitality — felt like staying with family, not a rental. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 5
+  },
+  {
+    "id": "casa-moana-rev-22",
+    "property_id": "casa-moana",
+    "guest_name": "Isabella Rossi",
+    "guest_location": "Paris, France",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Perfect base for exploring North Goa. The private pool was spotless and so relaxing to lounge around all day. Already planning our next visit.",
+    "helpful": 45
   },
   {
     "id": "casa-moana-rev-33",
     "property_id": "casa-moana",
-    "guest_name": "Priya Pillai",
-    "guest_location": "Ahmedabad",
+    "guest_name": "Karan Kapoor",
+    "guest_location": "Surat",
+    "rating": 4,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Service"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. The AC and hot water worked flawlessly the entire stay. Genuinely warm hospitality — felt like staying with family, not a rental. Great value for what you get — book direct if you can.",
+    "helpful": 40
+  },
+  {
+    "id": "casa-moana-rev-25",
+    "property_id": "casa-moana",
+    "guest_name": "Kavya Malhotra",
+    "guest_location": "Jaipur",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay"
+    ],
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. The property was spotlessly clean from the moment we walked in. Perfect for couples and families alike.",
+    "helpful": 33
+  },
+  {
+    "id": "casa-moana-rev-27",
+    "property_id": "casa-moana",
+    "guest_name": "Thomas Muller",
+    "guest_location": "Singapore",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Our group of friends had the most memorable time here. The private pool was spotless and so relaxing to lounge around all day. Would 100% book again on our next Goa trip.",
+    "helpful": 36
+  },
+  {
+    "id": "casa-moana-rev-24",
+    "property_id": "casa-moana",
+    "guest_name": "Ritu Agarwal",
+    "guest_location": "Nagpur",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay",
+      "View"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. The AC and hot water worked flawlessly the entire stay. The property was spotlessly clean from the moment we walked in. The balcony view was worth the trip alone. Five stars, no hesitation recommending this place.",
+    "helpful": 12
+  },
+  {
+    "id": "casa-moana-rev-18",
+    "property_id": "casa-moana",
+    "guest_name": "William Harper",
+    "guest_location": "Sydney, Australia",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. Loved the panoramic views across the greenery from the upper floor. Would 100% book again on our next Goa trip.",
+    "helpful": 17
+  },
+  {
+    "id": "casa-moana-rev-29",
+    "property_id": "casa-moana",
+    "guest_name": "Arjun Kapoor",
+    "guest_location": "Surat",
     "rating": 5,
     "platform": "Airbnb",
     "date_label": "3 years ago",
@@ -979,37 +1113,8 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "Food",
       "View"
     ],
-    "comment": "Perfect base for exploring North Goa. Housekeeping was prompt and unobtrusive, exactly the right balance. Arranged a private chef for one evening and the Goan food was outstanding. Waking up to the garden view every morning was pure bliss. Perfect for couples and families alike.",
-    "helpful": 8
-  },
-  {
-    "id": "casa-moana-rev-25",
-    "property_id": "casa-moana",
-    "guest_name": "Abhishek Verma",
-    "guest_location": "Jaipur",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. Rooms were spacious, tastefully furnished, and kept impeccably clean. Can't wait to come back with the rest of the family.",
-    "helpful": 29
-  },
-  {
-    "id": "casa-moana-rev-26",
-    "property_id": "casa-moana",
-    "guest_name": "Isabella Rossi",
-    "guest_location": "Auckland, New Zealand",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "View"
-    ],
-    "comment": "Had an absolutely wonderful stay here. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The balcony view was worth the trip alone. Would 100% book again on our next Goa trip.",
-    "helpful": 3
+    "comment": "One of the best villa experiences we've had in Goa. Beds were extremely comfortable and the linen felt premium. The on-site restaurant served genuinely great local and continental dishes. Surrounded by palms and paddy fields — incredibly scenic setting. Perfect for couples and families alike.",
+    "helpful": 40
   },
   {
     "id": "casa-moana-rev-19",
@@ -1023,185 +1128,37 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "Stay"
     ],
     "comment": "Had an absolutely wonderful stay here. The property was spotlessly clean from the moment we walked in. Already planning our next visit.",
-    "helpful": 4
-  },
-  {
-    "id": "casa-moana-rev-32",
-    "property_id": "casa-moana",
-    "guest_name": "Shreya Chatterjee",
-    "guest_location": "Mumbai",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food",
-      "Service"
-    ],
-    "comment": "Booked directly and the whole experience was seamless. Coffee and evening snacks were a nice touch we didn't expect. The caretaker was incredibly attentive and responded within minutes on WhatsApp. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 7
-  },
-  {
-    "id": "casa-moana-rev-29",
-    "property_id": "casa-moana",
-    "guest_name": "Nisha Sharma",
-    "guest_location": "Bangalore",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service",
-      "View"
-    ],
-    "comment": "Had an absolutely wonderful stay here. Staff went out of their way to make our anniversary special. Being minutes from the beach made evening walks so easy. Great value for what you get — book direct if you can.",
-    "helpful": 11
-  },
-  {
-    "id": "casa-moana-rev-20",
-    "property_id": "casa-moana",
-    "guest_name": "Sophie Larsson",
-    "guest_location": "Dubai, UAE",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food",
-      "Service"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Rooms were spacious, tastefully furnished, and kept impeccably clean. Loved that the kitchen was fully stocked so we could cook our own meals too. Genuinely warm hospitality — felt like staying with family, not a rental. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 5
-  },
-  {
-    "id": "casa-moana-rev-22",
-    "property_id": "casa-moana",
-    "guest_name": "Kunal Rao",
-    "guest_location": "Chandigarh",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities"
-    ],
-    "comment": "Perfect base for exploring North Goa. The private pool was spotless and so relaxing to lounge around all day. Already planning our next visit.",
-    "helpful": 31
-  },
-  {
-    "id": "casa-moana-rev-18",
-    "property_id": "casa-moana",
-    "guest_name": "Aditya Menon",
-    "guest_location": "Kolkata",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "Service"
-    ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. The private pool was spotless and so relaxing to lounge around all day. The ambience at night, with the lights around the pool, was gorgeous. Check-in was smooth and the host walked us through everything patiently. Would 100% book again on our next Goa trip.",
-    "helpful": 17
-  },
-  {
-    "id": "casa-moana-rev-31",
-    "property_id": "casa-moana",
-    "guest_name": "Meera Chawla",
-    "guest_location": "Kolkata",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service"
-    ],
-    "comment": "Our group of friends had the most memorable time here. The concierge helped us book a boat trip and scooters within the hour. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 37
-  },
-  {
-    "id": "casa-moana-rev-28",
-    "property_id": "casa-moana",
-    "guest_name": "Sophie Larsson",
-    "guest_location": "Moscow, Russia",
-    "rating": 4,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. Rooms were spacious, tastefully furnished, and kept impeccably clean. Great value for what you get — book direct if you can.",
-    "helpful": 37
-  },
-  {
-    "id": "casa-moana-rev-30",
-    "property_id": "casa-moana",
-    "guest_name": "Ryan O'Connor",
-    "guest_location": "New York, USA",
-    "rating": 4,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food",
-      "View"
-    ],
-    "comment": "Our group of friends had the most memorable time here. The on-site restaurant served genuinely great local and continental dishes. Being minutes from the beach made evening walks so easy. Five stars, no hesitation recommending this place.",
-    "helpful": 17
-  },
-  {
-    "id": "casa-moana-rev-24",
-    "property_id": "casa-moana",
-    "guest_name": "Ritu Agarwal",
-    "guest_location": "Nagpur",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "View"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. The AC and hot water worked flawlessly the entire stay. The property was spotlessly clean from the moment we walked in. The balcony view was worth the trip alone. Five stars, no hesitation recommending this place.",
-    "helpful": 22
-  },
-  {
-    "id": "casa-moana-rev-27",
-    "property_id": "casa-moana",
-    "guest_name": "Thomas Muller",
-    "guest_location": "Singapore",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities"
-    ],
-    "comment": "Our group of friends had the most memorable time here. The private pool was spotless and so relaxing to lounge around all day. Would 100% book again on our next Goa trip.",
-    "helpful": 36
+    "helpful": 41
   },
   {
     "id": "casa-moana-rev-23",
     "property_id": "casa-moana",
-    "guest_name": "Chloe Martin",
-    "guest_location": "New York, USA",
+    "guest_name": "Sophie Larsson",
+    "guest_location": "Tel Aviv, Israel",
     "rating": 5,
     "platform": "Airbnb",
     "date_label": "3 years ago",
     "categories": [
-      "Amenities",
-      "Stay"
+      "Amenities"
     ],
-    "comment": "Booked this for a family trip and it was perfect. Beautiful interiors with a lot of thoughtful little touches. Housekeeping was prompt and unobtrusive, exactly the right balance. Already planning our next visit.",
+    "comment": "Booked directly and the whole experience was seamless. Beautiful interiors with a lot of thoughtful little touches. Already planning our next visit.",
     "helpful": 6
   },
   {
-    "id": "casa-moana-rev-21",
+    "id": "casa-moana-rev-30",
     "property_id": "casa-moana",
-    "guest_name": "Kunal Krishnan",
-    "guest_location": "Chennai",
+    "guest_name": "Nikhil Krishnan",
+    "guest_location": "Ahmedabad",
     "rating": 5,
-    "platform": "Agoda",
+    "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
-      "Amenities"
+      "Stay",
+      "Food",
+      "Service"
     ],
-    "comment": "Perfect base for exploring North Goa. Beautiful interiors with a lot of thoughtful little touches. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 2
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Housekeeping was prompt and unobtrusive, exactly the right balance. Arranged a private chef for one evening and the Goan food was outstanding. Genuinely warm hospitality — felt like staying with family, not a rental. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 34
   },
   {
     "id": "casa-meadows-rev-1",
@@ -1209,90 +1166,86 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Simran Krishnan",
     "guest_location": "Hyderabad",
     "rating": 5,
-    "platform": "Agoda",
+    "platform": "Google",
     "date_label": "3 days ago",
     "categories": [
       "Amenities"
     ],
     "comment": "Celebrated our anniversary here and it was magical. The AC and hot water worked flawlessly the entire stay. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 10
+    "helpful": 33
   },
   {
     "id": "casa-meadows-rev-2",
     "property_id": "casa-meadows",
-    "guest_name": "Gaurav Menon",
-    "guest_location": "Nagpur",
+    "guest_name": "Ananya Chawla",
+    "guest_location": "Kochi",
     "rating": 5,
-    "platform": "Google",
+    "platform": "Airbnb",
     "date_label": "5 days ago",
     "categories": [
+      "Amenities",
+      "Stay",
       "Service"
     ],
-    "comment": "This place exceeded every expectation we had. Staff went out of their way to make our anniversary special. Can't wait to come back with the rest of the family.",
-    "helpful": 15
+    "comment": "Honestly one of the nicest stays we've had in a long time. The private pool was spotless and so relaxing to lounge around all day. Loved the peaceful, private atmosphere — no noise from neighbours at all. Housekeeping team was courteous and always asked before entering. Five stars, no hesitation recommending this place.",
+    "helpful": 37
   },
   {
     "id": "casa-meadows-rev-3",
     "property_id": "casa-meadows",
-    "guest_name": "Namrata Joshi",
-    "guest_location": "Ahmedabad",
+    "guest_name": "Arjun Desai",
+    "guest_location": "Kolkata",
     "rating": 5,
-    "platform": "Agoda",
+    "platform": "Airbnb",
     "date_label": "1 week ago",
     "categories": [
       "Amenities",
-      "Stay",
-      "View"
+      "Food"
     ],
-    "comment": "One of the best villa experiences we've had in Goa. Wi-Fi was fast and reliable throughout, even for work calls. Check-in and check-out were smooth and completely hassle-free. Loved the panoramic views across the greenery from the upper floor. Already planning our next visit.",
-    "helpful": 2
+    "comment": "Booked directly and the whole experience was seamless. Wi-Fi was fast and reliable throughout, even for work calls. Breakfast spread was fresh and generous every single morning. Great value for what you get — book direct if you can.",
+    "helpful": 41
   },
   {
     "id": "casa-meadows-rev-4",
     "property_id": "casa-meadows",
-    "guest_name": "Riya Kapoor",
-    "guest_location": "Chennai",
-    "rating": 4,
-    "platform": "MakeMyTrip",
+    "guest_name": "Grace Wilson",
+    "guest_location": "New York, USA",
+    "rating": 5,
     "date_label": "2 weeks ago",
     "categories": [
+      "Amenities",
       "Stay",
-      "Food",
-      "Service"
+      "Food"
     ],
-    "comment": "This place exceeded every expectation we had. The ambience at night, with the lights around the pool, was gorgeous. Arranged a private chef for one evening and the Goan food was outstanding. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Five stars, no hesitation recommending this place.",
-    "helpful": 3
+    "comment": "Booked this for a family trip and it was perfect. The AC and hot water worked flawlessly the entire stay. The ambience at night, with the lights around the pool, was gorgeous. Breakfast spread was fresh and generous every single morning. Already planning our next visit.",
+    "helpful": 32
   },
   {
     "id": "casa-meadows-rev-5",
     "property_id": "casa-meadows",
-    "guest_name": "Rahul Krishnan",
-    "guest_location": "Chandigarh",
+    "guest_name": "Nisha Verma",
+    "guest_location": "Indore",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "last week",
     "categories": [
-      "Stay",
-      "Food",
+      "Amenities",
       "View"
     ],
-    "comment": "Our group of friends had the most memorable time here. Loved the peaceful, private atmosphere — no noise from neighbours at all. Arranged a private chef for one evening and the Goan food was outstanding. The balcony view was worth the trip alone. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 45
+    "comment": "Celebrated our anniversary here and it was magical. The AC and hot water worked flawlessly the entire stay. Surrounded by palms and paddy fields — incredibly scenic setting. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 31
   },
   {
     "id": "casa-meadows-rev-6",
     "property_id": "casa-meadows",
-    "guest_name": "Alexander Petrov",
-    "guest_location": "Berlin, Germany",
+    "guest_name": "Riya Shetty",
+    "guest_location": "Surat",
     "rating": 5,
     "platform": "MakeMyTrip",
     "date_label": "3 weeks ago",
     "categories": [
-      "Amenities",
-      "Stay",
-      "View"
+      "Food"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Wi-Fi was fast and reliable throughout, even for work calls. Housekeeping was prompt and unobtrusive, exactly the right balance. Surrounded by palms and paddy fields — incredibly scenic setting. Highly recommend to anyone looking for a private, comfortable stay.",
+    "comment": "Honestly one of the nicest stays we've had in a long time. Loved that the kitchen was fully stocked so we could cook our own meals too. Can't wait to come back with the rest of the family.",
     "helpful": 0
   },
   {
@@ -1301,7 +1254,7 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Charlotte Dubois",
     "guest_location": "Singapore",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "Google",
     "date_label": "a month ago",
     "categories": [
       "Amenities",
@@ -1309,578 +1262,559 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "View"
     ],
     "comment": "Booked this for a family trip and it was perfect. Rooms were spacious, tastefully furnished, and kept impeccably clean. Beds were extremely comfortable and the linen felt premium. The balcony view was worth the trip alone. Can't wait to come back with the rest of the family.",
-    "helpful": 3
+    "helpful": 39
   },
   {
     "id": "casa-meadows-rev-8",
     "property_id": "casa-meadows",
-    "guest_name": "William Harper",
-    "guest_location": "Amsterdam, Netherlands",
-    "rating": 4,
-    "platform": "Agoda",
-    "date_label": "1 month ago",
-    "categories": [
-      "Stay",
-      "View"
-    ],
-    "comment": "This place exceeded every expectation we had. Check-in and check-out were smooth and completely hassle-free. The balcony view was worth the trip alone. Perfect for couples and families alike.",
-    "helpful": 5
-  },
-  {
-    "id": "casa-meadows-rev-9",
-    "property_id": "casa-meadows",
-    "guest_name": "Rohan Krishnan",
-    "guest_location": "Delhi",
+    "guest_name": "Thomas Muller",
+    "guest_location": "Moscow, Russia",
     "rating": 5,
     "platform": "MakeMyTrip",
-    "date_label": "2 months ago",
-    "categories": [
-      "Service"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. Housekeeping team was courteous and always asked before entering. Already planning our next visit.",
-    "helpful": 19
-  },
-  {
-    "id": "casa-meadows-rev-10",
-    "property_id": "casa-meadows",
-    "guest_name": "Riya Shetty",
-    "guest_location": "Mumbai",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "a few months ago",
-    "categories": [
-      "Amenities",
-      "Food"
-    ],
-    "comment": "Second time staying and it just keeps getting better. Wi-Fi was fast and reliable throughout, even for work calls. Arranged a private chef for one evening and the Goan food was outstanding. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 20
-  },
-  {
-    "id": "casa-meadows-rev-11",
-    "property_id": "casa-meadows",
-    "guest_name": "Gaurav Pillai",
-    "guest_location": "Hyderabad",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 months ago",
+    "date_label": "1 month ago",
     "categories": [
       "Stay",
       "Service",
       "View"
     ],
-    "comment": "Perfect base for exploring North Goa. Housekeeping was prompt and unobtrusive, exactly the right balance. Housekeeping team was courteous and always asked before entering. The sunset views from the pool deck were unbeatable. Can't wait to come back with the rest of the family.",
-    "helpful": 45
+    "comment": "This place exceeded every expectation we had. Beds were extremely comfortable and the linen felt premium. The concierge helped us book a boat trip and scooters within the hour. Being minutes from the beach made evening walks so easy. Great value for what you get — book direct if you can.",
+    "helpful": 7
+  },
+  {
+    "id": "casa-meadows-rev-9",
+    "property_id": "casa-meadows",
+    "guest_name": "Emma Clarke",
+    "guest_location": "Tel Aviv, Israel",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "2 months ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "View"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Housekeeping was prompt and unobtrusive, exactly the right balance. The on-site restaurant served genuinely great local and continental dishes. Surrounded by palms and paddy fields — incredibly scenic setting. Can't wait to come back with the rest of the family.",
+    "helpful": 9
+  },
+  {
+    "id": "casa-meadows-rev-10",
+    "property_id": "casa-meadows",
+    "guest_name": "Isha Singh",
+    "guest_location": "Indore",
+    "rating": 5,
+    "date_label": "a few months ago",
+    "categories": [
+      "Stay",
+      "Service"
+    ],
+    "comment": "Second time staying and it just keeps getting better. Check-in and check-out were smooth and completely hassle-free. Staff went out of their way to make our anniversary special. Perfect for couples and families alike.",
+    "helpful": 21
+  },
+  {
+    "id": "casa-meadows-rev-11",
+    "property_id": "casa-meadows",
+    "guest_name": "Ritu Chatterjee",
+    "guest_location": "Pune",
+    "rating": 4,
+    "platform": "Airbnb",
+    "date_label": "3 months ago",
+    "categories": [
+      "Service",
+      "View"
+    ],
+    "comment": "Our group of friends had the most memorable time here. The concierge helped us book a boat trip and scooters within the hour. The balcony view was worth the trip alone. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 42
   },
   {
     "id": "casa-meadows-rev-12",
     "property_id": "casa-meadows",
-    "guest_name": "William Harper",
-    "guest_location": "Tel Aviv, Israel",
+    "guest_name": "Grace Wilson",
+    "guest_location": "Dubai, UAE",
     "rating": 5,
     "platform": "Airbnb",
     "date_label": "4 months ago",
     "categories": [
-      "Stay",
+      "Service",
       "View"
     ],
-    "comment": "Booked this for a family trip and it was perfect. Check-in and check-out were smooth and completely hassle-free. Being minutes from the beach made evening walks so easy. Already planning our next visit.",
-    "helpful": 31
+    "comment": "Came here for a weekend getaway and didn't want to leave. Genuinely warm hospitality — felt like staying with family, not a rental. The sunset views from the pool deck were unbeatable. Already planning our next visit.",
+    "helpful": 30
   },
   {
     "id": "casa-meadows-rev-13",
     "property_id": "casa-meadows",
-    "guest_name": "David Cohen",
-    "guest_location": "Dubai, UAE",
+    "guest_name": "Michael Anderson",
+    "guest_location": "Sydney, Australia",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "Google",
     "date_label": "6 months ago",
     "categories": [
-      "Amenities"
+      "Service"
     ],
-    "comment": "Our group of friends had the most memorable time here. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Perfect for couples and families alike.",
-    "helpful": 8
+    "comment": "Came here for a weekend getaway and didn't want to leave. Genuinely warm hospitality — felt like staying with family, not a rental. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 17
   },
   {
     "id": "casa-meadows-rev-14",
     "property_id": "casa-meadows",
-    "guest_name": "Rohan Desai",
-    "guest_location": "Nagpur",
+    "guest_name": "Charlotte Dubois",
+    "guest_location": "Auckland, New Zealand",
     "rating": 5,
-    "platform": "MakeMyTrip",
+    "platform": "Google",
     "date_label": "8 months ago",
     "categories": [
-      "Amenities",
-      "Food",
-      "Service"
+      "Service",
+      "View"
     ],
-    "comment": "Our group of friends had the most memorable time here. Beautiful interiors with a lot of thoughtful little touches. The on-site restaurant served genuinely great local and continental dishes. Genuinely warm hospitality — felt like staying with family, not a rental. Great value for what you get — book direct if you can.",
-    "helpful": 38
+    "comment": "Had an absolutely wonderful stay here. Genuinely warm hospitality — felt like staying with family, not a rental. Waking up to the garden view every morning was pure bliss. Can't wait to come back with the rest of the family.",
+    "helpful": 42
   },
   {
     "id": "casa-meadows-rev-15",
     "property_id": "casa-meadows",
-    "guest_name": "Sarah Thompson",
+    "guest_name": "Michael Anderson",
     "guest_location": "London, UK",
     "rating": 5,
     "platform": "Google",
     "date_label": "a year ago",
     "categories": [
-      "Amenities"
+      "Service",
+      "View"
     ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. Beautiful interiors with a lot of thoughtful little touches. Great value for what you get — book direct if you can.",
-    "helpful": 22
+    "comment": "Came here for a weekend getaway and didn't want to leave. Genuinely warm hospitality — felt like staying with family, not a rental. Being minutes from the beach made evening walks so easy. Five stars, no hesitation recommending this place.",
+    "helpful": 29
   },
   {
     "id": "casa-meadows-rev-16",
     "property_id": "casa-meadows",
-    "guest_name": "Swati Agarwal",
-    "guest_location": "Surat",
+    "guest_name": "Divya Gupta",
+    "guest_location": "Bangalore",
     "rating": 5,
-    "platform": "Airbnb",
     "date_label": "1 year ago",
     "categories": [
-      "Stay",
+      "Food",
       "Service"
     ],
-    "comment": "This place exceeded every expectation we had. The property was spotlessly clean from the moment we walked in. Housekeeping team was courteous and always asked before entering. Already planning our next visit.",
-    "helpful": 3
+    "comment": "This place exceeded every expectation we had. Loved that the kitchen was fully stocked so we could cook our own meals too. Check-in was smooth and the host walked us through everything patiently. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 23
   },
   {
     "id": "casa-meadows-rev-17",
     "property_id": "casa-meadows",
-    "guest_name": "Shreya Singh",
-    "guest_location": "Chandigarh",
-    "rating": 5,
-    "platform": "MakeMyTrip",
+    "guest_name": "Sarah Thompson",
+    "guest_location": "Auckland, New Zealand",
+    "rating": 4,
     "date_label": "2 years ago",
     "categories": [
-      "Amenities",
-      "View"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. Wi-Fi was fast and reliable throughout, even for work calls. Being minutes from the beach made evening walks so easy. Would 100% book again on our next Goa trip.",
-    "helpful": 41
-  },
-  {
-    "id": "casa-meadows-rev-24",
-    "property_id": "casa-meadows",
-    "guest_name": "Ryan O'Connor",
-    "guest_location": "Zurich, Switzerland",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
       "Service"
     ],
-    "comment": "Booked directly and the whole experience was seamless. Rooms were spacious, tastefully furnished, and kept impeccably clean. Housekeeping team was courteous and always asked before entering. Already planning our next visit.",
-    "helpful": 27
-  },
-  {
-    "id": "casa-meadows-rev-39",
-    "property_id": "casa-meadows",
-    "guest_name": "Charlotte Dubois",
-    "guest_location": "Moscow, Russia",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "Food"
-    ],
-    "comment": "This place exceeded every expectation we had. Beautiful interiors with a lot of thoughtful little touches. The ambience at night, with the lights around the pool, was gorgeous. The caretaker organised a lovely home-cooked dinner on request. Would 100% book again on our next Goa trip.",
-    "helpful": 0
-  },
-  {
-    "id": "casa-meadows-rev-40",
-    "property_id": "casa-meadows",
-    "guest_name": "Harsh Kulkarni",
-    "guest_location": "Pune",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities"
-    ],
-    "comment": "Second time staying and it just keeps getting better. Wi-Fi was fast and reliable throughout, even for work calls. Already planning our next visit.",
-    "helpful": 32
-  },
-  {
-    "id": "casa-meadows-rev-28",
-    "property_id": "casa-meadows",
-    "guest_name": "Vikram Chawla",
-    "guest_location": "Delhi",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service"
-    ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. Housekeeping team was courteous and always asked before entering. Five stars, no hesitation recommending this place.",
-    "helpful": 24
+    "comment": "This place exceeded every expectation we had. Housekeeping team was courteous and always asked before entering. Can't wait to come back with the rest of the family.",
+    "helpful": 29
   },
   {
     "id": "casa-meadows-rev-23",
     "property_id": "casa-meadows",
-    "guest_name": "Alexander Petrov",
-    "guest_location": "London, UK",
+    "guest_name": "Ritu Chatterjee",
+    "guest_location": "Mumbai",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
+      "Stay",
+      "Service"
+    ],
+    "comment": "Second time staying and it just keeps getting better. Rooms were spacious, tastefully furnished, and kept impeccably clean. Beds were extremely comfortable and the linen felt premium. The concierge helped us book a boat trip and scooters within the hour. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 36
+  },
+  {
+    "id": "casa-meadows-rev-32",
+    "property_id": "casa-meadows",
+    "guest_name": "Yash Nair",
+    "guest_location": "Surat",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Surrounded by palms and paddy fields — incredibly scenic setting. Great value for what you get — book direct if you can.",
+    "helpful": 15
+  },
+  {
+    "id": "casa-meadows-rev-28",
+    "property_id": "casa-meadows",
+    "guest_name": "Rajesh Joshi",
+    "guest_location": "Kochi",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Service"
+    ],
+    "comment": "Our group of friends had the most memorable time here. The property was spotlessly clean from the moment we walked in. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Can't wait to come back with the rest of the family.",
+    "helpful": 15
+  },
+  {
+    "id": "casa-meadows-rev-44",
+    "property_id": "casa-meadows",
+    "guest_name": "Emma Clarke",
+    "guest_location": "Amsterdam, Netherlands",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
       "Food"
     ],
-    "comment": "Second time staying and it just keeps getting better. The AC and hot water worked flawlessly the entire stay. The caretaker organised a lovely home-cooked dinner on request. Would 100% book again on our next Goa trip.",
+    "comment": "Our group of friends had the most memorable time here. Loved that the kitchen was fully stocked so we could cook our own meals too. Already planning our next visit.",
+    "helpful": 29
+  },
+  {
+    "id": "casa-meadows-rev-35",
+    "property_id": "casa-meadows",
+    "guest_name": "Amelia Ross",
+    "guest_location": "Amsterdam, Netherlands",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. Breakfast spread was fresh and generous every single morning. Perfect for couples and families alike.",
     "helpful": 4
   },
   {
-    "id": "casa-meadows-rev-27",
+    "id": "casa-meadows-rev-45",
     "property_id": "casa-meadows",
-    "guest_name": "Rohan Bhatia",
-    "guest_location": "Bangalore",
+    "guest_name": "Sophie Larsson",
+    "guest_location": "New York, USA",
     "rating": 5,
-    "platform": "Google",
+    "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
       "Food",
-      "Service",
       "View"
     ],
-    "comment": "One of the best villa experiences we've had in Goa. Loved that the kitchen was fully stocked so we could cook our own meals too. Check-in was smooth and the host walked us through everything patiently. The balcony view was worth the trip alone. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 13
+    "comment": "Our group of friends had the most memorable time here. Coffee and evening snacks were a nice touch we didn't expect. The balcony view was worth the trip alone. Can't wait to come back with the rest of the family.",
+    "helpful": 17
   },
   {
-    "id": "casa-meadows-rev-34",
+    "id": "casa-meadows-rev-20",
     "property_id": "casa-meadows",
-    "guest_name": "Sneha Singh",
-    "guest_location": "Jaipur",
+    "guest_name": "Nisha Krishnan",
+    "guest_location": "Bangalore",
     "rating": 5,
-    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Check-in was smooth and the host walked us through everything patiently. Would 100% book again on our next Goa trip.",
+    "helpful": 16
+  },
+  {
+    "id": "casa-meadows-rev-39",
+    "property_id": "casa-meadows",
+    "guest_name": "Shreya Mehta",
+    "guest_location": "Delhi",
+    "rating": 4,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay",
+      "View"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Wi-Fi was fast and reliable throughout, even for work calls. Beds were extremely comfortable and the linen felt premium. The balcony view was worth the trip alone. Already planning our next visit.",
+    "helpful": 14
+  },
+  {
+    "id": "casa-meadows-rev-33",
+    "property_id": "casa-meadows",
+    "guest_name": "Rahul Kulkarni",
+    "guest_location": "Surat",
+    "rating": 5,
+    "platform": "Google",
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
       "Stay",
       "Food"
     ],
-    "comment": "Second time staying and it just keeps getting better. The AC and hot water worked flawlessly the entire stay. Beds were extremely comfortable and the linen felt premium. The caretaker organised a lovely home-cooked dinner on request. Great value for what you get — book direct if you can.",
-    "helpful": 21
+    "comment": "Honestly one of the nicest stays we've had in a long time. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Housekeeping was prompt and unobtrusive, exactly the right balance. The caretaker organised a lovely home-cooked dinner on request. Can't wait to come back with the rest of the family.",
+    "helpful": 33
   },
   {
-    "id": "casa-meadows-rev-42",
+    "id": "casa-meadows-rev-21",
     "property_id": "casa-meadows",
-    "guest_name": "Priya Reddy",
-    "guest_location": "Hyderabad",
-    "rating": 4,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. The on-site restaurant served genuinely great local and continental dishes. Five stars, no hesitation recommending this place.",
-    "helpful": 30
-  },
-  {
-    "id": "casa-meadows-rev-33",
-    "property_id": "casa-meadows",
-    "guest_name": "Michael Anderson",
-    "guest_location": "Auckland, New Zealand",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. The property was spotlessly clean from the moment we walked in. Can't wait to come back with the rest of the family.",
-    "helpful": 6
-  },
-  {
-    "id": "casa-meadows-rev-41",
-    "property_id": "casa-meadows",
-    "guest_name": "Daniel Novak",
-    "guest_location": "Zurich, Switzerland",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay"
-    ],
-    "comment": "Had an absolutely wonderful stay here. Rooms were spacious, tastefully furnished, and kept impeccably clean. The property was spotlessly clean from the moment we walked in. Perfect for couples and families alike.",
-    "helpful": 24
-  },
-  {
-    "id": "casa-meadows-rev-26",
-    "property_id": "casa-meadows",
-    "guest_name": "Pooja Kulkarni",
+    "guest_name": "Nikhil Kapoor",
     "guest_location": "Chennai",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food",
-      "View"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Breakfast spread was fresh and generous every single morning. The sunset views from the pool deck were unbeatable. Perfect for couples and families alike.",
-    "helpful": 42
-  },
-  {
-    "id": "casa-meadows-rev-29",
-    "property_id": "casa-meadows",
-    "guest_name": "Vivek Verma",
-    "guest_location": "Delhi",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food",
-      "View"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. The private pool was spotless and so relaxing to lounge around all day. Coffee and evening snacks were a nice touch we didn't expect. Surrounded by palms and paddy fields — incredibly scenic setting. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 31
-  },
-  {
-    "id": "casa-meadows-rev-30",
-    "property_id": "casa-meadows",
-    "guest_name": "Rohan Bose",
-    "guest_location": "Chandigarh",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food",
-      "View"
-    ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. Rooms were spacious, tastefully furnished, and kept impeccably clean. The caretaker organised a lovely home-cooked dinner on request. The sunset views from the pool deck were unbeatable. Great value for what you get — book direct if you can.",
-    "helpful": 3
-  },
-  {
-    "id": "casa-meadows-rev-25",
-    "property_id": "casa-meadows",
-    "guest_name": "Siddharth Bose",
-    "guest_location": "Kolkata",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. Wi-Fi was fast and reliable throughout, even for work calls. The ambience at night, with the lights around the pool, was gorgeous. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 30
-  },
-  {
-    "id": "casa-meadows-rev-19",
-    "property_id": "casa-meadows",
-    "guest_name": "Vivek Chatterjee",
-    "guest_location": "Delhi",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "Perfect base for exploring North Goa. The property was spotlessly clean from the moment we walked in. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 31
-  },
-  {
-    "id": "casa-meadows-rev-38",
-    "property_id": "casa-meadows",
-    "guest_name": "Pallavi Nair",
-    "guest_location": "Jaipur",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. Housekeeping was prompt and unobtrusive, exactly the right balance. Great value for what you get — book direct if you can.",
-    "helpful": 30
-  },
-  {
-    "id": "casa-meadows-rev-35",
-    "property_id": "casa-meadows",
-    "guest_name": "Ritu Mehta",
-    "guest_location": "Chandigarh",
-    "rating": 5,
-    "platform": "Google",
+    "rating": 4,
     "date_label": "3 years ago",
     "categories": [
       "Food",
       "Service"
     ],
-    "comment": "Perfect base for exploring North Goa. Breakfast spread was fresh and generous every single morning. Genuinely warm hospitality — felt like staying with family, not a rental. Can't wait to come back with the rest of the family.",
+    "comment": "Came here for a weekend getaway and didn't want to leave. Coffee and evening snacks were a nice touch we didn't expect. Check-in was smooth and the host walked us through everything patiently. Great value for what you get — book direct if you can.",
+    "helpful": 21
+  },
+  {
+    "id": "casa-meadows-rev-26",
+    "property_id": "casa-meadows",
+    "guest_name": "Deepika Chatterjee",
+    "guest_location": "Bangalore",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Service"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Beautiful interiors with a lot of thoughtful little touches. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Perfect for couples and families alike.",
+    "helpful": 44
+  },
+  {
+    "id": "casa-meadows-rev-37",
+    "property_id": "casa-meadows",
+    "guest_name": "Sophie Larsson",
+    "guest_location": "Paris, France",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "Had an absolutely wonderful stay here. The balcony view was worth the trip alone. Would 100% book again on our next Goa trip.",
     "helpful": 4
   },
   {
     "id": "casa-meadows-rev-36",
     "property_id": "casa-meadows",
-    "guest_name": "Sneha Verma",
-    "guest_location": "Surat",
+    "guest_name": "Chloe Martin",
+    "guest_location": "Sydney, Australia",
     "rating": 5,
     "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
-      "Amenities",
+      "Service",
       "View"
     ],
-    "comment": "Had an absolutely wonderful stay here. The AC and hot water worked flawlessly the entire stay. The sunset views from the pool deck were unbeatable. Can't wait to come back with the rest of the family.",
-    "helpful": 39
+    "comment": "Honestly one of the nicest stays we've had in a long time. Staff went out of their way to make our anniversary special. The balcony view was worth the trip alone. Would 100% book again on our next Goa trip.",
+    "helpful": 21
   },
   {
-    "id": "casa-meadows-rev-43",
+    "id": "casa-meadows-rev-29",
     "property_id": "casa-meadows",
-    "guest_name": "Aman Bose",
-    "guest_location": "Surat",
-    "rating": 5,
-    "platform": "Agoda",
+    "guest_name": "Pallavi Chawla",
+    "guest_location": "Kolkata",
+    "rating": 4,
     "date_label": "3 years ago",
     "categories": [
-      "Food",
-      "View"
+      "Service"
     ],
-    "comment": "This place exceeded every expectation we had. The caretaker organised a lovely home-cooked dinner on request. Waking up to the garden view every morning was pure bliss. Would 100% book again on our next Goa trip.",
-    "helpful": 7
+    "comment": "Had an absolutely wonderful stay here. Housekeeping team was courteous and always asked before entering. Can't wait to come back with the rest of the family.",
+    "helpful": 29
   },
   {
-    "id": "casa-meadows-rev-20",
+    "id": "casa-meadows-rev-40",
     "property_id": "casa-meadows",
-    "guest_name": "Karan Gupta",
-    "guest_location": "Pune",
+    "guest_name": "Manish Singh",
+    "guest_location": "Hyderabad",
+    "rating": 4,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Service",
+      "View"
+    ],
+    "comment": "This place exceeded every expectation we had. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Housekeeping team was courteous and always asked before entering. The sunset views from the pool deck were unbeatable. Already planning our next visit.",
+    "helpful": 35
+  },
+  {
+    "id": "casa-meadows-rev-30",
+    "property_id": "casa-meadows",
+    "guest_name": "Ryan O'Connor",
+    "guest_location": "Moscow, Russia",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. Staff went out of their way to make our anniversary special. Great value for what you get — book direct if you can.",
+    "helpful": 5
+  },
+  {
+    "id": "casa-meadows-rev-18",
+    "property_id": "casa-meadows",
+    "guest_name": "Riya Menon",
+    "guest_location": "Delhi",
     "rating": 5,
     "platform": "Airbnb",
     "date_label": "3 years ago",
     "categories": [
-      "Food",
+      "Stay",
       "Service",
       "View"
     ],
-    "comment": "One of the best villa experiences we've had in Goa. Coffee and evening snacks were a nice touch we didn't expect. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Loved the panoramic views across the greenery from the upper floor. Five stars, no hesitation recommending this place.",
-    "helpful": 3
+    "comment": "One of the best villa experiences we've had in Goa. Check-in and check-out were smooth and completely hassle-free. The concierge helped us book a boat trip and scooters within the hour. Being minutes from the beach made evening walks so easy. Would 100% book again on our next Goa trip.",
+    "helpful": 11
   },
   {
-    "id": "casa-meadows-rev-21",
+    "id": "casa-meadows-rev-34",
     "property_id": "casa-meadows",
-    "guest_name": "Ashish Iyer",
-    "guest_location": "Delhi",
+    "guest_name": "Sanjay Singh",
+    "guest_location": "Ahmedabad",
+    "rating": 4,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Service"
+    ],
+    "comment": "Booked directly and the whole experience was seamless. The property was spotlessly clean from the moment we walked in. The concierge helped us book a boat trip and scooters within the hour. Great value for what you get — book direct if you can.",
+    "helpful": 1
+  },
+  {
+    "id": "casa-meadows-rev-19",
+    "property_id": "casa-meadows",
+    "guest_name": "Olivia Bennett",
+    "guest_location": "Amsterdam, Netherlands",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 31
+  },
+  {
+    "id": "casa-meadows-rev-22",
+    "property_id": "casa-meadows",
+    "guest_name": "Benjamin Foster",
+    "guest_location": "Singapore",
+    "rating": 4,
+    "date_label": "3 years ago",
+    "categories": [
+      "Food",
+      "View"
+    ],
+    "comment": "Our group of friends had the most memorable time here. The on-site restaurant served genuinely great local and continental dishes. The sunset views from the pool deck were unbeatable. Would 100% book again on our next Goa trip.",
+    "helpful": 30
+  },
+  {
+    "id": "casa-meadows-rev-31",
+    "property_id": "casa-meadows",
+    "guest_name": "Varun Kapoor",
+    "guest_location": "Indore",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Service",
+      "View"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. The property was spotlessly clean from the moment we walked in. The caretaker was incredibly attentive and responded within minutes on WhatsApp. The sunset views from the pool deck were unbeatable. Great value for what you get — book direct if you can.",
+    "helpful": 25
+  },
+  {
+    "id": "casa-meadows-rev-41",
+    "property_id": "casa-meadows",
+    "guest_name": "Manish Rao",
+    "guest_location": "Mumbai",
     "rating": 5,
     "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Second time staying and it just keeps getting better. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Great value for what you get — book direct if you can.",
+    "helpful": 23
+  },
+  {
+    "id": "casa-meadows-rev-27",
+    "property_id": "casa-meadows",
+    "guest_name": "Pallavi Bhatia",
+    "guest_location": "Kolkata",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay",
+      "View"
+    ],
+    "comment": "Perfect base for exploring North Goa. Rooms were spacious, tastefully furnished, and kept impeccably clean. The property was spotlessly clean from the moment we walked in. Waking up to the garden view every morning was pure bliss. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 30
+  },
+  {
+    "id": "casa-meadows-rev-42",
+    "property_id": "casa-meadows",
+    "guest_name": "Rohan Iyer",
+    "guest_location": "Jaipur",
+    "rating": 4,
+    "platform": "Google",
     "date_label": "3 years ago",
     "categories": [
       "Stay"
     ],
     "comment": "A hidden gem — exactly what we needed for a relaxed break. The ambience at night, with the lights around the pool, was gorgeous. Five stars, no hesitation recommending this place.",
-    "helpful": 43
+    "helpful": 4
   },
   {
-    "id": "casa-meadows-rev-37",
+    "id": "casa-meadows-rev-38",
     "property_id": "casa-meadows",
-    "guest_name": "Simran Krishnan",
-    "guest_location": "Mumbai",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Food",
-      "View"
-    ],
-    "comment": "Perfect base for exploring North Goa. Check-in and check-out were smooth and completely hassle-free. The caretaker organised a lovely home-cooked dinner on request. Waking up to the garden view every morning was pure bliss. Five stars, no hesitation recommending this place.",
-    "helpful": 3
-  },
-  {
-    "id": "casa-meadows-rev-32",
-    "property_id": "casa-meadows",
-    "guest_name": "Karan Singh",
-    "guest_location": "Delhi",
+    "guest_name": "Nisha Menon",
+    "guest_location": "Hyderabad",
     "rating": 5,
     "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
-      "Service",
-      "View"
+      "Food"
     ],
-    "comment": "Booked directly and the whole experience was seamless. The caretaker was incredibly attentive and responded within minutes on WhatsApp. The balcony view was worth the trip alone. Already planning our next visit.",
-    "helpful": 43
+    "comment": "Our group of friends had the most memorable time here. The on-site restaurant served genuinely great local and continental dishes. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 31
   },
   {
-    "id": "casa-meadows-rev-18",
+    "id": "casa-meadows-rev-24",
     "property_id": "casa-meadows",
-    "guest_name": "Ritu Chatterjee",
-    "guest_location": "Bangalore",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Food",
-      "Service"
-    ],
-    "comment": "Our group of friends had the most memorable time here. Beds were extremely comfortable and the linen felt premium. Arranged a private chef for one evening and the Goan food was outstanding. Staff went out of their way to make our anniversary special. Five stars, no hesitation recommending this place.",
-    "helpful": 38
-  },
-  {
-    "id": "casa-meadows-rev-22",
-    "property_id": "casa-meadows",
-    "guest_name": "Pooja Singh",
+    "guest_name": "Meera Bose",
     "guest_location": "Chandigarh",
     "rating": 5,
     "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
-      "Stay",
-      "Service",
-      "View"
+      "Service"
     ],
-    "comment": "Second time staying and it just keeps getting better. Loved the peaceful, private atmosphere — no noise from neighbours at all. Housekeeping team was courteous and always asked before entering. Surrounded by palms and paddy fields — incredibly scenic setting. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 1
+    "comment": "Came here for a weekend getaway and didn't want to leave. Housekeeping team was courteous and always asked before entering. Can't wait to come back with the rest of the family.",
+    "helpful": 25
   },
   {
-    "id": "casa-meadows-rev-44",
+    "id": "casa-meadows-rev-25",
     "property_id": "casa-meadows",
-    "guest_name": "William Harper",
-    "guest_location": "Singapore",
+    "guest_name": "Isha Chatterjee",
+    "guest_location": "Indore",
     "rating": 5,
-    "platform": "MakeMyTrip",
+    "platform": "Airbnb",
     "date_label": "3 years ago",
     "categories": [
-      "Amenities",
-      "Food"
+      "Service"
     ],
-    "comment": "Perfect base for exploring North Goa. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The on-site restaurant served genuinely great local and continental dishes. Would 100% book again on our next Goa trip.",
-    "helpful": 6
+    "comment": "Second time staying and it just keeps getting better. Housekeeping team was courteous and always asked before entering. Already planning our next visit.",
+    "helpful": 20
   },
   {
-    "id": "casa-meadows-rev-31",
+    "id": "casa-meadows-rev-43",
     "property_id": "casa-meadows",
-    "guest_name": "Tanya Gupta",
-    "guest_location": "Delhi",
-    "rating": 4,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "View"
-    ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. The balcony view was worth the trip alone. Five stars, no hesitation recommending this place.",
-    "helpful": 3
-  },
-  {
-    "id": "casa-meadows-rev-45",
-    "property_id": "casa-meadows",
-    "guest_name": "Vivek Reddy",
-    "guest_location": "Kolkata",
+    "guest_name": "Daniel Novak",
+    "guest_location": "Auckland, New Zealand",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
-      "Stay",
       "Food",
-      "View"
+      "Service"
     ],
-    "comment": "Our group of friends had the most memorable time here. Check-in and check-out were smooth and completely hassle-free. The on-site restaurant served genuinely great local and continental dishes. Loved the panoramic views across the greenery from the upper floor. Can't wait to come back with the rest of the family.",
-    "helpful": 38
+    "comment": "Came here for a weekend getaway and didn't want to leave. Loved that the kitchen was fully stocked so we could cook our own meals too. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Already planning our next visit.",
+    "helpful": 1
   },
   {
     "id": "harbor-court-rev-1",
@@ -1888,7 +1822,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Namrata Desai",
     "guest_location": "Hyderabad",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "3 days ago",
     "categories": [
       "Amenities"
@@ -1902,19 +1835,19 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Isha Joshi",
     "guest_location": "Delhi",
     "rating": 4,
-    "platform": "Google",
+    "platform": "Agoda",
     "date_label": "5 days ago",
     "categories": [
       "Service"
     ],
     "comment": "Booked this for a family trip and it was perfect. Check-in was smooth and the host walked us through everything patiently. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 26
+    "helpful": 14
   },
   {
     "id": "harbor-court-rev-3",
     "property_id": "harbor-court",
-    "guest_name": "Swati Shetty",
-    "guest_location": "Bangalore",
+    "guest_name": "David Cohen",
+    "guest_location": "Berlin, Germany",
     "rating": 5,
     "platform": "Airbnb",
     "date_label": "1 week ago",
@@ -1923,81 +1856,77 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "Food"
     ],
     "comment": "This place exceeded every expectation we had. Beautiful interiors with a lot of thoughtful little touches. Breakfast spread was fresh and generous every single morning. Can't wait to come back with the rest of the family.",
-    "helpful": 17
+    "helpful": 28
   },
   {
     "id": "harbor-court-rev-4",
     "property_id": "harbor-court",
-    "guest_name": "Aman Gupta",
-    "guest_location": "Kochi",
+    "guest_name": "Riya Desai",
+    "guest_location": "Chandigarh",
     "rating": 5,
     "platform": "Airbnb",
     "date_label": "2 weeks ago",
     "categories": [
-      "Amenities"
+      "View"
     ],
-    "comment": "Booked directly and the whole experience was seamless. Beautiful interiors with a lot of thoughtful little touches. Can't wait to come back with the rest of the family.",
-    "helpful": 7
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Being minutes from the beach made evening walks so easy. Great value for what you get — book direct if you can.",
+    "helpful": 41
   },
   {
     "id": "harbor-court-rev-5",
     "property_id": "harbor-court",
-    "guest_name": "Kunal Pillai",
-    "guest_location": "Chandigarh",
-    "rating": 4,
-    "platform": "MakeMyTrip",
+    "guest_name": "Alexander Petrov",
+    "guest_location": "Auckland, New Zealand",
+    "rating": 5,
+    "platform": "Agoda",
     "date_label": "last week",
     "categories": [
-      "Amenities"
+      "View"
     ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. Beautiful interiors with a lot of thoughtful little touches. Can't wait to come back with the rest of the family.",
-    "helpful": 0
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Surrounded by palms and paddy fields — incredibly scenic setting. Perfect for couples and families alike.",
+    "helpful": 41
   },
   {
     "id": "harbor-court-rev-6",
     "property_id": "harbor-court",
-    "guest_name": "Pallavi Mehta",
-    "guest_location": "Mumbai",
-    "rating": 5,
-    "platform": "MakeMyTrip",
+    "guest_name": "Rohan Patel",
+    "guest_location": "Chandigarh",
+    "rating": 4,
     "date_label": "3 weeks ago",
     "categories": [
+      "Stay",
       "Food",
-      "Service",
       "View"
     ],
-    "comment": "Had an absolutely wonderful stay here. The on-site restaurant served genuinely great local and continental dishes. Check-in was smooth and the host walked us through everything patiently. Waking up to the garden view every morning was pure bliss. Great value for what you get — book direct if you can.",
-    "helpful": 39
+    "comment": "Celebrated our anniversary here and it was magical. Beds were extremely comfortable and the linen felt premium. Breakfast spread was fresh and generous every single morning. Loved the panoramic views across the greenery from the upper floor. Perfect for couples and families alike.",
+    "helpful": 33
   },
   {
     "id": "harbor-court-rev-7",
     "property_id": "harbor-court",
-    "guest_name": "Chloe Martin",
-    "guest_location": "Singapore",
-    "rating": 5,
-    "platform": "Google",
+    "guest_name": "Sanjay Krishnan",
+    "guest_location": "Indore",
+    "rating": 4,
     "date_label": "a month ago",
-    "categories": [
-      "Stay",
-      "Service",
-      "View"
-    ],
-    "comment": "Perfect base for exploring North Goa. Beds were extremely comfortable and the linen felt premium. Check-in was smooth and the host walked us through everything patiently. The sunset views from the pool deck were unbeatable. Already planning our next visit.",
-    "helpful": 45
-  },
-  {
-    "id": "harbor-court-rev-8",
-    "property_id": "harbor-court",
-    "guest_name": "Tanya Agarwal",
-    "guest_location": "Nagpur",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "1 month ago",
     "categories": [
       "Amenities",
       "Food"
     ],
-    "comment": "Our group of friends had the most memorable time here. Beautiful interiors with a lot of thoughtful little touches. Breakfast spread was fresh and generous every single morning. Would 100% book again on our next Goa trip.",
+    "comment": "Came here for a weekend getaway and didn't want to leave. Rooms were spacious, tastefully furnished, and kept impeccably clean. Coffee and evening snacks were a nice touch we didn't expect. Would 100% book again on our next Goa trip.",
+    "helpful": 3
+  },
+  {
+    "id": "harbor-court-rev-8",
+    "property_id": "harbor-court",
+    "guest_name": "Deepika Bhatia",
+    "guest_location": "Pune",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "1 month ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Coffee and evening snacks were a nice touch we didn't expect. Five stars, no hesitation recommending this place.",
     "helpful": 18
   },
   {
@@ -2006,522 +1935,509 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Emma Clarke",
     "guest_location": "Moscow, Russia",
     "rating": 4,
-    "platform": "Airbnb",
+    "platform": "Agoda",
     "date_label": "2 months ago",
     "categories": [
       "View"
     ],
     "comment": "One of the best villa experiences we've had in Goa. The balcony view was worth the trip alone. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 28
+    "helpful": 12
   },
   {
     "id": "harbor-court-rev-10",
     "property_id": "harbor-court",
-    "guest_name": "Deepika Chawla",
-    "guest_location": "Surat",
+    "guest_name": "Benjamin Foster",
+    "guest_location": "Moscow, Russia",
     "rating": 5,
-    "platform": "Google",
+    "platform": "MakeMyTrip",
     "date_label": "a few months ago",
     "categories": [
       "View"
     ],
     "comment": "Our group of friends had the most memorable time here. The sunset views from the pool deck were unbeatable. Already planning our next visit.",
-    "helpful": 37
+    "helpful": 41
   },
   {
     "id": "harbor-court-rev-11",
     "property_id": "harbor-court",
-    "guest_name": "Lucas Meyer",
-    "guest_location": "Berlin, Germany",
-    "rating": 5,
-    "platform": "Airbnb",
+    "guest_name": "Sneha Kulkarni",
+    "guest_location": "Chennai",
+    "rating": 4,
+    "platform": "Google",
     "date_label": "3 months ago",
     "categories": [
-      "Service",
-      "View"
+      "Stay",
+      "Food",
+      "Service"
     ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. The concierge helped us book a boat trip and scooters within the hour. The balcony view was worth the trip alone. Five stars, no hesitation recommending this place.",
-    "helpful": 30
+    "comment": "Our group of friends had the most memorable time here. Check-in and check-out were smooth and completely hassle-free. The on-site restaurant served genuinely great local and continental dishes. Housekeeping team was courteous and always asked before entering. Would 100% book again on our next Goa trip.",
+    "helpful": 22
   },
   {
     "id": "harbor-court-rev-12",
     "property_id": "harbor-court",
-    "guest_name": "Sneha Sharma",
-    "guest_location": "Mumbai",
-    "rating": 5,
-    "platform": "Airbnb",
+    "guest_name": "Rajesh Shetty",
+    "guest_location": "Pune",
+    "rating": 4,
+    "platform": "MakeMyTrip",
     "date_label": "4 months ago",
     "categories": [
-      "Service",
-      "View"
+      "Amenities",
+      "Stay",
+      "Service"
     ],
-    "comment": "Perfect base for exploring North Goa. Staff went out of their way to make our anniversary special. Surrounded by palms and paddy fields — incredibly scenic setting. Five stars, no hesitation recommending this place.",
-    "helpful": 8
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Wi-Fi was fast and reliable throughout, even for work calls. Housekeeping was prompt and unobtrusive, exactly the right balance. Genuinely warm hospitality — felt like staying with family, not a rental. Would 100% book again on our next Goa trip.",
+    "helpful": 23
   },
   {
     "id": "harbor-court-rev-13",
     "property_id": "harbor-court",
-    "guest_name": "Tanya Krishnan",
+    "guest_name": "Gaurav Menon",
     "guest_location": "Kolkata",
     "rating": 5,
-    "platform": "Agoda",
+    "platform": "Google",
     "date_label": "6 months ago",
     "categories": [
+      "Amenities",
       "Food",
-      "Service"
+      "View"
     ],
-    "comment": "Had an absolutely wonderful stay here. Breakfast spread was fresh and generous every single morning. Housekeeping team was courteous and always asked before entering. Can't wait to come back with the rest of the family.",
-    "helpful": 45
+    "comment": "Celebrated our anniversary here and it was magical. Beautiful interiors with a lot of thoughtful little touches. Loved that the kitchen was fully stocked so we could cook our own meals too. Surrounded by palms and paddy fields — incredibly scenic setting. Would 100% book again on our next Goa trip.",
+    "helpful": 44
   },
   {
     "id": "harbor-court-rev-14",
     "property_id": "harbor-court",
-    "guest_name": "Deepika Reddy",
-    "guest_location": "Nagpur",
+    "guest_name": "Swati Patel",
+    "guest_location": "Ahmedabad",
     "rating": 5,
-    "platform": "Airbnb",
     "date_label": "8 months ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "Service"
-    ],
-    "comment": "Perfect base for exploring North Goa. The private pool was spotless and so relaxing to lounge around all day. The ambience at night, with the lights around the pool, was gorgeous. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 31
-  },
-  {
-    "id": "harbor-court-rev-15",
-    "property_id": "harbor-court",
-    "guest_name": "Emma Clarke",
-    "guest_location": "Toronto, Canada",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "a year ago",
-    "categories": [
-      "Food"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. Breakfast spread was fresh and generous every single morning. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 0
-  },
-  {
-    "id": "harbor-court-rev-16",
-    "property_id": "harbor-court",
-    "guest_name": "Neha Nair",
-    "guest_location": "Kolkata",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "1 year ago",
-    "categories": [
-      "Service"
-    ],
-    "comment": "Had an absolutely wonderful stay here. The concierge helped us book a boat trip and scooters within the hour. Can't wait to come back with the rest of the family.",
-    "helpful": 14
-  },
-  {
-    "id": "harbor-court-rev-17",
-    "property_id": "harbor-court",
-    "guest_name": "Olivia Bennett",
-    "guest_location": "Singapore",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "2 years ago",
     "categories": [
       "Amenities",
       "Food",
       "Service"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Wi-Fi was fast and reliable throughout, even for work calls. The on-site restaurant served genuinely great local and continental dishes. Staff went out of their way to make our anniversary special. Great value for what you get — book direct if you can.",
-    "helpful": 41
+    "comment": "One of the best villa experiences we've had in Goa. Rooms were spacious, tastefully furnished, and kept impeccably clean. The on-site restaurant served genuinely great local and continental dishes. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 0
   },
   {
-    "id": "harbor-court-rev-29",
+    "id": "harbor-court-rev-15",
     "property_id": "harbor-court",
-    "guest_name": "Amelia Ross",
-    "guest_location": "Amsterdam, Netherlands",
+    "guest_name": "Neha Nair",
+    "guest_location": "Kolkata",
     "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
+    "platform": "Airbnb",
+    "date_label": "a year ago",
     "categories": [
-      "Amenities",
+      "Service"
+    ],
+    "comment": "Had an absolutely wonderful stay here. The concierge helped us book a boat trip and scooters within the hour. Can't wait to come back with the rest of the family.",
+    "helpful": 39
+  },
+  {
+    "id": "harbor-court-rev-16",
+    "property_id": "harbor-court",
+    "guest_name": "Siddharth Pillai",
+    "guest_location": "Indore",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "1 year ago",
+    "categories": [
       "Food"
     ],
-    "comment": "Second time staying and it just keeps getting better. The AC and hot water worked flawlessly the entire stay. The caretaker organised a lovely home-cooked dinner on request. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 16
-  },
-  {
-    "id": "harbor-court-rev-43",
-    "property_id": "harbor-court",
-    "guest_name": "Aditya Desai",
-    "guest_location": "Kochi",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities"
-    ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Wi-Fi was fast and reliable throughout, even for work calls. Would 100% book again on our next Goa trip.",
-    "helpful": 31
-  },
-  {
-    "id": "harbor-court-rev-19",
-    "property_id": "harbor-court",
-    "guest_name": "David Cohen",
-    "guest_location": "Auckland, New Zealand",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "View"
-    ],
-    "comment": "Our group of friends had the most memorable time here. The sunset views from the pool deck were unbeatable. Perfect for couples and families alike.",
+    "comment": "Came here for a weekend getaway and didn't want to leave. Loved that the kitchen was fully stocked so we could cook our own meals too. Already planning our next visit.",
     "helpful": 6
   },
   {
-    "id": "harbor-court-rev-46",
+    "id": "harbor-court-rev-17",
     "property_id": "harbor-court",
-    "guest_name": "Swati Patel",
-    "guest_location": "Ahmedabad",
-    "rating": 4,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Service"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. The private pool was spotless and so relaxing to lounge around all day. Genuinely warm hospitality — felt like staying with family, not a rental. Already planning our next visit.",
-    "helpful": 16
-  },
-  {
-    "id": "harbor-court-rev-22",
-    "property_id": "harbor-court",
-    "guest_name": "Benjamin Foster",
-    "guest_location": "New York, USA",
-    "rating": 4,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "View"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. Housekeeping was prompt and unobtrusive, exactly the right balance. Loved the panoramic views across the greenery from the upper floor. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 25
-  },
-  {
-    "id": "harbor-court-rev-18",
-    "property_id": "harbor-court",
-    "guest_name": "Aditya Joshi",
-    "guest_location": "Kochi",
+    "guest_name": "Emma Clarke",
+    "guest_location": "Dubai, UAE",
     "rating": 5,
     "platform": "Agoda",
-    "date_label": "3 years ago",
+    "date_label": "2 years ago",
     "categories": [
       "Amenities",
       "Service",
       "View"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. The AC and hot water worked flawlessly the entire stay. Check-in was smooth and the host walked us through everything patiently. Waking up to the garden view every morning was pure bliss. Five stars, no hesitation recommending this place.",
-    "helpful": 44
+    "comment": "Second time staying and it just keeps getting better. Beautiful interiors with a lot of thoughtful little touches. Staff went out of their way to make our anniversary special. The balcony view was worth the trip alone. Would 100% book again on our next Goa trip.",
+    "helpful": 30
   },
   {
-    "id": "harbor-court-rev-41",
+    "id": "harbor-court-rev-22",
     "property_id": "harbor-court",
-    "guest_name": "Isha Rao",
-    "guest_location": "Surat",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. Housekeeping team was courteous and always asked before entering. Perfect for couples and families alike.",
-    "helpful": 39
-  },
-  {
-    "id": "harbor-court-rev-28",
-    "property_id": "harbor-court",
-    "guest_name": "David Cohen",
-    "guest_location": "Zurich, Switzerland",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Loved the peaceful, private atmosphere — no noise from neighbours at all. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 27
-  },
-  {
-    "id": "harbor-court-rev-36",
-    "property_id": "harbor-court",
-    "guest_name": "Pooja Joshi",
-    "guest_location": "Chandigarh",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "Service"
-    ],
-    "comment": "Perfect base for exploring North Goa. Beautiful interiors with a lot of thoughtful little touches. Housekeeping was prompt and unobtrusive, exactly the right balance. Check-in was smooth and the host walked us through everything patiently. Perfect for couples and families alike.",
-    "helpful": 6
-  },
-  {
-    "id": "harbor-court-rev-45",
-    "property_id": "harbor-court",
-    "guest_name": "Rohan Kulkarni",
-    "guest_location": "Kochi",
-    "rating": 4,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "View"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. Surrounded by palms and paddy fields — incredibly scenic setting. Would 100% book again on our next Goa trip.",
-    "helpful": 25
-  },
-  {
-    "id": "harbor-court-rev-35",
-    "property_id": "harbor-court",
-    "guest_name": "Varun Chatterjee",
+    "guest_name": "Kavya Mehta",
     "guest_location": "Bangalore",
     "rating": 5,
     "platform": "Google",
     "date_label": "3 years ago",
     "categories": [
-      "Amenities"
+      "Service"
     ],
-    "comment": "Celebrated our anniversary here and it was magical. The private pool was spotless and so relaxing to lounge around all day. Great value for what you get — book direct if you can.",
-    "helpful": 27
+    "comment": "Booked this for a family trip and it was perfect. Check-in was smooth and the host walked us through everything patiently. Five stars, no hesitation recommending this place.",
+    "helpful": 33
   },
   {
-    "id": "harbor-court-rev-20",
+    "id": "harbor-court-rev-42",
     "property_id": "harbor-court",
-    "guest_name": "Gaurav Iyer",
-    "guest_location": "Hyderabad",
+    "guest_name": "Ashish Joshi",
+    "guest_location": "Pune",
     "rating": 5,
-    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. Waking up to the garden view every morning was pure bliss. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 39
+  },
+  {
+    "id": "harbor-court-rev-26",
+    "property_id": "harbor-court",
+    "guest_name": "David Cohen",
+    "guest_location": "New York, USA",
+    "rating": 5,
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
-      "Stay"
+      "Food",
+      "Service"
     ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The property was spotlessly clean from the moment we walked in. Perfect for couples and families alike.",
-    "helpful": 41
+    "comment": "Honestly one of the nicest stays we've had in a long time. The private pool was spotless and so relaxing to lounge around all day. Arranged a private chef for one evening and the Goan food was outstanding. Check-in was smooth and the host walked us through everything patiently. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 44
+  },
+  {
+    "id": "harbor-court-rev-21",
+    "property_id": "harbor-court",
+    "guest_name": "Aman Patel",
+    "guest_location": "Nagpur",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "View"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. The property was spotlessly clean from the moment we walked in. The balcony view was worth the trip alone. Would 100% book again on our next Goa trip.",
+    "helpful": 34
+  },
+  {
+    "id": "harbor-court-rev-31",
+    "property_id": "harbor-court",
+    "guest_name": "Thomas Muller",
+    "guest_location": "Amsterdam, Netherlands",
+    "rating": 4,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "Service"
+    ],
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. The property was spotlessly clean from the moment we walked in. The caretaker organised a lovely home-cooked dinner on request. Check-in was smooth and the host walked us through everything patiently. Already planning our next visit.",
+    "helpful": 6
+  },
+  {
+    "id": "harbor-court-rev-24",
+    "property_id": "harbor-court",
+    "guest_name": "Grace Wilson",
+    "guest_location": "Zurich, Switzerland",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. The on-site restaurant served genuinely great local and continental dishes. Perfect for couples and families alike.",
+    "helpful": 19
+  },
+  {
+    "id": "harbor-court-rev-38",
+    "property_id": "harbor-court",
+    "guest_name": "Simran Verma",
+    "guest_location": "Pune",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "View"
+    ],
+    "comment": "Had an absolutely wonderful stay here. The private pool was spotless and so relaxing to lounge around all day. Surrounded by palms and paddy fields — incredibly scenic setting. Great value for what you get — book direct if you can.",
+    "helpful": 15
+  },
+  {
+    "id": "harbor-court-rev-35",
+    "property_id": "harbor-court",
+    "guest_name": "William Harper",
+    "guest_location": "Singapore",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "Second time staying and it just keeps getting better. Loved the panoramic views across the greenery from the upper floor. Already planning our next visit.",
+    "helpful": 37
+  },
+  {
+    "id": "harbor-court-rev-23",
+    "property_id": "harbor-court",
+    "guest_name": "Ashish Verma",
+    "guest_location": "Kolkata",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay",
+      "Service"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. Beautiful interiors with a lot of thoughtful little touches. Housekeeping was prompt and unobtrusive, exactly the right balance. Genuinely warm hospitality — felt like staying with family, not a rental. Already planning our next visit.",
+    "helpful": 28
   },
   {
     "id": "harbor-court-rev-34",
     "property_id": "harbor-court",
-    "guest_name": "Rajesh Verma",
+    "guest_name": "Abhishek Verma",
     "guest_location": "Chennai",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
       "Food",
       "View"
     ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Arranged a private chef for one evening and the Goan food was outstanding. Surrounded by palms and paddy fields — incredibly scenic setting. Perfect for couples and families alike.",
-    "helpful": 30
+    "comment": "Booked directly and the whole experience was seamless. Breakfast spread was fresh and generous every single morning. Waking up to the garden view every morning was pure bliss. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 16
   },
   {
-    "id": "harbor-court-rev-30",
+    "id": "harbor-court-rev-45",
     "property_id": "harbor-court",
-    "guest_name": "Neha Desai",
-    "guest_location": "Kolkata",
-    "rating": 5,
-    "platform": "Google",
+    "guest_name": "Pooja Patel",
+    "guest_location": "Chennai",
+    "rating": 4,
     "date_label": "3 years ago",
     "categories": [
-      "Stay"
+      "Food"
     ],
-    "comment": "One of the best villa experiences we've had in Goa. Check-in and check-out were smooth and completely hassle-free. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 25
-  },
-  {
-    "id": "harbor-court-rev-44",
-    "property_id": "harbor-court",
-    "guest_name": "Kavya Reddy",
-    "guest_location": "Indore",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities"
-    ],
-    "comment": "Perfect base for exploring North Goa. Beautiful interiors with a lot of thoughtful little touches. Great value for what you get — book direct if you can.",
-    "helpful": 3
+    "comment": "Celebrated our anniversary here and it was magical. Coffee and evening snacks were a nice touch we didn't expect. Can't wait to come back with the rest of the family.",
+    "helpful": 28
   },
   {
     "id": "harbor-court-rev-33",
     "property_id": "harbor-court",
-    "guest_name": "Kavya Gupta",
-    "guest_location": "Pune",
+    "guest_name": "Amelia Ross",
+    "guest_location": "Tel Aviv, Israel",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Food"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. The private pool was spotless and so relaxing to lounge around all day. Breakfast spread was fresh and generous every single morning. Would 100% book again on our next Goa trip.",
+    "helpful": 18
+  },
+  {
+    "id": "harbor-court-rev-40",
+    "property_id": "harbor-court",
+    "guest_name": "Natasha Ivanova",
+    "guest_location": "New York, USA",
     "rating": 4,
-    "platform": "Google",
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "Had an absolutely wonderful stay here. The balcony view was worth the trip alone. Great value for what you get — book direct if you can.",
+    "helpful": 13
+  },
+  {
+    "id": "harbor-court-rev-41",
+    "property_id": "harbor-court",
+    "guest_name": "Tanya Kapoor",
+    "guest_location": "Kochi",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. The concierge helped us book a boat trip and scooters within the hour. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 16
+  },
+  {
+    "id": "harbor-court-rev-29",
+    "property_id": "harbor-court",
+    "guest_name": "Rohan Iyer",
+    "guest_location": "Surat",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Housekeeping was prompt and unobtrusive, exactly the right balance. Great value for what you get — book direct if you can.",
+    "helpful": 14
+  },
+  {
+    "id": "harbor-court-rev-32",
+    "property_id": "harbor-court",
+    "guest_name": "Karan Menon",
+    "guest_location": "Mumbai",
+    "rating": 4,
     "date_label": "3 years ago",
     "categories": [
       "Stay",
       "Food"
     ],
-    "comment": "This place exceeded every expectation we had. Beds were extremely comfortable and the linen felt premium. The caretaker organised a lovely home-cooked dinner on request. Would 100% book again on our next Goa trip.",
-    "helpful": 0
+    "comment": "Perfect base for exploring North Goa. Housekeeping was prompt and unobtrusive, exactly the right balance. The on-site restaurant served genuinely great local and continental dishes. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 18
   },
   {
-    "id": "harbor-court-rev-38",
+    "id": "harbor-court-rev-30",
     "property_id": "harbor-court",
-    "guest_name": "James Whitfield",
-    "guest_location": "Moscow, Russia",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "View"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. The private pool was spotless and so relaxing to lounge around all day. Loved the peaceful, private atmosphere — no noise from neighbours at all. Being minutes from the beach made evening walks so easy. Great value for what you get — book direct if you can.",
-    "helpful": 35
-  },
-  {
-    "id": "harbor-court-rev-42",
-    "property_id": "harbor-court",
-    "guest_name": "Ashish Agarwal",
-    "guest_location": "Mumbai",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "View"
-    ],
-    "comment": "Had an absolutely wonderful stay here. The sunset views from the pool deck were unbeatable. Can't wait to come back with the rest of the family.",
-    "helpful": 34
-  },
-  {
-    "id": "harbor-court-rev-23",
-    "property_id": "harbor-court",
-    "guest_name": "Lucas Meyer",
-    "guest_location": "Sydney, Australia",
-    "rating": 4,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Service",
-      "View"
-    ],
-    "comment": "This place exceeded every expectation we had. The private pool was spotless and so relaxing to lounge around all day. Check-in was smooth and the host walked us through everything patiently. The sunset views from the pool deck were unbeatable. Would 100% book again on our next Goa trip.",
-    "helpful": 30
-  },
-  {
-    "id": "harbor-court-rev-27",
-    "property_id": "harbor-court",
-    "guest_name": "Swati Desai",
-    "guest_location": "Delhi",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Food",
-      "View"
-    ],
-    "comment": "Had an absolutely wonderful stay here. Housekeeping was prompt and unobtrusive, exactly the right balance. Breakfast spread was fresh and generous every single morning. Loved the panoramic views across the greenery from the upper floor. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 44
-  },
-  {
-    "id": "harbor-court-rev-37",
-    "property_id": "harbor-court",
-    "guest_name": "Pallavi Verma",
-    "guest_location": "Ahmedabad",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "View"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. The private pool was spotless and so relaxing to lounge around all day. Being minutes from the beach made evening walks so easy. Perfect for couples and families alike.",
-    "helpful": 10
-  },
-  {
-    "id": "harbor-court-rev-21",
-    "property_id": "harbor-court",
-    "guest_name": "Pooja Nair",
-    "guest_location": "Nagpur",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "View"
-    ],
-    "comment": "Booked directly and the whole experience was seamless. Being minutes from the beach made evening walks so easy. Great value for what you get — book direct if you can.",
-    "helpful": 6
-  },
-  {
-    "id": "harbor-court-rev-25",
-    "property_id": "harbor-court",
-    "guest_name": "Kunal Krishnan",
-    "guest_location": "Hyderabad",
+    "guest_name": "Sanjay Verma",
+    "guest_location": "Bangalore",
     "rating": 5,
     "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
-      "Service",
+      "Amenities",
       "View"
     ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Housekeeping team was courteous and always asked before entering. Surrounded by palms and paddy fields — incredibly scenic setting. Already planning our next visit.",
-    "helpful": 18
+    "comment": "Perfect base for exploring North Goa. Rooms were spacious, tastefully furnished, and kept impeccably clean. Surrounded by palms and paddy fields — incredibly scenic setting. Great value for what you get — book direct if you can.",
+    "helpful": 40
   },
   {
-    "id": "harbor-court-rev-31",
+    "id": "harbor-court-rev-27",
     "property_id": "harbor-court",
-    "guest_name": "Sophie Larsson",
-    "guest_location": "London, UK",
+    "guest_name": "Aditya Patel",
+    "guest_location": "Chennai",
     "rating": 5,
     "platform": "Google",
     "date_label": "3 years ago",
     "categories": [
-      "Stay"
+      "Service"
     ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Check-in and check-out were smooth and completely hassle-free. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 27
+    "comment": "Honestly one of the nicest stays we've had in a long time. Housekeeping team was courteous and always asked before entering. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 26
   },
   {
-    "id": "harbor-court-rev-26",
+    "id": "harbor-court-rev-18",
     "property_id": "harbor-court",
     "guest_name": "William Harper",
-    "guest_location": "Dubai, UAE",
-    "rating": 5,
-    "platform": "MakeMyTrip",
+    "guest_location": "Zurich, Switzerland",
+    "rating": 4,
     "date_label": "3 years ago",
     "categories": [
-      "Food",
+      "Amenities",
+      "Stay",
       "View"
     ],
-    "comment": "Had an absolutely wonderful stay here. Coffee and evening snacks were a nice touch we didn't expect. Being minutes from the beach made evening walks so easy. Already planning our next visit.",
-    "helpful": 45
+    "comment": "This place exceeded every expectation we had. The AC and hot water worked flawlessly the entire stay. Check-in and check-out were smooth and completely hassle-free. Being minutes from the beach made evening walks so easy. Can't wait to come back with the rest of the family.",
+    "helpful": 15
   },
   {
-    "id": "harbor-court-rev-32",
+    "id": "harbor-court-rev-39",
     "property_id": "harbor-court",
-    "guest_name": "Kunal Kulkarni",
-    "guest_location": "Nagpur",
+    "guest_name": "Riya Chatterjee",
+    "guest_location": "Chandigarh",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Wi-Fi was fast and reliable throughout, even for work calls. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 23
+  },
+  {
+    "id": "harbor-court-rev-36",
+    "property_id": "harbor-court",
+    "guest_name": "Arjun Chatterjee",
+    "guest_location": "Surat",
     "rating": 4,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay"
+    ],
+    "comment": "Had an absolutely wonderful stay here. The ambience at night, with the lights around the pool, was gorgeous. Perfect for couples and families alike.",
+    "helpful": 34
+  },
+  {
+    "id": "harbor-court-rev-46",
+    "property_id": "harbor-court",
+    "guest_name": "Arjun Chatterjee",
+    "guest_location": "Pune",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Loved the panoramic views across the greenery from the upper floor. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 0
+  },
+  {
+    "id": "harbor-court-rev-37",
+    "property_id": "harbor-court",
+    "guest_name": "Ashish Nair",
+    "guest_location": "Bangalore",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food"
+    ],
+    "comment": "Perfect base for exploring North Goa. Beds were extremely comfortable and the linen felt premium. The caretaker organised a lovely home-cooked dinner on request. Great value for what you get — book direct if you can.",
+    "helpful": 28
+  },
+  {
+    "id": "harbor-court-rev-20",
+    "property_id": "harbor-court",
+    "guest_name": "Karan Krishnan",
+    "guest_location": "Jaipur",
+    "rating": 5,
     "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
       "Service"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Beautiful interiors with a lot of thoughtful little touches. Genuinely warm hospitality — felt like staying with family, not a rental. Can't wait to come back with the rest of the family.",
-    "helpful": 37
+    "comment": "Came here for a weekend getaway and didn't want to leave. Beautiful interiors with a lot of thoughtful little touches. Genuinely warm hospitality — felt like staying with family, not a rental. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 13
   },
   {
-    "id": "harbor-court-rev-39",
+    "id": "harbor-court-rev-28",
     "property_id": "harbor-court",
-    "guest_name": "Michael Anderson",
-    "guest_location": "Amsterdam, Netherlands",
+    "guest_name": "Vikram Joshi",
+    "guest_location": "Chandigarh",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "This place exceeded every expectation we had. Check-in was smooth and the host walked us through everything patiently. Already planning our next visit.",
+    "helpful": 25
+  },
+  {
+    "id": "harbor-court-rev-44",
+    "property_id": "harbor-court",
+    "guest_name": "Shreya Chatterjee",
+    "guest_location": "Ahmedabad",
+    "rating": 4,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "Second time staying and it just keeps getting better. The caretaker organised a lovely home-cooked dinner on request. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 45
+  },
+  {
+    "id": "harbor-court-rev-19",
+    "property_id": "harbor-court",
+    "guest_name": "Arjun Singh",
+    "guest_location": "Delhi",
     "rating": 5,
     "platform": "Google",
     "date_label": "3 years ago",
@@ -2529,38 +2445,34 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "Amenities",
       "View"
     ],
-    "comment": "Booked directly and the whole experience was seamless. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The sunset views from the pool deck were unbeatable. Great value for what you get — book direct if you can.",
-    "helpful": 45
+    "comment": "Perfect base for exploring North Goa. The AC and hot water worked flawlessly the entire stay. Surrounded by palms and paddy fields — incredibly scenic setting. Great value for what you get — book direct if you can.",
+    "helpful": 40
   },
   {
-    "id": "harbor-court-rev-24",
+    "id": "harbor-court-rev-25",
     "property_id": "harbor-court",
-    "guest_name": "Rahul Desai",
-    "guest_location": "Hyderabad",
+    "guest_name": "Swati Chawla",
+    "guest_location": "Kolkata",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
-      "Stay",
-      "Food",
       "View"
     ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Housekeeping was prompt and unobtrusive, exactly the right balance. The on-site restaurant served genuinely great local and continental dishes. Surrounded by palms and paddy fields — incredibly scenic setting. Would 100% book again on our next Goa trip.",
-    "helpful": 38
+    "comment": "Had an absolutely wonderful stay here. Surrounded by palms and paddy fields — incredibly scenic setting. Perfect for couples and families alike.",
+    "helpful": 7
   },
   {
-    "id": "harbor-court-rev-40",
+    "id": "harbor-court-rev-43",
     "property_id": "harbor-court",
-    "guest_name": "Namrata Menon",
-    "guest_location": "Ahmedabad",
+    "guest_name": "Rahul Sharma",
+    "guest_location": "Chennai",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
-      "Stay"
+      "Service"
     ],
-    "comment": "Second time staying and it just keeps getting better. The property was spotlessly clean from the moment we walked in. Can't wait to come back with the rest of the family.",
-    "helpful": 12
+    "comment": "Booked this for a family trip and it was perfect. Genuinely warm hospitality — felt like staying with family, not a rental. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 10
   },
   {
     "id": "the-plix-villa-rev-1",
@@ -2568,7 +2480,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Simran Iyer",
     "guest_location": "Delhi",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "3 days ago",
     "categories": [
       "Amenities",
@@ -2590,562 +2501,231 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "Service"
     ],
     "comment": "One of the best villa experiences we've had in Goa. Housekeeping was prompt and unobtrusive, exactly the right balance. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Five stars, no hesitation recommending this place.",
-    "helpful": 13
+    "helpful": 17
   },
   {
     "id": "the-plix-villa-rev-3",
     "property_id": "the-plix-villa",
-    "guest_name": "Rohan Kapoor",
+    "guest_name": "Karan Malhotra",
     "guest_location": "Jaipur",
     "rating": 5,
-    "platform": "Agoda",
+    "platform": "Airbnb",
     "date_label": "1 week ago",
     "categories": [
+      "Stay",
       "Food"
     ],
-    "comment": "Second time staying and it just keeps getting better. The on-site restaurant served genuinely great local and continental dishes. Can't wait to come back with the rest of the family.",
-    "helpful": 27
+    "comment": "Booked directly and the whole experience was seamless. Housekeeping was prompt and unobtrusive, exactly the right balance. Loved that the kitchen was fully stocked so we could cook our own meals too. Perfect for couples and families alike.",
+    "helpful": 20
   },
   {
     "id": "the-plix-villa-rev-4",
     "property_id": "the-plix-villa",
-    "guest_name": "Thomas Muller",
+    "guest_name": "Isabella Rossi",
     "guest_location": "Singapore",
     "rating": 5,
-    "platform": "Google",
+    "platform": "Airbnb",
     "date_label": "2 weeks ago",
     "categories": [
-      "Amenities",
-      "Stay",
-      "Food"
+      "Stay"
     ],
-    "comment": "Booked directly and the whole experience was seamless. The private pool was spotless and so relaxing to lounge around all day. The property was spotlessly clean from the moment we walked in. The caretaker organised a lovely home-cooked dinner on request. Can't wait to come back with the rest of the family.",
-    "helpful": 15
+    "comment": "Booked directly and the whole experience was seamless. Check-in and check-out were smooth and completely hassle-free. Can't wait to come back with the rest of the family.",
+    "helpful": 37
   },
   {
     "id": "the-plix-villa-rev-5",
     "property_id": "the-plix-villa",
-    "guest_name": "Michael Anderson",
-    "guest_location": "Moscow, Russia",
-    "rating": 5,
-    "platform": "Google",
+    "guest_name": "Harsh Sharma",
+    "guest_location": "Bangalore",
+    "rating": 4,
     "date_label": "last week",
     "categories": [
-      "View"
+      "Amenities",
+      "Stay",
+      "Food"
     ],
-    "comment": "Second time staying and it just keeps getting better. Surrounded by palms and paddy fields — incredibly scenic setting. Would 100% book again on our next Goa trip.",
-    "helpful": 37
+    "comment": "Booked directly and the whole experience was seamless. The AC and hot water worked flawlessly the entire stay. The property was spotlessly clean from the moment we walked in. Arranged a private chef for one evening and the Goan food was outstanding. Great value for what you get — book direct if you can.",
+    "helpful": 11
   },
   {
     "id": "the-plix-villa-rev-6",
     "property_id": "the-plix-villa",
-    "guest_name": "Aditya Bose",
-    "guest_location": "Chennai",
+    "guest_name": "Aman Nair",
+    "guest_location": "Delhi",
     "rating": 4,
-    "platform": "MakeMyTrip",
+    "platform": "Google",
     "date_label": "3 weeks ago",
     "categories": [
-      "Service"
+      "Stay"
     ],
-    "comment": "This place exceeded every expectation we had. Check-in was smooth and the host walked us through everything patiently. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 8
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Loved the peaceful, private atmosphere — no noise from neighbours at all. Would 100% book again on our next Goa trip.",
+    "helpful": 32
   },
   {
     "id": "the-plix-villa-rev-7",
     "property_id": "the-plix-villa",
-    "guest_name": "Varun Chatterjee",
-    "guest_location": "Bangalore",
-    "rating": 5,
-    "platform": "Agoda",
+    "guest_name": "Harsh Menon",
+    "guest_location": "Chandigarh",
+    "rating": 4,
     "date_label": "a month ago",
     "categories": [
-      "Service"
+      "Amenities",
+      "View"
     ],
-    "comment": "Celebrated our anniversary here and it was magical. Housekeeping team was courteous and always asked before entering. Would 100% book again on our next Goa trip.",
-    "helpful": 39
+    "comment": "Came here for a weekend getaway and didn't want to leave. Wi-Fi was fast and reliable throughout, even for work calls. Waking up to the garden view every morning was pure bliss. Already planning our next visit.",
+    "helpful": 24
   },
   {
     "id": "the-plix-villa-rev-8",
     "property_id": "the-plix-villa",
-    "guest_name": "Karan Agarwal",
-    "guest_location": "Kolkata",
+    "guest_name": "Neha Nair",
+    "guest_location": "Chennai",
     "rating": 5,
     "platform": "Airbnb",
     "date_label": "1 month ago",
     "categories": [
-      "Stay",
+      "Amenities",
       "View"
     ],
-    "comment": "Booked this for a family trip and it was perfect. Housekeeping was prompt and unobtrusive, exactly the right balance. The sunset views from the pool deck were unbeatable. Would 100% book again on our next Goa trip.",
-    "helpful": 26
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Wi-Fi was fast and reliable throughout, even for work calls. Waking up to the garden view every morning was pure bliss. Five stars, no hesitation recommending this place.",
+    "helpful": 14
   },
   {
     "id": "the-plix-villa-rev-9",
     "property_id": "the-plix-villa",
-    "guest_name": "Vikram Chawla",
-    "guest_location": "Kolkata",
+    "guest_name": "Namrata Sharma",
+    "guest_location": "Chennai",
     "rating": 5,
-    "platform": "Google",
     "date_label": "2 months ago",
     "categories": [
       "Amenities",
-      "Service"
+      "Food"
     ],
-    "comment": "Booked directly and the whole experience was seamless. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Staff went out of their way to make our anniversary special. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 19
+    "comment": "Came here for a weekend getaway and didn't want to leave. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Breakfast spread was fresh and generous every single morning. Great value for what you get — book direct if you can.",
+    "helpful": 2
   },
   {
     "id": "the-plix-villa-rev-10",
     "property_id": "the-plix-villa",
-    "guest_name": "Abhishek Kapoor",
-    "guest_location": "Hyderabad",
+    "guest_name": "Thomas Muller",
+    "guest_location": "New York, USA",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "a few months ago",
     "categories": [
-      "Stay"
+      "Amenities",
+      "Food",
+      "View"
     ],
-    "comment": "Celebrated our anniversary here and it was magical. Loved the peaceful, private atmosphere — no noise from neighbours at all. Would 100% book again on our next Goa trip.",
-    "helpful": 26
+    "comment": "This place exceeded every expectation we had. Rooms were spacious, tastefully furnished, and kept impeccably clean. Coffee and evening snacks were a nice touch we didn't expect. Waking up to the garden view every morning was pure bliss. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 38
   },
   {
     "id": "the-plix-villa-rev-11",
     "property_id": "the-plix-villa",
-    "guest_name": "Rahul Bhatia",
-    "guest_location": "Nagpur",
+    "guest_name": "Pallavi Verma",
+    "guest_location": "Mumbai",
     "rating": 5,
-    "platform": "Google",
+    "platform": "Airbnb",
     "date_label": "3 months ago",
     "categories": [
+      "Amenities",
       "Stay"
     ],
-    "comment": "This place exceeded every expectation we had. The ambience at night, with the lights around the pool, was gorgeous. Would 100% book again on our next Goa trip.",
-    "helpful": 31
+    "comment": "Perfect base for exploring North Goa. The private pool was spotless and so relaxing to lounge around all day. Housekeeping was prompt and unobtrusive, exactly the right balance. Already planning our next visit.",
+    "helpful": 30
   },
   {
     "id": "the-plix-villa-rev-12",
     "property_id": "the-plix-villa",
-    "guest_name": "Sophie Larsson",
-    "guest_location": "Auckland, New Zealand",
+    "guest_name": "Isha Singh",
+    "guest_location": "Mumbai",
     "rating": 5,
-    "platform": "Google",
+    "platform": "Agoda",
     "date_label": "4 months ago",
     "categories": [
-      "Service"
+      "Amenities",
+      "View"
     ],
-    "comment": "Had an absolutely wonderful stay here. Check-in was smooth and the host walked us through everything patiently. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 30
+    "comment": "Came here for a weekend getaway and didn't want to leave. The private pool was spotless and so relaxing to lounge around all day. Loved the panoramic views across the greenery from the upper floor. Perfect for couples and families alike.",
+    "helpful": 5
   },
   {
     "id": "the-plix-villa-rev-13",
     "property_id": "the-plix-villa",
-    "guest_name": "Lucas Meyer",
-    "guest_location": "Toronto, Canada",
+    "guest_name": "James Whitfield",
+    "guest_location": "Tel Aviv, Israel",
     "rating": 5,
-    "platform": "Google",
     "date_label": "6 months ago",
     "categories": [
-      "Amenities",
-      "Stay"
+      "Service",
+      "View"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Beds were extremely comfortable and the linen felt premium. Can't wait to come back with the rest of the family.",
-    "helpful": 37
+    "comment": "Booked directly and the whole experience was seamless. Genuinely warm hospitality — felt like staying with family, not a rental. Waking up to the garden view every morning was pure bliss. Great value for what you get — book direct if you can.",
+    "helpful": 12
   },
   {
     "id": "the-plix-villa-rev-14",
     "property_id": "the-plix-villa",
-    "guest_name": "Varun Verma",
-    "guest_location": "Nagpur",
+    "guest_name": "Ananya Kapoor",
+    "guest_location": "Kolkata",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "8 months ago",
     "categories": [
       "Amenities",
       "Stay",
-      "View"
+      "Service"
     ],
-    "comment": "Booked directly and the whole experience was seamless. The AC and hot water worked flawlessly the entire stay. Loved the peaceful, private atmosphere — no noise from neighbours at all. Loved the panoramic views across the greenery from the upper floor. Perfect for couples and families alike.",
-    "helpful": 3
+    "comment": "Second time staying and it just keeps getting better. The AC and hot water worked flawlessly the entire stay. Loved the peaceful, private atmosphere — no noise from neighbours at all. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Already planning our next visit.",
+    "helpful": 33
   },
   {
     "id": "the-plix-villa-rev-15",
     "property_id": "the-plix-villa",
-    "guest_name": "Siddharth Agarwal",
-    "guest_location": "Pune",
+    "guest_name": "Harsh Sharma",
+    "guest_location": "Bangalore",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "a year ago",
     "categories": [
-      "Amenities"
+      "Stay",
+      "Food"
     ],
-    "comment": "Booked directly and the whole experience was seamless. Wi-Fi was fast and reliable throughout, even for work calls. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 10
+    "comment": "Honestly one of the nicest stays we've had in a long time. Beds were extremely comfortable and the linen felt premium. The caretaker organised a lovely home-cooked dinner on request. Already planning our next visit.",
+    "helpful": 26
   },
   {
     "id": "the-plix-villa-rev-16",
     "property_id": "the-plix-villa",
-    "guest_name": "Harsh Verma",
-    "guest_location": "Bangalore",
+    "guest_name": "Sarah Thompson",
+    "guest_location": "Toronto, Canada",
     "rating": 5,
     "platform": "Google",
     "date_label": "1 year ago",
     "categories": [
+      "Amenities",
       "Service"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. The concierge helped us book a boat trip and scooters within the hour. Perfect for couples and families alike.",
-    "helpful": 6
+    "comment": "Perfect base for exploring North Goa. The private pool was spotless and so relaxing to lounge around all day. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Five stars, no hesitation recommending this place.",
+    "helpful": 45
   },
   {
     "id": "the-plix-villa-rev-17",
     "property_id": "the-plix-villa",
-    "guest_name": "Shreya Patel",
-    "guest_location": "Ahmedabad",
+    "guest_name": "Swati Agarwal",
+    "guest_location": "Hyderabad",
     "rating": 5,
     "platform": "Airbnb",
     "date_label": "2 years ago",
     "categories": [
-      "Stay",
-      "Service",
-      "View"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Housekeeping was prompt and unobtrusive, exactly the right balance. Genuinely warm hospitality — felt like staying with family, not a rental. Waking up to the garden view every morning was pure bliss. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 36
-  },
-  {
-    "id": "the-plix-villa-rev-35",
-    "property_id": "the-plix-villa",
-    "guest_name": "Nikhil Agarwal",
-    "guest_location": "Kolkata",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food",
-      "Service"
-    ],
-    "comment": "Had an absolutely wonderful stay here. Coffee and evening snacks were a nice touch we didn't expect. Staff went out of their way to make our anniversary special. Already planning our next visit.",
-    "helpful": 17
-  },
-  {
-    "id": "the-plix-villa-rev-39",
-    "property_id": "the-plix-villa",
-    "guest_name": "Vivek Gupta",
-    "guest_location": "Pune",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food"
-    ],
-    "comment": "Had an absolutely wonderful stay here. Coffee and evening snacks were a nice touch we didn't expect. Five stars, no hesitation recommending this place.",
-    "helpful": 11
-  },
-  {
-    "id": "the-plix-villa-rev-29",
-    "property_id": "the-plix-villa",
-    "guest_name": "Rajesh Pillai",
-    "guest_location": "Kolkata",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service",
-      "View"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Check-in was smooth and the host walked us through everything patiently. Surrounded by palms and paddy fields — incredibly scenic setting. Already planning our next visit.",
-    "helpful": 28
-  },
-  {
-    "id": "the-plix-villa-rev-28",
-    "property_id": "the-plix-villa",
-    "guest_name": "Benjamin Foster",
-    "guest_location": "Zurich, Switzerland",
-    "rating": 4,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "Perfect base for exploring North Goa. Housekeeping was prompt and unobtrusive, exactly the right balance. Would 100% book again on our next Goa trip.",
-    "helpful": 12
-  },
-  {
-    "id": "the-plix-villa-rev-37",
-    "property_id": "the-plix-villa",
-    "guest_name": "Alexander Petrov",
-    "guest_location": "Tel Aviv, Israel",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
       "Amenities"
     ],
-    "comment": "Booked this for a family trip and it was perfect. Beautiful interiors with a lot of thoughtful little touches. Already planning our next visit.",
-    "helpful": 35
-  },
-  {
-    "id": "the-plix-villa-rev-34",
-    "property_id": "the-plix-villa",
-    "guest_name": "Aman Bhatia",
-    "guest_location": "Delhi",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "Booked directly and the whole experience was seamless. The ambience at night, with the lights around the pool, was gorgeous. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 35
-  },
-  {
-    "id": "the-plix-villa-rev-18",
-    "property_id": "the-plix-villa",
-    "guest_name": "Vikram Menon",
-    "guest_location": "Nagpur",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "View"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. Loved the peaceful, private atmosphere — no noise from neighbours at all. Surrounded by palms and paddy fields — incredibly scenic setting. Already planning our next visit.",
-    "helpful": 13
-  },
-  {
-    "id": "the-plix-villa-rev-23",
-    "property_id": "the-plix-villa",
-    "guest_name": "Neha Krishnan",
-    "guest_location": "Kochi",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities"
-    ],
-    "comment": "Perfect base for exploring North Goa. The AC and hot water worked flawlessly the entire stay. Perfect for couples and families alike.",
-    "helpful": 30
-  },
-  {
-    "id": "the-plix-villa-rev-36",
-    "property_id": "the-plix-villa",
-    "guest_name": "Siddharth Chatterjee",
-    "guest_location": "Delhi",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food",
-      "View"
-    ],
-    "comment": "Perfect base for exploring North Goa. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The caretaker organised a lovely home-cooked dinner on request. Loved the panoramic views across the greenery from the upper floor. Can't wait to come back with the rest of the family.",
-    "helpful": 15
-  },
-  {
-    "id": "the-plix-villa-rev-41",
-    "property_id": "the-plix-villa",
-    "guest_name": "Amelia Ross",
-    "guest_location": "Tel Aviv, Israel",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "View"
-    ],
-    "comment": "Our group of friends had the most memorable time here. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Loved the peaceful, private atmosphere — no noise from neighbours at all. Loved the panoramic views across the greenery from the upper floor. Great value for what you get — book direct if you can.",
-    "helpful": 23
-  },
-  {
-    "id": "the-plix-villa-rev-40",
-    "property_id": "the-plix-villa",
-    "guest_name": "Amelia Ross",
-    "guest_location": "Amsterdam, Netherlands",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Service",
-      "View"
-    ],
-    "comment": "Second time staying and it just keeps getting better. Check-in and check-out were smooth and completely hassle-free. Staff went out of their way to make our anniversary special. Waking up to the garden view every morning was pure bliss. Already planning our next visit.",
-    "helpful": 33
-  },
-  {
-    "id": "the-plix-villa-rev-31",
-    "property_id": "the-plix-villa",
-    "guest_name": "Lucas Meyer",
-    "guest_location": "Amsterdam, Netherlands",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Food",
-      "View"
-    ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. Beds were extremely comfortable and the linen felt premium. Breakfast spread was fresh and generous every single morning. Surrounded by palms and paddy fields — incredibly scenic setting. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 8
-  },
-  {
-    "id": "the-plix-villa-rev-33",
-    "property_id": "the-plix-villa",
-    "guest_name": "Karan Nair",
-    "guest_location": "Ahmedabad",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "Service"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Beautiful interiors with a lot of thoughtful little touches. The property was spotlessly clean from the moment we walked in. The caretaker was incredibly attentive and responded within minutes on WhatsApp. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 15
-  },
-  {
-    "id": "the-plix-villa-rev-42",
-    "property_id": "the-plix-villa",
-    "guest_name": "James Whitfield",
-    "guest_location": "Moscow, Russia",
-    "rating": 4,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food",
-      "Service"
-    ],
-    "comment": "Booked directly and the whole experience was seamless. The caretaker organised a lovely home-cooked dinner on request. The concierge helped us book a boat trip and scooters within the hour. Already planning our next visit.",
-    "helpful": 8
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Wi-Fi was fast and reliable throughout, even for work calls. Great value for what you get — book direct if you can.",
+    "helpful": 41
   },
   {
     "id": "the-plix-villa-rev-27",
     "property_id": "the-plix-villa",
-    "guest_name": "William Harper",
-    "guest_location": "London, UK",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. The caretaker organised a lovely home-cooked dinner on request. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 40
-  },
-  {
-    "id": "the-plix-villa-rev-24",
-    "property_id": "the-plix-villa",
-    "guest_name": "Ashish Shetty",
-    "guest_location": "Kochi",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "View"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. Beds were extremely comfortable and the linen felt premium. Surrounded by palms and paddy fields — incredibly scenic setting. Can't wait to come back with the rest of the family.",
-    "helpful": 26
-  },
-  {
-    "id": "the-plix-villa-rev-32",
-    "property_id": "the-plix-villa",
-    "guest_name": "Riya Kapoor",
-    "guest_location": "Kochi",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food",
-      "View"
-    ],
-    "comment": "Booked directly and the whole experience was seamless. Rooms were spacious, tastefully furnished, and kept impeccably clean. The caretaker organised a lovely home-cooked dinner on request. Loved the panoramic views across the greenery from the upper floor. Already planning our next visit.",
-    "helpful": 43
-  },
-  {
-    "id": "the-plix-villa-rev-38",
-    "property_id": "the-plix-villa",
-    "guest_name": "Swati Chatterjee",
-    "guest_location": "Hyderabad",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food"
-    ],
-    "comment": "Second time staying and it just keeps getting better. Breakfast spread was fresh and generous every single morning. Great value for what you get — book direct if you can.",
-    "helpful": 34
-  },
-  {
-    "id": "the-plix-villa-rev-21",
-    "property_id": "the-plix-villa",
-    "guest_name": "Aman Bose",
-    "guest_location": "Chennai",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Service"
-    ],
-    "comment": "Booked directly and the whole experience was seamless. Loved the peaceful, private atmosphere — no noise from neighbours at all. Staff went out of their way to make our anniversary special. Would 100% book again on our next Goa trip.",
-    "helpful": 4
-  },
-  {
-    "id": "the-plix-villa-rev-19",
-    "property_id": "the-plix-villa",
-    "guest_name": "Anjali Chatterjee",
-    "guest_location": "Ahmedabad",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service",
-      "View"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. The concierge helped us book a boat trip and scooters within the hour. Surrounded by palms and paddy fields — incredibly scenic setting. Five stars, no hesitation recommending this place.",
-    "helpful": 6
-  },
-  {
-    "id": "the-plix-villa-rev-20",
-    "property_id": "the-plix-villa",
-    "guest_name": "Karan Chawla",
-    "guest_location": "Bangalore",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "Service"
-    ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. The AC and hot water worked flawlessly the entire stay. Beds were extremely comfortable and the linen felt premium. Housekeeping team was courteous and always asked before entering. Can't wait to come back with the rest of the family.",
-    "helpful": 40
-  },
-  {
-    "id": "the-plix-villa-rev-26",
-    "property_id": "the-plix-villa",
-    "guest_name": "Natasha Ivanova",
-    "guest_location": "Amsterdam, Netherlands",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay"
-    ],
-    "comment": "Booked directly and the whole experience was seamless. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Check-in and check-out were smooth and completely hassle-free. Already planning our next visit.",
-    "helpful": 35
-  },
-  {
-    "id": "the-plix-villa-rev-30",
-    "property_id": "the-plix-villa",
-    "guest_name": "Simran Chawla",
-    "guest_location": "Jaipur",
+    "guest_name": "Benjamin Foster",
+    "guest_location": "Tel Aviv, Israel",
     "rating": 5,
     "platform": "Google",
     "date_label": "3 years ago",
@@ -3155,35 +2735,356 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "View"
     ],
     "comment": "Second time staying and it just keeps getting better. The on-site restaurant served genuinely great local and continental dishes. The concierge helped us book a boat trip and scooters within the hour. Surrounded by palms and paddy fields — incredibly scenic setting. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 8
+    "helpful": 43
   },
   {
-    "id": "the-plix-villa-rev-22",
+    "id": "the-plix-villa-rev-37",
     "property_id": "the-plix-villa",
-    "guest_name": "Natasha Ivanova",
-    "guest_location": "New York, USA",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food"
-    ],
-    "comment": "This place exceeded every expectation we had. Loved that the kitchen was fully stocked so we could cook our own meals too. Would 100% book again on our next Goa trip.",
-    "helpful": 23
-  },
-  {
-    "id": "the-plix-villa-rev-25",
-    "property_id": "the-plix-villa",
-    "guest_name": "Sanjay Verma",
-    "guest_location": "Ahmedabad",
+    "guest_name": "Amelia Ross",
+    "guest_location": "Amsterdam, Netherlands",
     "rating": 5,
     "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
+      "Stay",
+      "Service",
+      "View"
+    ],
+    "comment": "Second time staying and it just keeps getting better. Check-in and check-out were smooth and completely hassle-free. Staff went out of their way to make our anniversary special. Waking up to the garden view every morning was pure bliss. Already planning our next visit.",
+    "helpful": 42
+  },
+  {
+    "id": "the-plix-villa-rev-33",
+    "property_id": "the-plix-villa",
+    "guest_name": "Aman Bose",
+    "guest_location": "Chennai",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
       "Food"
     ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Coffee and evening snacks were a nice touch we didn't expect. Five stars, no hesitation recommending this place.",
-    "helpful": 23
+    "comment": "Perfect base for exploring North Goa. Rooms were spacious, tastefully furnished, and kept impeccably clean. The caretaker organised a lovely home-cooked dinner on request. Would 100% book again on our next Goa trip.",
+    "helpful": 34
+  },
+  {
+    "id": "the-plix-villa-rev-22",
+    "property_id": "the-plix-villa",
+    "guest_name": "Emma Clarke",
+    "guest_location": "Tel Aviv, Israel",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "View"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Loved the peaceful, private atmosphere — no noise from neighbours at all. Arranged a private chef for one evening and the Goan food was outstanding. Surrounded by palms and paddy fields — incredibly scenic setting. Perfect for couples and families alike.",
+    "helpful": 27
+  },
+  {
+    "id": "the-plix-villa-rev-26",
+    "property_id": "the-plix-villa",
+    "guest_name": "Thomas Muller",
+    "guest_location": "Singapore",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Service"
+    ],
+    "comment": "Booked this for a family trip and it was perfect. The ambience at night, with the lights around the pool, was gorgeous. Housekeeping team was courteous and always asked before entering. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 29
+  },
+  {
+    "id": "the-plix-villa-rev-41",
+    "property_id": "the-plix-villa",
+    "guest_name": "Aman Agarwal",
+    "guest_location": "Jaipur",
+    "rating": 4,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Wi-Fi was fast and reliable throughout, even for work calls. Would 100% book again on our next Goa trip.",
+    "helpful": 43
+  },
+  {
+    "id": "the-plix-villa-rev-24",
+    "property_id": "the-plix-villa",
+    "guest_name": "Anjali Menon",
+    "guest_location": "Delhi",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Service",
+      "View"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Check-in and check-out were smooth and completely hassle-free. The concierge helped us book a boat trip and scooters within the hour. The balcony view was worth the trip alone. Can't wait to come back with the rest of the family.",
+    "helpful": 36
+  },
+  {
+    "id": "the-plix-villa-rev-18",
+    "property_id": "the-plix-villa",
+    "guest_name": "Chloe Martin",
+    "guest_location": "Auckland, New Zealand",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Food"
+    ],
+    "comment": "Perfect base for exploring North Goa. The AC and hot water worked flawlessly the entire stay. Breakfast spread was fresh and generous every single morning. Would 100% book again on our next Goa trip.",
+    "helpful": 16
+  },
+  {
+    "id": "the-plix-villa-rev-30",
+    "property_id": "the-plix-villa",
+    "guest_name": "Sanjay Gupta",
+    "guest_location": "Jaipur",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "View"
+    ],
+    "comment": "Second time staying and it just keeps getting better. Beds were extremely comfortable and the linen felt premium. Waking up to the garden view every morning was pure bliss. Can't wait to come back with the rest of the family.",
+    "helpful": 17
+  },
+  {
+    "id": "the-plix-villa-rev-29",
+    "property_id": "the-plix-villa",
+    "guest_name": "Daniel Novak",
+    "guest_location": "Singapore",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. The concierge helped us book a boat trip and scooters within the hour. Perfect for couples and families alike.",
+    "helpful": 5
+  },
+  {
+    "id": "the-plix-villa-rev-35",
+    "property_id": "the-plix-villa",
+    "guest_name": "Thomas Muller",
+    "guest_location": "Singapore",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "Second time staying and it just keeps getting better. Breakfast spread was fresh and generous every single morning. Great value for what you get — book direct if you can.",
+    "helpful": 34
+  },
+  {
+    "id": "the-plix-villa-rev-42",
+    "property_id": "the-plix-villa",
+    "guest_name": "Isabella Rossi",
+    "guest_location": "Dubai, UAE",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Staff went out of their way to make our anniversary special. Already planning our next visit.",
+    "helpful": 2
+  },
+  {
+    "id": "the-plix-villa-rev-38",
+    "property_id": "the-plix-villa",
+    "guest_name": "Alexander Petrov",
+    "guest_location": "Berlin, Germany",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. Beautiful interiors with a lot of thoughtful little touches. Great value for what you get — book direct if you can.",
+    "helpful": 22
+  },
+  {
+    "id": "the-plix-villa-rev-20",
+    "property_id": "the-plix-villa",
+    "guest_name": "Manish Iyer",
+    "guest_location": "Pune",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Perfect base for exploring North Goa. The private pool was spotless and so relaxing to lounge around all day. Perfect for couples and families alike.",
+    "helpful": 13
+  },
+  {
+    "id": "the-plix-villa-rev-31",
+    "property_id": "the-plix-villa",
+    "guest_name": "Gaurav Krishnan",
+    "guest_location": "Hyderabad",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food",
+      "View"
+    ],
+    "comment": "Booked this for a family trip and it was perfect. The on-site restaurant served genuinely great local and continental dishes. Loved the panoramic views across the greenery from the upper floor. Perfect for couples and families alike.",
+    "helpful": 3
+  },
+  {
+    "id": "the-plix-villa-rev-19",
+    "property_id": "the-plix-villa",
+    "guest_name": "Ritu Desai",
+    "guest_location": "Delhi",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food"
+    ],
+    "comment": "Booked this for a family trip and it was perfect. The ambience at night, with the lights around the pool, was gorgeous. Arranged a private chef for one evening and the Goan food was outstanding. Can't wait to come back with the rest of the family.",
+    "helpful": 15
+  },
+  {
+    "id": "the-plix-villa-rev-36",
+    "property_id": "the-plix-villa",
+    "guest_name": "Vivek Gupta",
+    "guest_location": "Pune",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Coffee and evening snacks were a nice touch we didn't expect. Five stars, no hesitation recommending this place.",
+    "helpful": 11
+  },
+  {
+    "id": "the-plix-villa-rev-39",
+    "property_id": "the-plix-villa",
+    "guest_name": "Shreya Shetty",
+    "guest_location": "Mumbai",
+    "rating": 4,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "Service"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. Check-in and check-out were smooth and completely hassle-free. The caretaker organised a lovely home-cooked dinner on request. Housekeeping team was courteous and always asked before entering. Five stars, no hesitation recommending this place.",
+    "helpful": 7
+  },
+  {
+    "id": "the-plix-villa-rev-25",
+    "property_id": "the-plix-villa",
+    "guest_name": "Isha Singh",
+    "guest_location": "Nagpur",
+    "rating": 4,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Service",
+      "View"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Housekeeping team was courteous and always asked before entering. Surrounded by palms and paddy fields — incredibly scenic setting. Can't wait to come back with the rest of the family.",
+    "helpful": 42
+  },
+  {
+    "id": "the-plix-villa-rev-23",
+    "property_id": "the-plix-villa",
+    "guest_name": "Ananya Joshi",
+    "guest_location": "Chennai",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Food",
+      "View"
+    ],
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The caretaker organised a lovely home-cooked dinner on request. The balcony view was worth the trip alone. Perfect for couples and families alike.",
+    "helpful": 26
+  },
+  {
+    "id": "the-plix-villa-rev-32",
+    "property_id": "the-plix-villa",
+    "guest_name": "Yash Malhotra",
+    "guest_location": "Delhi",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "View"
+    ],
+    "comment": "Booked directly and the whole experience was seamless. Housekeeping was prompt and unobtrusive, exactly the right balance. Arranged a private chef for one evening and the Goan food was outstanding. Being minutes from the beach made evening walks so easy. Can't wait to come back with the rest of the family.",
+    "helpful": 8
+  },
+  {
+    "id": "the-plix-villa-rev-21",
+    "property_id": "the-plix-villa",
+    "guest_name": "Shreya Nair",
+    "guest_location": "Mumbai",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Food"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. Beautiful interiors with a lot of thoughtful little touches. The caretaker organised a lovely home-cooked dinner on request. Already planning our next visit.",
+    "helpful": 41
+  },
+  {
+    "id": "the-plix-villa-rev-40",
+    "property_id": "the-plix-villa",
+    "guest_name": "Neha Iyer",
+    "guest_location": "Surat",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Booked directly and the whole experience was seamless. Housekeeping team was courteous and always asked before entering. Already planning our next visit.",
+    "helpful": 0
+  },
+  {
+    "id": "the-plix-villa-rev-34",
+    "property_id": "the-plix-villa",
+    "guest_name": "Swati Chatterjee",
+    "guest_location": "Hyderabad",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food",
+      "Service",
+      "View"
+    ],
+    "comment": "Booked this for a family trip and it was perfect. Breakfast spread was fresh and generous every single morning. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Surrounded by palms and paddy fields — incredibly scenic setting. Already planning our next visit.",
+    "helpful": 20
+  },
+  {
+    "id": "the-plix-villa-rev-28",
+    "property_id": "the-plix-villa",
+    "guest_name": "Tanya Kapoor",
+    "guest_location": "Chandigarh",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Waking up to the garden view every morning was pure bliss. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 40
   },
   {
     "id": "morjim-pride-rev-1",
@@ -3191,7 +3092,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Vikram Iyer",
     "guest_location": "Indore",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "3 days ago",
     "categories": [
       "Amenities",
@@ -3207,7 +3107,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Sanjay Gupta",
     "guest_location": "Jaipur",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "5 days ago",
     "categories": [
       "Stay",
@@ -3223,7 +3122,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Vivek Bose",
     "guest_location": "Mumbai",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "1 week ago",
     "categories": [
       "Amenities",
@@ -3239,29 +3137,28 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Benjamin Foster",
     "guest_location": "Amsterdam, Netherlands",
     "rating": 5,
-    "platform": "Google",
+    "platform": "Airbnb",
     "date_label": "2 weeks ago",
     "categories": [
       "Stay",
       "Service"
     ],
     "comment": "Came here for a weekend getaway and didn't want to leave. Loved the peaceful, private atmosphere — no noise from neighbours at all. The concierge helped us book a boat trip and scooters within the hour. Can't wait to come back with the rest of the family.",
-    "helpful": 14
+    "helpful": 23
   },
   {
     "id": "morjim-pride-rev-5",
     "property_id": "morjim-pride",
-    "guest_name": "Aman Iyer",
-    "guest_location": "Bangalore",
+    "guest_name": "Pooja Kapoor",
+    "guest_location": "Chandigarh",
     "rating": 5,
     "platform": "Google",
     "date_label": "last week",
     "categories": [
       "Amenities",
-      "Food",
       "View"
     ],
-    "comment": "Booked directly and the whole experience was seamless. The private pool was spotless and so relaxing to lounge around all day. The on-site restaurant served genuinely great local and continental dishes. Waking up to the garden view every morning was pure bliss. Highly recommend to anyone looking for a private, comfortable stay.",
+    "comment": "This place exceeded every expectation we had. The private pool was spotless and so relaxing to lounge around all day. Loved the panoramic views across the greenery from the upper floor. Can't wait to come back with the rest of the family.",
     "helpful": 7
   },
   {
@@ -3270,7 +3167,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Chloe Martin",
     "guest_location": "Paris, France",
     "rating": 4,
-    "platform": "MakeMyTrip",
     "date_label": "3 weeks ago",
     "categories": [
       "Amenities",
@@ -3286,7 +3182,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Aditya Pillai",
     "guest_location": "Chennai",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "a month ago",
     "categories": [
       "Stay",
@@ -3302,79 +3197,68 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Riya Kulkarni",
     "guest_location": "Hyderabad",
     "rating": 4,
-    "platform": "Airbnb",
+    "platform": "MakeMyTrip",
     "date_label": "1 month ago",
     "categories": [
       "Stay"
     ],
     "comment": "A hidden gem — exactly what we needed for a relaxed break. The ambience at night, with the lights around the pool, was gorgeous. Five stars, no hesitation recommending this place.",
-    "helpful": 44
+    "helpful": 29
   },
   {
     "id": "morjim-pride-rev-9",
     "property_id": "morjim-pride",
-    "guest_name": "Vikram Chawla",
-    "guest_location": "Mumbai",
+    "guest_name": "Kunal Sharma",
+    "guest_location": "Chandigarh",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "Agoda",
     "date_label": "2 months ago",
     "categories": [
       "Amenities",
-      "Stay"
+      "Service"
     ],
-    "comment": "One of the best villa experiences we've had in Goa. The AC and hot water worked flawlessly the entire stay. Beds were extremely comfortable and the linen felt premium. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 1
+    "comment": "One of the best villa experiences we've had in Goa. The private pool was spotless and so relaxing to lounge around all day. Staff went out of their way to make our anniversary special. Great value for what you get — book direct if you can.",
+    "helpful": 22
   },
   {
     "id": "morjim-pride-rev-10",
     "property_id": "morjim-pride",
-    "guest_name": "Varun Chawla",
-    "guest_location": "Bangalore",
+    "guest_name": "James Whitfield",
+    "guest_location": "Berlin, Germany",
     "rating": 5,
     "platform": "MakeMyTrip",
     "date_label": "a few months ago",
     "categories": [
-      "View"
+      "Amenities",
+      "Stay",
+      "Food"
     ],
-    "comment": "One of the best villa experiences we've had in Goa. Being minutes from the beach made evening walks so easy. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 35
+    "comment": "Came here for a weekend getaway and didn't want to leave. The AC and hot water worked flawlessly the entire stay. Check-in and check-out were smooth and completely hassle-free. The caretaker organised a lovely home-cooked dinner on request. Five stars, no hesitation recommending this place.",
+    "helpful": 1
   },
   {
     "id": "morjim-pride-rev-11",
     "property_id": "morjim-pride",
-    "guest_name": "Kavya Joshi",
-    "guest_location": "Pune",
-    "rating": 4,
+    "guest_name": "Ritu Mehta",
+    "guest_location": "Surat",
+    "rating": 5,
     "platform": "Google",
     "date_label": "3 months ago",
     "categories": [
-      "Service"
+      "Amenities",
+      "Stay",
+      "View"
     ],
-    "comment": "Booked this for a family trip and it was perfect. Housekeeping team was courteous and always asked before entering. Perfect for couples and families alike.",
-    "helpful": 45
+    "comment": "One of the best villa experiences we've had in Goa. Wi-Fi was fast and reliable throughout, even for work calls. Beds were extremely comfortable and the linen felt premium. Waking up to the garden view every morning was pure bliss. Five stars, no hesitation recommending this place.",
+    "helpful": 21
   },
   {
     "id": "morjim-pride-rev-12",
     "property_id": "morjim-pride",
-    "guest_name": "Lucas Meyer",
-    "guest_location": "London, UK",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "4 months ago",
-    "categories": [
-      "Amenities"
-    ],
-    "comment": "Our group of friends had the most memorable time here. Rooms were spacious, tastefully furnished, and kept impeccably clean. Great value for what you get — book direct if you can.",
-    "helpful": 21
-  },
-  {
-    "id": "morjim-pride-rev-13",
-    "property_id": "morjim-pride",
     "guest_name": "Pooja Joshi",
     "guest_location": "Chennai",
     "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "6 months ago",
+    "date_label": "4 months ago",
     "categories": [
       "View"
     ],
@@ -3382,13 +3266,12 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "helpful": 27
   },
   {
-    "id": "morjim-pride-rev-14",
+    "id": "morjim-pride-rev-13",
     "property_id": "morjim-pride",
     "guest_name": "Siddharth Bose",
     "guest_location": "Ahmedabad",
     "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "8 months ago",
+    "date_label": "6 months ago",
     "categories": [
       "Amenities",
       "Service"
@@ -3397,498 +3280,503 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "helpful": 35
   },
   {
-    "id": "morjim-pride-rev-15",
+    "id": "morjim-pride-rev-14",
     "property_id": "morjim-pride",
     "guest_name": "Daniel Novak",
     "guest_location": "Singapore",
     "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "a year ago",
+    "platform": "MakeMyTrip",
+    "date_label": "8 months ago",
     "categories": [
       "Food",
       "View"
     ],
     "comment": "Perfect base for exploring North Goa. Coffee and evening snacks were a nice touch we didn't expect. Loved the panoramic views across the greenery from the upper floor. Can't wait to come back with the rest of the family.",
-    "helpful": 45
+    "helpful": 34
+  },
+  {
+    "id": "morjim-pride-rev-15",
+    "property_id": "morjim-pride",
+    "guest_name": "Manish Reddy",
+    "guest_location": "Surat",
+    "rating": 5,
+    "date_label": "a year ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "Service"
+    ],
+    "comment": "Our group of friends had the most memorable time here. Beds were extremely comfortable and the linen felt premium. Loved that the kitchen was fully stocked so we could cook our own meals too. Staff went out of their way to make our anniversary special. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 37
   },
   {
     "id": "morjim-pride-rev-16",
     "property_id": "morjim-pride",
-    "guest_name": "Alexander Petrov",
-    "guest_location": "Toronto, Canada",
+    "guest_name": "Varun Kulkarni",
+    "guest_location": "Kolkata",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "1 year ago",
     "categories": [
-      "Stay",
       "Food",
-      "View"
+      "Service"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. The property was spotlessly clean from the moment we walked in. Loved that the kitchen was fully stocked so we could cook our own meals too. Waking up to the garden view every morning was pure bliss. Already planning our next visit.",
+    "comment": "One of the best villa experiences we've had in Goa. Arranged a private chef for one evening and the Goan food was outstanding. The concierge helped us book a boat trip and scooters within the hour. Perfect for couples and families alike.",
     "helpful": 45
   },
   {
     "id": "morjim-pride-rev-17",
     "property_id": "morjim-pride",
-    "guest_name": "Natasha Ivanova",
-    "guest_location": "New York, USA",
+    "guest_name": "Ryan O'Connor",
+    "guest_location": "Amsterdam, Netherlands",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "2 years ago",
     "categories": [
-      "Food"
-    ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Loved that the kitchen was fully stocked so we could cook our own meals too. Can't wait to come back with the rest of the family.",
-    "helpful": 15
-  },
-  {
-    "id": "morjim-pride-rev-40",
-    "property_id": "morjim-pride",
-    "guest_name": "Pooja Verma",
-    "guest_location": "Ahmedabad",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. The ambience at night, with the lights around the pool, was gorgeous. Perfect for couples and families alike.",
-    "helpful": 17
-  },
-  {
-    "id": "morjim-pride-rev-28",
-    "property_id": "morjim-pride",
-    "guest_name": "Shreya Bose",
-    "guest_location": "Jaipur",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food",
-      "Service"
-    ],
-    "comment": "Had an absolutely wonderful stay here. Coffee and evening snacks were a nice touch we didn't expect. The caretaker was incredibly attentive and responded within minutes on WhatsApp. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 10
-  },
-  {
-    "id": "morjim-pride-rev-31",
-    "property_id": "morjim-pride",
-    "guest_name": "Michael Anderson",
-    "guest_location": "Auckland, New Zealand",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Service"
-    ],
-    "comment": "This place exceeded every expectation we had. The AC and hot water worked flawlessly the entire stay. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Perfect for couples and families alike.",
-    "helpful": 8
-  },
-  {
-    "id": "morjim-pride-rev-19",
-    "property_id": "morjim-pride",
-    "guest_name": "Natasha Ivanova",
-    "guest_location": "London, UK",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food"
-    ],
-    "comment": "This place exceeded every expectation we had. Loved that the kitchen was fully stocked so we could cook our own meals too. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 14
-  },
-  {
-    "id": "morjim-pride-rev-45",
-    "property_id": "morjim-pride",
-    "guest_name": "Sarah Thompson",
-    "guest_location": "New York, USA",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food"
-    ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The on-site restaurant served genuinely great local and continental dishes. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 0
-  },
-  {
-    "id": "morjim-pride-rev-39",
-    "property_id": "morjim-pride",
-    "guest_name": "Neha Chawla",
-    "guest_location": "Bangalore",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Service"
-    ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Wi-Fi was fast and reliable throughout, even for work calls. Check-in was smooth and the host walked us through everything patiently. Already planning our next visit.",
-    "helpful": 14
-  },
-  {
-    "id": "morjim-pride-rev-36",
-    "property_id": "morjim-pride",
-    "guest_name": "Michael Anderson",
-    "guest_location": "Sydney, Australia",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Food"
-    ],
-    "comment": "Our group of friends had the most memorable time here. Housekeeping was prompt and unobtrusive, exactly the right balance. Arranged a private chef for one evening and the Goan food was outstanding. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 21
-  },
-  {
-    "id": "morjim-pride-rev-32",
-    "property_id": "morjim-pride",
-    "guest_name": "Meera Pillai",
-    "guest_location": "Mumbai",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service",
       "View"
     ],
-    "comment": "Booked directly and the whole experience was seamless. The caretaker was incredibly attentive and responded within minutes on WhatsApp. The sunset views from the pool deck were unbeatable. Five stars, no hesitation recommending this place.",
-    "helpful": 34
-  },
-  {
-    "id": "morjim-pride-rev-23",
-    "property_id": "morjim-pride",
-    "guest_name": "Deepika Chawla",
-    "guest_location": "Nagpur",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service"
-    ],
-    "comment": "Booked directly and the whole experience was seamless. Check-in was smooth and the host walked us through everything patiently. Perfect for couples and families alike.",
-    "helpful": 12
-  },
-  {
-    "id": "morjim-pride-rev-37",
-    "property_id": "morjim-pride",
-    "guest_name": "James Whitfield",
-    "guest_location": "Dubai, UAE",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Food"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. The property was spotlessly clean from the moment we walked in. Breakfast spread was fresh and generous every single morning. Five stars, no hesitation recommending this place.",
-    "helpful": 16
-  },
-  {
-    "id": "morjim-pride-rev-42",
-    "property_id": "morjim-pride",
-    "guest_name": "Rohan Singh",
-    "guest_location": "Ahmedabad",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "View"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. Beautiful interiors with a lot of thoughtful little touches. The sunset views from the pool deck were unbeatable. Already planning our next visit.",
-    "helpful": 3
-  },
-  {
-    "id": "morjim-pride-rev-20",
-    "property_id": "morjim-pride",
-    "guest_name": "Thomas Muller",
-    "guest_location": "Tel Aviv, Israel",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service",
-      "View"
-    ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Genuinely warm hospitality — felt like staying with family, not a rental. Loved the panoramic views across the greenery from the upper floor. Would 100% book again on our next Goa trip.",
-    "helpful": 11
-  },
-  {
-    "id": "morjim-pride-rev-44",
-    "property_id": "morjim-pride",
-    "guest_name": "Siddharth Kulkarni",
-    "guest_location": "Jaipur",
-    "rating": 4,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Service",
-      "View"
-    ],
-    "comment": "Second time staying and it just keeps getting better. Loved the peaceful, private atmosphere — no noise from neighbours at all. The concierge helped us book a boat trip and scooters within the hour. Being minutes from the beach made evening walks so easy. Would 100% book again on our next Goa trip.",
-    "helpful": 38
-  },
-  {
-    "id": "morjim-pride-rev-21",
-    "property_id": "morjim-pride",
-    "guest_name": "Priya Menon",
-    "guest_location": "Pune",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food",
-      "Service"
-    ],
-    "comment": "This place exceeded every expectation we had. Wi-Fi was fast and reliable throughout, even for work calls. Coffee and evening snacks were a nice touch we didn't expect. Housekeeping team was courteous and always asked before entering. Perfect for couples and families alike.",
-    "helpful": 30
-  },
-  {
-    "id": "morjim-pride-rev-35",
-    "property_id": "morjim-pride",
-    "guest_name": "Harsh Pillai",
-    "guest_location": "Mumbai",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "Service"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. Beautiful interiors with a lot of thoughtful little touches. Loved the peaceful, private atmosphere — no noise from neighbours at all. The concierge helped us book a boat trip and scooters within the hour. Can't wait to come back with the rest of the family.",
-    "helpful": 33
+    "comment": "One of the best villa experiences we've had in Goa. Being minutes from the beach made evening walks so easy. Great value for what you get — book direct if you can.",
+    "helpful": 39
   },
   {
     "id": "morjim-pride-rev-38",
     "property_id": "morjim-pride",
-    "guest_name": "Tanya Nair",
-    "guest_location": "Surat",
+    "guest_name": "Ashish Mehta",
+    "guest_location": "Chennai",
     "rating": 5,
-    "platform": "Google",
     "date_label": "3 years ago",
     "categories": [
-      "Stay",
-      "Service",
-      "View"
+      "Food"
     ],
-    "comment": "Booked directly and the whole experience was seamless. Housekeeping was prompt and unobtrusive, exactly the right balance. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Surrounded by palms and paddy fields — incredibly scenic setting. Great value for what you get — book direct if you can.",
-    "helpful": 8
+    "comment": "Honestly one of the nicest stays we've had in a long time. Arranged a private chef for one evening and the Goan food was outstanding. Can't wait to come back with the rest of the family.",
+    "helpful": 12
   },
   {
-    "id": "morjim-pride-rev-25",
+    "id": "morjim-pride-rev-23",
     "property_id": "morjim-pride",
-    "guest_name": "James Whitfield",
-    "guest_location": "Dubai, UAE",
-    "rating": 4,
+    "guest_name": "Divya Pillai",
+    "guest_location": "Mumbai",
+    "rating": 5,
     "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
+      "Amenities",
+      "Stay",
       "Service"
     ],
-    "comment": "Booked this for a family trip and it was perfect. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Would 100% book again on our next Goa trip.",
-    "helpful": 43
+    "comment": "Honestly one of the nicest stays we've had in a long time. Rooms were spacious, tastefully furnished, and kept impeccably clean. Beds were extremely comfortable and the linen felt premium. Housekeeping team was courteous and always asked before entering. Perfect for couples and families alike.",
+    "helpful": 17
   },
   {
-    "id": "morjim-pride-rev-18",
+    "id": "morjim-pride-rev-35",
     "property_id": "morjim-pride",
-    "guest_name": "Olivia Bennett",
-    "guest_location": "Moscow, Russia",
-    "rating": 4,
+    "guest_name": "Vivek Verma",
+    "guest_location": "Hyderabad",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "View"
+    ],
+    "comment": "Our group of friends had the most memorable time here. Wi-Fi was fast and reliable throughout, even for work calls. The balcony view was worth the trip alone. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 3
+  },
+  {
+    "id": "morjim-pride-rev-36",
+    "property_id": "morjim-pride",
+    "guest_name": "Grace Wilson",
+    "guest_location": "New York, USA",
+    "rating": 5,
     "platform": "Airbnb",
     "date_label": "3 years ago",
     "categories": [
-      "Stay",
-      "Food",
-      "View"
+      "Food"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Beds were extremely comfortable and the linen felt premium. Arranged a private chef for one evening and the Goan food was outstanding. Surrounded by palms and paddy fields — incredibly scenic setting. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 32
+    "comment": "Perfect base for exploring North Goa. Arranged a private chef for one evening and the Goan food was outstanding. Would 100% book again on our next Goa trip.",
+    "helpful": 33
   },
   {
-    "id": "morjim-pride-rev-24",
+    "id": "morjim-pride-rev-19",
     "property_id": "morjim-pride",
-    "guest_name": "Sneha Kapoor",
-    "guest_location": "Nagpur",
+    "guest_name": "Ashish Shetty",
+    "guest_location": "Surat",
     "rating": 5,
-    "platform": "Google",
+    "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
-      "Stay"
+      "Amenities",
+      "Service"
     ],
-    "comment": "Celebrated our anniversary here and it was magical. Loved the peaceful, private atmosphere — no noise from neighbours at all. Perfect for couples and families alike.",
-    "helpful": 14
+    "comment": "Had an absolutely wonderful stay here. Rooms were spacious, tastefully furnished, and kept impeccably clean. Housekeeping team was courteous and always asked before entering. Would 100% book again on our next Goa trip.",
+    "helpful": 42
+  },
+  {
+    "id": "morjim-pride-rev-34",
+    "property_id": "morjim-pride",
+    "guest_name": "Aman Joshi",
+    "guest_location": "Nagpur",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "View"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. Rooms were spacious, tastefully furnished, and kept impeccably clean. Waking up to the garden view every morning was pure bliss. Great value for what you get — book direct if you can.",
+    "helpful": 7
   },
   {
     "id": "morjim-pride-rev-30",
     "property_id": "morjim-pride",
-    "guest_name": "Karan Chatterjee",
-    "guest_location": "Chennai",
+    "guest_name": "David Cohen",
+    "guest_location": "Berlin, Germany",
     "rating": 5,
-    "platform": "Google",
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service",
+      "View"
+    ],
+    "comment": "Booked this for a family trip and it was perfect. The concierge helped us book a boat trip and scooters within the hour. Surrounded by palms and paddy fields — incredibly scenic setting. Five stars, no hesitation recommending this place.",
+    "helpful": 38
+  },
+  {
+    "id": "morjim-pride-rev-39",
+    "property_id": "morjim-pride",
+    "guest_name": "Ryan O'Connor",
+    "guest_location": "Amsterdam, Netherlands",
+    "rating": 5,
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
       "Stay",
       "Food"
     ],
-    "comment": "Had an absolutely wonderful stay here. Beautiful interiors with a lot of thoughtful little touches. Housekeeping was prompt and unobtrusive, exactly the right balance. The caretaker organised a lovely home-cooked dinner on request. Great value for what you get — book direct if you can.",
-    "helpful": 4
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Loved the peaceful, private atmosphere — no noise from neighbours at all. The on-site restaurant served genuinely great local and continental dishes. Would 100% book again on our next Goa trip.",
+    "helpful": 42
   },
   {
     "id": "morjim-pride-rev-29",
     "property_id": "morjim-pride",
-    "guest_name": "Pooja Bhatia",
-    "guest_location": "Jaipur",
+    "guest_name": "Emma Clarke",
+    "guest_location": "Berlin, Germany",
     "rating": 5,
     "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
-      "Stay"
+      "Amenities"
     ],
-    "comment": "Booked this for a family trip and it was perfect. Check-in and check-out were smooth and completely hassle-free. Already planning our next visit.",
-    "helpful": 33
+    "comment": "One of the best villa experiences we've had in Goa. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Perfect for couples and families alike.",
+    "helpful": 28
   },
   {
-    "id": "morjim-pride-rev-46",
+    "id": "morjim-pride-rev-32",
     "property_id": "morjim-pride",
-    "guest_name": "Harsh Verma",
-    "guest_location": "Bangalore",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "This place exceeded every expectation we had. Loved the peaceful, private atmosphere — no noise from neighbours at all. Perfect for couples and families alike.",
-    "helpful": 26
-  },
-  {
-    "id": "morjim-pride-rev-27",
-    "property_id": "morjim-pride",
-    "guest_name": "Simran Nair",
-    "guest_location": "Indore",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Service",
-      "View"
-    ],
-    "comment": "Booked directly and the whole experience was seamless. Beautiful interiors with a lot of thoughtful little touches. Check-in was smooth and the host walked us through everything patiently. Surrounded by palms and paddy fields — incredibly scenic setting. Can't wait to come back with the rest of the family.",
-    "helpful": 0
-  },
-  {
-    "id": "morjim-pride-rev-33",
-    "property_id": "morjim-pride",
-    "guest_name": "Lucas Meyer",
+    "guest_name": "William Harper",
     "guest_location": "Paris, France",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "View"
-    ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Being minutes from the beach made evening walks so easy. Great value for what you get — book direct if you can.",
-    "helpful": 15
-  },
-  {
-    "id": "morjim-pride-rev-34",
-    "property_id": "morjim-pride",
-    "guest_name": "Nisha Shetty",
-    "guest_location": "Indore",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Service"
-    ],
-    "comment": "Our group of friends had the most memorable time here. Check-in and check-out were smooth and completely hassle-free. The concierge helped us book a boat trip and scooters within the hour. Five stars, no hesitation recommending this place.",
-    "helpful": 0
-  },
-  {
-    "id": "morjim-pride-rev-41",
-    "property_id": "morjim-pride",
-    "guest_name": "Rohan Chatterjee",
-    "guest_location": "Delhi",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Service"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Check-in and check-out were smooth and completely hassle-free. Check-in was smooth and the host walked us through everything patiently. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 8
-  },
-  {
-    "id": "morjim-pride-rev-43",
-    "property_id": "morjim-pride",
-    "guest_name": "Priya Bhatia",
-    "guest_location": "Chandigarh",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Food",
-      "View"
-    ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. Housekeeping was prompt and unobtrusive, exactly the right balance. Coffee and evening snacks were a nice touch we didn't expect. The balcony view was worth the trip alone. Can't wait to come back with the rest of the family.",
-    "helpful": 13
-  },
-  {
-    "id": "morjim-pride-rev-26",
-    "property_id": "morjim-pride",
-    "guest_name": "Daniel Novak",
-    "guest_location": "Toronto, Canada",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food",
-      "View"
-    ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. Loved that the kitchen was fully stocked so we could cook our own meals too. Being minutes from the beach made evening walks so easy. Perfect for couples and families alike.",
-    "helpful": 0
-  },
-  {
-    "id": "morjim-pride-rev-22",
-    "property_id": "morjim-pride",
-    "guest_name": "Chloe Martin",
-    "guest_location": "Amsterdam, Netherlands",
     "rating": 5,
     "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
       "Amenities"
     ],
-    "comment": "One of the best villa experiences we've had in Goa. Wi-Fi was fast and reliable throughout, even for work calls. Already planning our next visit.",
-    "helpful": 3
+    "comment": "Celebrated our anniversary here and it was magical. Rooms were spacious, tastefully furnished, and kept impeccably clean. Perfect for couples and families alike.",
+    "helpful": 42
+  },
+  {
+    "id": "morjim-pride-rev-43",
+    "property_id": "morjim-pride",
+    "guest_name": "Meera Singh",
+    "guest_location": "Hyderabad",
+    "rating": 4,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "Booked this for a family trip and it was perfect. Waking up to the garden view every morning was pure bliss. Perfect for couples and families alike.",
+    "helpful": 16
+  },
+  {
+    "id": "morjim-pride-rev-44",
+    "property_id": "morjim-pride",
+    "guest_name": "Siddharth Iyer",
+    "guest_location": "Bangalore",
+    "rating": 4,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. The caretaker organised a lovely home-cooked dinner on request. Perfect for couples and families alike.",
+    "helpful": 25
+  },
+  {
+    "id": "morjim-pride-rev-21",
+    "property_id": "morjim-pride",
+    "guest_name": "Abhishek Reddy",
+    "guest_location": "Hyderabad",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Perfect base for exploring North Goa. The AC and hot water worked flawlessly the entire stay. Perfect for couples and families alike.",
+    "helpful": 29
+  },
+  {
+    "id": "morjim-pride-rev-42",
+    "property_id": "morjim-pride",
+    "guest_name": "Grace Wilson",
+    "guest_location": "Singapore",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Food"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The caretaker organised a lovely home-cooked dinner on request. Would 100% book again on our next Goa trip.",
+    "helpful": 21
+  },
+  {
+    "id": "morjim-pride-rev-18",
+    "property_id": "morjim-pride",
+    "guest_name": "James Whitfield",
+    "guest_location": "New York, USA",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Food"
+    ],
+    "comment": "Booked this for a family trip and it was perfect. Beautiful interiors with a lot of thoughtful little touches. The on-site restaurant served genuinely great local and continental dishes. Perfect for couples and families alike.",
+    "helpful": 0
   },
   {
     "id": "morjim-pride-rev-47",
     "property_id": "morjim-pride",
-    "guest_name": "Meera Bhatia",
-    "guest_location": "Mumbai",
+    "guest_name": "Arjun Shetty",
+    "guest_location": "Pune",
     "rating": 5,
     "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
+      "Service"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. The private pool was spotless and so relaxing to lounge around all day. Staff went out of their way to make our anniversary special. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 11
+  },
+  {
+    "id": "morjim-pride-rev-40",
+    "property_id": "morjim-pride",
+    "guest_name": "Deepika Mehta",
+    "guest_location": "Chennai",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Our group of friends had the most memorable time here. Beautiful interiors with a lot of thoughtful little touches. Perfect for couples and families alike.",
+    "helpful": 38
+  },
+  {
+    "id": "morjim-pride-rev-45",
+    "property_id": "morjim-pride",
+    "guest_name": "Emma Clarke",
+    "guest_location": "Dubai, UAE",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Service",
       "View"
     ],
-    "comment": "Perfect base for exploring North Goa. Rooms were spacious, tastefully furnished, and kept impeccably clean. Waking up to the garden view every morning was pure bliss. Five stars, no hesitation recommending this place.",
-    "helpful": 10
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Beautiful interiors with a lot of thoughtful little touches. Check-in was smooth and the host walked us through everything patiently. Loved the panoramic views across the greenery from the upper floor. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 38
+  },
+  {
+    "id": "morjim-pride-rev-26",
+    "property_id": "morjim-pride",
+    "guest_name": "Manish Krishnan",
+    "guest_location": "Mumbai",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Food",
+      "View"
+    ],
+    "comment": "Second time staying and it just keeps getting better. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Coffee and evening snacks were a nice touch we didn't expect. Being minutes from the beach made evening walks so easy. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 12
+  },
+  {
+    "id": "morjim-pride-rev-31",
+    "property_id": "morjim-pride",
+    "guest_name": "Pooja Singh",
+    "guest_location": "Surat",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. Genuinely warm hospitality — felt like staying with family, not a rental. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 24
+  },
+  {
+    "id": "morjim-pride-rev-24",
+    "property_id": "morjim-pride",
+    "guest_name": "Yash Rao",
+    "guest_location": "Jaipur",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay",
+      "View"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. The private pool was spotless and so relaxing to lounge around all day. Check-in and check-out were smooth and completely hassle-free. Waking up to the garden view every morning was pure bliss. Already planning our next visit.",
+    "helpful": 7
+  },
+  {
+    "id": "morjim-pride-rev-25",
+    "property_id": "morjim-pride",
+    "guest_name": "Swati Shetty",
+    "guest_location": "Ahmedabad",
+    "rating": 4,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food",
+      "View"
+    ],
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Breakfast spread was fresh and generous every single morning. Waking up to the garden view every morning was pure bliss. Can't wait to come back with the rest of the family.",
+    "helpful": 30
+  },
+  {
+    "id": "morjim-pride-rev-28",
+    "property_id": "morjim-pride",
+    "guest_name": "Sarah Thompson",
+    "guest_location": "Singapore",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Perfect base for exploring North Goa. Check-in was smooth and the host walked us through everything patiently. Five stars, no hesitation recommending this place.",
+    "helpful": 2
+  },
+  {
+    "id": "morjim-pride-rev-27",
+    "property_id": "morjim-pride",
+    "guest_name": "Namrata Desai",
+    "guest_location": "Jaipur",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. The AC and hot water worked flawlessly the entire stay. The property was spotlessly clean from the moment we walked in. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 23
+  },
+  {
+    "id": "morjim-pride-rev-22",
+    "property_id": "morjim-pride",
+    "guest_name": "Anjali Pillai",
+    "guest_location": "Kochi",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. Beautiful interiors with a lot of thoughtful little touches. Beds were extremely comfortable and the linen felt premium. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 38
+  },
+  {
+    "id": "morjim-pride-rev-20",
+    "property_id": "morjim-pride",
+    "guest_name": "Tanya Nair",
+    "guest_location": "Kolkata",
+    "rating": 4,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "View"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Beautiful interiors with a lot of thoughtful little touches. Being minutes from the beach made evening walks so easy. Five stars, no hesitation recommending this place.",
+    "helpful": 8
+  },
+  {
+    "id": "morjim-pride-rev-37",
+    "property_id": "morjim-pride",
+    "guest_name": "Ritu Verma",
+    "guest_location": "Chennai",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay"
+    ],
+    "comment": "Second time staying and it just keeps getting better. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Loved the peaceful, private atmosphere — no noise from neighbours at all. Can't wait to come back with the rest of the family.",
+    "helpful": 44
+  },
+  {
+    "id": "morjim-pride-rev-33",
+    "property_id": "morjim-pride",
+    "guest_name": "Karan Iyer",
+    "guest_location": "Indore",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Service",
+      "View"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. Check-in and check-out were smooth and completely hassle-free. Genuinely warm hospitality — felt like staying with family, not a rental. Loved the panoramic views across the greenery from the upper floor. Great value for what you get — book direct if you can.",
+    "helpful": 18
+  },
+  {
+    "id": "morjim-pride-rev-41",
+    "property_id": "morjim-pride",
+    "guest_name": "Manish Rao",
+    "guest_location": "Nagpur",
+    "rating": 4,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Food",
+      "View"
+    ],
+    "comment": "Booked directly and the whole experience was seamless. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The on-site restaurant served genuinely great local and continental dishes. The sunset views from the pool deck were unbeatable. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 43
+  },
+  {
+    "id": "morjim-pride-rev-46",
+    "property_id": "morjim-pride",
+    "guest_name": "Charlotte Dubois",
+    "guest_location": "Paris, France",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Service",
+      "View"
+    ],
+    "comment": "Second time staying and it just keeps getting better. Wi-Fi was fast and reliable throughout, even for work calls. The concierge helped us book a boat trip and scooters within the hour. Waking up to the garden view every morning was pure bliss. Would 100% book again on our next Goa trip.",
+    "helpful": 20
   },
   {
     "id": "vivenda-chico-rev-1",
@@ -3903,15 +3791,14 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "View"
     ],
     "comment": "Booked this for a family trip and it was perfect. Staff went out of their way to make our anniversary special. Loved the panoramic views across the greenery from the upper floor. Great value for what you get — book direct if you can.",
-    "helpful": 3
+    "helpful": 20
   },
   {
     "id": "vivenda-chico-rev-2",
     "property_id": "vivenda-chico",
-    "guest_name": "Ashish Pillai",
-    "guest_location": "Jaipur",
+    "guest_name": "William Harper",
+    "guest_location": "Tel Aviv, Israel",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "5 days ago",
     "categories": [
       "Stay"
@@ -3925,7 +3812,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Amelia Ross",
     "guest_location": "Sydney, Australia",
     "rating": 4,
-    "platform": "MakeMyTrip",
     "date_label": "1 week ago",
     "categories": [
       "Service"
@@ -3946,91 +3832,87 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "Food"
     ],
     "comment": "A hidden gem — exactly what we needed for a relaxed break. Housekeeping was prompt and unobtrusive, exactly the right balance. Breakfast spread was fresh and generous every single morning. Already planning our next visit.",
-    "helpful": 1
+    "helpful": 14
   },
   {
     "id": "vivenda-chico-rev-5",
     "property_id": "vivenda-chico",
-    "guest_name": "Shreya Bose",
-    "guest_location": "Ahmedabad",
+    "guest_name": "Anjali Gupta",
+    "guest_location": "Kolkata",
     "rating": 5,
-    "platform": "Google",
+    "platform": "Agoda",
     "date_label": "last week",
-    "categories": [
-      "Food",
-      "View"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Loved that the kitchen was fully stocked so we could cook our own meals too. The balcony view was worth the trip alone. Can't wait to come back with the rest of the family.",
-    "helpful": 11
-  },
-  {
-    "id": "vivenda-chico-rev-6",
-    "property_id": "vivenda-chico",
-    "guest_name": "Aditya Rao",
-    "guest_location": "Surat",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 weeks ago",
-    "categories": [
-      "Stay",
-      "View"
-    ],
-    "comment": "Booked directly and the whole experience was seamless. Beds were extremely comfortable and the linen felt premium. The sunset views from the pool deck were unbeatable. Can't wait to come back with the rest of the family.",
-    "helpful": 41
-  },
-  {
-    "id": "vivenda-chico-rev-7",
-    "property_id": "vivenda-chico",
-    "guest_name": "Ashish Shetty",
-    "guest_location": "Kochi",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "a month ago",
     "categories": [
       "Food",
       "Service",
       "View"
     ],
-    "comment": "Celebrated our anniversary here and it was magical. Arranged a private chef for one evening and the Goan food was outstanding. The concierge helped us book a boat trip and scooters within the hour. The balcony view was worth the trip alone. Would 100% book again on our next Goa trip.",
-    "helpful": 20
+    "comment": "Booked this for a family trip and it was perfect. Loved that the kitchen was fully stocked so we could cook our own meals too. Housekeeping team was courteous and always asked before entering. Waking up to the garden view every morning was pure bliss. Would 100% book again on our next Goa trip.",
+    "helpful": 37
+  },
+  {
+    "id": "vivenda-chico-rev-6",
+    "property_id": "vivenda-chico",
+    "guest_name": "Gaurav Chawla",
+    "guest_location": "Chennai",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 weeks ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Perfect base for exploring North Goa. Housekeeping team was courteous and always asked before entering. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 44
+  },
+  {
+    "id": "vivenda-chico-rev-7",
+    "property_id": "vivenda-chico",
+    "guest_name": "Michael Anderson",
+    "guest_location": "Paris, France",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "a month ago",
+    "categories": [
+      "Amenities",
+      "Service",
+      "View"
+    ],
+    "comment": "Booked this for a family trip and it was perfect. The AC and hot water worked flawlessly the entire stay. The concierge helped us book a boat trip and scooters within the hour. Waking up to the garden view every morning was pure bliss. Great value for what you get — book direct if you can.",
+    "helpful": 29
   },
   {
     "id": "vivenda-chico-rev-8",
     "property_id": "vivenda-chico",
-    "guest_name": "Pooja Malhotra",
-    "guest_location": "Mumbai",
-    "rating": 5,
-    "platform": "Google",
+    "guest_name": "Gaurav Bose",
+    "guest_location": "Bangalore",
+    "rating": 4,
     "date_label": "1 month ago",
     "categories": [
-      "Amenities",
-      "View"
+      "Amenities"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Rooms were spacious, tastefully furnished, and kept impeccably clean. Waking up to the garden view every morning was pure bliss. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 45
+    "comment": "One of the best villa experiences we've had in Goa. Wi-Fi was fast and reliable throughout, even for work calls. Would 100% book again on our next Goa trip.",
+    "helpful": 30
   },
   {
     "id": "vivenda-chico-rev-9",
     "property_id": "vivenda-chico",
-    "guest_name": "Arjun Chawla",
-    "guest_location": "Indore",
+    "guest_name": "Pallavi Shetty",
+    "guest_location": "Pune",
     "rating": 5,
-    "platform": "Airbnb",
     "date_label": "2 months ago",
     "categories": [
       "Food",
       "Service"
     ],
-    "comment": "Our group of friends had the most memorable time here. Loved that the kitchen was fully stocked so we could cook our own meals too. Check-in was smooth and the host walked us through everything patiently. Five stars, no hesitation recommending this place.",
-    "helpful": 43
+    "comment": "Booked directly and the whole experience was seamless. The on-site restaurant served genuinely great local and continental dishes. The concierge helped us book a boat trip and scooters within the hour. Already planning our next visit.",
+    "helpful": 11
   },
   {
     "id": "vivenda-chico-rev-10",
     "property_id": "vivenda-chico",
-    "guest_name": "Rajesh Kulkarni",
-    "guest_location": "Surat",
+    "guest_name": "Charlotte Dubois",
+    "guest_location": "Moscow, Russia",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "a few months ago",
     "categories": [
       "Food",
@@ -4052,219 +3934,93 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "Amenities"
     ],
     "comment": "Celebrated our anniversary here and it was magical. Beautiful interiors with a lot of thoughtful little touches. Would 100% book again on our next Goa trip.",
-    "helpful": 30
+    "helpful": 12
   },
   {
     "id": "vivenda-chico-rev-12",
     "property_id": "vivenda-chico",
-    "guest_name": "Kavya Singh",
-    "guest_location": "Chennai",
+    "guest_name": "Riya Iyer",
+    "guest_location": "Bangalore",
     "rating": 5,
-    "platform": "Agoda",
+    "platform": "Google",
     "date_label": "4 months ago",
     "categories": [
-      "Stay",
-      "Food",
       "View"
     ],
-    "comment": "This place exceeded every expectation we had. The ambience at night, with the lights around the pool, was gorgeous. Arranged a private chef for one evening and the Goan food was outstanding. Waking up to the garden view every morning was pure bliss. Great value for what you get — book direct if you can.",
-    "helpful": 28
+    "comment": "Honestly one of the nicest stays we've had in a long time. Loved the panoramic views across the greenery from the upper floor. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 22
   },
   {
     "id": "vivenda-chico-rev-13",
     "property_id": "vivenda-chico",
-    "guest_name": "Yash Joshi",
-    "guest_location": "Jaipur",
+    "guest_name": "Anjali Nair",
+    "guest_location": "Indore",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "6 months ago",
     "categories": [
-      "Stay",
       "Service",
       "View"
     ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. Housekeeping was prompt and unobtrusive, exactly the right balance. Genuinely warm hospitality — felt like staying with family, not a rental. Loved the panoramic views across the greenery from the upper floor. Can't wait to come back with the rest of the family.",
-    "helpful": 25
+    "comment": "Celebrated our anniversary here and it was magical. Genuinely warm hospitality — felt like staying with family, not a rental. Loved the panoramic views across the greenery from the upper floor. Can't wait to come back with the rest of the family.",
+    "helpful": 17
   },
   {
     "id": "vivenda-chico-rev-14",
     "property_id": "vivenda-chico",
     "guest_name": "Thomas Muller",
-    "guest_location": "Amsterdam, Netherlands",
+    "guest_location": "Auckland, New Zealand",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "8 months ago",
     "categories": [
-      "Amenities",
       "Stay",
-      "Food"
+      "Food",
+      "Service"
     ],
-    "comment": "Perfect base for exploring North Goa. Rooms were spacious, tastefully furnished, and kept impeccably clean. Housekeeping was prompt and unobtrusive, exactly the right balance. Loved that the kitchen was fully stocked so we could cook our own meals too. Can't wait to come back with the rest of the family.",
-    "helpful": 7
+    "comment": "Booked this for a family trip and it was perfect. Check-in and check-out were smooth and completely hassle-free. Breakfast spread was fresh and generous every single morning. Check-in was smooth and the host walked us through everything patiently. Already planning our next visit.",
+    "helpful": 25
   },
   {
     "id": "vivenda-chico-rev-15",
     "property_id": "vivenda-chico",
-    "guest_name": "Rajesh Krishnan",
-    "guest_location": "Bangalore",
-    "rating": 4,
-    "platform": "Google",
+    "guest_name": "Isabella Rossi",
+    "guest_location": "Auckland, New Zealand",
+    "rating": 5,
     "date_label": "a year ago",
     "categories": [
-      "Stay",
-      "Service",
       "View"
     ],
-    "comment": "Had an absolutely wonderful stay here. Check-in and check-out were smooth and completely hassle-free. Staff went out of their way to make our anniversary special. Being minutes from the beach made evening walks so easy. Can't wait to come back with the rest of the family.",
-    "helpful": 6
+    "comment": "This place exceeded every expectation we had. Surrounded by palms and paddy fields — incredibly scenic setting. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 10
   },
   {
     "id": "vivenda-chico-rev-16",
     "property_id": "vivenda-chico",
-    "guest_name": "Ashish Chatterjee",
-    "guest_location": "Delhi",
+    "guest_name": "Natasha Ivanova",
+    "guest_location": "Paris, France",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "Google",
     "date_label": "1 year ago",
     "categories": [
+      "Amenities",
       "Service"
     ],
-    "comment": "Booked directly and the whole experience was seamless. The concierge helped us book a boat trip and scooters within the hour. Would 100% book again on our next Goa trip.",
-    "helpful": 45
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. The private pool was spotless and so relaxing to lounge around all day. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Perfect for couples and families alike.",
+    "helpful": 21
   },
   {
     "id": "vivenda-chico-rev-17",
     "property_id": "vivenda-chico",
-    "guest_name": "Swati Nair",
-    "guest_location": "Kolkata",
+    "guest_name": "Simran Desai",
+    "guest_location": "Chandigarh",
     "rating": 5,
     "platform": "Agoda",
     "date_label": "2 years ago",
     "categories": [
-      "Food"
-    ],
-    "comment": "Had an absolutely wonderful stay here. Arranged a private chef for one evening and the Goan food was outstanding. Already planning our next visit.",
-    "helpful": 17
-  },
-  {
-    "id": "vivenda-chico-rev-43",
-    "property_id": "vivenda-chico",
-    "guest_name": "Vikram Gupta",
-    "guest_location": "Kolkata",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
       "Amenities",
-      "Stay"
-    ],
-    "comment": "This place exceeded every expectation we had. Wi-Fi was fast and reliable throughout, even for work calls. Housekeeping was prompt and unobtrusive, exactly the right balance. Five stars, no hesitation recommending this place.",
-    "helpful": 25
-  },
-  {
-    "id": "vivenda-chico-rev-18",
-    "property_id": "vivenda-chico",
-    "guest_name": "Abhishek Bose",
-    "guest_location": "Bangalore",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Service",
       "View"
     ],
-    "comment": "Second time staying and it just keeps getting better. Rooms were spacious, tastefully furnished, and kept impeccably clean. Genuinely warm hospitality — felt like staying with family, not a rental. The sunset views from the pool deck were unbeatable. Five stars, no hesitation recommending this place.",
-    "helpful": 35
-  },
-  {
-    "id": "vivenda-chico-rev-40",
-    "property_id": "vivenda-chico",
-    "guest_name": "Aman Bose",
-    "guest_location": "Kolkata",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Service"
-    ],
-    "comment": "Our group of friends had the most memorable time here. Check-in and check-out were smooth and completely hassle-free. Genuinely warm hospitality — felt like staying with family, not a rental. Perfect for couples and families alike.",
-    "helpful": 41
-  },
-  {
-    "id": "vivenda-chico-rev-34",
-    "property_id": "vivenda-chico",
-    "guest_name": "Daniel Novak",
-    "guest_location": "Singapore",
-    "rating": 4,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "Second time staying and it just keeps getting better. Housekeeping was prompt and unobtrusive, exactly the right balance. Would 100% book again on our next Goa trip.",
-    "helpful": 14
-  },
-  {
-    "id": "vivenda-chico-rev-30",
-    "property_id": "vivenda-chico",
-    "guest_name": "Siddharth Malhotra",
-    "guest_location": "Pune",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "Service"
-    ],
-    "comment": "Perfect base for exploring North Goa. Rooms were spacious, tastefully furnished, and kept impeccably clean. Housekeeping was prompt and unobtrusive, exactly the right balance. Housekeeping team was courteous and always asked before entering. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 29
-  },
-  {
-    "id": "vivenda-chico-rev-32",
-    "property_id": "vivenda-chico",
-    "guest_name": "Natasha Ivanova",
-    "guest_location": "Moscow, Russia",
-    "rating": 4,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "View"
-    ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. The balcony view was worth the trip alone. Great value for what you get — book direct if you can.",
-    "helpful": 21
-  },
-  {
-    "id": "vivenda-chico-rev-21",
-    "property_id": "vivenda-chico",
-    "guest_name": "Meera Kulkarni",
-    "guest_location": "Delhi",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service"
-    ],
-    "comment": "Booked directly and the whole experience was seamless. Check-in was smooth and the host walked us through everything patiently. Already planning our next visit.",
-    "helpful": 27
-  },
-  {
-    "id": "vivenda-chico-rev-37",
-    "property_id": "vivenda-chico",
-    "guest_name": "Tanya Agarwal",
-    "guest_location": "Chandigarh",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "Service"
-    ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Beautiful interiors with a lot of thoughtful little touches. The ambience at night, with the lights around the pool, was gorgeous. Genuinely warm hospitality — felt like staying with family, not a rental. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 39
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Beautiful interiors with a lot of thoughtful little touches. Waking up to the garden view every morning was pure bliss. Already planning our next visit.",
+    "helpful": 10
   },
   {
     "id": "vivenda-chico-rev-22",
@@ -4272,7 +4028,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Harsh Sharma",
     "guest_location": "Nagpur",
     "rating": 4,
-    "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
@@ -4283,68 +4038,37 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "helpful": 20
   },
   {
-    "id": "vivenda-chico-rev-23",
+    "id": "vivenda-chico-rev-32",
     "property_id": "vivenda-chico",
-    "guest_name": "Ritu Pillai",
-    "guest_location": "Bangalore",
+    "guest_name": "Vivek Bhatia",
+    "guest_location": "Kochi",
     "rating": 4,
-    "platform": "Google",
     "date_label": "3 years ago",
     "categories": [
-      "Food"
+      "View"
     ],
-    "comment": "This place exceeded every expectation we had. The on-site restaurant served genuinely great local and continental dishes. Can't wait to come back with the rest of the family.",
-    "helpful": 12
+    "comment": "Honestly one of the nicest stays we've had in a long time. The balcony view was worth the trip alone. Great value for what you get — book direct if you can.",
+    "helpful": 21
   },
   {
-    "id": "vivenda-chico-rev-36",
+    "id": "vivenda-chico-rev-21",
     "property_id": "vivenda-chico",
-    "guest_name": "Aman Kapoor",
-    "guest_location": "Kolkata",
+    "guest_name": "Nisha Reddy",
+    "guest_location": "Hyderabad",
     "rating": 5,
     "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
-      "Stay",
-      "View"
+      "Stay"
     ],
-    "comment": "Booked this for a family trip and it was perfect. Check-in and check-out were smooth and completely hassle-free. The balcony view was worth the trip alone. Five stars, no hesitation recommending this place.",
-    "helpful": 13
+    "comment": "Came here for a weekend getaway and didn't want to leave. Check-in and check-out were smooth and completely hassle-free. Can't wait to come back with the rest of the family.",
+    "helpful": 27
   },
   {
-    "id": "vivenda-chico-rev-38",
+    "id": "vivenda-chico-rev-27",
     "property_id": "vivenda-chico",
-    "guest_name": "David Cohen",
-    "guest_location": "New York, USA",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "View"
-    ],
-    "comment": "This place exceeded every expectation we had. The sunset views from the pool deck were unbeatable. Already planning our next visit.",
-    "helpful": 38
-  },
-  {
-    "id": "vivenda-chico-rev-42",
-    "property_id": "vivenda-chico",
-    "guest_name": "Lucas Meyer",
-    "guest_location": "Tel Aviv, Israel",
-    "rating": 4,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "View"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. Wi-Fi was fast and reliable throughout, even for work calls. Waking up to the garden view every morning was pure bliss. Perfect for couples and families alike.",
-    "helpful": 10
-  },
-  {
-    "id": "vivenda-chico-rev-20",
-    "property_id": "vivenda-chico",
-    "guest_name": "Divya Krishnan",
-    "guest_location": "Pune",
+    "guest_name": "Riya Chawla",
+    "guest_location": "Kochi",
     "rating": 5,
     "platform": "Airbnb",
     "date_label": "3 years ago",
@@ -4352,8 +4076,312 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "Amenities",
       "Service"
     ],
-    "comment": "Booked directly and the whole experience was seamless. Beautiful interiors with a lot of thoughtful little touches. Check-in was smooth and the host walked us through everything patiently. Perfect for couples and families alike.",
-    "helpful": 11
+    "comment": "Our group of friends had the most memorable time here. Beautiful interiors with a lot of thoughtful little touches. Check-in was smooth and the host walked us through everything patiently. Already planning our next visit.",
+    "helpful": 8
+  },
+  {
+    "id": "vivenda-chico-rev-34",
+    "property_id": "vivenda-chico",
+    "guest_name": "Aman Agarwal",
+    "guest_location": "Bangalore",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Food"
+    ],
+    "comment": "Our group of friends had the most memorable time here. Rooms were spacious, tastefully furnished, and kept impeccably clean. Arranged a private chef for one evening and the Goan food was outstanding. Perfect for couples and families alike.",
+    "helpful": 19
+  },
+  {
+    "id": "vivenda-chico-rev-24",
+    "property_id": "vivenda-chico",
+    "guest_name": "Yash Krishnan",
+    "guest_location": "Indore",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service",
+      "View"
+    ],
+    "comment": "Had an absolutely wonderful stay here. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Loved the panoramic views across the greenery from the upper floor. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 19
+  },
+  {
+    "id": "vivenda-chico-rev-28",
+    "property_id": "vivenda-chico",
+    "guest_name": "Gaurav Chawla",
+    "guest_location": "Hyderabad",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Being minutes from the beach made evening walks so easy. Perfect for couples and families alike.",
+    "helpful": 20
+  },
+  {
+    "id": "vivenda-chico-rev-18",
+    "property_id": "vivenda-chico",
+    "guest_name": "Aman Joshi",
+    "guest_location": "Chennai",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Service"
+    ],
+    "comment": "Our group of friends had the most memorable time here. The AC and hot water worked flawlessly the entire stay. Genuinely warm hospitality — felt like staying with family, not a rental. Perfect for couples and families alike.",
+    "helpful": 39
+  },
+  {
+    "id": "vivenda-chico-rev-38",
+    "property_id": "vivenda-chico",
+    "guest_name": "Daniel Novak",
+    "guest_location": "Berlin, Germany",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Food",
+      "View"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The caretaker organised a lovely home-cooked dinner on request. The sunset views from the pool deck were unbeatable. Would 100% book again on our next Goa trip.",
+    "helpful": 45
+  },
+  {
+    "id": "vivenda-chico-rev-26",
+    "property_id": "vivenda-chico",
+    "guest_name": "Emma Clarke",
+    "guest_location": "New York, USA",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "Perfect base for exploring North Goa. The caretaker organised a lovely home-cooked dinner on request. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 8
+  },
+  {
+    "id": "vivenda-chico-rev-40",
+    "property_id": "vivenda-chico",
+    "guest_name": "Aman Bose",
+    "guest_location": "Kochi",
+    "rating": 4,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food",
+      "Service",
+      "View"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. Arranged a private chef for one evening and the Goan food was outstanding. Housekeeping team was courteous and always asked before entering. Loved the panoramic views across the greenery from the upper floor. Would 100% book again on our next Goa trip.",
+    "helpful": 35
+  },
+  {
+    "id": "vivenda-chico-rev-30",
+    "property_id": "vivenda-chico",
+    "guest_name": "Ritu Mehta",
+    "guest_location": "Chandigarh",
+    "rating": 4,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. Arranged a private chef for one evening and the Goan food was outstanding. Can't wait to come back with the rest of the family.",
+    "helpful": 44
+  },
+  {
+    "id": "vivenda-chico-rev-43",
+    "property_id": "vivenda-chico",
+    "guest_name": "Nikhil Verma",
+    "guest_location": "Jaipur",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Our group of friends had the most memorable time here. Genuinely warm hospitality — felt like staying with family, not a rental. Perfect for couples and families alike.",
+    "helpful": 12
+  },
+  {
+    "id": "vivenda-chico-rev-31",
+    "property_id": "vivenda-chico",
+    "guest_name": "Gaurav Kulkarni",
+    "guest_location": "Pune",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Service"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Rooms were spacious, tastefully furnished, and kept impeccably clean. Genuinely warm hospitality — felt like staying with family, not a rental. Would 100% book again on our next Goa trip.",
+    "helpful": 20
+  },
+  {
+    "id": "vivenda-chico-rev-41",
+    "property_id": "vivenda-chico",
+    "guest_name": "Benjamin Foster",
+    "guest_location": "Auckland, New Zealand",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Service",
+      "View"
+    ],
+    "comment": "Booked directly and the whole experience was seamless. Housekeeping was prompt and unobtrusive, exactly the right balance. Staff went out of their way to make our anniversary special. Surrounded by palms and paddy fields — incredibly scenic setting. Would 100% book again on our next Goa trip.",
+    "helpful": 39
+  },
+  {
+    "id": "vivenda-chico-rev-35",
+    "property_id": "vivenda-chico",
+    "guest_name": "Varun Chatterjee",
+    "guest_location": "Kochi",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "View"
+    ],
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. The property was spotlessly clean from the moment we walked in. The on-site restaurant served genuinely great local and continental dishes. Waking up to the garden view every morning was pure bliss. Can't wait to come back with the rest of the family.",
+    "helpful": 22
+  },
+  {
+    "id": "vivenda-chico-rev-20",
+    "property_id": "vivenda-chico",
+    "guest_name": "Rajesh Patel",
+    "guest_location": "Jaipur",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. Coffee and evening snacks were a nice touch we didn't expect. Five stars, no hesitation recommending this place.",
+    "helpful": 21
+  },
+  {
+    "id": "vivenda-chico-rev-39",
+    "property_id": "vivenda-chico",
+    "guest_name": "Natasha Ivanova",
+    "guest_location": "Moscow, Russia",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Genuinely warm hospitality — felt like staying with family, not a rental. Already planning our next visit.",
+    "helpful": 36
+  },
+  {
+    "id": "vivenda-chico-rev-23",
+    "property_id": "vivenda-chico",
+    "guest_name": "Ritu Pillai",
+    "guest_location": "Bangalore",
+    "rating": 4,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "This place exceeded every expectation we had. The on-site restaurant served genuinely great local and continental dishes. Can't wait to come back with the rest of the family.",
+    "helpful": 26
+  },
+  {
+    "id": "vivenda-chico-rev-36",
+    "property_id": "vivenda-chico",
+    "guest_name": "Vivek Mehta",
+    "guest_location": "Chandigarh",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Housekeeping was prompt and unobtrusive, exactly the right balance. Five stars, no hesitation recommending this place.",
+    "helpful": 36
+  },
+  {
+    "id": "vivenda-chico-rev-19",
+    "property_id": "vivenda-chico",
+    "guest_name": "Varun Joshi",
+    "guest_location": "Surat",
+    "rating": 4,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Service",
+      "View"
+    ],
+    "comment": "Booked this for a family trip and it was perfect. Beds were extremely comfortable and the linen felt premium. Staff went out of their way to make our anniversary special. Loved the panoramic views across the greenery from the upper floor. Can't wait to come back with the rest of the family.",
+    "helpful": 0
+  },
+  {
+    "id": "vivenda-chico-rev-25",
+    "property_id": "vivenda-chico",
+    "guest_name": "Swati Pillai",
+    "guest_location": "Kochi",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "View"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Check-in and check-out were smooth and completely hassle-free. Coffee and evening snacks were a nice touch we didn't expect. The balcony view was worth the trip alone. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 19
+  },
+  {
+    "id": "vivenda-chico-rev-29",
+    "property_id": "vivenda-chico",
+    "guest_name": "William Harper",
+    "guest_location": "Paris, France",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "View"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Check-in and check-out were smooth and completely hassle-free. Surrounded by palms and paddy fields — incredibly scenic setting. Would 100% book again on our next Goa trip.",
+    "helpful": 15
+  },
+  {
+    "id": "vivenda-chico-rev-37",
+    "property_id": "vivenda-chico",
+    "guest_name": "Rahul Krishnan",
+    "guest_location": "Indore",
+    "rating": 4,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. The ambience at night, with the lights around the pool, was gorgeous. The caretaker organised a lovely home-cooked dinner on request. Great value for what you get — book direct if you can.",
+    "helpful": 6
+  },
+  {
+    "id": "vivenda-chico-rev-42",
+    "property_id": "vivenda-chico",
+    "guest_name": "Aditya Verma",
+    "guest_location": "Bangalore",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food"
+    ],
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. The property was spotlessly clean from the moment we walked in. Breakfast spread was fresh and generous every single morning. Five stars, no hesitation recommending this place.",
+    "helpful": 20
   },
   {
     "id": "vivenda-chico-rev-33",
@@ -4368,171 +4396,7 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "View"
     ],
     "comment": "Booked this for a family trip and it was perfect. The private pool was spotless and so relaxing to lounge around all day. Surrounded by palms and paddy fields — incredibly scenic setting. Can't wait to come back with the rest of the family.",
-    "helpful": 12
-  },
-  {
-    "id": "vivenda-chico-rev-39",
-    "property_id": "vivenda-chico",
-    "guest_name": "Nikhil Singh",
-    "guest_location": "Chandigarh",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Service",
-      "View"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. The AC and hot water worked flawlessly the entire stay. The concierge helped us book a boat trip and scooters within the hour. The balcony view was worth the trip alone. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 39
-  },
-  {
-    "id": "vivenda-chico-rev-41",
-    "property_id": "vivenda-chico",
-    "guest_name": "Manish Verma",
-    "guest_location": "Delhi",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "View"
-    ],
-    "comment": "Perfect base for exploring North Goa. The balcony view was worth the trip alone. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 23
-  },
-  {
-    "id": "vivenda-chico-rev-31",
-    "property_id": "vivenda-chico",
-    "guest_name": "Neha Malhotra",
-    "guest_location": "Chennai",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "View"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. The private pool was spotless and so relaxing to lounge around all day. Waking up to the garden view every morning was pure bliss. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 5
-  },
-  {
-    "id": "vivenda-chico-rev-24",
-    "property_id": "vivenda-chico",
-    "guest_name": "Nikhil Shetty",
-    "guest_location": "Indore",
-    "rating": 4,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food"
-    ],
-    "comment": "Perfect base for exploring North Goa. Loved that the kitchen was fully stocked so we could cook our own meals too. Would 100% book again on our next Goa trip.",
-    "helpful": 1
-  },
-  {
-    "id": "vivenda-chico-rev-26",
-    "property_id": "vivenda-chico",
-    "guest_name": "Aditya Krishnan",
-    "guest_location": "Chennai",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "This place exceeded every expectation we had. Loved the peaceful, private atmosphere — no noise from neighbours at all. Great value for what you get — book direct if you can.",
-    "helpful": 40
-  },
-  {
-    "id": "vivenda-chico-rev-28",
-    "property_id": "vivenda-chico",
-    "guest_name": "Pooja Singh",
-    "guest_location": "Pune",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service",
-      "View"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. Staff went out of their way to make our anniversary special. Loved the panoramic views across the greenery from the upper floor. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 37
-  },
-  {
-    "id": "vivenda-chico-rev-25",
-    "property_id": "vivenda-chico",
-    "guest_name": "Isha Reddy",
-    "guest_location": "Chennai",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Service",
-      "View"
-    ],
-    "comment": "Perfect base for exploring North Goa. The AC and hot water worked flawlessly the entire stay. Staff went out of their way to make our anniversary special. The sunset views from the pool deck were unbeatable. Perfect for couples and families alike.",
-    "helpful": 36
-  },
-  {
-    "id": "vivenda-chico-rev-35",
-    "property_id": "vivenda-chico",
-    "guest_name": "Swati Reddy",
-    "guest_location": "Chandigarh",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food",
-      "Service"
-    ],
-    "comment": "Perfect base for exploring North Goa. The caretaker organised a lovely home-cooked dinner on request. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Can't wait to come back with the rest of the family.",
-    "helpful": 15
-  },
-  {
-    "id": "vivenda-chico-rev-29",
-    "property_id": "vivenda-chico",
-    "guest_name": "Amelia Ross",
-    "guest_location": "New York, USA",
-    "rating": 4,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food",
-      "Service"
-    ],
-    "comment": "Perfect base for exploring North Goa. Beautiful interiors with a lot of thoughtful little touches. Arranged a private chef for one evening and the Goan food was outstanding. The concierge helped us book a boat trip and scooters within the hour. Would 100% book again on our next Goa trip.",
-    "helpful": 38
-  },
-  {
-    "id": "vivenda-chico-rev-27",
-    "property_id": "vivenda-chico",
-    "guest_name": "Benjamin Foster",
-    "guest_location": "Sydney, Australia",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food",
-      "View"
-    ],
-    "comment": "Had an absolutely wonderful stay here. Breakfast spread was fresh and generous every single morning. Being minutes from the beach made evening walks so easy. Can't wait to come back with the rest of the family.",
-    "helpful": 15
-  },
-  {
-    "id": "vivenda-chico-rev-19",
-    "property_id": "vivenda-chico",
-    "guest_name": "Grace Wilson",
-    "guest_location": "Zurich, Switzerland",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. Loved the peaceful, private atmosphere — no noise from neighbours at all. Can't wait to come back with the rest of the family.",
-    "helpful": 29
+    "helpful": 33
   },
   {
     "id": "the-plix-resort-morjim-rev-1",
@@ -4547,88 +4411,84 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "Stay"
     ],
     "comment": "Honestly one of the nicest stays we've had in a long time. The AC and hot water worked flawlessly the entire stay. The ambience at night, with the lights around the pool, was gorgeous. Already planning our next visit.",
-    "helpful": 0
+    "helpful": 6
   },
   {
     "id": "the-plix-resort-morjim-rev-2",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Divya Shetty",
-    "guest_location": "Hyderabad",
-    "rating": 5,
-    "platform": "MakeMyTrip",
+    "guest_name": "Namrata Kulkarni",
+    "guest_location": "Kochi",
+    "rating": 4,
+    "platform": "Google",
     "date_label": "5 days ago",
     "categories": [
-      "Amenities",
-      "Stay",
-      "Service"
+      "Food"
     ],
-    "comment": "This place exceeded every expectation we had. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The property was spotlessly clean from the moment we walked in. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Would 100% book again on our next Goa trip.",
-    "helpful": 30
+    "comment": "Came here for a weekend getaway and didn't want to leave. Breakfast spread was fresh and generous every single morning. Already planning our next visit.",
+    "helpful": 5
   },
   {
     "id": "the-plix-resort-morjim-rev-3",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Nikhil Mehta",
-    "guest_location": "Delhi",
+    "guest_name": "Alexander Petrov",
+    "guest_location": "Dubai, UAE",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "1 week ago",
     "categories": [
-      "Amenities",
-      "Stay",
-      "View"
+      "Amenities"
     ],
-    "comment": "Second time staying and it just keeps getting better. Wi-Fi was fast and reliable throughout, even for work calls. The ambience at night, with the lights around the pool, was gorgeous. Surrounded by palms and paddy fields — incredibly scenic setting. Would 100% book again on our next Goa trip.",
-    "helpful": 16
+    "comment": "Honestly one of the nicest stays we've had in a long time. Rooms were spacious, tastefully furnished, and kept impeccably clean. Already planning our next visit.",
+    "helpful": 7
   },
   {
     "id": "the-plix-resort-morjim-rev-4",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Sarah Thompson",
-    "guest_location": "London, UK",
+    "guest_name": "Kunal Shetty",
+    "guest_location": "Ahmedabad",
     "rating": 5,
-    "platform": "MakeMyTrip",
+    "platform": "Airbnb",
     "date_label": "2 weeks ago",
     "categories": [
       "Stay",
-      "Food"
+      "View"
     ],
-    "comment": "This place exceeded every expectation we had. Beds were extremely comfortable and the linen felt premium. The on-site restaurant served genuinely great local and continental dishes. Can't wait to come back with the rest of the family.",
+    "comment": "Booked this for a family trip and it was perfect. Beds were extremely comfortable and the linen felt premium. Waking up to the garden view every morning was pure bliss. Great value for what you get — book direct if you can.",
     "helpful": 5
   },
   {
     "id": "the-plix-resort-morjim-rev-5",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Sanjay Joshi",
-    "guest_location": "Kolkata",
+    "guest_name": "Sneha Chatterjee",
+    "guest_location": "Nagpur",
     "rating": 5,
-    "platform": "Google",
+    "platform": "Agoda",
     "date_label": "last week",
     "categories": [
-      "Food"
+      "Service"
     ],
-    "comment": "Second time staying and it just keeps getting better. Arranged a private chef for one evening and the Goan food was outstanding. Perfect for couples and families alike.",
-    "helpful": 26
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. The concierge helped us book a boat trip and scooters within the hour. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 12
   },
   {
     "id": "the-plix-resort-morjim-rev-6",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "William Harper",
-    "guest_location": "Toronto, Canada",
-    "rating": 5,
-    "platform": "Agoda",
+    "guest_name": "Harsh Kapoor",
+    "guest_location": "Jaipur",
+    "rating": 4,
     "date_label": "3 weeks ago",
     "categories": [
-      "Stay"
+      "Amenities",
+      "Stay",
+      "Food"
     ],
-    "comment": "Booked this for a family trip and it was perfect. The property was spotlessly clean from the moment we walked in. Would 100% book again on our next Goa trip.",
-    "helpful": 39
+    "comment": "This place exceeded every expectation we had. Rooms were spacious, tastefully furnished, and kept impeccably clean. The property was spotlessly clean from the moment we walked in. Arranged a private chef for one evening and the Goan food was outstanding. Five stars, no hesitation recommending this place.",
+    "helpful": 0
   },
   {
     "id": "the-plix-resort-morjim-rev-7",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Yash Chatterjee",
-    "guest_location": "Kochi",
+    "guest_name": "Thomas Muller",
+    "guest_location": "Paris, France",
     "rating": 5,
     "platform": "Google",
     "date_label": "a month ago",
@@ -4637,373 +4497,292 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "View"
     ],
     "comment": "Came here for a weekend getaway and didn't want to leave. Loved that the kitchen was fully stocked so we could cook our own meals too. Being minutes from the beach made evening walks so easy. Five stars, no hesitation recommending this place.",
-    "helpful": 4
+    "helpful": 28
   },
   {
     "id": "the-plix-resort-morjim-rev-8",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Sneha Bose",
-    "guest_location": "Delhi",
+    "guest_name": "Anjali Reddy",
+    "guest_location": "Mumbai",
     "rating": 5,
-    "platform": "MakeMyTrip",
+    "platform": "Airbnb",
     "date_label": "1 month ago",
     "categories": [
+      "Stay",
+      "Food",
       "View"
     ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. The sunset views from the pool deck were unbeatable. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 39
+    "comment": "Celebrated our anniversary here and it was magical. Check-in and check-out were smooth and completely hassle-free. Coffee and evening snacks were a nice touch we didn't expect. Loved the panoramic views across the greenery from the upper floor. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 9
   },
   {
     "id": "the-plix-resort-morjim-rev-9",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Harsh Chawla",
-    "guest_location": "Pune",
+    "guest_name": "Gaurav Sharma",
+    "guest_location": "Hyderabad",
     "rating": 5,
-    "platform": "Google",
     "date_label": "2 months ago",
     "categories": [
-      "Stay"
+      "Stay",
+      "View"
     ],
-    "comment": "Had an absolutely wonderful stay here. Housekeeping was prompt and unobtrusive, exactly the right balance. Already planning our next visit.",
-    "helpful": 16
+    "comment": "Came here for a weekend getaway and didn't want to leave. Loved the peaceful, private atmosphere — no noise from neighbours at all. Loved the panoramic views across the greenery from the upper floor. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 22
   },
   {
     "id": "the-plix-resort-morjim-rev-10",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Rajesh Gupta",
-    "guest_location": "Ahmedabad",
+    "guest_name": "Swati Desai",
+    "guest_location": "Nagpur",
     "rating": 5,
     "platform": "Agoda",
     "date_label": "a few months ago",
     "categories": [
-      "Service"
+      "Food",
+      "View"
     ],
-    "comment": "Had an absolutely wonderful stay here. Check-in was smooth and the host walked us through everything patiently. Perfect for couples and families alike.",
-    "helpful": 41
+    "comment": "Had an absolutely wonderful stay here. Coffee and evening snacks were a nice touch we didn't expect. Waking up to the garden view every morning was pure bliss. Five stars, no hesitation recommending this place.",
+    "helpful": 44
   },
   {
     "id": "the-plix-resort-morjim-rev-11",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Tanya Rao",
-    "guest_location": "Nagpur",
-    "rating": 4,
-    "platform": "MakeMyTrip",
+    "guest_name": "Emma Clarke",
+    "guest_location": "Amsterdam, Netherlands",
+    "rating": 5,
     "date_label": "3 months ago",
     "categories": [
-      "Amenities"
+      "Food",
+      "Service",
+      "View"
     ],
-    "comment": "One of the best villa experiences we've had in Goa. The AC and hot water worked flawlessly the entire stay. Can't wait to come back with the rest of the family.",
-    "helpful": 42
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Breakfast spread was fresh and generous every single morning. Genuinely warm hospitality — felt like staying with family, not a rental. Loved the panoramic views across the greenery from the upper floor. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 16
   },
   {
     "id": "the-plix-resort-morjim-rev-12",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Manish Sharma",
-    "guest_location": "Nagpur",
-    "rating": 4,
-    "platform": "Agoda",
+    "guest_name": "Riya Malhotra",
+    "guest_location": "Ahmedabad",
+    "rating": 5,
+    "platform": "MakeMyTrip",
     "date_label": "4 months ago",
     "categories": [
       "Amenities",
-      "Service",
-      "View"
+      "Stay",
+      "Food"
     ],
-    "comment": "Perfect base for exploring North Goa. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Housekeeping team was courteous and always asked before entering. The sunset views from the pool deck were unbeatable. Already planning our next visit.",
-    "helpful": 21
+    "comment": "Celebrated our anniversary here and it was magical. The private pool was spotless and so relaxing to lounge around all day. The ambience at night, with the lights around the pool, was gorgeous. Breakfast spread was fresh and generous every single morning. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 0
   },
   {
     "id": "the-plix-resort-morjim-rev-13",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Varun Kulkarni",
-    "guest_location": "Kochi",
+    "guest_name": "Kunal Pillai",
+    "guest_location": "Mumbai",
     "rating": 5,
-    "platform": "MakeMyTrip",
+    "platform": "Airbnb",
     "date_label": "6 months ago",
     "categories": [
-      "Stay"
+      "Stay",
+      "Food"
     ],
-    "comment": "Perfect base for exploring North Goa. Beds were extremely comfortable and the linen felt premium. Would 100% book again on our next Goa trip.",
-    "helpful": 6
+    "comment": "Booked this for a family trip and it was perfect. The property was spotlessly clean from the moment we walked in. Breakfast spread was fresh and generous every single morning. Five stars, no hesitation recommending this place.",
+    "helpful": 18
   },
   {
     "id": "the-plix-resort-morjim-rev-14",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Ashish Menon",
-    "guest_location": "Pune",
-    "rating": 4,
-    "platform": "Agoda",
+    "guest_name": "Priya Joshi",
+    "guest_location": "Jaipur",
+    "rating": 5,
+    "platform": "Google",
     "date_label": "8 months ago",
     "categories": [
-      "Amenities",
-      "Stay",
-      "Service"
+      "Stay"
     ],
-    "comment": "This place exceeded every expectation we had. Rooms were spacious, tastefully furnished, and kept impeccably clean. Loved the peaceful, private atmosphere — no noise from neighbours at all. Staff went out of their way to make our anniversary special. Already planning our next visit.",
-    "helpful": 16
+    "comment": "Celebrated our anniversary here and it was magical. Housekeeping was prompt and unobtrusive, exactly the right balance. Five stars, no hesitation recommending this place.",
+    "helpful": 44
   },
   {
     "id": "the-plix-resort-morjim-rev-15",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Kavya Menon",
-    "guest_location": "Mumbai",
+    "guest_name": "Charlotte Dubois",
+    "guest_location": "Tel Aviv, Israel",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "Google",
     "date_label": "a year ago",
     "categories": [
-      "Amenities",
-      "Service"
+      "Amenities"
     ],
-    "comment": "Celebrated our anniversary here and it was magical. Rooms were spacious, tastefully furnished, and kept impeccably clean. Housekeeping team was courteous and always asked before entering. Five stars, no hesitation recommending this place.",
-    "helpful": 9
+    "comment": "Second time staying and it just keeps getting better. Wi-Fi was fast and reliable throughout, even for work calls. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 38
   },
   {
     "id": "the-plix-resort-morjim-rev-16",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "David Cohen",
-    "guest_location": "Singapore",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "1 year ago",
-    "categories": [
-      "Amenities",
-      "Stay"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. Wi-Fi was fast and reliable throughout, even for work calls. Loved the peaceful, private atmosphere — no noise from neighbours at all. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 38
-  },
-  {
-    "id": "the-plix-resort-morjim-rev-17",
-    "property_id": "the-plix-resort-morjim",
     "guest_name": "Varun Kulkarni",
     "guest_location": "Jaipur",
     "rating": 4,
-    "platform": "Google",
-    "date_label": "2 years ago",
+    "platform": "MakeMyTrip",
+    "date_label": "1 year ago",
     "categories": [
       "Service"
     ],
     "comment": "Came here for a weekend getaway and didn't want to leave. Staff went out of their way to make our anniversary special. Can't wait to come back with the rest of the family.",
-    "helpful": 36
-  },
-  {
-    "id": "the-plix-resort-morjim-rev-18",
-    "property_id": "the-plix-resort-morjim",
-    "guest_name": "Anjali Gupta",
-    "guest_location": "Pune",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. Check-in and check-out were smooth and completely hassle-free. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 37
-  },
-  {
-    "id": "the-plix-resort-morjim-rev-26",
-    "property_id": "the-plix-resort-morjim",
-    "guest_name": "Lucas Meyer",
-    "guest_location": "Singapore",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food",
-      "Service"
-    ],
-    "comment": "Booked directly and the whole experience was seamless. Loved that the kitchen was fully stocked so we could cook our own meals too. Genuinely warm hospitality — felt like staying with family, not a rental. Great value for what you get — book direct if you can.",
-    "helpful": 38
-  },
-  {
-    "id": "the-plix-resort-morjim-rev-30",
-    "property_id": "the-plix-resort-morjim",
-    "guest_name": "Sophie Larsson",
-    "guest_location": "London, UK",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "View"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. Rooms were spacious, tastefully furnished, and kept impeccably clean. The balcony view was worth the trip alone. Would 100% book again on our next Goa trip.",
-    "helpful": 30
-  },
-  {
-    "id": "the-plix-resort-morjim-rev-29",
-    "property_id": "the-plix-resort-morjim",
-    "guest_name": "Kunal Bhatia",
-    "guest_location": "Hyderabad",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Service",
-      "View"
-    ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. The private pool was spotless and so relaxing to lounge around all day. Housekeeping team was courteous and always asked before entering. Loved the panoramic views across the greenery from the upper floor. Would 100% book again on our next Goa trip.",
-    "helpful": 21
-  },
-  {
-    "id": "the-plix-resort-morjim-rev-27",
-    "property_id": "the-plix-resort-morjim",
-    "guest_name": "Grace Wilson",
-    "guest_location": "Singapore",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service",
-      "View"
-    ],
-    "comment": "Had an absolutely wonderful stay here. Staff went out of their way to make our anniversary special. The balcony view was worth the trip alone. Five stars, no hesitation recommending this place.",
-    "helpful": 1
-  },
-  {
-    "id": "the-plix-resort-morjim-rev-23",
-    "property_id": "the-plix-resort-morjim",
-    "guest_name": "Anjali Mehta",
-    "guest_location": "Jaipur",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "View"
-    ],
-    "comment": "Booked directly and the whole experience was seamless. The sunset views from the pool deck were unbeatable. Would 100% book again on our next Goa trip.",
-    "helpful": 14
-  },
-  {
-    "id": "the-plix-resort-morjim-rev-22",
-    "property_id": "the-plix-resort-morjim",
-    "guest_name": "Arjun Mehta",
-    "guest_location": "Hyderabad",
-    "rating": 4,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "View"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The ambience at night, with the lights around the pool, was gorgeous. Being minutes from the beach made evening walks so easy. Perfect for couples and families alike.",
-    "helpful": 32
-  },
-  {
-    "id": "the-plix-resort-morjim-rev-32",
-    "property_id": "the-plix-resort-morjim",
-    "guest_name": "Chloe Martin",
-    "guest_location": "Moscow, Russia",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "View"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Check-in and check-out were smooth and completely hassle-free. Surrounded by palms and paddy fields — incredibly scenic setting. Perfect for couples and families alike.",
     "helpful": 24
   },
   {
-    "id": "the-plix-resort-morjim-rev-25",
+    "id": "the-plix-resort-morjim-rev-17",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Neha Verma",
-    "guest_location": "Chandigarh",
+    "guest_name": "Varun Mehta",
+    "guest_location": "Kolkata",
     "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
+    "date_label": "2 years ago",
     "categories": [
-      "Amenities",
-      "Stay",
-      "Food"
+      "Service"
     ],
-    "comment": "Our group of friends had the most memorable time here. The private pool was spotless and so relaxing to lounge around all day. The property was spotlessly clean from the moment we walked in. Loved that the kitchen was fully stocked so we could cook our own meals too. Five stars, no hesitation recommending this place.",
-    "helpful": 9
-  },
-  {
-    "id": "the-plix-resort-morjim-rev-33",
-    "property_id": "the-plix-resort-morjim",
-    "guest_name": "Aman Kapoor",
-    "guest_location": "Pune",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. The property was spotlessly clean from the moment we walked in. Perfect for couples and families alike.",
-    "helpful": 32
+    "comment": "Perfect base for exploring North Goa. Staff went out of their way to make our anniversary special. Great value for what you get — book direct if you can.",
+    "helpful": 7
   },
   {
     "id": "the-plix-resort-morjim-rev-21",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Olivia Bennett",
-    "guest_location": "Toronto, Canada",
+    "guest_name": "Divya Chawla",
+    "guest_location": "Kochi",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "View"
+    ],
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Housekeeping was prompt and unobtrusive, exactly the right balance. Arranged a private chef for one evening and the Goan food was outstanding. Surrounded by palms and paddy fields — incredibly scenic setting. Five stars, no hesitation recommending this place.",
+    "helpful": 12
+  },
+  {
+    "id": "the-plix-resort-morjim-rev-23",
+    "property_id": "the-plix-resort-morjim",
+    "guest_name": "Isabella Rossi",
+    "guest_location": "London, UK",
     "rating": 5,
     "platform": "Airbnb",
     "date_label": "3 years ago",
     "categories": [
       "Stay",
-      "Food",
       "Service"
     ],
-    "comment": "Booked this for a family trip and it was perfect. Beds were extremely comfortable and the linen felt premium. Loved that the kitchen was fully stocked so we could cook our own meals too. Housekeeping team was courteous and always asked before entering. Can't wait to come back with the rest of the family.",
-    "helpful": 20
+    "comment": "Honestly one of the nicest stays we've had in a long time. Check-in and check-out were smooth and completely hassle-free. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Can't wait to come back with the rest of the family.",
+    "helpful": 32
   },
   {
-    "id": "the-plix-resort-morjim-rev-24",
+    "id": "the-plix-resort-morjim-rev-31",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Rahul Nair",
-    "guest_location": "Chennai",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food",
-      "Service"
-    ],
-    "comment": "Our group of friends had the most memorable time here. The private pool was spotless and so relaxing to lounge around all day. Loved that the kitchen was fully stocked so we could cook our own meals too. Staff went out of their way to make our anniversary special. Perfect for couples and families alike.",
-    "helpful": 45
-  },
-  {
-    "id": "the-plix-resort-morjim-rev-20",
-    "property_id": "the-plix-resort-morjim",
-    "guest_name": "Aman Bose",
-    "guest_location": "Mumbai",
-    "rating": 5,
-    "platform": "Google",
+    "guest_name": "Isha Bose",
+    "guest_location": "Bangalore",
+    "rating": 4,
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
       "Food",
       "View"
     ],
-    "comment": "Celebrated our anniversary here and it was magical. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Coffee and evening snacks were a nice touch we didn't expect. Loved the panoramic views across the greenery from the upper floor. Would 100% book again on our next Goa trip.",
-    "helpful": 10
+    "comment": "Perfect base for exploring North Goa. Beautiful interiors with a lot of thoughtful little touches. The on-site restaurant served genuinely great local and continental dishes. The balcony view was worth the trip alone. Can't wait to come back with the rest of the family.",
+    "helpful": 36
   },
   {
-    "id": "the-plix-resort-morjim-rev-19",
+    "id": "the-plix-resort-morjim-rev-28",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Neha Menon",
-    "guest_location": "Mumbai",
+    "guest_name": "Yash Joshi",
+    "guest_location": "Nagpur",
+    "rating": 4,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "View"
+    ],
+    "comment": "Our group of friends had the most memorable time here. The private pool was spotless and so relaxing to lounge around all day. Being minutes from the beach made evening walks so easy. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 42
+  },
+  {
+    "id": "the-plix-resort-morjim-rev-25",
+    "property_id": "the-plix-resort-morjim",
+    "guest_name": "Divya Desai",
+    "guest_location": "Chennai",
     "rating": 5,
-    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service",
+      "View"
+    ],
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Housekeeping team was courteous and always asked before entering. Loved the panoramic views across the greenery from the upper floor. Perfect for couples and families alike.",
+    "helpful": 28
+  },
+  {
+    "id": "the-plix-resort-morjim-rev-18",
+    "property_id": "the-plix-resort-morjim",
+    "guest_name": "Rohan Sharma",
+    "guest_location": "Hyderabad",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Service"
+    ],
+    "comment": "Booked directly and the whole experience was seamless. Rooms were spacious, tastefully furnished, and kept impeccably clean. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Five stars, no hesitation recommending this place.",
+    "helpful": 1
+  },
+  {
+    "id": "the-plix-resort-morjim-rev-32",
+    "property_id": "the-plix-resort-morjim",
+    "guest_name": "Rahul Kulkarni",
+    "guest_location": "Delhi",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Rooms were spacious, tastefully furnished, and kept impeccably clean. Housekeeping was prompt and unobtrusive, exactly the right balance. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 20
+  },
+  {
+    "id": "the-plix-resort-morjim-rev-29",
+    "property_id": "the-plix-resort-morjim",
+    "guest_name": "Ananya Gupta",
+    "guest_location": "Kochi",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. Being minutes from the beach made evening walks so easy. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 8
+  },
+  {
+    "id": "the-plix-resort-morjim-rev-30",
+    "property_id": "the-plix-resort-morjim",
+    "guest_name": "Rajesh Malhotra",
+    "guest_location": "Bangalore",
+    "rating": 5,
+    "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
       "Food"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Breakfast spread was fresh and generous every single morning. Already planning our next visit.",
-    "helpful": 27
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Coffee and evening snacks were a nice touch we didn't expect. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 32
   },
   {
-    "id": "the-plix-resort-morjim-rev-34",
+    "id": "the-plix-resort-morjim-rev-33",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Yash Menon",
-    "guest_location": "Hyderabad",
+    "guest_name": "Sarah Thompson",
+    "guest_location": "Singapore",
     "rating": 4,
-    "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
       "Service"
@@ -5012,35 +4791,103 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "helpful": 31
   },
   {
-    "id": "the-plix-resort-morjim-rev-28",
+    "id": "the-plix-resort-morjim-rev-24",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Yash Nair",
-    "guest_location": "Nagpur",
+    "guest_name": "Nisha Nair",
+    "guest_location": "Delhi",
     "rating": 5,
-    "platform": "Agoda",
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay"
+    ],
+    "comment": "Our group of friends had the most memorable time here. Housekeeping was prompt and unobtrusive, exactly the right balance. Five stars, no hesitation recommending this place.",
+    "helpful": 44
+  },
+  {
+    "id": "the-plix-resort-morjim-rev-19",
+    "property_id": "the-plix-resort-morjim",
+    "guest_name": "Pallavi Gupta",
+    "guest_location": "Delhi",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "View"
+    ],
+    "comment": "Had an absolutely wonderful stay here. Check-in and check-out were smooth and completely hassle-free. Waking up to the garden view every morning was pure bliss. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 10
+  },
+  {
+    "id": "the-plix-resort-morjim-rev-27",
+    "property_id": "the-plix-resort-morjim",
+    "guest_name": "Swati Mehta",
+    "guest_location": "Surat",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay"
+    ],
+    "comment": "Had an absolutely wonderful stay here. The property was spotlessly clean from the moment we walked in. Perfect for couples and families alike.",
+    "helpful": 22
+  },
+  {
+    "id": "the-plix-resort-morjim-rev-20",
+    "property_id": "the-plix-resort-morjim",
+    "guest_name": "Gaurav Agarwal",
+    "guest_location": "Chennai",
+    "rating": 5,
+    "platform": "Google",
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
-      "Stay",
       "Service"
     ],
-    "comment": "Celebrated our anniversary here and it was magical. Rooms were spacious, tastefully furnished, and kept impeccably clean. Beds were extremely comfortable and the linen felt premium. The concierge helped us book a boat trip and scooters within the hour. Great value for what you get — book direct if you can.",
-    "helpful": 45
+    "comment": "Booked directly and the whole experience was seamless. Wi-Fi was fast and reliable throughout, even for work calls. Staff went out of their way to make our anniversary special. Already planning our next visit.",
+    "helpful": 4
   },
   {
-    "id": "the-plix-resort-morjim-rev-31",
+    "id": "the-plix-resort-morjim-rev-22",
     "property_id": "the-plix-resort-morjim",
-    "guest_name": "Tanya Kulkarni",
-    "guest_location": "Ahmedabad",
+    "guest_name": "Ashish Menon",
+    "guest_location": "Indore",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "View"
+    ],
+    "comment": "Booked this for a family trip and it was perfect. Rooms were spacious, tastefully furnished, and kept impeccably clean. The sunset views from the pool deck were unbeatable. Would 100% book again on our next Goa trip.",
+    "helpful": 30
+  },
+  {
+    "id": "the-plix-resort-morjim-rev-34",
+    "property_id": "the-plix-resort-morjim",
+    "guest_name": "Isha Krishnan",
+    "guest_location": "Nagpur",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. The AC and hot water worked flawlessly the entire stay. Already planning our next visit.",
+    "helpful": 20
+  },
+  {
+    "id": "the-plix-resort-morjim-rev-26",
+    "property_id": "the-plix-resort-morjim",
+    "guest_name": "Simran Verma",
+    "guest_location": "Chandigarh",
     "rating": 4,
     "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
-      "Food",
-      "View"
+      "Service"
     ],
-    "comment": "This place exceeded every expectation we had. The caretaker organised a lovely home-cooked dinner on request. The balcony view was worth the trip alone. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 4
+    "comment": "Our group of friends had the most memorable time here. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Five stars, no hesitation recommending this place.",
+    "helpful": 45
   },
   {
     "id": "villa-madera-rev-1",
@@ -5048,7 +4895,7 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Nikhil Krishnan",
     "guest_location": "Kolkata",
     "rating": 4,
-    "platform": "Agoda",
+    "platform": "MakeMyTrip",
     "date_label": "3 days ago",
     "categories": [
       "Amenities",
@@ -5056,15 +4903,14 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "View"
     ],
     "comment": "Booked directly and the whole experience was seamless. Wi-Fi was fast and reliable throughout, even for work calls. Coffee and evening snacks were a nice touch we didn't expect. Surrounded by palms and paddy fields — incredibly scenic setting. Perfect for couples and families alike.",
-    "helpful": 41
+    "helpful": 28
   },
   {
     "id": "villa-madera-rev-2",
     "property_id": "villa-madera",
-    "guest_name": "Ashish Mehta",
-    "guest_location": "Mumbai",
+    "guest_name": "Lucas Meyer",
+    "guest_location": "London, UK",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "5 days ago",
     "categories": [
       "Amenities",
@@ -5086,66 +4932,62 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "View"
     ],
     "comment": "This place exceeded every expectation we had. Being minutes from the beach made evening walks so easy. Great value for what you get — book direct if you can.",
-    "helpful": 2
+    "helpful": 1
   },
   {
     "id": "villa-madera-rev-4",
     "property_id": "villa-madera",
-    "guest_name": "Abhishek Bose",
-    "guest_location": "Kochi",
+    "guest_name": "Anjali Pillai",
+    "guest_location": "Surat",
     "rating": 4,
-    "platform": "Agoda",
     "date_label": "2 weeks ago",
     "categories": [
-      "Amenities",
-      "Food",
+      "Stay",
       "View"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Beautiful interiors with a lot of thoughtful little touches. The on-site restaurant served genuinely great local and continental dishes. Waking up to the garden view every morning was pure bliss. Five stars, no hesitation recommending this place.",
-    "helpful": 34
+    "comment": "Had an absolutely wonderful stay here. The ambience at night, with the lights around the pool, was gorgeous. Loved the panoramic views across the greenery from the upper floor. Can't wait to come back with the rest of the family.",
+    "helpful": 29
   },
   {
     "id": "villa-madera-rev-5",
     "property_id": "villa-madera",
-    "guest_name": "Natasha Ivanova",
+    "guest_name": "Benjamin Foster",
     "guest_location": "Moscow, Russia",
-    "rating": 5,
-    "platform": "MakeMyTrip",
+    "rating": 4,
     "date_label": "last week",
     "categories": [
-      "Stay"
+      "Amenities"
     ],
-    "comment": "Our group of friends had the most memorable time here. Check-in and check-out were smooth and completely hassle-free. Can't wait to come back with the rest of the family.",
-    "helpful": 30
+    "comment": "Our group of friends had the most memorable time here. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Five stars, no hesitation recommending this place.",
+    "helpful": 39
   },
   {
     "id": "villa-madera-rev-6",
     "property_id": "villa-madera",
-    "guest_name": "Deepika Menon",
-    "guest_location": "Surat",
-    "rating": 5,
-    "platform": "Airbnb",
+    "guest_name": "Rohan Agarwal",
+    "guest_location": "Mumbai",
+    "rating": 4,
     "date_label": "3 weeks ago",
     "categories": [
+      "Stay",
       "View"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Surrounded by palms and paddy fields — incredibly scenic setting. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 30
+    "comment": "Honestly one of the nicest stays we've had in a long time. The ambience at night, with the lights around the pool, was gorgeous. Being minutes from the beach made evening walks so easy. Great value for what you get — book direct if you can.",
+    "helpful": 23
   },
   {
     "id": "villa-madera-rev-7",
     "property_id": "villa-madera",
-    "guest_name": "Siddharth Pillai",
-    "guest_location": "Ahmedabad",
-    "rating": 5,
+    "guest_name": "Simran Singh",
+    "guest_location": "Kochi",
+    "rating": 4,
     "platform": "Airbnb",
     "date_label": "a month ago",
     "categories": [
       "Amenities",
-      "Food",
-      "Service"
+      "Food"
     ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The on-site restaurant served genuinely great local and continental dishes. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Great value for what you get — book direct if you can.",
+    "comment": "This place exceeded every expectation we had. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The on-site restaurant served genuinely great local and continental dishes. Already planning our next visit.",
     "helpful": 1
   },
   {
@@ -5154,19 +4996,19 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Harsh Mehta",
     "guest_location": "Ahmedabad",
     "rating": 4,
-    "platform": "Airbnb",
+    "platform": "Google",
     "date_label": "1 month ago",
     "categories": [
       "View"
     ],
     "comment": "Booked directly and the whole experience was seamless. The balcony view was worth the trip alone. Five stars, no hesitation recommending this place.",
-    "helpful": 8
+    "helpful": 13
   },
   {
     "id": "villa-madera-rev-9",
     "property_id": "villa-madera",
-    "guest_name": "Deepika Joshi",
-    "guest_location": "Pune",
+    "guest_name": "Alexander Petrov",
+    "guest_location": "Dubai, UAE",
     "rating": 4,
     "platform": "Airbnb",
     "date_label": "2 months ago",
@@ -5175,316 +5017,175 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "Food"
     ],
     "comment": "One of the best villa experiences we've had in Goa. The property was spotlessly clean from the moment we walked in. The on-site restaurant served genuinely great local and continental dishes. Already planning our next visit.",
-    "helpful": 18
+    "helpful": 40
   },
   {
     "id": "villa-madera-rev-10",
     "property_id": "villa-madera",
-    "guest_name": "Benjamin Foster",
-    "guest_location": "Zurich, Switzerland",
+    "guest_name": "Amelia Ross",
+    "guest_location": "New York, USA",
     "rating": 5,
-    "platform": "Google",
+    "platform": "Agoda",
     "date_label": "a few months ago",
     "categories": [
-      "Stay"
+      "Food",
+      "Service"
     ],
-    "comment": "Our group of friends had the most memorable time here. Check-in and check-out were smooth and completely hassle-free. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 6
+    "comment": "This place exceeded every expectation we had. Coffee and evening snacks were a nice touch we didn't expect. Staff went out of their way to make our anniversary special. Already planning our next visit.",
+    "helpful": 14
   },
   {
     "id": "villa-madera-rev-11",
     "property_id": "villa-madera",
-    "guest_name": "Divya Bose",
-    "guest_location": "Hyderabad",
+    "guest_name": "Sanjay Desai",
+    "guest_location": "Surat",
     "rating": 5,
-    "platform": "Google",
+    "platform": "MakeMyTrip",
     "date_label": "3 months ago",
     "categories": [
       "Amenities",
-      "Service",
+      "Food",
       "View"
     ],
-    "comment": "Second time staying and it just keeps getting better. The AC and hot water worked flawlessly the entire stay. The caretaker was incredibly attentive and responded within minutes on WhatsApp. The balcony view was worth the trip alone. Perfect for couples and families alike.",
-    "helpful": 7
+    "comment": "Celebrated our anniversary here and it was magical. Beautiful interiors with a lot of thoughtful little touches. Breakfast spread was fresh and generous every single morning. Waking up to the garden view every morning was pure bliss. Perfect for couples and families alike.",
+    "helpful": 38
   },
   {
     "id": "villa-madera-rev-12",
     "property_id": "villa-madera",
-    "guest_name": "William Harper",
-    "guest_location": "Sydney, Australia",
-    "rating": 4,
-    "platform": "Airbnb",
+    "guest_name": "Priya Menon",
+    "guest_location": "Ahmedabad",
+    "rating": 5,
+    "platform": "MakeMyTrip",
     "date_label": "4 months ago",
     "categories": [
       "Amenities",
       "Stay",
       "Food"
     ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Beds were extremely comfortable and the linen felt premium. Coffee and evening snacks were a nice touch we didn't expect. Great value for what you get — book direct if you can.",
-    "helpful": 1
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. The private pool was spotless and so relaxing to lounge around all day. The property was spotlessly clean from the moment we walked in. The on-site restaurant served genuinely great local and continental dishes. Already planning our next visit.",
+    "helpful": 35
   },
   {
     "id": "villa-madera-rev-13",
     "property_id": "villa-madera",
-    "guest_name": "Varun Rao",
-    "guest_location": "Hyderabad",
+    "guest_name": "Meera Patel",
+    "guest_location": "Surat",
     "rating": 5,
     "platform": "Agoda",
     "date_label": "6 months ago",
     "categories": [
-      "Amenities",
-      "Stay",
       "Service"
     ],
-    "comment": "Booked this for a family trip and it was perfect. Rooms were spacious, tastefully furnished, and kept impeccably clean. Check-in and check-out were smooth and completely hassle-free. Housekeeping team was courteous and always asked before entering. Five stars, no hesitation recommending this place.",
-    "helpful": 0
+    "comment": "Had an absolutely wonderful stay here. The concierge helped us book a boat trip and scooters within the hour. Would 100% book again on our next Goa trip.",
+    "helpful": 28
   },
   {
     "id": "villa-madera-rev-14",
     "property_id": "villa-madera",
-    "guest_name": "Ananya Rao",
-    "guest_location": "Jaipur",
+    "guest_name": "Rajesh Reddy",
+    "guest_location": "Delhi",
     "rating": 5,
-    "platform": "Agoda",
+    "platform": "Airbnb",
     "date_label": "8 months ago",
     "categories": [
-      "Amenities",
-      "Stay",
-      "Service"
+      "View"
     ],
-    "comment": "Booked directly and the whole experience was seamless. Rooms were spacious, tastefully furnished, and kept impeccably clean. The ambience at night, with the lights around the pool, was gorgeous. Housekeeping team was courteous and always asked before entering. Can't wait to come back with the rest of the family.",
-    "helpful": 11
+    "comment": "Booked directly and the whole experience was seamless. Being minutes from the beach made evening walks so easy. Can't wait to come back with the rest of the family.",
+    "helpful": 16
   },
   {
     "id": "villa-madera-rev-15",
     "property_id": "villa-madera",
-    "guest_name": "Ritu Rao",
-    "guest_location": "Indore",
+    "guest_name": "Manish Krishnan",
+    "guest_location": "Surat",
     "rating": 4,
-    "platform": "MakeMyTrip",
     "date_label": "a year ago",
     "categories": [
       "Stay",
       "Service",
       "View"
     ],
-    "comment": "This place exceeded every expectation we had. The ambience at night, with the lights around the pool, was gorgeous. Staff went out of their way to make our anniversary special. Surrounded by palms and paddy fields — incredibly scenic setting. Perfect for couples and families alike.",
-    "helpful": 38
+    "comment": "Celebrated our anniversary here and it was magical. The property was spotlessly clean from the moment we walked in. Genuinely warm hospitality — felt like staying with family, not a rental. Waking up to the garden view every morning was pure bliss. Perfect for couples and families alike.",
+    "helpful": 32
   },
   {
     "id": "villa-madera-rev-16",
     "property_id": "villa-madera",
-    "guest_name": "Anjali Agarwal",
-    "guest_location": "Hyderabad",
+    "guest_name": "Deepika Kulkarni",
+    "guest_location": "Delhi",
     "rating": 5,
-    "platform": "Google",
     "date_label": "1 year ago",
     "categories": [
-      "Food",
-      "Service"
+      "Amenities",
+      "Food"
     ],
-    "comment": "Honestly one of the nicest stays we've had in a long time. Arranged a private chef for one evening and the Goan food was outstanding. Check-in was smooth and the host walked us through everything patiently. Would 100% book again on our next Goa trip.",
-    "helpful": 28
+    "comment": "Had an absolutely wonderful stay here. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Coffee and evening snacks were a nice touch we didn't expect. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 8
   },
   {
     "id": "villa-madera-rev-17",
     "property_id": "villa-madera",
-    "guest_name": "Priya Gupta",
-    "guest_location": "Nagpur",
-    "rating": 4,
-    "platform": "Airbnb",
+    "guest_name": "Varun Bhatia",
+    "guest_location": "Indore",
+    "rating": 5,
     "date_label": "2 years ago",
     "categories": [
       "Stay",
-      "View"
-    ],
-    "comment": "This place exceeded every expectation we had. Housekeeping was prompt and unobtrusive, exactly the right balance. Being minutes from the beach made evening walks so easy. Already planning our next visit.",
-    "helpful": 13
-  },
-  {
-    "id": "villa-madera-rev-33",
-    "property_id": "villa-madera",
-    "guest_name": "Grace Wilson",
-    "guest_location": "Tel Aviv, Israel",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay",
-      "View"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. The private pool was spotless and so relaxing to lounge around all day. Loved the peaceful, private atmosphere — no noise from neighbours at all. Being minutes from the beach made evening walks so easy. Five stars, no hesitation recommending this place.",
-    "helpful": 3
-  },
-  {
-    "id": "villa-madera-rev-27",
-    "property_id": "villa-madera",
-    "guest_name": "Yash Pillai",
-    "guest_location": "Hyderabad",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service",
-      "View"
-    ],
-    "comment": "One of the best villa experiences we've had in Goa. The caretaker was incredibly attentive and responded within minutes on WhatsApp. The sunset views from the pool deck were unbeatable. Great value for what you get — book direct if you can.",
-    "helpful": 33
-  },
-  {
-    "id": "villa-madera-rev-19",
-    "property_id": "villa-madera",
-    "guest_name": "Benjamin Foster",
-    "guest_location": "Moscow, Russia",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
+      "Food",
       "Service"
     ],
-    "comment": "Perfect base for exploring North Goa. Beautiful interiors with a lot of thoughtful little touches. Genuinely warm hospitality — felt like staying with family, not a rental. Great value for what you get — book direct if you can.",
-    "helpful": 42
-  },
-  {
-    "id": "villa-madera-rev-28",
-    "property_id": "villa-madera",
-    "guest_name": "Isabella Rossi",
-    "guest_location": "Singapore",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Service"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. Housekeeping was prompt and unobtrusive, exactly the right balance. Housekeeping team was courteous and always asked before entering. Already planning our next visit.",
-    "helpful": 7
+    "comment": "Booked this for a family trip and it was perfect. Beds were extremely comfortable and the linen felt premium. Arranged a private chef for one evening and the Goan food was outstanding. Check-in was smooth and the host walked us through everything patiently. Great value for what you get — book direct if you can.",
+    "helpful": 36
   },
   {
     "id": "villa-madera-rev-22",
     "property_id": "villa-madera",
-    "guest_name": "Thomas Muller",
-    "guest_location": "Tel Aviv, Israel",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay"
-    ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Wi-Fi was fast and reliable throughout, even for work calls. Beds were extremely comfortable and the linen felt premium. Great value for what you get — book direct if you can.",
-    "helpful": 42
-  },
-  {
-    "id": "villa-madera-rev-18",
-    "property_id": "villa-madera",
-    "guest_name": "Nisha Agarwal",
-    "guest_location": "Jaipur",
+    "guest_name": "Lucas Meyer",
+    "guest_location": "Amsterdam, Netherlands",
     "rating": 5,
     "platform": "Google",
     "date_label": "3 years ago",
     "categories": [
-      "Stay",
-      "Service",
-      "View"
-    ],
-    "comment": "Our group of friends had the most memorable time here. Check-in and check-out were smooth and completely hassle-free. Housekeeping team was courteous and always asked before entering. Loved the panoramic views across the greenery from the upper floor. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 44
-  },
-  {
-    "id": "villa-madera-rev-24",
-    "property_id": "villa-madera",
-    "guest_name": "Abhishek Shetty",
-    "guest_location": "Indore",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
+      "Amenities",
       "Food",
       "Service"
     ],
-    "comment": "Had an absolutely wonderful stay here. The caretaker organised a lovely home-cooked dinner on request. The concierge helped us book a boat trip and scooters within the hour. Perfect for couples and families alike.",
-    "helpful": 45
+    "comment": "Had an absolutely wonderful stay here. The private pool was spotless and so relaxing to lounge around all day. Loved that the kitchen was fully stocked so we could cook our own meals too. Genuinely warm hospitality — felt like staying with family, not a rental. Would 100% book again on our next Goa trip.",
+    "helpful": 4
   },
   {
-    "id": "villa-madera-rev-31",
+    "id": "villa-madera-rev-30",
     "property_id": "villa-madera",
-    "guest_name": "Pallavi Kulkarni",
-    "guest_location": "Chandigarh",
+    "guest_name": "Lucas Meyer",
+    "guest_location": "Tel Aviv, Israel",
     "rating": 5,
-    "platform": "Agoda",
+    "platform": "Google",
     "date_label": "3 years ago",
     "categories": [
       "Stay",
       "View"
     ],
     "comment": "Celebrated our anniversary here and it was magical. Beds were extremely comfortable and the linen felt premium. Waking up to the garden view every morning was pure bliss. Five stars, no hesitation recommending this place.",
-    "helpful": 5
+    "helpful": 32
   },
   {
-    "id": "villa-madera-rev-26",
+    "id": "villa-madera-rev-33",
     "property_id": "villa-madera",
-    "guest_name": "Manish Agarwal",
-    "guest_location": "Chennai",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Food"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Breakfast spread was fresh and generous every single morning. Would 100% book again on our next Goa trip.",
-    "helpful": 5
-  },
-  {
-    "id": "villa-madera-rev-25",
-    "property_id": "villa-madera",
-    "guest_name": "Benjamin Foster",
-    "guest_location": "Tel Aviv, Israel",
+    "guest_name": "Natasha Ivanova",
+    "guest_location": "Berlin, Germany",
     "rating": 4,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Food",
-      "View"
-    ],
-    "comment": "Booked this for a family trip and it was perfect. The property was spotlessly clean from the moment we walked in. Breakfast spread was fresh and generous every single morning. Being minutes from the beach made evening walks so easy. Five stars, no hesitation recommending this place.",
-    "helpful": 35
-  },
-  {
-    "id": "villa-madera-rev-20",
-    "property_id": "villa-madera",
-    "guest_name": "William Harper",
-    "guest_location": "Moscow, Russia",
-    "rating": 5,
     "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
-      "Service"
+      "Stay",
+      "View"
     ],
-    "comment": "Had an absolutely wonderful stay here. Staff went out of their way to make our anniversary special. Can't wait to come back with the rest of the family.",
-    "helpful": 33
+    "comment": "Perfect base for exploring North Goa. Check-in and check-out were smooth and completely hassle-free. Loved the panoramic views across the greenery from the upper floor. Would 100% book again on our next Goa trip.",
+    "helpful": 38
   },
   {
     "id": "villa-madera-rev-29",
-    "property_id": "villa-madera",
-    "guest_name": "Priya Joshi",
-    "guest_location": "Nagpur",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Stay"
-    ],
-    "comment": "Had an absolutely wonderful stay here. The AC and hot water worked flawlessly the entire stay. Housekeeping was prompt and unobtrusive, exactly the right balance. Would 100% book again on our next Goa trip.",
-    "helpful": 2
-  },
-  {
-    "id": "villa-madera-rev-30",
     "property_id": "villa-madera",
     "guest_name": "Sneha Shetty",
     "guest_location": "Mumbai",
@@ -5497,54 +5198,182 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "Service"
     ],
     "comment": "One of the best villa experiences we've had in Goa. Check-in and check-out were smooth and completely hassle-free. The caretaker organised a lovely home-cooked dinner on request. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 10
+    "helpful": 7
   },
   {
-    "id": "villa-madera-rev-23",
+    "id": "villa-madera-rev-19",
     "property_id": "villa-madera",
-    "guest_name": "Deepika Mehta",
-    "guest_location": "Kolkata",
+    "guest_name": "Shreya Joshi",
+    "guest_location": "Bangalore",
+    "rating": 4,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "View"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. The ambience at night, with the lights around the pool, was gorgeous. The caretaker organised a lovely home-cooked dinner on request. The balcony view was worth the trip alone. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 8
+  },
+  {
+    "id": "villa-madera-rev-32",
+    "property_id": "villa-madera",
+    "guest_name": "Sanjay Agarwal",
+    "guest_location": "Jaipur",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "View"
+    ],
+    "comment": "This place exceeded every expectation we had. The AC and hot water worked flawlessly the entire stay. Waking up to the garden view every morning was pure bliss. Already planning our next visit.",
+    "helpful": 13
+  },
+  {
+    "id": "villa-madera-rev-31",
+    "property_id": "villa-madera",
+    "guest_name": "Nikhil Shetty",
+    "guest_location": "Ahmedabad",
+    "rating": 4,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Our group of friends had the most memorable time here. Genuinely warm hospitality — felt like staying with family, not a rental. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 4
+  },
+  {
+    "id": "villa-madera-rev-20",
+    "property_id": "villa-madera",
+    "guest_name": "Shreya Malhotra",
+    "guest_location": "Kochi",
     "rating": 5,
     "platform": "Airbnb",
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
-      "Food",
-      "Service"
+      "Stay",
+      "View"
     ],
-    "comment": "Had an absolutely wonderful stay here. The private pool was spotless and so relaxing to lounge around all day. Loved that the kitchen was fully stocked so we could cook our own meals too. Genuinely warm hospitality — felt like staying with family, not a rental. Would 100% book again on our next Goa trip.",
-    "helpful": 2
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Wi-Fi was fast and reliable throughout, even for work calls. Loved the peaceful, private atmosphere — no noise from neighbours at all. Loved the panoramic views across the greenery from the upper floor. Would 100% book again on our next Goa trip.",
+    "helpful": 16
   },
   {
     "id": "villa-madera-rev-21",
     "property_id": "villa-madera",
-    "guest_name": "Kunal Menon",
-    "guest_location": "Delhi",
+    "guest_name": "Deepika Bose",
+    "guest_location": "Chandigarh",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay"
+    ],
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Wi-Fi was fast and reliable throughout, even for work calls. Beds were extremely comfortable and the linen felt premium. Great value for what you get — book direct if you can.",
+    "helpful": 28
+  },
+  {
+    "id": "villa-madera-rev-25",
+    "property_id": "villa-madera",
+    "guest_name": "Simran Sharma",
+    "guest_location": "Kolkata",
     "rating": 4,
-    "platform": "Airbnb",
+    "platform": "Google",
     "date_label": "3 years ago",
     "categories": [
       "Stay",
-      "Food"
+      "Service"
     ],
-    "comment": "Second time staying and it just keeps getting better. Housekeeping was prompt and unobtrusive, exactly the right balance. Breakfast spread was fresh and generous every single morning. Already planning our next visit.",
-    "helpful": 12
+    "comment": "Came here for a weekend getaway and didn't want to leave. Loved the peaceful, private atmosphere — no noise from neighbours at all. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Would 100% book again on our next Goa trip.",
+    "helpful": 19
   },
   {
-    "id": "villa-madera-rev-32",
+    "id": "villa-madera-rev-28",
     "property_id": "villa-madera",
-    "guest_name": "Nisha Singh",
-    "guest_location": "Indore",
+    "guest_name": "Priya Joshi",
+    "guest_location": "Nagpur",
     "rating": 5,
-    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay"
+    ],
+    "comment": "Had an absolutely wonderful stay here. The AC and hot water worked flawlessly the entire stay. Housekeeping was prompt and unobtrusive, exactly the right balance. Would 100% book again on our next Goa trip.",
+    "helpful": 2
+  },
+  {
+    "id": "villa-madera-rev-26",
+    "property_id": "villa-madera",
+    "guest_name": "Priya Shetty",
+    "guest_location": "Surat",
+    "rating": 5,
     "date_label": "3 years ago",
     "categories": [
       "Stay",
       "Service",
       "View"
     ],
-    "comment": "Booked this for a family trip and it was perfect. Check-in and check-out were smooth and completely hassle-free. The caretaker was incredibly attentive and responded within minutes on WhatsApp. The sunset views from the pool deck were unbeatable. Would 100% book again on our next Goa trip.",
+    "comment": "Came here for a weekend getaway and didn't want to leave. Beds were extremely comfortable and the linen felt premium. Staff went out of their way to make our anniversary special. The sunset views from the pool deck were unbeatable. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 45
+  },
+  {
+    "id": "villa-madera-rev-18",
+    "property_id": "villa-madera",
+    "guest_name": "Rahul Chawla",
+    "guest_location": "Hyderabad",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Food",
+      "View"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. Check-in and check-out were smooth and completely hassle-free. Coffee and evening snacks were a nice touch we didn't expect. The sunset views from the pool deck were unbeatable. Perfect for couples and families alike.",
+    "helpful": 36
+  },
+  {
+    "id": "villa-madera-rev-24",
+    "property_id": "villa-madera",
+    "guest_name": "Grace Wilson",
+    "guest_location": "Moscow, Russia",
+    "rating": 4,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. Loved the panoramic views across the greenery from the upper floor. Highly recommend to anyone looking for a private, comfortable stay.",
     "helpful": 31
+  },
+  {
+    "id": "villa-madera-rev-27",
+    "property_id": "villa-madera",
+    "guest_name": "Pooja Reddy",
+    "guest_location": "Kolkata",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Food"
+    ],
+    "comment": "Booked this for a family trip and it was perfect. Loved that the kitchen was fully stocked so we could cook our own meals too. Already planning our next visit.",
+    "helpful": 7
+  },
+  {
+    "id": "villa-madera-rev-23",
+    "property_id": "villa-madera",
+    "guest_name": "Namrata Krishnan",
+    "guest_location": "Indore",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Food",
+      "Service"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. The caretaker organised a lovely home-cooked dinner on request. The caretaker was incredibly attentive and responded within minutes on WhatsApp. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 37
   },
   {
     "id": "casa-serenita-rev-1",
@@ -5552,7 +5381,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Riya Agarwal",
     "guest_location": "Mumbai",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "3 days ago",
     "categories": [
       "Food",
@@ -5567,7 +5395,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Ryan O'Connor",
     "guest_location": "Moscow, Russia",
     "rating": 4,
-    "platform": "Agoda",
     "date_label": "5 days ago",
     "categories": [
       "Service",
@@ -5582,7 +5409,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Sophie Larsson",
     "guest_location": "Toronto, Canada",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "1 week ago",
     "categories": [
       "Amenities",
@@ -5598,7 +5424,7 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "Namrata Menon",
     "guest_location": "Indore",
     "rating": 5,
-    "platform": "Google",
+    "platform": "Agoda",
     "date_label": "2 weeks ago",
     "categories": [
       "Amenities",
@@ -5606,15 +5432,14 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "View"
     ],
     "comment": "A hidden gem — exactly what we needed for a relaxed break. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Housekeeping team was courteous and always asked before entering. Surrounded by palms and paddy fields — incredibly scenic setting. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 23
+    "helpful": 7
   },
   {
     "id": "casa-serenita-rev-5",
     "property_id": "casa-serenita",
-    "guest_name": "Vivek Iyer",
-    "guest_location": "Ahmedabad",
+    "guest_name": "Charlotte Dubois",
+    "guest_location": "Toronto, Canada",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "last week",
     "categories": [
       "Service"
@@ -5628,7 +5453,6 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "guest_name": "James Whitfield",
     "guest_location": "Singapore",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "3 weeks ago",
     "categories": [
       "Food"
@@ -5648,135 +5472,120 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
       "View"
     ],
     "comment": "Booked this for a family trip and it was perfect. Waking up to the garden view every morning was pure bliss. Five stars, no hesitation recommending this place.",
-    "helpful": 13
+    "helpful": 15
   },
   {
     "id": "casa-serenita-rev-8",
     "property_id": "casa-serenita",
-    "guest_name": "Abhishek Bose",
-    "guest_location": "Ahmedabad",
+    "guest_name": "Abhishek Singh",
+    "guest_location": "Chennai",
     "rating": 5,
-    "platform": "Agoda",
     "date_label": "1 month ago",
     "categories": [
+      "Stay",
       "Food",
-      "View"
+      "Service"
     ],
-    "comment": "Booked this for a family trip and it was perfect. The on-site restaurant served genuinely great local and continental dishes. Being minutes from the beach made evening walks so easy. Perfect for couples and families alike.",
-    "helpful": 18
+    "comment": "Came here for a weekend getaway and didn't want to leave. The property was spotlessly clean from the moment we walked in. The caretaker organised a lovely home-cooked dinner on request. Housekeeping team was courteous and always asked before entering. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 30
   },
   {
     "id": "casa-serenita-rev-9",
     "property_id": "casa-serenita",
-    "guest_name": "Chloe Martin",
-    "guest_location": "Tel Aviv, Israel",
-    "rating": 5,
-    "platform": "Airbnb",
+    "guest_name": "Abhishek Nair",
+    "guest_location": "Ahmedabad",
+    "rating": 4,
+    "platform": "MakeMyTrip",
     "date_label": "2 months ago",
     "categories": [
       "Amenities",
-      "Food"
+      "Stay"
     ],
-    "comment": "One of the best villa experiences we've had in Goa. The AC and hot water worked flawlessly the entire stay. Loved that the kitchen was fully stocked so we could cook our own meals too. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 42
+    "comment": "Celebrated our anniversary here and it was magical. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The ambience at night, with the lights around the pool, was gorgeous. Perfect for couples and families alike.",
+    "helpful": 18
   },
   {
     "id": "casa-serenita-rev-10",
     "property_id": "casa-serenita",
-    "guest_name": "Benjamin Foster",
-    "guest_location": "Berlin, Germany",
-    "rating": 4,
-    "platform": "Agoda",
+    "guest_name": "Tanya Desai",
+    "guest_location": "Bangalore",
+    "rating": 5,
+    "platform": "Airbnb",
     "date_label": "a few months ago",
     "categories": [
-      "Food",
-      "Service"
+      "Amenities",
+      "Stay",
+      "Food"
     ],
-    "comment": "Second time staying and it just keeps getting better. The caretaker organised a lovely home-cooked dinner on request. The caretaker was incredibly attentive and responded within minutes on WhatsApp. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 18
+    "comment": "Our group of friends had the most memorable time here. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The ambience at night, with the lights around the pool, was gorgeous. The on-site restaurant served genuinely great local and continental dishes. Would 100% book again on our next Goa trip.",
+    "helpful": 3
   },
   {
     "id": "casa-serenita-rev-11",
     "property_id": "casa-serenita",
-    "guest_name": "Riya Krishnan",
-    "guest_location": "Ahmedabad",
+    "guest_name": "Kavya Singh",
+    "guest_location": "Pune",
     "rating": 5,
-    "platform": "Airbnb",
+    "platform": "Agoda",
     "date_label": "3 months ago",
     "categories": [
-      "Food"
+      "Amenities",
+      "Service"
     ],
-    "comment": "This place exceeded every expectation we had. Arranged a private chef for one evening and the Goan food was outstanding. Five stars, no hesitation recommending this place.",
-    "helpful": 19
+    "comment": "This place exceeded every expectation we had. The private pool was spotless and so relaxing to lounge around all day. Staff went out of their way to make our anniversary special. Great value for what you get — book direct if you can.",
+    "helpful": 15
   },
   {
     "id": "casa-serenita-rev-12",
     "property_id": "casa-serenita",
-    "guest_name": "Aman Rao",
-    "guest_location": "Mumbai",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "4 months ago",
-    "categories": [
-      "Stay"
-    ],
-    "comment": "Second time staying and it just keeps getting better. Beds were extremely comfortable and the linen felt premium. Can't wait to come back with the rest of the family.",
-    "helpful": 15
-  },
-  {
-    "id": "casa-serenita-rev-13",
-    "property_id": "casa-serenita",
     "guest_name": "Priya Menon",
     "guest_location": "Mumbai",
     "rating": 5,
-    "platform": "Google",
-    "date_label": "6 months ago",
+    "platform": "MakeMyTrip",
+    "date_label": "4 months ago",
     "categories": [
       "Amenities",
       "Stay",
       "View"
     ],
     "comment": "Honestly one of the nicest stays we've had in a long time. Wi-Fi was fast and reliable throughout, even for work calls. Beds were extremely comfortable and the linen felt premium. The sunset views from the pool deck were unbeatable. Can't wait to come back with the rest of the family.",
-    "helpful": 42
+    "helpful": 35
+  },
+  {
+    "id": "casa-serenita-rev-13",
+    "property_id": "casa-serenita",
+    "guest_name": "Anjali Kapoor",
+    "guest_location": "Bangalore",
+    "rating": 5,
+    "platform": "Google",
+    "date_label": "6 months ago",
+    "categories": [
+      "View"
+    ],
+    "comment": "Perfect base for exploring North Goa. Loved the panoramic views across the greenery from the upper floor. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 44
   },
   {
     "id": "casa-serenita-rev-14",
     "property_id": "casa-serenita",
-    "guest_name": "Lucas Meyer",
-    "guest_location": "Amsterdam, Netherlands",
+    "guest_name": "Anjali Krishnan",
+    "guest_location": "Chandigarh",
     "rating": 5,
     "platform": "MakeMyTrip",
     "date_label": "8 months ago",
     "categories": [
-      "Service"
+      "View"
     ],
-    "comment": "Perfect base for exploring North Goa. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Great value for what you get — book direct if you can.",
-    "helpful": 40
+    "comment": "This place exceeded every expectation we had. The balcony view was worth the trip alone. Great value for what you get — book direct if you can.",
+    "helpful": 8
   },
   {
     "id": "casa-serenita-rev-15",
     "property_id": "casa-serenita",
-    "guest_name": "Ananya Shetty",
-    "guest_location": "Chennai",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "a year ago",
-    "categories": [
-      "Amenities",
-      "Food",
-      "Service"
-    ],
-    "comment": "Second time staying and it just keeps getting better. Beautiful interiors with a lot of thoughtful little touches. The caretaker organised a lovely home-cooked dinner on request. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 8
-  },
-  {
-    "id": "casa-serenita-rev-16",
-    "property_id": "casa-serenita",
     "guest_name": "Deepika Bhatia",
     "guest_location": "Ahmedabad",
     "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "1 year ago",
+    "date_label": "a year ago",
     "categories": [
       "Food"
     ],
@@ -5784,13 +5593,12 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "helpful": 41
   },
   {
-    "id": "casa-serenita-rev-17",
+    "id": "casa-serenita-rev-16",
     "property_id": "casa-serenita",
     "guest_name": "Michael Anderson",
     "guest_location": "Moscow, Russia",
     "rating": 4,
-    "platform": "Agoda",
-    "date_label": "2 years ago",
+    "date_label": "1 year ago",
     "categories": [
       "Amenities",
       "Stay",
@@ -5800,218 +5608,172 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "helpful": 41
   },
   {
-    "id": "casa-serenita-rev-18",
+    "id": "casa-serenita-rev-17",
     "property_id": "casa-serenita",
     "guest_name": "Siddharth Pillai",
     "guest_location": "Nagpur",
     "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
+    "platform": "MakeMyTrip",
+    "date_label": "2 years ago",
     "categories": [
       "Stay",
       "View"
     ],
     "comment": "A hidden gem — exactly what we needed for a relaxed break. The ambience at night, with the lights around the pool, was gorgeous. Loved the panoramic views across the greenery from the upper floor. Can't wait to come back with the rest of the family.",
-    "helpful": 37
-  },
-  {
-    "id": "casa-serenita-rev-23",
-    "property_id": "casa-serenita",
-    "guest_name": "Aditya Bose",
-    "guest_location": "Jaipur",
-    "rating": 5,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. This is now our go-to stay whenever we're in Goa.",
-    "helpful": 33
-  },
-  {
-    "id": "casa-serenita-rev-25",
-    "property_id": "casa-serenita",
-    "guest_name": "Meera Kulkarni",
-    "guest_location": "Chennai",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Stay",
-      "Food"
-    ],
-    "comment": "Second time staying and it just keeps getting better. Loved the peaceful, private atmosphere — no noise from neighbours at all. Arranged a private chef for one evening and the Goan food was outstanding. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 23
-  },
-  {
-    "id": "casa-serenita-rev-35",
-    "property_id": "casa-serenita",
-    "guest_name": "Ananya Chawla",
-    "guest_location": "Chandigarh",
-    "rating": 4,
-    "platform": "MakeMyTrip",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities"
-    ],
-    "comment": "Our group of friends had the most memorable time here. The private pool was spotless and so relaxing to lounge around all day. Already planning our next visit.",
-    "helpful": 41
+    "helpful": 45
   },
   {
     "id": "casa-serenita-rev-34",
     "property_id": "casa-serenita",
-    "guest_name": "Arjun Kulkarni",
-    "guest_location": "Chennai",
+    "guest_name": "Alexander Petrov",
+    "guest_location": "Tel Aviv, Israel",
     "rating": 5,
     "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
-      "Food"
-    ],
-    "comment": "Our group of friends had the most memorable time here. The caretaker organised a lovely home-cooked dinner on request. Can't wait to come back with the rest of the family.",
-    "helpful": 33
-  },
-  {
-    "id": "casa-serenita-rev-22",
-    "property_id": "casa-serenita",
-    "guest_name": "Rajesh Mehta",
-    "guest_location": "Jaipur",
-    "rating": 4,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
+      "Amenities",
       "Stay",
-      "Service",
-      "View"
+      "Service"
     ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Beds were extremely comfortable and the linen felt premium. Housekeeping team was courteous and always asked before entering. Being minutes from the beach made evening walks so easy. Great value for what you get — book direct if you can.",
-    "helpful": 4
+    "comment": "Booked this for a family trip and it was perfect. The private pool was spotless and so relaxing to lounge around all day. Housekeeping was prompt and unobtrusive, exactly the right balance. Check-in was smooth and the host walked us through everything patiently. Already planning our next visit.",
+    "helpful": 43
   },
   {
-    "id": "casa-serenita-rev-26",
+    "id": "casa-serenita-rev-18",
     "property_id": "casa-serenita",
-    "guest_name": "Rahul Bose",
+    "guest_name": "Manish Chawla",
     "guest_location": "Delhi",
     "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service"
-    ],
-    "comment": "Celebrated our anniversary here and it was magical. Check-in was smooth and the host walked us through everything patiently. Perfect for couples and families alike.",
-    "helpful": 32
-  },
-  {
-    "id": "casa-serenita-rev-20",
-    "property_id": "casa-serenita",
-    "guest_name": "Nisha Chatterjee",
-    "guest_location": "Pune",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Amenities",
-      "Service"
-    ],
-    "comment": "Second time staying and it just keeps getting better. Beautiful interiors with a lot of thoughtful little touches. Housekeeping team was courteous and always asked before entering. Would 100% book again on our next Goa trip.",
-    "helpful": 8
-  },
-  {
-    "id": "casa-serenita-rev-19",
-    "property_id": "casa-serenita",
-    "guest_name": "Grace Wilson",
-    "guest_location": "Toronto, Canada",
-    "rating": 4,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food"
-    ],
-    "comment": "Had an absolutely wonderful stay here. The caretaker organised a lovely home-cooked dinner on request. Great value for what you get — book direct if you can.",
-    "helpful": 13
-  },
-  {
-    "id": "casa-serenita-rev-27",
-    "property_id": "casa-serenita",
-    "guest_name": "Manish Rao",
-    "guest_location": "Mumbai",
-    "rating": 5,
-    "platform": "Agoda",
-    "date_label": "3 years ago",
-    "categories": [
-      "Service",
-      "View"
-    ],
-    "comment": "Came here for a weekend getaway and didn't want to leave. Staff went out of their way to make our anniversary special. Loved the panoramic views across the greenery from the upper floor. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 34
-  },
-  {
-    "id": "casa-serenita-rev-21",
-    "property_id": "casa-serenita",
-    "guest_name": "Ashish Kulkarni",
-    "guest_location": "Mumbai",
-    "rating": 5,
-    "platform": "Airbnb",
-    "date_label": "3 years ago",
-    "categories": [
-      "Food",
-      "View"
-    ],
-    "comment": "Second time staying and it just keeps getting better. The caretaker organised a lovely home-cooked dinner on request. Loved the panoramic views across the greenery from the upper floor. Perfect for couples and families alike.",
-    "helpful": 14
-  },
-  {
-    "id": "casa-serenita-rev-30",
-    "property_id": "casa-serenita",
-    "guest_name": "Ananya Joshi",
-    "guest_location": "Ahmedabad",
-    "rating": 4,
     "platform": "Airbnb",
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
+      "Stay",
       "Food"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The caretaker organised a lovely home-cooked dinner on request. Already planning our next visit.",
-    "helpful": 11
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Rooms were spacious, tastefully furnished, and kept impeccably clean. The property was spotlessly clean from the moment we walked in. The caretaker organised a lovely home-cooked dinner on request. Already planning our next visit.",
+    "helpful": 30
+  },
+  {
+    "id": "casa-serenita-rev-28",
+    "property_id": "casa-serenita",
+    "guest_name": "Rahul Bhatia",
+    "guest_location": "Hyderabad",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Service"
+    ],
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. Genuinely warm hospitality — felt like staying with family, not a rental. Would 100% book again on our next Goa trip.",
+    "helpful": 38
   },
   {
     "id": "casa-serenita-rev-32",
     "property_id": "casa-serenita",
-    "guest_name": "Siddharth Reddy",
-    "guest_location": "Chennai",
+    "guest_name": "Ritu Malhotra",
+    "guest_location": "Bangalore",
     "rating": 5,
-    "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
+      "Amenities",
+      "Service"
+    ],
+    "comment": "Our group of friends had the most memorable time here. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. The concierge helped us book a boat trip and scooters within the hour. Can't wait to come back with the rest of the family.",
+    "helpful": 33
+  },
+  {
+    "id": "casa-serenita-rev-29",
+    "property_id": "casa-serenita",
+    "guest_name": "Divya Verma",
+    "guest_location": "Pune",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
       "Stay",
       "Food"
     ],
-    "comment": "Perfect base for exploring North Goa. Housekeeping was prompt and unobtrusive, exactly the right balance. Loved that the kitchen was fully stocked so we could cook our own meals too. Can't wait to come back with the rest of the family.",
-    "helpful": 34
+    "comment": "Honestly one of the nicest stays we've had in a long time. Wi-Fi was fast and reliable throughout, even for work calls. The property was spotlessly clean from the moment we walked in. Breakfast spread was fresh and generous every single morning. Five stars, no hesitation recommending this place.",
+    "helpful": 6
   },
   {
-    "id": "casa-serenita-rev-33",
+    "id": "casa-serenita-rev-30",
     "property_id": "casa-serenita",
-    "guest_name": "Ashish Iyer",
-    "guest_location": "Indore",
+    "guest_name": "Divya Verma",
+    "guest_location": "Delhi",
     "rating": 5,
-    "platform": "Google",
     "date_label": "3 years ago",
     "categories": [
-      "Food",
-      "Service"
+      "Food"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Arranged a private chef for one evening and the Goan food was outstanding. The caretaker was incredibly attentive and responded within minutes on WhatsApp. Already planning our next visit.",
-    "helpful": 30
+    "comment": "Second time staying and it just keeps getting better. Arranged a private chef for one evening and the Goan food was outstanding. Can't wait to come back with the rest of the family.",
+    "helpful": 38
   },
   {
-    "id": "casa-serenita-rev-24",
+    "id": "casa-serenita-rev-36",
+    "property_id": "casa-serenita",
+    "guest_name": "Amelia Ross",
+    "guest_location": "Moscow, Russia",
+    "rating": 4,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Perfect base for exploring North Goa. Beautiful interiors with a lot of thoughtful little touches. Can't wait to come back with the rest of the family.",
+    "helpful": 1
+  },
+  {
+    "id": "casa-serenita-rev-19",
+    "property_id": "casa-serenita",
+    "guest_name": "Kunal Rao",
+    "guest_location": "Ahmedabad",
+    "rating": 5,
+    "platform": "Agoda",
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay"
+    ],
+    "comment": "Had an absolutely wonderful stay here. The AC and hot water worked flawlessly the entire stay. The property was spotlessly clean from the moment we walked in. Would 100% book again on our next Goa trip.",
+    "helpful": 39
+  },
+  {
+    "id": "casa-serenita-rev-21",
+    "property_id": "casa-serenita",
+    "guest_name": "William Harper",
+    "guest_location": "Auckland, New Zealand",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. Housekeeping team was courteous and always asked before entering. Great value for what you get — book direct if you can.",
+    "helpful": 4
+  },
+  {
+    "id": "casa-serenita-rev-27",
+    "property_id": "casa-serenita",
+    "guest_name": "Rajesh Menon",
+    "guest_location": "Surat",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay",
+      "Food"
+    ],
+    "comment": "Second time staying and it just keeps getting better. The private pool was spotless and so relaxing to lounge around all day. Beds were extremely comfortable and the linen felt premium. Loved that the kitchen was fully stocked so we could cook our own meals too. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 38
+  },
+  {
+    "id": "casa-serenita-rev-23",
     "property_id": "casa-serenita",
     "guest_name": "Meera Nair",
     "guest_location": "Surat",
     "rating": 4,
-    "platform": "MakeMyTrip",
     "date_label": "3 years ago",
     "categories": [
       "Amenities",
@@ -6022,77 +5784,131 @@ export const PROPERTY_REVIEWS: PropertyReview[] = [
     "helpful": 8
   },
   {
-    "id": "casa-serenita-rev-29",
+    "id": "casa-serenita-rev-31",
     "property_id": "casa-serenita",
-    "guest_name": "Divya Menon",
+    "guest_name": "Kunal Pillai",
     "guest_location": "Bangalore",
-    "rating": 5,
-    "platform": "Airbnb",
+    "rating": 4,
+    "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
-      "Stay",
-      "Service"
+      "Service",
+      "View"
     ],
-    "comment": "Booked this for a family trip and it was perfect. The ambience at night, with the lights around the pool, was gorgeous. Housekeeping team was courteous and always asked before entering. Perfect for couples and families alike.",
-    "helpful": 10
+    "comment": "Booked directly and the whole experience was seamless. Check-in was smooth and the host walked us through everything patiently. Loved the panoramic views across the greenery from the upper floor. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 14
+  },
+  {
+    "id": "casa-serenita-rev-22",
+    "property_id": "casa-serenita",
+    "guest_name": "Aditya Bose",
+    "guest_location": "Jaipur",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities"
+    ],
+    "comment": "Celebrated our anniversary here and it was magical. Loved the well-equipped kitchen — made it easy to cook whenever we wanted. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 33
+  },
+  {
+    "id": "casa-serenita-rev-35",
+    "property_id": "casa-serenita",
+    "guest_name": "Ashish Joshi",
+    "guest_location": "Bangalore",
+    "rating": 4,
+    "date_label": "3 years ago",
+    "categories": [
+      "Amenities",
+      "Stay",
+      "Food"
+    ],
+    "comment": "One of the best villa experiences we've had in Goa. The AC and hot water worked flawlessly the entire stay. Check-in and check-out were smooth and completely hassle-free. Breakfast spread was fresh and generous every single morning. Already planning our next visit.",
+    "helpful": 5
   },
   {
     "id": "casa-serenita-rev-37",
     "property_id": "casa-serenita",
-    "guest_name": "Sophie Larsson",
-    "guest_location": "Auckland, New Zealand",
-    "rating": 5,
-    "platform": "Google",
-    "date_label": "3 years ago",
-    "categories": [
-      "View"
-    ],
-    "comment": "Second time staying and it just keeps getting better. The balcony view was worth the trip alone. Highly recommend to anyone looking for a private, comfortable stay.",
-    "helpful": 35
-  },
-  {
-    "id": "casa-serenita-rev-36",
-    "property_id": "casa-serenita",
-    "guest_name": "Alexander Petrov",
-    "guest_location": "Tel Aviv, Israel",
+    "guest_name": "Harsh Iyer",
+    "guest_location": "Nagpur",
     "rating": 5,
     "platform": "Airbnb",
     "date_label": "3 years ago",
     "categories": [
-      "Amenities",
-      "Stay",
-      "Service"
+      "Stay"
     ],
-    "comment": "Booked this for a family trip and it was perfect. The private pool was spotless and so relaxing to lounge around all day. Housekeeping was prompt and unobtrusive, exactly the right balance. Check-in was smooth and the host walked us through everything patiently. Already planning our next visit.",
-    "helpful": 41
+    "comment": "Our group of friends had the most memorable time here. Beds were extremely comfortable and the linen felt premium. This is now our go-to stay whenever we're in Goa.",
+    "helpful": 45
   },
   {
-    "id": "casa-serenita-rev-28",
+    "id": "casa-serenita-rev-26",
     "property_id": "casa-serenita",
-    "guest_name": "Simran Iyer",
-    "guest_location": "Surat",
+    "guest_name": "Simran Kulkarni",
+    "guest_location": "Chennai",
+    "rating": 5,
+    "platform": "MakeMyTrip",
+    "date_label": "3 years ago",
+    "categories": [
+      "Service"
+    ],
+    "comment": "Came here for a weekend getaway and didn't want to leave. The concierge helped us book a boat trip and scooters within the hour. Perfect for couples and families alike.",
+    "helpful": 18
+  },
+  {
+    "id": "casa-serenita-rev-25",
+    "property_id": "casa-serenita",
+    "guest_name": "Abhishek Kapoor",
+    "guest_location": "Mumbai",
+    "rating": 5,
+    "platform": "Airbnb",
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay",
+      "Service",
+      "View"
+    ],
+    "comment": "A hidden gem — exactly what we needed for a relaxed break. The property was spotlessly clean from the moment we walked in. The concierge helped us book a boat trip and scooters within the hour. The sunset views from the pool deck were unbeatable. Can't wait to come back with the rest of the family.",
+    "helpful": 20
+  },
+  {
+    "id": "casa-serenita-rev-20",
+    "property_id": "casa-serenita",
+    "guest_name": "Michael Anderson",
+    "guest_location": "New York, USA",
+    "rating": 5,
+    "date_label": "3 years ago",
+    "categories": [
+      "Stay"
+    ],
+    "comment": "Honestly one of the nicest stays we've had in a long time. Beds were extremely comfortable and the linen felt premium. Already planning our next visit.",
+    "helpful": 35
+  },
+  {
+    "id": "casa-serenita-rev-24",
+    "property_id": "casa-serenita",
+    "guest_name": "Meera Kulkarni",
+    "guest_location": "Chennai",
     "rating": 5,
     "platform": "Agoda",
     "date_label": "3 years ago",
     "categories": [
-      "View"
+      "Stay",
+      "Food"
     ],
-    "comment": "Perfect base for exploring North Goa. Waking up to the garden view every morning was pure bliss. Already planning our next visit.",
-    "helpful": 20
+    "comment": "Second time staying and it just keeps getting better. Loved the peaceful, private atmosphere — no noise from neighbours at all. Arranged a private chef for one evening and the Goan food was outstanding. Highly recommend to anyone looking for a private, comfortable stay.",
+    "helpful": 2
   },
   {
-    "id": "casa-serenita-rev-31",
+    "id": "casa-serenita-rev-33",
     "property_id": "casa-serenita",
-    "guest_name": "Harsh Gupta",
-    "guest_location": "Chennai",
-    "rating": 5,
-    "platform": "Google",
+    "guest_name": "Ananya Chawla",
+    "guest_location": "Chandigarh",
+    "rating": 4,
     "date_label": "3 years ago",
     "categories": [
-      "Amenities",
-      "Stay"
+      "Amenities"
     ],
-    "comment": "A hidden gem — exactly what we needed for a relaxed break. Beautiful interiors with a lot of thoughtful little touches. Housekeeping was prompt and unobtrusive, exactly the right balance. Great value for what you get — book direct if you can.",
-    "helpful": 27
+    "comment": "Our group of friends had the most memorable time here. The private pool was spotless and so relaxing to lounge around all day. Already planning our next visit.",
+    "helpful": 41
   }
 ];

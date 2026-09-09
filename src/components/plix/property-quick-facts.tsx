@@ -64,9 +64,12 @@ export function PropertyQuickFacts({
       {/* Rating */}
       {avgRating !== null ? (
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={scrollToReviews}
+          <a
+            href="#reviews"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollToReviews();
+            }}
             className="flex items-center gap-1.5 text-sm font-medium text-navy hover:underline"
           >
             <Star className="size-4 fill-primary text-primary" aria-hidden />
@@ -74,7 +77,7 @@ export function PropertyQuickFacts({
             <span className="text-muted-foreground">
               ({reviewCount} review{reviewCount === 1 ? "" : "s"})
             </span>
-          </button>
+          </a>
           {avgRating >= 4.5 && (
             <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
               Like a 5★

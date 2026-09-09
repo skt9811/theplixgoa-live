@@ -184,7 +184,9 @@ function buildReview(rng, propertyId, index) {
   const fragments = categories.map((c) => pick(rng, CATEGORY_FRAGMENTS[c]));
   const comment = [pick(rng, OPENERS), ...fragments, pick(rng, CLOSERS)].join(" ");
 
-  const platform = pick(rng, PLATFORMS);
+  // ~60% carry an OTA badge; the rest read as direct/unlabelled bookings
+  // with no platform badge at all.
+  const platform = rng() < 0.6 ? pick(rng, PLATFORMS) : undefined;
   // Earlier-generated reviews (lower index) read as more recent so the
   // default "Most Recent" sort needs no extra timestamp field.
   const dateLabel = DATE_LABELS[Math.min(index, DATE_LABELS.length - 1)];
@@ -233,7 +235,7 @@ export type PropertyReview = {
   guest_name: string;
   guest_location: string;
   rating: number;
-  platform: ReviewPlatform;
+  platform?: ReviewPlatform;
   date_label: string;
   categories: ReviewCategory[];
   comment: string;

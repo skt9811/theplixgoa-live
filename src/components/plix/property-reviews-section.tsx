@@ -8,8 +8,6 @@ import {
 
 type Props = {
   propertyId: string;
-  propertyName: string;
-  guestPhotos: string[];
 };
 
 const CATEGORY_PILLS = ["All", "Amenities", "Stay", "Food", "Service", "View"] as const;
@@ -18,7 +16,7 @@ type CategoryFilter = (typeof CATEGORY_PILLS)[number];
 const SORT_OPTIONS = ["Most Popular", "Most Recent"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 4;
 
 const SUMMARY_HIGHLIGHTS: { label: string; blurb: string }[] = [
   {
@@ -63,7 +61,7 @@ function avatarClass(name: string) {
   return AVATAR_PALETTE[hashString(name) % AVATAR_PALETTE.length];
 }
 
-const PLATFORM_STYLE: Record<PropertyReview["platform"], string> = {
+const PLATFORM_STYLE: Record<NonNullable<PropertyReview["platform"]>, string> = {
   Google: "bg-blue-50 text-blue-700 ring-blue-200",
   Airbnb: "bg-rose-50 text-rose-700 ring-rose-200",
   Agoda: "bg-indigo-50 text-indigo-700 ring-indigo-200",
@@ -75,7 +73,7 @@ function ReviewCard({ review }: { review: PropertyReview }) {
   const isLong = review.comment.length > 180;
 
   return (
-    <figure className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-soft">
+    <figure className="animate-fade flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-soft">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
@@ -88,11 +86,13 @@ function ReviewCard({ review }: { review: PropertyReview }) {
             <p className="text-xs text-muted-foreground">{review.guest_location}</p>
           </div>
         </div>
-        <span
-          className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${PLATFORM_STYLE[review.platform]}`}
-        >
-          {review.platform}
-        </span>
+        {review.platform && (
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${PLATFORM_STYLE[review.platform]}`}
+          >
+            {review.platform}
+          </span>
+        )}
       </div>
 
       <div className="mt-3 flex items-center gap-1.5">
@@ -142,7 +142,7 @@ function ReviewCard({ review }: { review: PropertyReview }) {
   );
 }
 
-export function PropertyReviewsSection({ propertyId, propertyName, guestPhotos }: Props) {
+export function PropertyReviewsSection({ propertyId }: Props) {
   const [category, setCategory] = useState<CategoryFilter>("All");
   const [sort, setSort] = useState<SortOption>("Most Popular");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -211,26 +211,6 @@ export function PropertyReviewsSection({ propertyId, propertyName, guestPhotos }
         </div>
       </div>
 
-      {/* Guest photos strip */}
-      {guestPhotos.length > 0 && (
-        <div className="mt-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Guest Photos
-          </p>
-          <div className="mt-2 flex gap-3 overflow-x-auto pb-1">
-            {guestPhotos.slice(0, 8).map((src, i) => (
-              <img
-                key={src + i}
-                src={src}
-                alt={`Guest snapshot of ${propertyName} ${i + 1}`}
-                loading="lazy"
-                className="h-20 w-28 shrink-0 rounded-xl object-cover"
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Filter pills + sort */}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
@@ -276,7 +256,7 @@ export function PropertyReviewsSection({ propertyId, propertyName, guestPhotos }
         <div className="mt-6 text-center">
           <button
             type="button"
-            onClick={() => setVisibleCount((v) => Math.min(v + PAGE_SIZE, filtered.length))}
+            onClick={() => setVisibleCount(filtered.length)}
             className="rounded-full border border-border bg-card px-6 py-2.5 text-sm font-semibold text-navy shadow-soft transition-colors hover:bg-accent"
           >
             See all Reviews ({filtered.length - visible.length} more)

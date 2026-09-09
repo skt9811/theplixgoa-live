@@ -179,6 +179,7 @@ import serenity44 from "@/assets/serenity44.jpeg";
 import serenity45 from "@/assets/serenity45.jpeg";
 import serenity46 from "@/assets/serenity46.jpeg";
 import serenity47 from "@/assets/serenity47.jpeg";
+import serenityFullReel from "@/assets/serenity_full_reel.mp4";
 
 export const imageMap: Record<string, string> = {
   "hero-goa": heroGoa,
@@ -412,6 +413,10 @@ export type Property = {
   base_price: number;
   distance_to_beach: string | null;
   image_keys: string[];
+  /** Resolved video URLs (e.g. a property reel/walkthrough) for the gallery's
+   * "Videos" tab and the hero's "View Video" action. Most properties have
+   * none yet — absent or empty means no video tour is available. */
+  videos?: string[];
   amenity_tags: string[];
   nearby: NearbyPlace[];
   latitude: number | null;
@@ -898,6 +903,7 @@ export const PROPERTIES: Property[] = [
       "serenity46",
       "serenity47",
     ],
+    videos: [serenityFullReel],
     amenity_tags: ["Private Pool", "Power Backup", "Free Wi-Fi", "Parking", "Living Room", "Kitchenette"],
     nearby: [
       { name: "Anjuna Beach", distance: "12 mins drive" },

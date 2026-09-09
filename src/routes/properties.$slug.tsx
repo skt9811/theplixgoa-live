@@ -11,8 +11,9 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
 import { toast } from "sonner";
-import { PropertyGalleryStream } from "@/components/plix/property-gallery-stream";
+import { PropertyImageCarousel } from "@/components/plix/property-image-carousel";
 import { PropertyReviewsSection } from "@/components/plix/property-reviews-section";
+import { PROPERTY_REVIEWS } from "@/lib/property-reviews-data";
 import { PropertyHeroGallery } from "@/components/plix/property-hero-gallery";
 import { PropertySubNav, SUB_NAV_HEIGHT } from "@/components/plix/property-sub-nav";
 import { PropertyQuickFacts } from "@/components/plix/property-quick-facts";
@@ -177,7 +178,6 @@ function PropertyDetail() {
   const { slug } = Route.useParams();
   const urlSearch = Route.useSearch();
   const { data: property } = useSuspenseQuery(propertyQuery(slug));
-  const { data: reviews } = useSuspenseQuery(reviewsQuery);
   const [checkIn, setCheckIn] = useState(urlSearch.checkIn ?? todayISO(3));
   const [checkOut, setCheckOut] = useState(urlSearch.checkOut ?? todayISO(5));
   const [guests, setGuests] = useState(urlSearch.guests ?? 2);
@@ -214,10 +214,12 @@ function PropertyDetail() {
   const hasCustomRate = nightsList.some((n) => rateOverrides[n] !== undefined);
   const insufficientRooms = isMultiRoom ? hasInsufficientRooms(availability, rooms) : false;
   const datesBlocked = hasBlockedOverlap(blockedDates, checkIn, checkOut) || insufficientRooms;
-  const propertyReviews = property ? reviews.filter((r) => r.property_id === property.id) : [];
+  const allPropertyReviews = property
+    ? PROPERTY_REVIEWS.filter((r) => r.property_id === property.id)
+    : [];
   const avgRating =
-    propertyReviews.length > 0
-      ? propertyReviews.reduce((sum, r) => sum + r.rating, 0) / propertyReviews.length
+    allPropertyReviews.length > 0
+      ? allPropertyReviews.reduce((sum, r) => sum + r.rating, 0) / allPropertyReviews.length
       : null;
   const hasRestaurant = property?.amenity_tags.includes("Restaurant") ?? false;
   const hasBreakfast = property?.amenity_tags.includes("Breakfast Included") ?? false;
@@ -337,7 +339,13 @@ function PropertyDetail() {
         </p>
       </header>
 
-      <PropertyHeroGallery images={images} propertyName={property.name} propertySlug={property.slug} />
+      <PropertyHeroGallery
+        images={images}
+        imageKeys={property.image_keys}
+        videos={property.videos ?? []}
+        propertyName={property.name}
+        propertySlug={property.slug}
+      />
 
       <PropertySubNav />
 
@@ -352,7 +360,7 @@ function PropertyDetail() {
             amenityTags={property.amenity_tags}
             hasMeals={hasRestaurant || hasBreakfast}
             avgRating={avgRating}
-            reviewCount={propertyReviews.length}
+            reviewCount={allPropertyReviews.length}
           />
 
           <div
@@ -377,13 +385,9 @@ function PropertyDetail() {
 
           <PropertyRefundTimeline />
 
-          <PropertyGalleryStream imageKeys={property.image_keys} propertyName={property.name} />
+          <PropertyImageCarousel images={images} propertyName={property.name} />
 
-          <PropertyReviewsSection
-            propertyId={property.id}
-            propertyName={property.name}
-            guestPhotos={images}
-          />
+          <PropertyReviewsSection propertyId={property.id} />
 
           <section id="amenities" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">Amenities</h2>

@@ -365,6 +365,15 @@ export function resolveImages(keys: string[] | null | undefined): string[] {
   return resolved.length ? resolved : [heroGoa];
 }
 
+// Same resolution as resolveImages, but keeps each image's original key
+// alongside its resolved src — needed anywhere that has to look a specific
+// photo up by key afterward (e.g. the gallery's category filter pills).
+export function resolveImageEntries(keys: string[] | null | undefined): { key: string; src: string }[] {
+  return (keys ?? [])
+    .map((key) => ({ key, src: imageMap[key] }))
+    .filter((entry): entry is { key: string; src: string } => Boolean(entry.src));
+}
+
 // GST slab per India's per-room tariff rule: the nightly rate is divided
 // across the villa's bedrooms to get an equivalent per-room rate, which
 // decides whether the 5% (2.5% CGST + 2.5% SGST) or 18% (9% CGST + 9%

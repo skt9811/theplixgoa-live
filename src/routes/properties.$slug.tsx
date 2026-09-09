@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
 import { toast } from "sonner";
-import { PropertyImageCarousel } from "@/components/plix/property-image-carousel";
+import { PropertyGalleryStream } from "@/components/plix/property-gallery-stream";
 import { PropertyHeroGallery } from "@/components/plix/property-hero-gallery";
 import { PropertySubNav, SUB_NAV_HEIGHT } from "@/components/plix/property-sub-nav";
 import { PropertyQuickFacts } from "@/components/plix/property-quick-facts";
@@ -377,7 +377,7 @@ function PropertyDetail() {
 
           <PropertyRefundTimeline />
 
-          <PropertyImageCarousel images={images} propertyName={property.name} />
+          <PropertyGalleryStream imageKeys={property.image_keys} propertyName={property.name} />
 
           <section id="reviews" className="mt-10">
             {propertyReviews.length > 0 && (

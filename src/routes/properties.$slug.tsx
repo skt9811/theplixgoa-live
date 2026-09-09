@@ -12,6 +12,8 @@ import {
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
 import { toast } from "sonner";
 import { PropertyImageCarousel } from "@/components/plix/property-image-carousel";
+import { PropertyAirportFares } from "@/components/plix/property-airport-fares";
+import { PropertyExploreMore } from "@/components/plix/property-explore-more";
 import { PropertyReviewsSection } from "@/components/plix/property-reviews-section";
 import { PROPERTY_REVIEWS } from "@/lib/property-reviews-data";
 import { PropertyHeroGallery } from "@/components/plix/property-hero-gallery";
@@ -433,6 +435,8 @@ function PropertyDetail() {
             )}
           </section>
 
+          <PropertyAirportFares />
+
           <section id="location" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">Where you'll be staying</h2>
             {property.google_maps_embed_url ? (
@@ -667,6 +671,8 @@ function PropertyDetail() {
           </div>
         </aside>
       </div>
+
+      <PropertyExploreMore currentSlug={property.slug} />
 
       {/* Mobile-only sticky booking bar — the <aside> booking card above
           just flows inline on mobile (no lg:col-span-4 sidebar), so without

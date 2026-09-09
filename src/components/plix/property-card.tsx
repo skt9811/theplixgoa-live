@@ -123,6 +123,8 @@ export function PropertyCard({ property }: { property: Property }) {
           <Link
             to="/properties/$slug"
             params={{ slug: property.slug }}
+            target="_blank"
+            rel="noopener noreferrer"
             className="rounded-full bg-gradient-emerald px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform duration-200 hover:scale-[1.03] min-h-[44px] inline-flex items-center"
           >
             View Stay

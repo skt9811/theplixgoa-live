@@ -15,6 +15,7 @@ import {
   Shield,
   ShieldCheck,
   Snowflake,
+  Sofa,
   Sparkles,
   Star,
   Stethoscope,
@@ -79,6 +80,7 @@ const RULES: Rule[] = [
   { keywords: ["non-smoking"], icon: Ban, category: "Comfort" },
   { keywords: ["hair dryer", "geyser", "shower", "bath"], icon: Droplet, category: "Comfort" },
   { keywords: ["mattress"], icon: BedDouble, category: "Comfort" },
+  { keywords: ["living room", "lounge", "sofa"], icon: Sofa, category: "Comfort" },
   { keywords: ["map", "nearby", "location"], icon: MapPin, category: "Comfort" },
 ];
 

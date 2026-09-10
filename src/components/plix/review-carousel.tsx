@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight, Quote, Star } from "lucide-react";
 import type { PropertyReview } from "@/lib/property-reviews-data";
-import { PLATFORM_STYLE, PlatformMark } from "@/components/plix/platform-mark";
+import { OTABadge } from "@/components/plix/platform-mark";
 
 const AUTO_ROTATE_MS = 2000;
 
@@ -70,14 +70,7 @@ export function ReviewCarousel({
                       className={`size-7 ${isActive ? "text-white/70" : "text-[#c29b72]/60"}`}
                       aria-hidden
                     />
-                    {r.platform && (
-                      <span
-                        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${PLATFORM_STYLE[r.platform]}`}
-                      >
-                        <PlatformMark platform={r.platform} />
-                        {r.platform}
-                      </span>
-                    )}
+                    {r.platform && <OTABadge platform={r.platform} />}
                   </div>
 
                   <div className="mt-4 flex gap-0.5">

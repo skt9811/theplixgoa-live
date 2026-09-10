@@ -5,7 +5,7 @@ import {
   type PropertyReview,
   type ReviewCategory,
 } from "@/lib/property-reviews-data";
-import { PLATFORM_STYLE, PlatformMark } from "@/components/plix/platform-mark";
+import { OTABadge } from "@/components/plix/platform-mark";
 
 type Props = {
   propertyId: string;
@@ -80,14 +80,7 @@ function ReviewCard({ review }: { review: PropertyReview }) {
             <p className="text-xs text-muted-foreground">{review.guest_location}</p>
           </div>
         </div>
-        {review.platform && (
-          <span
-            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${PLATFORM_STYLE[review.platform]}`}
-          >
-            <PlatformMark platform={review.platform} />
-            {review.platform}
-          </span>
-        )}
+        {review.platform && <OTABadge platform={review.platform} />}
       </div>
 
       <div className="mt-3 flex items-center gap-1.5">

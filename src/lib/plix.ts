@@ -240,7 +240,6 @@ import plixvilla30 from "@/assets/plixvilla30.jpg";
 import plixvilla31 from "@/assets/plixvilla31.jpg";
 
 // The Plix Resort - Morjim
-import plixresortnew1 from "@/assets/plixresortnew1.jpg";
 import plixresortnew2 from "@/assets/plixresortnew2.jpg";
 import plixresortnew3 from "@/assets/plixresortnew3.jpg";
 import plixresortnew4 from "@/assets/plixresortnew4.jpg";
@@ -248,7 +247,6 @@ import plixresortnew5 from "@/assets/plixresortnew5.jpg";
 import plixresortnew6 from "@/assets/plixresortnew6.jpg";
 import plixresortnew7 from "@/assets/plixresortnew7.jpg";
 import plixresortnew8 from "@/assets/plixresortnew8.jpg";
-import plixresortnew9 from "@/assets/plixresortnew9.jpg";
 import plixresortnew10 from "@/assets/plixresortnew10.jpg";
 import plixresortnew11 from "@/assets/plixresortnew11.jpg";
 import plixresortnew12 from "@/assets/plixresortnew12.jpg";
@@ -275,7 +273,6 @@ import plixresortnew32 from "@/assets/plixresortnew32.jpg";
 import plixresortnew33 from "@/assets/plixresortnew33.jpg";
 import plixresortnew34 from "@/assets/plixresortnew34.jpg";
 import plixresortnew35 from "@/assets/plixresortnew35.jpg";
-import plixresortnew36 from "@/assets/plixresortnew36.jpg";
 import plixresortnew37 from "@/assets/plixresortnew37.jpg";
 import plixresortnew38 from "@/assets/plixresortnew38.jpg";
 import plixresortnew39 from "@/assets/plixresortnew39.jpg";
@@ -621,7 +618,6 @@ export const imageMap: Record<string, string> = {
   plixvilla30,
   plixvilla31,
   // The Plix Resort - Morjim
-  plixresortnew1,
   plixresortnew2,
   plixresortnew3,
   plixresortnew4,
@@ -629,7 +625,6 @@ export const imageMap: Record<string, string> = {
   plixresortnew6,
   plixresortnew7,
   plixresortnew8,
-  plixresortnew9,
   plixresortnew10,
   plixresortnew11,
   plixresortnew12,
@@ -656,7 +651,6 @@ export const imageMap: Record<string, string> = {
   plixresortnew33,
   plixresortnew34,
   plixresortnew35,
-  plixresortnew36,
   plixresortnew37,
   plixresortnew38,
   plixresortnew39,
@@ -910,6 +904,7 @@ export const PROPERTIES: Property[] = [
     // and optimized to 1600px-wide JPEGs. Slot 0 (main hero) = 4bhk1, a dusk
     // pool/exterior shot.
     image_keys: [
+      "casamarina9",
       "casamarina1",
       "casamarina2",
       "casamarina3",
@@ -918,7 +913,6 @@ export const PROPERTIES: Property[] = [
       "casamarina6",
       "casamarina7",
       "casamarina8",
-      "casamarina9",
       "casamarina10",
       "casamarina11",
       "casamarina12",
@@ -991,9 +985,9 @@ export const PROPERTIES: Property[] = [
     // truncated/corrupted) — all 12 are now valid. Main hero (3bhk4)
     // unchanged; the 3 newly-valid photos are appended at the end.
     image_keys: [
+      "casamoana3",
       "casamoana1",
       "casamoana2",
-      "casamoana3",
       "casamoana4",
       "casamoana5",
       "casamoana6",
@@ -1080,6 +1074,7 @@ export const PROPERTIES: Property[] = [
     // scripts/optimize-meadows-images.mjs (10-61MB PNG -> 150-460KB JPEG).
     // Slot 0 (main hero) = 5bhk6 per explicit request.
     image_keys: [
+      "casameadows13",
       "casameadows1",
       "casameadows2",
       "casameadows3",
@@ -1092,7 +1087,6 @@ export const PROPERTIES: Property[] = [
       "casameadows10",
       "casameadows11",
       "casameadows12",
-      "casameadows13",
       "casameadows14",
       "casameadows15",
       "casameadows16",
@@ -1167,6 +1161,7 @@ export const PROPERTIES: Property[] = [
     base_price: 4500,
     distance_to_beach: "4 mins drive to Vagator Beach",
     image_keys: [
+      "harborcourt31",
       "harborcourt1",
       "harborcourt2",
       "harborcourt3",
@@ -1197,7 +1192,6 @@ export const PROPERTIES: Property[] = [
       "harborcourt28",
       "harborcourt29",
       "harborcourt30",
-      "harborcourt31",
       "harborcourt32",
       "harborcourt33",
       "harborcourt34",
@@ -1269,6 +1263,7 @@ export const PROPERTIES: Property[] = [
     base_price: 11000,
     distance_to_beach: "10 mins drive to Vagator Beach",
     image_keys: [
+      "plixvilla27",
       "plixvilla1",
       "plixvilla2",
       "plixvilla3",
@@ -1295,7 +1290,6 @@ export const PROPERTIES: Property[] = [
       "plixvilla24",
       "plixvilla25",
       "plixvilla26",
-      "plixvilla27",
       "plixvilla28",
       "plixvilla29",
       "plixvilla30",
@@ -1348,12 +1342,12 @@ export const PROPERTIES: Property[] = [
     base_price: 5000,
     distance_to_beach: "2 mins walk to Morjim Beach",
     image_keys: [
+      "morjimpride6",
       "morjimpride1",
       "morjimpride2",
       "morjimpride3",
       "morjimpride4",
       "morjimpride5",
-      "morjimpride6",
       "morjimpride7",
       "morjimpride8",
       "morjimpride9",
@@ -1481,7 +1475,7 @@ export const PROPERTIES: Property[] = [
     base_price: 4500,
     distance_to_beach: "2 mins walk to Morjim Beach",
     image_keys: [
-      "plixresortnew1",
+      "plixresortnew17",
       "plixresortnew2",
       "plixresortnew3",
       "plixresortnew4",
@@ -1489,7 +1483,6 @@ export const PROPERTIES: Property[] = [
       "plixresortnew6",
       "plixresortnew7",
       "plixresortnew8",
-      "plixresortnew9",
       "plixresortnew10",
       "plixresortnew11",
       "plixresortnew12",
@@ -1497,7 +1490,6 @@ export const PROPERTIES: Property[] = [
       "plixresortnew14",
       "plixresortnew15",
       "plixresortnew16",
-      "plixresortnew17",
       "plixresortnew18",
       "plixresortnew19",
       "plixresortnew20",
@@ -1516,7 +1508,6 @@ export const PROPERTIES: Property[] = [
       "plixresortnew33",
       "plixresortnew34",
       "plixresortnew35",
-      "plixresortnew36",
       "plixresortnew37",
       "plixresortnew38",
       "plixresortnew39",
@@ -1589,6 +1580,7 @@ export const PROPERTIES: Property[] = [
     base_price: 10500,
     distance_to_beach: "10 mins drive to Anjuna Beach",
     image_keys: [
+      "villamadera16",
       "villamadera1",
       "villamadera2",
       "villamadera3",
@@ -1604,7 +1596,6 @@ export const PROPERTIES: Property[] = [
       "villamadera13",
       "villamadera14",
       "villamadera15",
-      "villamadera16",
       "villamadera17",
       "villamadera18",
       "villamadera19",
@@ -1664,13 +1655,14 @@ export const PROPERTIES: Property[] = [
     max_guests: 9,
     base_price: 10000,
     distance_to_beach: "12 mins drive to Anjuna Beach",
-    // Main hero (serenity1) unchanged. Replacement/new photos uploaded —
-    // all 47 serenity* source files verified valid and optimized to
-    // 1600px-wide JPEGs (originals ran 2-6MB each as ~33MP camera exports).
+    // Main hero set to serenity3 per explicit request. Replacement/new
+    // photos uploaded — all 47 serenity* source files verified valid and
+    // optimized to 1600px-wide JPEGs (originals ran 2-6MB each as ~33MP
+    // camera exports).
     image_keys: [
+      "serenity3",
       "serenity1",
       "serenity2",
-      "serenity3",
       "serenity4",
       "serenity5",
       "serenity6",

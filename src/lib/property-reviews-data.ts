@@ -18,6 +18,27 @@ export type PropertyReview = {
   helpful: number;
 };
 
+// Curated cross-property selection for the homepage carousel: the top 2
+// reviews (by rating, then helpful count) from every property, interleaved
+// round-robin so consecutive cards don't repeat the same property.
+export function getHomepageReviews(propertySlugs: string[], perProperty = 2): PropertyReview[] {
+  const byProperty = propertySlugs.map((slug) =>
+    PROPERTY_REVIEWS.filter((r) => r.property_id === slug)
+      .slice()
+      .sort((a, b) => b.rating - a.rating || b.helpful - a.helpful)
+      .slice(0, perProperty),
+  );
+
+  const result: PropertyReview[] = [];
+  for (let i = 0; i < perProperty; i++) {
+    for (const reviews of byProperty) {
+      const review = reviews[i];
+      if (review) result.push(review);
+    }
+  }
+  return result;
+}
+
 export const PROPERTY_REVIEWS: PropertyReview[] = [
   {
     "id": "casa-marina-rev-1",

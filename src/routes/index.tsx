@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BadgeIndianRupee, Building2, ConciergeBell, HeartHandshake, Hop as HomeIcon, MapPin as MapPinIcon, Quote, Sparkles, Star, Utensils, Waves, Wine } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
 import { ReviewCarousel } from "@/components/plix/review-carousel";
@@ -9,6 +9,7 @@ import { HeroCarousel } from "@/components/plix/hero-carousel";
 import { NewsletterModal } from "@/components/plix/newsletter-modal";
 import { propertiesQuery, reviewsQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
 import { chicoHeroImage } from "@/lib/plix";
+import { getHomepageReviews } from "@/lib/property-reviews-data";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 import {
   DEFAULT_LOCATION_GRIDS,
@@ -305,6 +306,15 @@ function Home() {
   usePropertiesLiveRefresh();
   const featured = [...properties].sort((a, b) => featuredRank(a.slug) - featuredRank(b.slug));
 
+  const propertyNames = useMemo(
+    () => Object.fromEntries(properties.map((p) => [p.slug, p.name])),
+    [properties],
+  );
+  const homepageReviews = useMemo(
+    () => getHomepageReviews(properties.map((p) => p.slug)),
+    [properties],
+  );
+
   const [config, setConfig] = useState<SiteConfig | null>(null);
   const [locations, setLocations] = useState<LocationGrid[]>([]);
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
@@ -519,13 +529,13 @@ function Home() {
       </section>
       )}
 
-      {reviews.length > 0 && (
+      {homepageReviews.length > 0 && (
       <section className="mx-auto max-w-7xl px-4 py-16 md:px-6">
         <h2 className="text-center font-display text-3xl font-semibold text-navy md:text-4xl">
           Loved by Our Guests
         </h2>
         <div className="mt-10">
-          <ReviewCarousel reviews={reviews} />
+          <ReviewCarousel reviews={homepageReviews} propertyNames={propertyNames} />
         </div>
       </section>
       )}

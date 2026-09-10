@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
-import { ChevronLeft, ChevronRight, Quote } from "lucide-react";
-import type { Review } from "@/lib/plix";
+import { ChevronLeft, ChevronRight, Quote, Star } from "lucide-react";
+import type { PropertyReview } from "@/lib/property-reviews-data";
+import { PLATFORM_STYLE, PlatformMark } from "@/components/plix/platform-mark";
 
 const AUTO_ROTATE_MS = 2000;
 
-export function ReviewCarousel({ reviews }: { reviews: Review[] }) {
+export function ReviewCarousel({
+  reviews,
+  propertyNames,
+}: {
+  reviews: PropertyReview[];
+  propertyNames: Record<string, string>;
+}) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: "center", containScroll: false });
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -48,6 +55,7 @@ export function ReviewCarousel({ reviews }: { reviews: Review[] }) {
         <div className="flex">
           {reviews.map((r, i) => {
             const isActive = i === selectedIndex;
+            const propertyName = propertyNames[r.property_id];
             return (
               <div key={r.id} className="min-w-0 shrink-0 grow-0 basis-[82%] px-3 sm:basis-[55%] md:basis-[42%]">
                 <figure
@@ -57,18 +65,50 @@ export function ReviewCarousel({ reviews }: { reviews: Review[] }) {
                       : "scale-[0.88] bg-[#f8e6d3] text-[#8a6a48] opacity-80"
                   }`}
                 >
-                  <Quote
-                    className={`size-7 ${isActive ? "text-white/70" : "text-[#c29b72]/60"}`}
-                    aria-hidden
-                  />
+                  <div className="flex items-start justify-between gap-3">
+                    <Quote
+                      className={`size-7 ${isActive ? "text-white/70" : "text-[#c29b72]/60"}`}
+                      aria-hidden
+                    />
+                    {r.platform && (
+                      <span
+                        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${PLATFORM_STYLE[r.platform]}`}
+                      >
+                        <PlatformMark platform={r.platform} />
+                        {r.platform}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 flex gap-0.5">
+                    {Array.from({ length: 5 }).map((_, star) => (
+                      <Star
+                        key={star}
+                        className={`size-3.5 ${
+                          star < r.rating
+                            ? isActive
+                              ? "fill-white text-white"
+                              : "fill-[#c29b72] text-[#c29b72]"
+                            : isActive
+                              ? "fill-none text-white/40"
+                              : "fill-none text-[#c29b72]/30"
+                        }`}
+                        aria-hidden
+                      />
+                    ))}
+                  </div>
+
                   <blockquote className="mt-4 text-sm leading-relaxed sm:text-base">
                     {r.comment}
                   </blockquote>
                   <figcaption className="mt-6">
-                    <p className="font-display text-lg font-semibold">{r.guest_name}</p>
-                    {r.guest_city && (
+                    <p className="font-display text-lg font-semibold">
+                      {r.guest_name}
+                      {r.guest_location ? `, ${r.guest_location}` : ""}
+                    </p>
+                    {propertyName && (
                       <p className={`text-xs ${isActive ? "text-white/75" : "text-[#8a6a48]/75"}`}>
-                        {r.guest_city}
+                        Stayed at {propertyName}
                       </p>
                     )}
                   </figcaption>

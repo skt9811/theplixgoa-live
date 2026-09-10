@@ -1,7 +1,7 @@
 // Minimal offline service worker for PWABuilder compatibility
 // Caches the app shell and static assets for offline use
 
-const CACHE_NAME = "plix-admin-v1";
+const CACHE_NAME = "plix-admin-v2";
 const PRECACHE_URLS = [
   "/admin",
   "/",
@@ -48,6 +48,12 @@ self.addEventListener("fetch", (event) => {
 
   // Skip cross-origin requests (Supabase, Razorpay, etc.)
   if (url.origin !== self.location.origin) return;
+
+  // Never cache server function calls (property/rate/review data, etc.) —
+  // these are GET requests to /_serverFn/* that must always hit the network,
+  // otherwise a browser that ever cached one keeps serving that stale
+  // response forever, regardless of any later database or code change.
+  if (url.pathname.startsWith("/_serverFn/")) return;
 
   // Network-first for navigation requests (HTML pages)
   if (request.mode === "navigate") {

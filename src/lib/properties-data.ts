@@ -58,8 +58,8 @@ function hasValidImageKeys(keys: unknown): keys is string[] {
 const CANONICAL_PROPERTY_OVERRIDES: Record<string, Partial<Property>> = {
   "casa-marina": {
     name: "Casa Marina",
-    location: "Vagator",
-    tagline: "VAGATOR, NORTH GOA • 3 BHK BOUTIQUE POOL VILLA",
+    location: "Anjuna",
+    tagline: "ANJUNA, NORTH GOA • 3 BHK BOUTIQUE POOL VILLA",
     bedrooms: 3,
     bathrooms: 3,
     max_guests: 6,

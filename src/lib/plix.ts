@@ -84,27 +84,53 @@ import morjimpride27 from "@/assets/morjimpride27.jpg";
 import morjimpride28 from "@/assets/morjimpride28.jpg";
 import morjimpride29 from "@/assets/morjimpride29.jpg";
 
-// Vivenda Chico
-import chico from "@/assets/chico.jpg";
-import chicoMobileWebp from "@/assets/chico-mobile.webp";
-import chicoDesktopWebp from "@/assets/chico-desktop.webp";
-import chico1 from "@/assets/chico1.jpg";
-import chico2 from "@/assets/chico2.png";
-import chico3 from "@/assets/chico3.jpg";
-import chico4 from "@/assets/chico4.jpg";
-import chico5 from "@/assets/chico5.jpg";
-import chico6 from "@/assets/chico6.jpg";
-import chico7 from "@/assets/chico7.png";
-import chico8 from "@/assets/chico8.jpg";
-import chico9 from "@/assets/chico9.jpg";
-import chico10 from "@/assets/chico10.jpg";
-import chico11 from "@/assets/chico11.png";
-import chico12 from "@/assets/chico12.png";
-import chico13 from "@/assets/chico13.png";
-import chico14 from "@/assets/chico14.png";
-import chico15 from "@/assets/chico15.png";
-import chico16 from "@/assets/chico16.jpg";
-import chico17 from "@/assets/chico17.jpg";
+// Vivenda Chico — replacement photo set (2026-09-11 migration); vivendachico1
+// is the explicit hero/primary image, also used for the sitewide homepage
+// hero (chicoHeroImage below) and its mobile/desktop webp preload variants.
+import vivendachico1MobileWebp from "@/assets/vivendachico1-mobile.webp";
+import vivendachico1DesktopWebp from "@/assets/vivendachico1-desktop.webp";
+import vivendachico1 from "@/assets/vivendachico1.jpg";
+import vivendachico2 from "@/assets/vivendachico2.jpg";
+import vivendachico3 from "@/assets/vivendachico3.jpg";
+import vivendachico4 from "@/assets/vivendachico4.jpg";
+import vivendachico5 from "@/assets/vivendachico5.jpg";
+import vivendachico6 from "@/assets/vivendachico6.jpg";
+import vivendachico7 from "@/assets/vivendachico7.jpg";
+import vivendachico8 from "@/assets/vivendachico8.jpg";
+import vivendachico9 from "@/assets/vivendachico9.jpg";
+import vivendachico10 from "@/assets/vivendachico10.jpg";
+import vivendachico11 from "@/assets/vivendachico11.jpg";
+import vivendachico12 from "@/assets/vivendachico12.jpg";
+import vivendachico13 from "@/assets/vivendachico13.jpg";
+import vivendachico14 from "@/assets/vivendachico14.jpg";
+import vivendachico15 from "@/assets/vivendachico15.jpg";
+import vivendachico16 from "@/assets/vivendachico16.jpg";
+import vivendachico17 from "@/assets/vivendachico17.jpg";
+import vivendachico18 from "@/assets/vivendachico18.jpg";
+import vivendachico19 from "@/assets/vivendachico19.jpg";
+import vivendachico20 from "@/assets/vivendachico20.jpg";
+import vivendachico21 from "@/assets/vivendachico21.jpg";
+import vivendachico22 from "@/assets/vivendachico22.jpg";
+import vivendachico23 from "@/assets/vivendachico23.jpg";
+import vivendachico24 from "@/assets/vivendachico24.jpg";
+import vivendachico25 from "@/assets/vivendachico25.jpg";
+import vivendachico26 from "@/assets/vivendachico26.jpg";
+import vivendachico27 from "@/assets/vivendachico27.jpg";
+import vivendachico28 from "@/assets/vivendachico28.jpg";
+import vivendachico29 from "@/assets/vivendachico29.jpg";
+import vivendachico30 from "@/assets/vivendachico30.jpg";
+import vivendachico31 from "@/assets/vivendachico31.jpg";
+import vivendachico32 from "@/assets/vivendachico32.jpg";
+import vivendachico33 from "@/assets/vivendachico33.jpg";
+import vivendachico34 from "@/assets/vivendachico34.jpg";
+import vivendachico35 from "@/assets/vivendachico35.jpg";
+import vivendachico36 from "@/assets/vivendachico36.jpg";
+import vivendachico37 from "@/assets/vivendachico37.jpg";
+import vivendachico38 from "@/assets/vivendachico38.jpg";
+import vivendachico39 from "@/assets/vivendachico39.jpg";
+import vivendachico40 from "@/assets/vivendachico40.jpg";
+import vivendachico41 from "@/assets/vivendachico41.jpg";
+import vivendachico42 from "@/assets/vivendachico42.jpg";
 
 // Casa Moana
 import casamoana1 from "@/assets/casamoana1.jpg";
@@ -470,24 +496,48 @@ export const imageMap: Record<string, string> = {
   morjimpride28,
   morjimpride29,
   // Vivenda Chico
-  chico,
-  chico1,
-  chico2,
-  chico3,
-  chico4,
-  chico5,
-  chico6,
-  chico7,
-  chico8,
-  chico9,
-  chico10,
-  chico11,
-  chico12,
-  chico13,
-  chico14,
-  chico15,
-  chico16,
-  chico17,
+  vivendachico1,
+  vivendachico2,
+  vivendachico3,
+  vivendachico4,
+  vivendachico5,
+  vivendachico6,
+  vivendachico7,
+  vivendachico8,
+  vivendachico9,
+  vivendachico10,
+  vivendachico11,
+  vivendachico12,
+  vivendachico13,
+  vivendachico14,
+  vivendachico15,
+  vivendachico16,
+  vivendachico17,
+  vivendachico18,
+  vivendachico19,
+  vivendachico20,
+  vivendachico21,
+  vivendachico22,
+  vivendachico23,
+  vivendachico24,
+  vivendachico25,
+  vivendachico26,
+  vivendachico27,
+  vivendachico28,
+  vivendachico29,
+  vivendachico30,
+  vivendachico31,
+  vivendachico32,
+  vivendachico33,
+  vivendachico34,
+  vivendachico35,
+  vivendachico36,
+  vivendachico37,
+  vivendachico38,
+  vivendachico39,
+  vivendachico40,
+  vivendachico41,
+  vivendachico42,
   // Casa Moana (4 BHK) images — asset files are named 3bhk* despite belonging to Casa Moana
   casamoana1,
   casamoana2,
@@ -763,9 +813,9 @@ export const imageMap: Record<string, string> = {
 };
 
 export const heroImage = heroGoa;
-export const chicoHeroImage = chico;
-export const chicoHeroImageMobileWebp = chicoMobileWebp;
-export const chicoHeroImageDesktopWebp = chicoDesktopWebp;
+export const chicoHeroImage = vivendachico1;
+export const chicoHeroImageMobileWebp = vivendachico1MobileWebp;
+export const chicoHeroImageDesktopWebp = vivendachico1DesktopWebp;
 export const northGoaImage = heroGoa;
 export const morjimImage = morjim1;
 export const vagatorImage = harbor1;
@@ -1420,10 +1470,12 @@ export const PROPERTIES: Property[] = [
     max_guests: 20,
     base_price: 22000,
     distance_to_beach: "6 mins drive to Candolim Beach",
-    // chico2, chico7, chico11, chico12, chico13, chico14, chico15 are
-    // genuinely truncated PNGs (same verification as casa-marina's comment)
-    // — the other 11 are real, complete photos.
-    image_keys: ["chico", "chico1", "chico3", "chico4", "chico5", "chico6", "chico8", "chico9", "chico10", "chico16", "chico17"],
+    // Replacement photo set (2026-09-11) — all 42 vivendachico* source files
+    // verified valid and resized to a 1920px max width / JPEG q82. Slot 0
+    // (hero) = vivendachico1, per explicit request.
+    image_keys: [
+      "vivendachico1", "vivendachico2", "vivendachico3", "vivendachico4", "vivendachico5", "vivendachico6", "vivendachico7", "vivendachico8", "vivendachico9", "vivendachico10", "vivendachico11", "vivendachico12", "vivendachico13", "vivendachico14", "vivendachico15", "vivendachico16", "vivendachico17", "vivendachico18", "vivendachico19", "vivendachico20", "vivendachico21", "vivendachico22", "vivendachico23", "vivendachico24", "vivendachico25", "vivendachico26", "vivendachico27", "vivendachico28", "vivendachico29", "vivendachico30", "vivendachico31", "vivendachico32", "vivendachico33", "vivendachico34", "vivendachico35", "vivendachico36", "vivendachico37", "vivendachico38", "vivendachico39", "vivendachico40", "vivendachico41", "vivendachico42",
+    ],
     amenity_tags: [
       "Private Pool",
       "Lawn",

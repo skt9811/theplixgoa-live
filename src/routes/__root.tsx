@@ -8,6 +8,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { Capacitor } from "@capacitor/core";
 
 import appCss from "../styles.css?url";
 
@@ -18,6 +19,18 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { SITE_NAME, websiteJsonLd, jsonLdScript } from "@/lib/seo";
 import { chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
+import { hidePortalSplash } from "@/lib/portal-splash";
+
+// Runs synchronously while the raw HTML is still parsing, before React ever
+// mounts/hydrates — a signed-in user landing on the welcome or login screen
+// (a real, cold page load: Capacitor's server.url reissues one on every app
+// relaunch, same as a browser back-button return) gets sent straight to the
+// dashboard before the wrong screen's markup ever paints, instead of relying
+// on a post-hydration useEffect that can lag behind a fixed splash-hide timer
+// on a slow cold-launch network round trip. Harmless everywhere else (native
+// or web): it no-ops on any path but the two portal entry screens, and a
+// signed-in web visitor skipping the sign-in screen is desirable too.
+const PORTAL_AUTO_RESUME_SCRIPT = `(function(){try{var p=window.location.pathname;if(p!=="/portal"&&p!=="/portal/login")return;if(localStorage.getItem("plix_portal_session")){window.location.replace("/portal/dashboard");}}catch(e){}})();`;
 
 const GOOGLE_FONTS_HREF =
   "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap";
@@ -190,6 +203,14 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
+        {/* React 19 auto-hoists <title>/<meta>/<link> above manually placed
+            elements regardless of source order, so this doesn't render as
+            the literal first byte of <head> — that's fine, since nothing in
+            <head> ever paints. What matters (and what source order here
+            guarantees) is that it still runs before <body> is parsed, which
+            is the actual flash-prevention requirement — see the comment on
+            PORTAL_AUTO_RESUME_SCRIPT above. */}
+        <script dangerouslySetInnerHTML={{ __html: PORTAL_AUTO_RESUME_SCRIPT }} />
         {/* Google Ads Tag — the ONLY tracking snippet on the site (GA4 was
             removed entirely). Hardcoded directly in the static shell, not
             via the dynamic head() scripts config below, so it's present on
@@ -232,6 +253,19 @@ function RootComponent() {
     }
     window.addEventListener("load", loadDeferredAnalytics, { once: true });
     return () => window.removeEventListener("load", loadDeferredAnalytics);
+  }, []);
+
+  // Safety net for the native splash (see capacitor.config.ts's
+  // launchAutoHide: false + portal-splash.ts): the portal welcome/login/
+  // dashboard screens each call hidePortalSplash() once they know they're
+  // the right screen to reveal, but if some other route is ever the first
+  // one a native cold launch lands on (a deep link, an error page), nothing
+  // else would ever call it — hidePortalSplash() is idempotent, so this just
+  // guarantees an upper bound instead of a permanently-stuck splash.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const timeout = window.setTimeout(() => void hidePortalSplash(), 4000);
+    return () => window.clearTimeout(timeout);
   }, []);
 
   if (isPortalRoute) {

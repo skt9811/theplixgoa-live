@@ -32,7 +32,11 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 1200,
+      // Manual hide (src/lib/portal-splash.ts) instead of a fixed timer — a
+      // fixed launchShowDuration could elapse mid cold-launch network round
+      // trip and reveal the WebView's in-progress content (the reported
+      // homepage/login flash) before the app knew which screen to show.
+      launchAutoHide: false,
       backgroundColor: "#F8F5EE",
       showSpinner: false,
       androidScaleType: "CENTER_CROP",

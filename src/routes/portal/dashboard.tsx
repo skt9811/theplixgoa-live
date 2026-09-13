@@ -15,6 +15,7 @@ import { PortalAnalyticsTab } from "@/components/plix/portal-analytics-tab";
 import { PortalMenuTab } from "@/components/plix/portal-menu-tab";
 import { PortalPullToRefresh } from "@/components/plix/portal-pull-to-refresh";
 import { Skeleton } from "@/components/ui/skeleton";
+import { hidePortalSplash } from "@/lib/portal-splash";
 
 export const Route = createFileRoute("/portal/dashboard")({
   head: () => ({
@@ -71,6 +72,16 @@ function PortalDashboardPage() {
   const seenBookingIds = useRef<Set<string> | null>(null);
 
   useOnlineStatusToast();
+
+  // Reaching this component at all — whether via the raw cold-launch
+  // redirect script, a client-side navigate() after a fresh sign-in, or a
+  // direct reload while already signed in — means this is the correct
+  // screen to show, so the native splash (see capacitor.config.ts's
+  // launchAutoHide: false) can come down now rather than waiting on its own
+  // data fetch below.
+  useEffect(() => {
+    void hidePortalSplash();
+  }, []);
 
   // Admin isn't bound to one property — this is the client-side selector's
   // own state, sent as `?property=` on every portal API call. An owner's

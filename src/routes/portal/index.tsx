@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Loader as Loader2 } from "lucide-react";
 import landingImage from "@/assets/Landing_partner_app.jpg";
 import { hasStoredPortalSessionSync } from "@/lib/portal-native-session";
+import { hidePortalSplash } from "@/lib/portal-splash";
 
 export const Route = createFileRoute("/portal/")({
   head: () => ({
@@ -23,6 +24,15 @@ function PortalWelcomePage() {
   // just later: dashboard.tsx's own 401 handling already redirects to
   // login without this page needing to pre-validate anything.
   //
+  // The actual cold-launch redirect now happens earlier than this: a raw,
+  // blocking inline script in __root.tsx's document shell checks localStorage
+  // and calls location.replace() before the browser ever paints this page's
+  // markup, so a real cold launch/full reload never reaches this component
+  // at all when a session is stored. This effect is the fallback for the
+  // remaining case — a signed-in user reaching this route via a client-side
+  // SPA transition, which the raw script (only present in the initial HTML
+  // document) doesn't cover.
+  //
   // This is a useEffect, deliberately not a useState lazy initializer:
   // localStorage doesn't exist during SSR, so the server always renders the
   // normal welcome screen — calling navigate() during the initial render
@@ -30,16 +40,20 @@ function PortalWelcomePage() {
   // fired a "setState while rendering a different component" warning and a
   // genuine hydration mismatch, since the client's first paint no longer
   // matched what the server sent. Resolving this after mount instead means
-  // a signed-in user sees this screen for one frame before redirecting,
-  // which is the correct trade-off — imperceptible in practice, and it
-  // never breaks hydration.
+  // a signed-in user sees this screen for one frame before redirecting in
+  // this fallback path — imperceptible in practice, and it never breaks
+  // hydration.
   const [resuming, setResuming] = useState(false);
 
   useEffect(() => {
     if (hasStoredPortalSessionSync()) {
       setResuming(true);
       void navigate({ to: "/portal/dashboard", replace: true });
+      return;
     }
+    // No stored session — this really is the correct screen to show, so the
+    // native splash (kept up via launchAutoHide: false) can come down now.
+    void hidePortalSplash();
   }, [navigate]);
 
   if (resuming) {

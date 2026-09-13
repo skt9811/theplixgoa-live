@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Loader as Loader2 } from "lucide-react";
 import { hasStoredPortalSessionSync, savePortalSession } from "@/lib/portal-native-session";
+import { hidePortalSplash } from "@/lib/portal-splash";
 import { apiUrl, withTimeout } from "@/lib/capacitor-utils";
 import { Capacitor } from "@capacitor/core";
 
@@ -74,17 +75,21 @@ function PortalLoginPage() {
   const [pin, setPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // Covers a signed-in user landing here manually (e.g. the Android back
-  // button) rather than via a cold launch — /portal/index.tsx handles the
-  // cold-launch case itself, but this page is reachable independently of
-  // it. A useEffect, not a useState lazy initializer — see index.tsx's own
-  // comment on this exact pattern for why (SSR/hydration mismatch).
+  // button) via a client-side SPA transition — a cold launch/full reload
+  // landing directly on this URL is already caught earlier by the raw
+  // blocking script in __root.tsx's document shell (see its comment), so
+  // this component won't even mount in that case. A useEffect, not a
+  // useState lazy initializer — see index.tsx's own comment on this exact
+  // pattern for why (SSR/hydration mismatch).
   const [resuming, setResuming] = useState(false);
 
   useEffect(() => {
     if (hasStoredPortalSessionSync()) {
       setResuming(true);
       void navigate({ to: "/portal/dashboard", replace: true });
+      return;
     }
+    void hidePortalSplash();
   }, [navigate]);
 
   const canSubmit = PHONE_PATTERN.test(phone) && PIN_PATTERN.test(pin) && !submitting;

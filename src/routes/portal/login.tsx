@@ -98,8 +98,13 @@ function PortalLoginPage() {
         }
       } else if (data.role === "owner" && data.portal_token && data.propertySlug) {
         // Durable native storage — survives Android killing the WebView,
-        // unlike the HttpOnly cookie also set by this same response.
-        await savePortalSession({
+        // unlike the HttpOnly cookie also set by this same response. Not
+        // awaited: savePortalSession writes to localStorage synchronously
+        // as its primary path and only mirrors to @capacitor/preferences in
+        // the background, but even that resolved promise is deliberately
+        // not waited on here — nothing native-related may ever sit between
+        // a successful auth response and navigating to the dashboard.
+        void savePortalSession({
           portal_token: data.portal_token,
           propertySlug: data.propertySlug,
           role: "owner",
@@ -108,11 +113,12 @@ function PortalLoginPage() {
       }
       void registerPushNotifications(phone);
 
+      setSubmitting(false);
       // Admin lands on the same property Dashboard as an owner now (with
       // its own property selector) — /admin/bookings still exists at its
       // own URL for the flat punch-in ledger, it's just no longer where
       // login sends admin by default.
-      void navigate({ to: "/portal/dashboard" });
+      void navigate({ to: "/portal/dashboard", replace: true });
       // Belt-and-braces fallback for the Android WebView: if the router
       // hasn't actually left this screen a moment later (a stalled/failed
       // client-side transition), force a real navigation rather than leave
@@ -121,7 +127,7 @@ function PortalLoginPage() {
         if (window.location.pathname === "/portal/login") {
           window.location.href = "/portal/dashboard";
         }
-      }, 800);
+      }, 500);
     } catch {
       toast.error("Network error — please try again");
     } finally {

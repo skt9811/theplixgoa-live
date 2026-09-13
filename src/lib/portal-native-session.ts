@@ -2,19 +2,25 @@
 // clearing the WebView's cookie jar — Capacitor's own docs warn ephemeral
 // cookies don't survive that, which is exactly what this app hit. Uses
 // @capacitor/preferences (backed by SharedPreferences on Android, UserDefaults
-// on iOS — both survive process death) when running natively, falling back
-// to localStorage on the web build where Preferences isn't meaningfully
-// different from it anyway.
+// on iOS — both survive process death) when running natively, mirrored
+// alongside localStorage rather than instead of it.
+//
+// localStorage is the PRIMARY store — synchronous, always attempted first,
+// and never gated on anything native. @capacitor/preferences is a
+// best-effort background mirror only: a native plugin bridge that never
+// responds (unlinked plugin, a stale APK predating a native sync, no
+// Firebase project configured for push, etc.) must never be able to delay
+// login/logout even by a bounded timeout — the fix for that isn't a
+// shorter timeout, it's not waiting on it at all. Callers here (savePortalSession,
+// clearPortalSession) return as soon as the synchronous localStorage step is
+// done; the native mirror keeps running in the background and its outcome
+// is invisible to the caller by design.
 import { Capacitor } from "@capacitor/core";
 import { apiUrl, withTimeout } from "@/lib/capacitor-utils";
 
-// A native plugin bridge that never responds (unlinked plugin, a device
-// storage hiccup, etc.) leaves its promise permanently unsettled — this is
-// what silently froze the Android app's login button, since every native
-// call below is awaited directly. 2s is generous for a local Preferences
-// read/write; past that, falling back to localStorage is always safer than
-// blocking the caller (often the login flow) forever.
-const NATIVE_CALL_TIMEOUT_MS = 2000;
+// Only guards the background native mirror now (see header comment) — never
+// something a login/logout caller waits on.
+const NATIVE_MIRROR_TIMEOUT_MS = 2000;
 
 export type PortalStoredSession = {
   portal_token: string;
@@ -25,13 +31,30 @@ export type PortalStoredSession = {
 
 const STORAGE_KEY = "plix_portal_session";
 
-// Every native call below is wrapped in its own try/catch, not just this
-// dynamic import — a plugin that isn't actually linked into a given native
-// build (or a storage error on-device) rejects at the call site, not at
-// import time, and an uncaught rejection here previously propagated all the
-// way up through the post-login hook in login.tsx and crashed that
-// lifecycle instead of just falling back to localStorage like a web build
-// already does.
+function readLocal(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeLocal(value: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, value);
+  } catch {
+    // storage full or unavailable — the cookie-based session still works for this tab
+  }
+}
+
+function clearLocal(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // noop
+  }
+}
+
 async function getPreferences() {
   if (!Capacitor.isNativePlatform()) return null;
   try {
@@ -42,43 +65,51 @@ async function getPreferences() {
   }
 }
 
-export async function savePortalSession(session: PortalStoredSession): Promise<void> {
-  const value = JSON.stringify(session);
-  const Preferences = await getPreferences();
-  if (Preferences) {
-    const saved = await withTimeout(
-      Preferences.set({ key: STORAGE_KEY, value }).then(() => true),
-      NATIVE_CALL_TIMEOUT_MS,
-      false,
-    );
-    if (saved) return;
-    // rejected or timed out — fall through to localStorage
-  }
+async function mirrorSaveToNative(value: string): Promise<void> {
   try {
-    localStorage.setItem(STORAGE_KEY, value);
+    const Preferences = await getPreferences();
+    if (!Preferences) return;
+    await withTimeout(Preferences.set({ key: STORAGE_KEY, value }).then(() => true), NATIVE_MIRROR_TIMEOUT_MS, false);
   } catch {
-    // storage full or unavailable — the cookie-based session still works for this tab
+    // best-effort background mirror — failures here are invisible to the caller by design
   }
 }
 
-export async function loadPortalSession(): Promise<PortalStoredSession | null> {
-  const Preferences = await getPreferences();
-  let raw: string | null = null;
-  let nativeOk = false;
-  if (Preferences) {
-    const result = await withTimeout<{ ok: boolean; value: string | null }>(
-      Preferences.get({ key: STORAGE_KEY }).then((r) => ({ ok: true, value: r.value })),
-      NATIVE_CALL_TIMEOUT_MS,
-      { ok: false, value: null },
-    );
-    nativeOk = result.ok;
-    raw = result.value;
+async function mirrorClearFromNative(): Promise<void> {
+  try {
+    const Preferences = await getPreferences();
+    if (!Preferences) return;
+    await withTimeout(Preferences.remove({ key: STORAGE_KEY }).then(() => true), NATIVE_MIRROR_TIMEOUT_MS, false);
+  } catch {
+    // best-effort — same as mirrorSaveToNative
   }
-  if (!Preferences || !nativeOk) {
-    try {
-      raw = localStorage.getItem(STORAGE_KEY);
-    } catch {
-      raw = null;
+}
+
+/** Resolves as soon as the synchronous localStorage write is done — the native mirror is fire-and-forget in the background, never awaited here. */
+export async function savePortalSession(session: PortalStoredSession): Promise<void> {
+  const value = JSON.stringify(session);
+  writeLocal(value);
+  void mirrorSaveToNative(value);
+}
+
+/**
+ * localStorage first (synchronous, always available) — @capacitor/preferences
+ * is only consulted as a fallback for the edge case of a session saved
+ * natively before this fix shipped, and even then it's time-boxed so a
+ * caller (e.g. portalFetch, on every authenticated request) never hangs
+ * waiting on it.
+ */
+export async function loadPortalSession(): Promise<PortalStoredSession | null> {
+  let raw = readLocal();
+  if (!raw) {
+    const Preferences = await getPreferences();
+    if (Preferences) {
+      const result = await withTimeout<{ ok: boolean; value: string | null }>(
+        Preferences.get({ key: STORAGE_KEY }).then((r) => ({ ok: true, value: r.value })),
+        NATIVE_MIRROR_TIMEOUT_MS,
+        { ok: false, value: null },
+      );
+      raw = result.value;
     }
   }
   if (!raw) return null;
@@ -89,23 +120,10 @@ export async function loadPortalSession(): Promise<PortalStoredSession | null> {
   }
 }
 
+/** Resolves as soon as the synchronous localStorage clear is done — the native mirror clear is fire-and-forget in the background. */
 export async function clearPortalSession(): Promise<void> {
-  const Preferences = await getPreferences();
-  if (Preferences) {
-    await withTimeout(
-      Preferences.remove({ key: STORAGE_KEY }).then(() => true),
-      NATIVE_CALL_TIMEOUT_MS,
-      false,
-    );
-    // Whether that succeeded, rejected, or timed out, still clear
-    // localStorage below as a defensive backstop in case an earlier save()
-    // had fallen back there itself.
-  }
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // noop
-  }
+  clearLocal();
+  void mirrorClearFromNative();
 }
 
 /**

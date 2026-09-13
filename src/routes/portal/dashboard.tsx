@@ -254,17 +254,22 @@ function PortalDashboardPage() {
       )}
 
       <div className="mx-auto w-full max-w-lg">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-semibold text-slate-900">
+        <div
+          className="relative overflow-hidden rounded-3xl border border-slate-200/60 p-5"
+          style={{ backgroundColor: "#F3F6FB" }}
+        >
+          <div className="pr-14">
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">
               Good {greetingWord()}, {role === "admin" ? "Admin" : propertyName}
             </h1>
-            <p className="text-xs text-slate-500">Manage your villas, booking &amp; earnings</p>
+            <p className="mt-1 text-xs text-slate-500 md:text-sm">Manage your villas, booking &amp; earnings</p>
           </div>
-          <PortalNotificationBell
-            alerts={recentAlerts}
-            onDismiss={(id) => setRecentAlerts((prev) => prev.filter((a) => a.id !== id))}
-          />
+          <div className="absolute right-5 top-5">
+            <PortalNotificationBell
+              alerts={recentAlerts}
+              onDismiss={(id) => setRecentAlerts((prev) => prev.filter((a) => a.id !== id))}
+            />
+          </div>
         </div>
 
         {role === "admin" && (

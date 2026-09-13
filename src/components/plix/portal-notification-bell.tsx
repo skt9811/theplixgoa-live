@@ -19,7 +19,7 @@ export function PortalNotificationBell({ alerts, onDismiss }: { alerts: PortalAl
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Notifications"
-        className="relative flex size-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm"
+        className="relative flex size-11 items-center justify-center rounded-full border border-slate-200/70 bg-white text-slate-600 shadow-sm transition-shadow hover:shadow-md"
       >
         <Bell className="size-[18px]" aria-hidden />
         {alerts.length > 0 && (

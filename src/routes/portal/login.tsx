@@ -13,13 +13,16 @@ export const Route = createFileRoute("/portal/login")({
   component: PortalLoginPage,
 });
 
+const PHONE_PATTERN = /^[0-9]{10}$/;
+const PIN_PATTERN = /^[0-9]{4}$/;
+
 function PortalLoginPage() {
   const navigate = useNavigate();
   const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = phone.length === 10 && pin.length === 4 && !submitting;
+  const canSubmit = PHONE_PATTERN.test(phone) && PIN_PATTERN.test(pin) && !submitting;
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
@@ -31,13 +34,35 @@ function PortalLoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, pin }),
       });
-      const data = (await res.json()) as { success?: boolean; error?: string };
+      const data = (await res.json()) as {
+        success?: boolean;
+        error?: string;
+        role?: "admin" | "owner";
+        redirectTo?: string;
+      };
       if (!res.ok || !data.success) {
         toast.error(data.error || "Invalid mobile number or PIN");
         setPin("");
         return;
       }
-      void navigate({ to: "/portal/dashboard" });
+      if (data.role === "admin") {
+        // /admin and /admin/bookings gate on this same localStorage flag —
+        // setting it here means the admin bypass lands straight on the
+        // punch-in screen instead of being asked for the PIN a second time.
+        try {
+          localStorage.setItem("plix_admin_auth", "true");
+        } catch {
+          // localStorage unavailable — falls through to /admin/bookings's
+          // own PIN gate instead, which still works correctly.
+        }
+      }
+      // Literal branches, not `data.redirectTo` directly — the router's
+      // `to` param is a closed union of known routes, not a plain string.
+      if (data.role === "admin") {
+        void navigate({ to: "/admin/bookings" });
+      } else {
+        void navigate({ to: "/portal/dashboard" });
+      }
     } catch {
       toast.error("Network error — please try again");
     } finally {

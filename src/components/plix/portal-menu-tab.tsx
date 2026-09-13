@@ -9,7 +9,7 @@ const SUPPORT_EMAIL = "reservations@theplixgoa.com";
 
 type Me = { propertySlug: string; propertyName: string; phone: string };
 
-export function PortalSettingsTab({
+export function PortalMenuTab({
   propertySlug,
   propertyName,
   role,
@@ -60,23 +60,23 @@ export function PortalSettingsTab({
 
   return (
     <>
-      <h1 className="text-xl font-semibold text-white">Settings</h1>
+      <h1 className="text-xl font-semibold text-slate-900">Menu</h1>
 
       {/* Property info */}
-      <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-        <p className="text-xs uppercase tracking-wide text-white/50">Property Info</p>
+      <div className="mt-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <p className="text-xs uppercase tracking-wide text-slate-400">Property Info</p>
         <div className="mt-3 grid gap-2.5 text-sm">
           <div className="flex justify-between">
-            <span className="text-white/50">Property Name</span>
-            <span className="font-medium text-white">{propertyName}</span>
+            <span className="text-slate-500">Property Name</span>
+            <span className="font-medium text-slate-900">{propertyName}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-white/50">Registered Mobile</span>
-            <span className="font-medium text-white">{me ? `+91 ${me.phone}` : "…"}</span>
+            <span className="text-slate-500">Registered Mobile</span>
+            <span className="font-medium text-slate-900">{me ? `+91 ${me.phone}` : "…"}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-white/50">Property ID</span>
-            <span className="font-medium text-white">{propertySlug}</span>
+            <span className="text-slate-500">Property ID</span>
+            <span className="font-medium text-slate-900">{propertySlug}</span>
           </div>
         </div>
       </div>
@@ -84,26 +84,26 @@ export function PortalSettingsTab({
       {role === "owner" && <ChangePinCard />}
 
       {/* Support */}
-      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-        <p className="text-xs uppercase tracking-wide text-white/50">Reach Out to Us</p>
+      <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <p className="text-xs uppercase tracking-wide text-slate-400">Reach Out to Us</p>
         <div className="mt-3 grid gap-2.5">
           <a
             href={whatsappHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2.5 rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-white hover:bg-white/5"
+            className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-900 hover:bg-slate-50"
           >
-            <MessageCircle className="size-4 text-emerald-400" aria-hidden /> WhatsApp Us
+            <MessageCircle className="size-4 text-emerald-500" aria-hidden /> WhatsApp Us
           </a>
           <a
             href={`tel:${SUPPORT_PHONE}`}
-            className="flex items-center gap-2.5 rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-white hover:bg-white/5"
+            className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-900 hover:bg-slate-50"
           >
             <Phone className="size-4 text-bronze" aria-hidden /> Call +91 90098 00809
           </a>
           <a
             href={`mailto:${SUPPORT_EMAIL}`}
-            className="flex items-center gap-2.5 rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-white hover:bg-white/5"
+            className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-900 hover:bg-slate-50"
           >
             <Mail className="size-4 text-bronze" aria-hidden /> {SUPPORT_EMAIL}
           </a>
@@ -113,7 +113,7 @@ export function PortalSettingsTab({
       <button
         type="button"
         onClick={handleLogout}
-        className="mt-6 mb-4 flex w-full items-center justify-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-6 py-3.5 text-sm font-semibold text-red-400 hover:bg-red-500/15"
+        className="mt-6 mb-4 flex w-full items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-6 py-3.5 text-sm font-semibold text-red-600 hover:bg-red-100"
       >
         <LogOut className="size-4" aria-hidden /> Log Out
       </button>
@@ -163,8 +163,8 @@ function ChangePinCard() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-xs uppercase tracking-wide text-white/50">Change PIN</p>
+    <form onSubmit={handleSubmit} className="mt-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <p className="text-xs uppercase tracking-wide text-slate-400">Change PIN</p>
       <div className="mt-3 grid gap-2.5">
         <input
           type="password"
@@ -173,7 +173,7 @@ function ChangePinCard() {
           value={currentPin}
           onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
           placeholder="Current PIN"
-          className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-3 text-white outline-none placeholder:text-white/40 focus:ring-2 focus:ring-bronze/50"
+          className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-bronze/50"
         />
         <input
           type="password"
@@ -182,7 +182,7 @@ function ChangePinCard() {
           value={newPin}
           onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
           placeholder="New PIN"
-          className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-3 text-white outline-none placeholder:text-white/40 focus:ring-2 focus:ring-bronze/50"
+          className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-bronze/50"
         />
         <input
           type="password"
@@ -191,7 +191,7 @@ function ChangePinCard() {
           value={confirmPin}
           onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
           placeholder="Confirm New PIN"
-          className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-3 text-white outline-none placeholder:text-white/40 focus:ring-2 focus:ring-bronze/50"
+          className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-bronze/50"
         />
         <button
           type="submit"

@@ -40,6 +40,10 @@ export type PortalBooking = {
   status: PortalBookingStatus;
   source: "online" | "manual";
   created_at: string;
+  /** "pending" = an online checkout was started but not yet paid — the
+   * Inventory tab's "Tentative" status chip. null for manual bookings,
+   * which have no online payment lifecycle at all. */
+  payment_status: "pending" | "paid" | "simulated" | null;
 };
 
 function toDateString(value: string | Date): string {
@@ -82,6 +86,7 @@ type OnlineRow = {
   guests_count: number;
   booking_amount: string | number;
   created_at: string | Date;
+  payment_status: "pending" | "paid" | "simulated";
 };
 
 type ManualRow = {
@@ -111,10 +116,10 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
       sql<OnlineRow[]>`
         SELECT id, property_id, guest_name, guest_mobile AS guest_phone,
                check_in, check_out, nights, guests AS guests_count,
-               total_amount AS booking_amount, created_at
+               total_amount AS booking_amount, created_at, payment_status
         FROM public.bookings
         WHERE property_id = ${propertySlug}
-          AND payment_status IN ('paid', 'simulated')
+          AND payment_status IN ('paid', 'simulated', 'pending')
       `,
       sql<ManualRow[]>`
         SELECT id, property_id, guest_name, guest_phone,
@@ -142,6 +147,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         status: deriveLifecycleStatus(check_in, check_out),
         source: "online",
         created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
+        payment_status: r.payment_status,
       };
     });
 
@@ -161,6 +167,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         status: r.status === "blocked" ? "blocked" : deriveLifecycleStatus(check_in, check_out),
         source: "manual",
         created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
+        payment_status: null,
       };
     });
 

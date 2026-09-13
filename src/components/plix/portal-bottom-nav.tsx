@@ -1,22 +1,22 @@
-import { CalendarCheck, CalendarDays, LayoutDashboard, Settings, SlidersHorizontal } from "lucide-react";
+import { BarChart3, BedDouble, CalendarDays, Home, UserCog } from "lucide-react";
 
-export type PortalTab = "dashboard" | "bookings" | "rates" | "calendar" | "settings";
+export type PortalTab = "home" | "inventory" | "booking" | "analytics" | "menu";
 
-const TABS: { id: PortalTab; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "bookings", label: "Bookings", icon: CalendarCheck },
-  { id: "rates", label: "Rates", icon: SlidersHorizontal },
-  { id: "calendar", label: "Calendar", icon: CalendarDays },
-  { id: "settings", label: "Settings", icon: Settings },
+const TABS: { id: PortalTab; label: string; icon: typeof Home }[] = [
+  { id: "home", label: "Home", icon: Home },
+  { id: "inventory", label: "Inventory", icon: CalendarDays },
+  { id: "booking", label: "Booking", icon: BedDouble },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "menu", label: "Menu", icon: UserCog },
 ];
 
 export function PortalBottomNav({ active, onChange }: { active: PortalTab; onChange: (tab: PortalTab) => void }) {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-navy/95 backdrop-blur-md"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 backdrop-blur-md"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="mx-auto flex w-full max-w-lg items-stretch justify-between px-2">
+      <div className="mx-auto flex w-full max-w-lg items-stretch justify-between px-2 py-1.5">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = tab.id === active;
@@ -25,10 +25,16 @@ export function PortalBottomNav({ active, onChange }: { active: PortalTab; onCha
               key={tab.id}
               type="button"
               onClick={() => onChange(tab.id)}
-              className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-medium"
+              className="flex flex-1 flex-col items-center gap-1 py-1.5 text-[10px] font-medium"
             >
-              <Icon className={`size-5 ${isActive ? "text-bronze" : "text-white/50"}`} aria-hidden />
-              <span className={isActive ? "text-bronze" : "text-white/50"}>{tab.label}</span>
+              <span
+                className={`flex items-center justify-center rounded-full px-3.5 py-1.5 transition-colors ${
+                  isActive ? "bg-bronze/15" : ""
+                }`}
+              >
+                <Icon className={`size-5 ${isActive ? "text-bronze" : "text-slate-400"}`} aria-hidden />
+              </span>
+              <span className={isActive ? "font-semibold text-bronze" : "text-slate-500"}>{tab.label}</span>
             </button>
           );
         })}

@@ -2,6 +2,7 @@ import { gstRateForRoomRate } from "@/lib/plix";
 import {
   fetchRateOverridesServerFn,
   fetchBlockedDatesServerFn,
+  fetchBlockedDatesWithReasonServerFn,
   saveRateOverridesServerFn,
   deleteRateOverridesServerFn,
   toggleBlockedDateServerFn,
@@ -121,6 +122,28 @@ export async function fetchBlockedDates(
   return blocked;
 }
 
+/**
+ * Same blocked dates as fetchBlockedDates, but keyed to their reason
+ * ("Owner Stay" vs anything else, treated as Maintenance) — used only by the
+ * partner portal's Inventory tab to color its status legend correctly.
+ * No localStorage fallback: this is portal-only display, not part of the
+ * public availability check that fallback exists to keep working offline.
+ */
+export async function fetchBlockedDatesWithReason(
+  propertyId: string,
+  startDate: string,
+  endDate: string,
+): Promise<Map<string, string | null>> {
+  const map = new Map<string, string | null>();
+  try {
+    const rows = await fetchBlockedDatesWithReasonServerFn({ data: { propertyId, startDate, endDate } });
+    for (const row of rows) map.set(row.date, row.reason);
+  } catch (err) {
+    logDbError("fetchBlockedDatesWithReason", err);
+  }
+  return map;
+}
+
 export async function saveRateOverrides(
   propertyId: string,
   rows: { property_id: string; date: string; rate: number }[],
@@ -173,8 +196,9 @@ export async function toggleBlockedDate(
   propertyId: string,
   date: string,
   isBlocked: boolean,
+  reason?: string,
 ): Promise<{ error: string | null }> {
-  const result = await toggleBlockedDateServerFn({ data: { propertyId, date, isBlocked } }).catch(
+  const result = await toggleBlockedDateServerFn({ data: { propertyId, date, isBlocked, reason } }).catch(
     (err: unknown) => ({ error: logDbError(isBlocked ? "toggleBlockedDate (unblock)" : "toggleBlockedDate (block)", err) }),
   );
   if (result.error) return result;

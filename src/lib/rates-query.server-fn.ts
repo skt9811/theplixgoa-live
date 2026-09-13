@@ -159,9 +159,14 @@ export const deleteRateOverridesServerFn = createServerFn({ method: "POST" })
 
 export const toggleBlockedDateServerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => {
-    const d = data as { propertyId?: unknown; date?: unknown; isBlocked?: unknown };
+    const d = data as { propertyId?: unknown; date?: unknown; isBlocked?: unknown; reason?: unknown };
     if (typeof d.propertyId !== "string" || typeof d.date !== "string") throw new Error("Missing propertyId/date");
-    return { propertyId: d.propertyId, date: d.date, isBlocked: Boolean(d.isBlocked) };
+    return {
+      propertyId: d.propertyId,
+      date: d.date,
+      isBlocked: Boolean(d.isBlocked),
+      reason: typeof d.reason === "string" ? d.reason : null,
+    };
   })
   .handler(async ({ data }): Promise<{ error: string | null }> => {
     const sql = getSql();
@@ -171,13 +176,39 @@ export const toggleBlockedDateServerFn = createServerFn({ method: "POST" })
         // Currently blocked — unblock it.
         await sql`DELETE FROM public.blocked_dates WHERE property_id = ${data.propertyId} AND date = ${data.date}`;
       } else {
-        await sql`INSERT INTO public.blocked_dates (property_id, date) VALUES (${data.propertyId}, ${data.date})`;
+        await sql`INSERT INTO public.blocked_dates (property_id, date, reason) VALUES (${data.propertyId}, ${data.date}, ${data.reason})`;
       }
       return { error: null };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       console.error("[toggleBlockedDateServerFn]:", message);
       return { error: message };
+    }
+  });
+
+// Same rows as fetchBlockedDatesServerFn but with `reason` included — added
+// separately (rather than widening that function's return shape) since the
+// public checkout flow and admin.tsx already depend on it returning a plain
+// string[]. Only the partner portal's Inventory tab (needs to tell an Owner
+// Stay block from a Maintenance block for its status chip colors) uses this.
+export const fetchBlockedDatesWithReasonServerFn = createServerFn({ method: "GET" })
+  .validator((data: unknown) => ({
+    propertyId: str(data, "propertyId"),
+    startDate: str(data, "startDate"),
+    endDate: str(data, "endDate"),
+  }))
+  .handler(async ({ data }): Promise<{ date: string; reason: string | null }[]> => {
+    const sql = getSql();
+    if (!sql) return [];
+    try {
+      const rows = await sql<{ date: string; reason: string | null }[]>`
+        SELECT date::text AS date, reason FROM public.blocked_dates
+        WHERE property_id = ${data.propertyId} AND date::date BETWEEN ${data.startDate}::date AND ${data.endDate}::date
+      `;
+      return rows;
+    } catch (err) {
+      console.error("[fetchBlockedDatesWithReasonServerFn]:", err instanceof Error ? err.message : err);
+      return [];
     }
   });
 

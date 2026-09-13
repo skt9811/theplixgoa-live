@@ -27,11 +27,11 @@ export class PortalErrorBoundary extends Component<Props, State> {
   override render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-navy px-6 text-center text-white">
+        <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-[#f7f8fc] px-6 text-center text-slate-900">
           <TriangleAlert className="size-10 text-bronze" aria-hidden />
           <div>
             <h1 className="text-lg font-semibold">Something went wrong</h1>
-            <p className="mt-1 text-sm text-white/60">The partner app hit an unexpected error. Reloading usually fixes it.</p>
+            <p className="mt-1 text-sm text-slate-500">The partner app hit an unexpected error. Reloading usually fixes it.</p>
           </div>
           <button
             type="button"

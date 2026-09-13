@@ -71,7 +71,7 @@ export function PortalPullToRefresh({
         className="flex items-center justify-center overflow-hidden transition-[height] duration-200"
         style={{ height: pullDistance }}
       >
-        <Loader2 className={`size-5 text-white/50 ${refreshing || pullDistance >= PULL_THRESHOLD ? "animate-spin" : ""}`} aria-hidden />
+        <Loader2 className={`size-5 text-slate-400 ${refreshing || pullDistance >= PULL_THRESHOLD ? "animate-spin" : ""}`} aria-hidden />
       </div>
       {children}
     </div>

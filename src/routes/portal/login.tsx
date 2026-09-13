@@ -98,13 +98,11 @@ function PortalLoginPage() {
       }
       void registerPushNotifications(phone);
 
-      // Literal branches, not `data.redirectTo` directly — the router's
-      // `to` param is a closed union of known routes, not a plain string.
-      if (data.role === "admin") {
-        void navigate({ to: "/admin/bookings" });
-      } else {
-        void navigate({ to: "/portal/dashboard" });
-      }
+      // Admin lands on the same property Dashboard as an owner now (with
+      // its own property selector) — /admin/bookings still exists at its
+      // own URL for the flat punch-in ledger, it's just no longer where
+      // login sends admin by default.
+      void navigate({ to: "/portal/dashboard" });
     } catch {
       toast.error("Network error — please try again");
     } finally {

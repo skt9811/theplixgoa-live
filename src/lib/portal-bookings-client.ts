@@ -19,4 +19,7 @@ export type PortalBooking = {
   status: PortalBookingStatus;
   source: "online" | "manual";
   created_at: string;
+  /** "pending" = an online checkout was started but not yet paid (the
+   * Inventory tab's "Tentative" status). null for manual bookings. */
+  payment_status: "pending" | "paid" | "simulated" | null;
 };

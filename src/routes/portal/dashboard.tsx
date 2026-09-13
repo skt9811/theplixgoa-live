@@ -7,11 +7,12 @@ import { portalFetch } from "@/lib/portal-native-session";
 import { useOnlineStatusToast } from "@/lib/use-online-status";
 import { PROPERTIES, formatINR } from "@/lib/plix";
 import { PortalBottomNav, type PortalTab } from "@/components/plix/portal-bottom-nav";
-import { PortalDashboardTab } from "@/components/plix/portal-dashboard-tab";
-import { PortalBookingsTab } from "@/components/plix/portal-bookings-tab";
-import { PortalRatesTab } from "@/components/plix/portal-rates-tab";
-import { PortalCalendarTab } from "@/components/plix/portal-calendar-tab";
-import { PortalSettingsTab } from "@/components/plix/portal-settings-tab";
+import { PortalNotificationBell, type PortalAlert } from "@/components/plix/portal-notification-bell";
+import { PortalHomeTab } from "@/components/plix/portal-home-tab";
+import { PortalInventoryTab } from "@/components/plix/portal-inventory-tab";
+import { PortalBookingTab } from "@/components/plix/portal-booking-tab";
+import { PortalAnalyticsTab } from "@/components/plix/portal-analytics-tab";
+import { PortalMenuTab } from "@/components/plix/portal-menu-tab";
 import { PortalPullToRefresh } from "@/components/plix/portal-pull-to-refresh";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -48,6 +49,13 @@ function tryPlayChime() {
   }
 }
 
+function greetingWord(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Morning";
+  if (hour < 17) return "Afternoon";
+  return "Evening";
+}
+
 function PortalDashboardPage() {
   const navigate = useNavigate();
   const [loaded, setLoaded] = useState(false);
@@ -56,9 +64,9 @@ function PortalDashboardPage() {
   const [propertySlug, setPropertySlug] = useState<string | null>(null);
   const [propertyName, setPropertyName] = useState<string>("Your Property");
   const [role, setRole] = useState<"owner" | "admin" | null>(null);
-  const [tab, setTab] = useState<PortalTab>("dashboard");
-  const [ratesRefreshSignal, setRatesRefreshSignal] = useState(0);
-  const [newBookingAlert, setNewBookingAlert] = useState<{ guestName: string; amount: number } | null>(null);
+  const [tab, setTab] = useState<PortalTab>("home");
+  const [recentAlerts, setRecentAlerts] = useState<PortalAlert[]>([]);
+  const [bannerAlert, setBannerAlert] = useState<PortalAlert | null>(null);
   const seenBookingIds = useRef<Set<string> | null>(null);
 
   useOnlineStatusToast();
@@ -118,14 +126,16 @@ function PortalDashboardPage() {
     if (!slug || slug === propertySlug) return;
     setLoaded(false);
     seenBookingIds.current = null;
-    setNewBookingAlert(null);
+    setBannerAlert(null);
+    setRecentAlerts([]);
     setPropertySlug(slug);
     void load(slug);
   }
 
-  // In-app new-booking banner: purely data-driven (no push infra needed) —
-  // poll while this screen is open and diff booking IDs against the last
-  // fetch so a new punch-in or Razorpay payment surfaces immediately.
+  // In-app new-booking banner + notification bell history: purely
+  // data-driven (no push infra needed) — poll while this screen is open and
+  // diff booking IDs against the last fetch so a new punch-in or Razorpay
+  // payment surfaces immediately.
   useEffect(() => {
     if (!propertySlug) return;
     const interval = window.setInterval(() => {
@@ -140,7 +150,9 @@ function PortalDashboardPage() {
             const fresh = data.bookings.filter((b) => !seenBookingIds.current!.has(b.id) && b.status !== "blocked");
             if (fresh.length > 0) {
               const newest = fresh[0]!;
-              setNewBookingAlert({ guestName: newest.guest_name, amount: newest.booking_amount });
+              const alert: PortalAlert = { id: newest.id, guestName: newest.guest_name, amount: newest.booking_amount };
+              setBannerAlert(alert);
+              setRecentAlerts((prev) => [alert, ...prev].slice(0, 5));
               tryPlayChime();
             }
           }
@@ -158,14 +170,14 @@ function PortalDashboardPage() {
   }, [loaded, bookings]);
 
   useEffect(() => {
-    if (!newBookingAlert) return;
-    const timeout = window.setTimeout(() => setNewBookingAlert(null), 6000);
+    if (!bannerAlert) return;
+    const timeout = window.setTimeout(() => setBannerAlert(null), 6000);
     return () => window.clearTimeout(timeout);
-  }, [newBookingAlert]);
+  }, [bannerAlert]);
 
   if (!loaded) {
     return (
-      <div className="min-h-[100dvh] bg-navy px-4 pb-24 pt-6 text-white" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      <div className="min-h-[100dvh] bg-[#f7f8fc] px-4 pb-24 pt-6" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <div className="mx-auto grid w-full max-w-lg gap-3 pt-6">
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-7 w-48" />
@@ -178,7 +190,7 @@ function PortalDashboardPage() {
 
   if (!authed || !propertySlug) {
     return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-3 bg-navy text-white/70">
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-3 bg-[#f7f8fc] text-slate-500">
         <Lock className="size-6 text-bronze" aria-hidden />
         <p className="text-sm">Redirecting to login…</p>
       </div>
@@ -186,21 +198,21 @@ function PortalDashboardPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-navy px-4 pb-24 pt-6 text-white" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.5rem)" }}>
-      {newBookingAlert && (
+    <div className="min-h-[100dvh] bg-[#f7f8fc] px-4 pb-24 pt-6" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.5rem)" }}>
+      {bannerAlert && (
         <div className="fixed inset-x-0 top-0 z-50 flex justify-center px-4" style={{ paddingTop: "env(safe-area-inset-top)" }}>
-          <div className="mt-3 flex w-full max-w-lg items-center justify-between gap-3 rounded-2xl border border-bronze/40 bg-navy px-4 py-3 shadow-xl shadow-black/40 animate-in slide-in-from-top-4">
+          <div className="mt-3 flex w-full max-w-lg items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-lg animate-in slide-in-from-top-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-bronze">New Booking Received</p>
-              <p className="mt-0.5 text-sm text-white">
-                {newBookingAlert.guestName} · {formatINR(newBookingAlert.amount)}
+              <p className="mt-0.5 text-sm text-slate-900">
+                {bannerAlert.guestName} · {formatINR(bannerAlert.amount)}
               </p>
             </div>
             <button
               type="button"
-              onClick={() => setNewBookingAlert(null)}
+              onClick={() => setBannerAlert(null)}
               aria-label="Dismiss"
-              className="shrink-0 text-white/50 hover:text-white"
+              className="shrink-0 text-slate-400 hover:text-slate-600"
             >
               <X className="size-4" aria-hidden />
             </button>
@@ -209,43 +221,54 @@ function PortalDashboardPage() {
       )}
 
       <div className="mx-auto w-full max-w-lg">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-semibold text-slate-900">
+              Good {greetingWord()}, {role === "admin" ? "Admin" : propertyName}
+            </h1>
+            <p className="text-xs text-slate-500">Manage your villas, booking &amp; earnings</p>
+          </div>
+          <PortalNotificationBell
+            alerts={recentAlerts}
+            onDismiss={(id) => setRecentAlerts((prev) => prev.filter((a) => a.id !== id))}
+          />
+        </div>
+
         {role === "admin" && (
-          <label className="mb-4 flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm text-white">
-            <span className="shrink-0 text-white/50">Property</span>
+          <label className="mt-4 flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm">
+            <span className="shrink-0 text-slate-400">Property</span>
             <span className="relative flex-1">
               <select
                 value={propertySlug}
                 onChange={(e) => handleSelectProperty(e.target.value)}
-                className="w-full appearance-none bg-transparent pr-6 font-semibold text-white outline-none"
+                className="w-full appearance-none bg-transparent pr-6 font-semibold text-slate-900 outline-none"
               >
                 {PROPERTIES.map((p) => (
-                  <option key={p.slug} value={p.slug} className="bg-navy text-white">
+                  <option key={p.slug} value={p.slug}>
                     {p.name}
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-0 top-1/2 size-4 -translate-y-1/2 text-white/50" aria-hidden />
+              <ChevronDown className="pointer-events-none absolute right-0 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden />
             </span>
           </label>
         )}
 
-        {tab === "dashboard" && (
-          <PortalPullToRefresh onRefresh={() => load(role === "admin" ? propertySlug : undefined)}>
-            <PortalDashboardTab propertySlug={propertySlug} propertyName={propertyName} bookings={bookings} onNavigateTab={setTab} />
-          </PortalPullToRefresh>
-        )}
-        {tab === "bookings" && (
-          <PortalPullToRefresh onRefresh={() => load(role === "admin" ? propertySlug : undefined)}>
-            <PortalBookingsTab bookings={bookings} />
-          </PortalPullToRefresh>
-        )}
-        {tab === "rates" && (
-          <PortalPullToRefresh onRefresh={() => setRatesRefreshSignal((n) => n + 1)}>
-            <PortalRatesTab propertySlug={propertySlug} refreshSignal={ratesRefreshSignal} />
-          </PortalPullToRefresh>
-        )}
-        {tab === "calendar" && <PortalCalendarTab propertySlug={propertySlug} bookings={bookings} />}
-        {tab === "settings" && <PortalSettingsTab propertySlug={propertySlug} propertyName={propertyName} role={role ?? "owner"} />}
+        <div className="mt-4">
+          {tab === "home" && (
+            <PortalPullToRefresh onRefresh={() => load(role === "admin" ? propertySlug : undefined)}>
+              <PortalHomeTab propertySlug={propertySlug} bookings={bookings} onNavigateTab={setTab} />
+            </PortalPullToRefresh>
+          )}
+          {tab === "inventory" && <PortalInventoryTab propertySlug={propertySlug} bookings={bookings} role={role ?? "owner"} />}
+          {tab === "booking" && (
+            <PortalPullToRefresh onRefresh={() => load(role === "admin" ? propertySlug : undefined)}>
+              <PortalBookingTab propertySlug={propertySlug} bookings={bookings} />
+            </PortalPullToRefresh>
+          )}
+          {tab === "analytics" && <PortalAnalyticsTab propertySlug={propertySlug} bookings={bookings} />}
+          {tab === "menu" && <PortalMenuTab propertySlug={propertySlug} propertyName={propertyName} role={role ?? "owner"} />}
+        </div>
       </div>
 
       <PortalBottomNav active={tab} onChange={setTab} />

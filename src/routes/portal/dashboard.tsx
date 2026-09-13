@@ -295,7 +295,12 @@ function PortalDashboardPage() {
           {tab === "inventory" && <PortalInventoryTab propertySlug={propertySlug} bookings={bookings} role={role ?? "owner"} />}
           {tab === "booking" && (
             <PortalPullToRefresh onRefresh={() => load(role === "admin" ? propertySlug : undefined)}>
-              <PortalBookingTab propertySlug={propertySlug} bookings={bookings} />
+              <PortalBookingTab
+                propertySlug={propertySlug}
+                bookings={bookings}
+                role={role ?? "owner"}
+                onCreated={() => load(role === "admin" ? propertySlug : undefined)}
+              />
             </PortalPullToRefresh>
           )}
           {tab === "analytics" && <PortalAnalyticsTab propertySlug={propertySlug} bookings={bookings} />}

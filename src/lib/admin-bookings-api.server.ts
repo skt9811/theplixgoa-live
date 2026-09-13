@@ -28,6 +28,8 @@ function jsonResponse(body: unknown, status: number): Response {
 }
 
 const ALLOWED_STATUSES = new Set(["confirmed", "checked_in", "completed", "blocked"]);
+const ALLOWED_PAYMENT_STATUSES = new Set(["paid", "partial", "pending"]);
+const ALLOWED_CHANNELS = new Set(["direct", "offline_phone", "airbnb", "booking_com", "walk_in"]);
 
 export async function handleAdminCreateBooking(request: Request): Promise<Response> {
   let body: unknown;
@@ -49,14 +51,28 @@ export async function handleAdminCreateBooking(request: Request): Promise<Respon
   const propertySlug = get("propertySlug");
   const guestName = get("guestName").trim();
   const guestPhone = get("guestPhone").trim() || null;
+  const guestEmail = get("guestEmail").trim() || null;
   const checkIn = get("checkIn");
   const checkOut = get("checkOut");
+  const notes = get("notes").trim() || null;
   const statusInput = get("status") || "confirmed";
   const status = ALLOWED_STATUSES.has(statusInput) ? statusInput : "confirmed";
+  const paymentStatusInput = get("paymentStatus") || "paid";
+  const paymentStatus = ALLOWED_PAYMENT_STATUSES.has(paymentStatusInput) ? paymentStatusInput : "paid";
+  const channelInput = get("channel") || "direct";
+  const channel = ALLOWED_CHANNELS.has(channelInput) ? channelInput : "direct";
 
   const rawBody = body as Record<string, unknown>;
-  const guestsCount = typeof rawBody["guestsCount"] === "number" ? rawBody["guestsCount"] : 1;
+  // adultsCount/childrenCount/roomsCount are record-keeping detail only —
+  // guestsCount (the total every existing occupancy/capacity calculation
+  // reads) is always computed from them here, never trusted as a separate
+  // client value, same rule this handler already applies to nights.
+  const adultsCount = typeof rawBody["adultsCount"] === "number" ? Math.max(0, rawBody["adultsCount"]) : 1;
+  const childrenCount = typeof rawBody["childrenCount"] === "number" ? Math.max(0, rawBody["childrenCount"]) : 0;
+  const roomsCount = typeof rawBody["roomsCount"] === "number" ? Math.max(1, rawBody["roomsCount"]) : 1;
+  const guestsCount = adultsCount + childrenCount || 1;
   const bookingAmount = typeof rawBody["bookingAmount"] === "number" ? rawBody["bookingAmount"] : 0;
+  const advanceAmount = typeof rawBody["advanceAmount"] === "number" ? Math.max(0, rawBody["advanceAmount"]) : 0;
 
   const nights = checkIn && checkOut ? differenceInCalendarDays(new Date(checkOut), new Date(checkIn)) : 0;
 
@@ -70,9 +86,11 @@ export async function handleAdminCreateBooking(request: Request): Promise<Respon
   try {
     const [row] = await sql<{ id: string }[]>`
       INSERT INTO public.portal_bookings
-        (property_id, guest_name, guest_phone, check_in, check_out, nights, guests_count, booking_amount, status)
+        (property_id, guest_name, guest_phone, guest_email, check_in, check_out, nights, guests_count,
+         adults_count, children_count, rooms_count, booking_amount, advance_amount, payment_status, channel, notes, status)
       VALUES
-        (${propertySlug}, ${guestName}, ${guestPhone}, ${checkIn}, ${checkOut}, ${nights}, ${guestsCount}, ${bookingAmount}, ${status})
+        (${propertySlug}, ${guestName}, ${guestPhone}, ${guestEmail}, ${checkIn}, ${checkOut}, ${nights}, ${guestsCount},
+         ${adultsCount}, ${childrenCount}, ${roomsCount}, ${bookingAmount}, ${advanceAmount}, ${paymentStatus}, ${channel}, ${notes}, ${status})
       RETURNING id
     `;
     if (status !== "blocked") {

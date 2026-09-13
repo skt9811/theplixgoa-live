@@ -1,7 +1,11 @@
 import { useMemo, useState } from "react";
-import { Info, MapPin, MessageCircle, Users } from "lucide-react";
+import { toast } from "sonner";
+import { differenceInCalendarDays } from "date-fns";
+import { Info, Loader as Loader2, MapPin, MessageCircle, Plus, Users, X } from "lucide-react";
 import { formatINR, PROPERTIES, todayISO } from "@/lib/plix";
 import type { PortalBooking } from "@/lib/portal-bookings-client";
+import { PAYMENT_STATUS_OPTIONS, CHANNEL_OPTIONS } from "@/lib/booking-options";
+import { createBooking, type CreateBookingPayload } from "@/lib/create-booking-client";
 
 const SUPPORT_WHATSAPP = "https://wa.me/919009800809";
 const CHECK_IN_TIME = "02:00 pm";
@@ -42,10 +46,21 @@ const STATUS_PILL: Record<LifecycleStatus, { label: string; bg: string; text: st
   checkout: { label: "Checkout", bg: "#fee2e2", text: "#b91c1c" },
 };
 
-export function PortalBookingTab({ propertySlug, bookings }: { propertySlug: string; bookings: PortalBooking[] }) {
+export function PortalBookingTab({
+  propertySlug,
+  bookings,
+  role,
+  onCreated,
+}: {
+  propertySlug: string;
+  bookings: PortalBooking[];
+  role: "owner" | "admin";
+  onCreated: () => void;
+}) {
   const property = PROPERTIES.find((p) => p.slug === propertySlug);
   const [monthFilter, setMonthFilter] = useState(() => todayISO().slice(0, 7));
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const months = useMemo(() => {
     const set = new Set<string>();
@@ -67,7 +82,18 @@ export function PortalBookingTab({ propertySlug, bookings }: { propertySlug: str
 
   return (
     <>
-      <h1 className="text-xl font-semibold text-slate-900">Booking</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-slate-900">Booking</h1>
+        {role === "admin" && (
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="flex items-center gap-1 rounded-full bg-bronze px-3.5 py-2 text-xs font-semibold text-bronze-foreground"
+          >
+            <Plus className="size-3.5" aria-hidden /> New
+          </button>
+        )}
+      </div>
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <div className="rounded-full bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-600">
@@ -207,6 +233,270 @@ export function PortalBookingTab({ propertySlug, bookings }: { propertySlug: str
           );
         })}
       </div>
+
+      {creating && (
+        <CreateBookingSheet
+          propertySlug={propertySlug}
+          onClose={() => setCreating(false)}
+          onCreated={() => {
+            setCreating(false);
+            onCreated();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function CreateBookingSheet({
+  propertySlug,
+  onClose,
+  onCreated,
+}: {
+  propertySlug: string;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [checkIn, setCheckIn] = useState(todayISO());
+  const [checkOut, setCheckOut] = useState(todayISO(1));
+  const [adultsCount, setAdultsCount] = useState(2);
+  const [childrenCount, setChildrenCount] = useState(0);
+  const [roomsCount, setRoomsCount] = useState(1);
+  const [bookingAmount, setBookingAmount] = useState(0);
+  const [advanceAmount, setAdvanceAmount] = useState(0);
+  const [paymentStatus, setPaymentStatus] = useState<CreateBookingPayload["paymentStatus"]>("paid");
+  const [channel, setChannel] = useState<CreateBookingPayload["channel"]>("direct");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const nights = checkIn && checkOut ? Math.max(0, differenceInCalendarDays(new Date(checkOut), new Date(checkIn))) : 0;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!guestName.trim()) {
+      toast.error("Guest name is required");
+      return;
+    }
+    if (!guestPhone.trim()) {
+      toast.error("Phone number is required");
+      return;
+    }
+    if (nights <= 0) {
+      toast.error("Check-out must be after check-in");
+      return;
+    }
+    setSaving(true);
+    const error = await createBooking({
+      propertySlug,
+      guestName: guestName.trim(),
+      guestPhone: guestPhone.trim(),
+      guestEmail: guestEmail.trim(),
+      checkIn,
+      checkOut,
+      adultsCount,
+      childrenCount,
+      roomsCount,
+      bookingAmount,
+      advanceAmount,
+      paymentStatus,
+      channel,
+      notes: notes.trim(),
+    });
+    setSaving(false);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    toast.success("Booking created");
+    onCreated();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-6 text-slate-900"
+        style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200" />
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Create Booking</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600">
+            <X className="size-5" aria-hidden />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-4 grid gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-slate-500">Guest Name</span>
+              <input
+                type="text"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="Full name"
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-slate-500">Phone</span>
+              <input
+                type="tel"
+                value={guestPhone}
+                onChange={(e) => setGuestPhone(e.target.value)}
+                placeholder="+91"
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+          </div>
+
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-slate-500">Email (optional)</span>
+            <input
+              type="email"
+              value={guestEmail}
+              onChange={(e) => setGuestEmail(e.target.value)}
+              placeholder="guest@example.com"
+              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-bronze/50"
+            />
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-slate-500">Check-in</span>
+              <input
+                type="date"
+                value={checkIn}
+                onChange={(e) => setCheckIn(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-slate-500">Check-out</span>
+              <input
+                type="date"
+                value={checkOut}
+                onChange={(e) => setCheckOut(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+          </div>
+          <p className="-mt-2 text-xs text-slate-400">
+            {nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "Select valid dates"}
+          </p>
+
+          <div className="grid grid-cols-3 gap-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-slate-500">Adults</span>
+              <input
+                type="number"
+                min={1}
+                value={adultsCount}
+                onChange={(e) => setAdultsCount(Math.max(1, Number(e.target.value)))}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-slate-500">Children</span>
+              <input
+                type="number"
+                min={0}
+                value={childrenCount}
+                onChange={(e) => setChildrenCount(Math.max(0, Number(e.target.value)))}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-slate-500">Rooms</span>
+              <input
+                type="number"
+                min={1}
+                value={roomsCount}
+                onChange={(e) => setRoomsCount(Math.max(1, Number(e.target.value)))}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-slate-500">Total Stay Amount (₹)</span>
+              <input
+                type="number"
+                min={0}
+                value={bookingAmount}
+                onChange={(e) => setBookingAmount(Math.max(0, Number(e.target.value)))}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-slate-500">Advance Paid (₹)</span>
+              <input
+                type="number"
+                min={0}
+                value={advanceAmount}
+                onChange={(e) => setAdvanceAmount(Math.max(0, Number(e.target.value)))}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+          </div>
+          {bookingAmount > 0 && <p className="-mt-2 text-xs text-slate-400">{formatINR(bookingAmount)}</p>}
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-slate-500">Payment Status</span>
+              <select
+                value={paymentStatus}
+                onChange={(e) => setPaymentStatus(e.target.value as CreateBookingPayload["paymentStatus"])}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+              >
+                {PAYMENT_STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-slate-500">Source</span>
+              <select
+                value={channel}
+                onChange={(e) => setChannel(e.target.value as CreateBookingPayload["channel"])}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+              >
+                {CHANNEL_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-slate-500">Notes / Special Requests (optional)</span>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Late check-in, extra bed, etc."
+              className="resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-bronze/50"
+            />
+          </label>
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="mt-1 flex items-center justify-center gap-2 rounded-full bg-bronze px-6 py-3 text-sm font-semibold text-bronze-foreground disabled:opacity-60"
+          >
+            {saving && <Loader2 className="size-4 animate-spin" aria-hidden />}
+            Create Booking
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

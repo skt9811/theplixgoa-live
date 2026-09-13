@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { differenceInCalendarDays } from "date-fns";
-import { Loader as Loader2, Mail, Pencil, Phone, Tag, Users, X } from "lucide-react";
+import { Loader as Loader2, Mail, Pencil, Phone, Plus, Tag, Users, X } from "lucide-react";
 import { fetchUpcomingBookings, type BookingRow } from "@/lib/booking";
-import { formatINR } from "@/lib/plix";
+import { formatINR, PROPERTIES, todayISO } from "@/lib/plix";
+import { PAYMENT_STATUS_OPTIONS, CHANNEL_OPTIONS } from "@/lib/booking-options";
+import { createBooking, type CreateBookingPayload } from "@/lib/create-booking-client";
 
 const ADMIN_PIN = (import.meta.env["VITE_ADMIN_PIN"] as string) || "1979";
 
@@ -69,6 +71,7 @@ export function BookingsManager() {
   const [editing, setEditing] = useState<BookingRow | null>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   async function load() {
     const data = await fetchUpcomingBookings();
@@ -102,21 +105,26 @@ export function BookingsManager() {
     void load();
   }
 
-  if (!loaded) {
-    return (
-      <div className="flex items-center justify-center py-16 text-white/40">
-        <Loader2 className="size-5 animate-spin" />
-      </div>
-    );
-  }
-
-  if (bookings.length === 0) {
-    return <p className="py-6 text-center text-sm text-white/40">No upcoming bookings.</p>;
-  }
-
   return (
     <div className="grid gap-3">
-      {bookings.map((b) => {
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          className="flex items-center gap-1.5 rounded-full bg-bronze px-4 py-2 text-xs font-semibold text-bronze-foreground hover:brightness-95"
+        >
+          <Plus className="size-3.5" aria-hidden /> Create Booking
+        </button>
+      </div>
+
+      {!loaded ? (
+        <div className="flex items-center justify-center py-16 text-white/40">
+          <Loader2 className="size-5 animate-spin" />
+        </div>
+      ) : bookings.length === 0 ? (
+        <p className="py-6 text-center text-sm text-white/40">No upcoming bookings.</p>
+      ) : (
+        bookings.map((b) => {
         const badge = statusBadge(b.payment_status);
         const source = sourceBadge(b.source);
         return (
@@ -212,7 +220,8 @@ export function BookingsManager() {
             )}
           </div>
         );
-      })}
+        })
+      )}
 
       {editing && (
         <EditBookingModal
@@ -220,6 +229,16 @@ export function BookingsManager() {
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
+            void load();
+          }}
+        />
+      )}
+
+      {creating && (
+        <CreateBookingModal
+          onClose={() => setCreating(false)}
+          onCreated={() => {
+            setCreating(false);
             void load();
           }}
         />
@@ -343,6 +362,264 @@ function EditBookingModal({
           >
             {saving && <Loader2 className="size-4 animate-spin" aria-hidden />}
             Save Changes
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function CreateBookingModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [propertySlug, setPropertySlug] = useState(PROPERTIES[0]!.slug);
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [checkIn, setCheckIn] = useState(todayISO());
+  const [checkOut, setCheckOut] = useState(todayISO(1));
+  const [adultsCount, setAdultsCount] = useState(2);
+  const [childrenCount, setChildrenCount] = useState(0);
+  const [roomsCount, setRoomsCount] = useState(1);
+  const [bookingAmount, setBookingAmount] = useState(0);
+  const [advanceAmount, setAdvanceAmount] = useState(0);
+  const [paymentStatus, setPaymentStatus] = useState<CreateBookingPayload["paymentStatus"]>("paid");
+  const [channel, setChannel] = useState<CreateBookingPayload["channel"]>("direct");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const nights = checkIn && checkOut ? Math.max(0, differenceInCalendarDays(new Date(checkOut), new Date(checkIn))) : 0;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!guestName.trim()) {
+      toast.error("Guest name is required");
+      return;
+    }
+    if (!guestPhone.trim()) {
+      toast.error("Phone number is required");
+      return;
+    }
+    if (nights <= 0) {
+      toast.error("Check-out must be after check-in");
+      return;
+    }
+    setSaving(true);
+    const error = await createBooking({
+      propertySlug,
+      guestName: guestName.trim(),
+      guestPhone: guestPhone.trim(),
+      guestEmail: guestEmail.trim(),
+      checkIn,
+      checkOut,
+      adultsCount,
+      childrenCount,
+      roomsCount,
+      bookingAmount,
+      advanceAmount,
+      paymentStatus,
+      channel,
+      notes: notes.trim(),
+    });
+    setSaving(false);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    toast.success("Booking created");
+    onCreated();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8" onClick={onClose}>
+      <div
+        className="max-h-full w-full max-w-lg overflow-y-auto rounded-3xl border border-white/15 bg-navy p-6 text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Create Booking</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-white/50 hover:text-white">
+            <X className="size-5" aria-hidden />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="mt-4 grid gap-3">
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-white/70">Property</span>
+            <select
+              value={propertySlug}
+              onChange={(e) => setPropertySlug(e.target.value)}
+              className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none focus:ring-2 focus:ring-bronze/50"
+            >
+              {PROPERTIES.map((p) => (
+                <option key={p.slug} value={p.slug} className="bg-navy">
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-white/70">Guest Name</span>
+              <input
+                type="text"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="Full name"
+                className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-white/70">Phone</span>
+              <input
+                type="tel"
+                value={guestPhone}
+                onChange={(e) => setGuestPhone(e.target.value)}
+                placeholder="+91"
+                className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+          </div>
+
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-white/70">Email (optional)</span>
+            <input
+              type="email"
+              value={guestEmail}
+              onChange={(e) => setGuestEmail(e.target.value)}
+              placeholder="guest@example.com"
+              className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-bronze/50"
+            />
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-white/70">Check-in</span>
+              <input
+                type="date"
+                value={checkIn}
+                onChange={(e) => setCheckIn(e.target.value)}
+                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-white outline-none focus:ring-2 focus:ring-bronze/50 [color-scheme:dark]"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-white/70">Check-out</span>
+              <input
+                type="date"
+                value={checkOut}
+                onChange={(e) => setCheckOut(e.target.value)}
+                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-white outline-none focus:ring-2 focus:ring-bronze/50 [color-scheme:dark]"
+              />
+            </label>
+          </div>
+          <p className="-mt-2 text-xs text-white/50">
+            {nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "Select valid dates"}
+          </p>
+
+          <div className="grid grid-cols-3 gap-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-white/70">Adults</span>
+              <input
+                type="number"
+                min={1}
+                value={adultsCount}
+                onChange={(e) => setAdultsCount(Math.max(1, Number(e.target.value)))}
+                className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-white/70">Children</span>
+              <input
+                type="number"
+                min={0}
+                value={childrenCount}
+                onChange={(e) => setChildrenCount(Math.max(0, Number(e.target.value)))}
+                className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-white/70">Rooms</span>
+              <input
+                type="number"
+                min={1}
+                value={roomsCount}
+                onChange={(e) => setRoomsCount(Math.max(1, Number(e.target.value)))}
+                className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-white/70">Total Stay Amount (₹)</span>
+              <input
+                type="number"
+                min={0}
+                value={bookingAmount}
+                onChange={(e) => setBookingAmount(Math.max(0, Number(e.target.value)))}
+                className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-white/70">Advance Paid (₹)</span>
+              <input
+                type="number"
+                min={0}
+                value={advanceAmount}
+                onChange={(e) => setAdvanceAmount(Math.max(0, Number(e.target.value)))}
+                className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+          </div>
+          {bookingAmount > 0 && <p className="-mt-2 text-xs text-white/50">{formatINR(bookingAmount)}</p>}
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-white/70">Payment Status</span>
+              <select
+                value={paymentStatus}
+                onChange={(e) => setPaymentStatus(e.target.value as CreateBookingPayload["paymentStatus"])}
+                className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none focus:ring-2 focus:ring-bronze/50"
+              >
+                {PAYMENT_STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value} className="bg-navy">
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-white/70">Source</span>
+              <select
+                value={channel}
+                onChange={(e) => setChannel(e.target.value as CreateBookingPayload["channel"])}
+                className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none focus:ring-2 focus:ring-bronze/50"
+              >
+                {CHANNEL_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value} className="bg-navy">
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-white/70">Notes / Special Requests (optional)</span>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Late check-in, extra bed, etc."
+              className="resize-none rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-bronze/50"
+            />
+          </label>
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="mt-1 flex items-center justify-center gap-2 rounded-full bg-bronze px-6 py-3 text-sm font-semibold text-bronze-foreground disabled:opacity-60"
+          >
+            {saving && <Loader2 className="size-4 animate-spin" aria-hidden />}
+            Create Booking
           </button>
         </form>
       </div>

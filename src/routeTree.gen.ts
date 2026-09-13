@@ -20,8 +20,12 @@ import { Route as FaqRouteImport } from './routes/faq'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as StaysRouteImport } from './routes/stays'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as AdminBookingsRouteImport } from './routes/admin_.bookings'
 import { Route as BlogIndexRouteImport } from './routes/blog/index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
+import { Route as PortalIndexRouteImport } from './routes/portal/index'
+import { Route as PortalDashboardRouteImport } from './routes/portal/dashboard'
+import { Route as PortalLoginRouteImport } from './routes/portal/login'
 import { Route as PropertiesSlugRouteImport } from './routes/properties.$slug'
 
 const IndexRoute = IndexRouteImport.update({
@@ -79,6 +83,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminBookingsRoute = AdminBookingsRouteImport.update({
+  id: '/admin_/bookings',
+  path: '/admin/bookings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BlogIndexRoute = BlogIndexRouteImport.update({
   id: '/blog/',
   path: '/blog/',
@@ -87,6 +96,21 @@ const BlogIndexRoute = BlogIndexRouteImport.update({
 const BlogSlugRoute = BlogSlugRouteImport.update({
   id: '/blog/$slug',
   path: '/blog/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalIndexRoute = PortalIndexRouteImport.update({
+  id: '/portal/',
+  path: '/portal/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalDashboardRoute = PortalDashboardRouteImport.update({
+  id: '/portal/dashboard',
+  path: '/portal/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalLoginRoute = PortalLoginRouteImport.update({
+  id: '/portal/login',
+  path: '/portal/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PropertiesSlugRoute = PropertiesSlugRouteImport.update({
@@ -107,9 +131,13 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/stays': typeof StaysRoute
   '/terms': typeof TermsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/portal/dashboard': typeof PortalDashboardRoute
+  '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
   '/blog/': typeof BlogIndexRoute
+  '/portal/': typeof PortalIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -123,9 +151,13 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/stays': typeof StaysRoute
   '/terms': typeof TermsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/portal/dashboard': typeof PortalDashboardRoute
+  '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
   '/blog': typeof BlogIndexRoute
+  '/portal': typeof PortalIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -140,9 +172,13 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/stays': typeof StaysRoute
   '/terms': typeof TermsRoute
+  '/admin_/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/portal/dashboard': typeof PortalDashboardRoute
+  '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
   '/blog/': typeof BlogIndexRoute
+  '/portal/': typeof PortalIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -158,9 +194,13 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/stays'
     | '/terms'
+    | '/admin/bookings'
     | '/blog/$slug'
+    | '/portal/dashboard'
+    | '/portal/login'
     | '/properties/$slug'
     | '/blog/'
+    | '/portal/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -174,9 +214,13 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/stays'
     | '/terms'
+    | '/admin/bookings'
     | '/blog/$slug'
+    | '/portal/dashboard'
+    | '/portal/login'
     | '/properties/$slug'
     | '/blog'
+    | '/portal'
   id:
     | '__root__'
     | '/'
@@ -190,9 +234,13 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/stays'
     | '/terms'
+    | '/admin_/bookings'
     | '/blog/$slug'
+    | '/portal/dashboard'
+    | '/portal/login'
     | '/properties/$slug'
     | '/blog/'
+    | '/portal/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -207,9 +255,13 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   StaysRoute: typeof StaysRoute
   TermsRoute: typeof TermsRoute
+  AdminBookingsRoute: typeof AdminBookingsRoute
   BlogSlugRoute: typeof BlogSlugRoute
+  PortalDashboardRoute: typeof PortalDashboardRoute
+  PortalLoginRoute: typeof PortalLoginRoute
   PropertiesSlugRoute: typeof PropertiesSlugRoute
   BlogIndexRoute: typeof BlogIndexRoute
+  PortalIndexRoute: typeof PortalIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -291,6 +343,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/bookings': {
+      id: '/admin_/bookings'
+      path: '/admin/bookings'
+      fullPath: '/admin/bookings'
+      preLoaderRoute: typeof AdminBookingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/blog/': {
       id: '/blog/'
       path: '/blog'
@@ -303,6 +362,27 @@ declare module '@tanstack/react-router' {
       path: '/blog/$slug'
       fullPath: '/blog/$slug'
       preLoaderRoute: typeof BlogSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal/': {
+      id: '/portal/'
+      path: '/portal'
+      fullPath: '/portal/'
+      preLoaderRoute: typeof PortalIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal/dashboard': {
+      id: '/portal/dashboard'
+      path: '/portal/dashboard'
+      fullPath: '/portal/dashboard'
+      preLoaderRoute: typeof PortalDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal/login': {
+      id: '/portal/login'
+      path: '/portal/login'
+      fullPath: '/portal/login'
+      preLoaderRoute: typeof PortalLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/properties/$slug': {
@@ -327,9 +407,13 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   StaysRoute: StaysRoute,
   TermsRoute: TermsRoute,
+  AdminBookingsRoute: AdminBookingsRoute,
   BlogSlugRoute: BlogSlugRoute,
+  PortalDashboardRoute: PortalDashboardRoute,
+  PortalLoginRoute: PortalLoginRoute,
   PropertiesSlugRoute: PropertiesSlugRoute,
   BlogIndexRoute: BlogIndexRoute,
+  PortalIndexRoute: PortalIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

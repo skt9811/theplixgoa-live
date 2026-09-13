@@ -8,6 +8,9 @@ import { handleContactEnquiryRequest } from "./lib/contact-enquiry.server";
 import { handleSitemapRequest } from "./lib/sitemap.server";
 import { handleSendWelcomeEmail } from "./lib/send-welcome-email.server";
 import { handlePasswordSignIn, handlePasswordSignUp, handleLogout } from "./lib/auth-routes.server";
+import { handlePortalAuth, handlePortalLogout } from "./lib/portal-auth.server";
+import { handleGetPortalBookings, handleBlockDates } from "./lib/portal-bookings-api.server";
+import { handleAdminCreateBooking } from "./lib/admin-bookings-api.server";
 import { getAuthConfig } from "./lib/auth.server";
 import { StartAuthJS } from "start-authjs";
 
@@ -212,6 +215,64 @@ export default {
       } catch (error) {
         console.error("[logout] unhandled error:", error);
         return new Response(JSON.stringify({ success: false, error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    // Hotelier partner portal — PIN login (sets its own session cookie,
+    // separate from Auth.js's), bookings read, and block-dates write.
+    if (url.pathname === "/api/portal/auth") {
+      try {
+        return await handlePortalAuth(request);
+      } catch (error) {
+        console.error("[portal-auth] unhandled error:", error);
+        return new Response(JSON.stringify({ success: false, error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    if (url.pathname === "/api/portal/logout") {
+      try {
+        return handlePortalLogout(request);
+      } catch (error) {
+        console.error("[portal-logout] unhandled error:", error);
+        return new Response(JSON.stringify({ success: false, error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    if (url.pathname === "/api/portal/bookings") {
+      try {
+        return await handleGetPortalBookings(request);
+      } catch (error) {
+        console.error("[portal-bookings] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    if (url.pathname === "/api/portal/block-dates") {
+      try {
+        return await handleBlockDates(request);
+      } catch (error) {
+        console.error("[portal-block-dates] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    // Admin booking punch-in — manual/offline/walk-in reservations.
+    if (url.pathname === "/api/admin/bookings") {
+      try {
+        return await handleAdminCreateBooking(request);
+      } catch (error) {
+        console.error("[admin-bookings] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });

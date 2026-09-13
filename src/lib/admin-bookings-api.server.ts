@@ -1,0 +1,81 @@
+// Server-only. POST /api/admin/bookings — the admin punch-in endpoint for
+// manual/offline/walk-in reservations. Re-validates the PIN server-side
+// against the same value the client-side /admin gate already uses
+// (VITE_ADMIN_PIN, fallback "1979") — today's other admin writes have no
+// server-side check at all, so this closes that gap without introducing a
+// new env var.
+import postgres from "postgres";
+import { differenceInCalendarDays } from "date-fns";
+
+let sqlClient: ReturnType<typeof postgres> | null = null;
+
+function getSql() {
+  const connectionString = process.env["DATABASE_URL"];
+  if (!connectionString) return null;
+  if (!sqlClient) {
+    sqlClient = postgres(connectionString, { ssl: "require" });
+  }
+  return sqlClient;
+}
+
+function jsonResponse(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+const ALLOWED_STATUSES = new Set(["confirmed", "checked_in", "completed", "blocked"]);
+
+export async function handleAdminCreateBooking(request: Request): Promise<Response> {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse({ error: "Invalid request" }, 400);
+  }
+
+  const get = (key: string): string =>
+    typeof (body as Record<string, unknown>)?.[key] === "string" ? ((body as Record<string, unknown>)[key] as string) : "";
+
+  const pin = get("pin");
+  const expectedPin = process.env["VITE_ADMIN_PIN"] ?? "1979";
+  if (pin !== expectedPin) {
+    return jsonResponse({ error: "Invalid PIN" }, 401);
+  }
+
+  const propertySlug = get("propertySlug");
+  const guestName = get("guestName").trim();
+  const guestPhone = get("guestPhone").trim() || null;
+  const checkIn = get("checkIn");
+  const checkOut = get("checkOut");
+  const statusInput = get("status") || "confirmed";
+  const status = ALLOWED_STATUSES.has(statusInput) ? statusInput : "confirmed";
+
+  const rawBody = body as Record<string, unknown>;
+  const guestsCount = typeof rawBody["guestsCount"] === "number" ? rawBody["guestsCount"] : 1;
+  const bookingAmount = typeof rawBody["bookingAmount"] === "number" ? rawBody["bookingAmount"] : 0;
+
+  const nights = checkIn && checkOut ? differenceInCalendarDays(new Date(checkOut), new Date(checkIn)) : 0;
+
+  if (!propertySlug || !guestName || !checkIn || !checkOut || nights <= 0) {
+    return jsonResponse({ error: "Missing or invalid fields" }, 400);
+  }
+
+  const sql = getSql();
+  if (!sql) return jsonResponse({ error: "Database not configured" }, 500);
+
+  try {
+    const [row] = await sql<{ id: string }[]>`
+      INSERT INTO public.portal_bookings
+        (property_id, guest_name, guest_phone, check_in, check_out, nights, guests_count, booking_amount, status)
+      VALUES
+        (${propertySlug}, ${guestName}, ${guestPhone}, ${checkIn}, ${checkOut}, ${nights}, ${guestsCount}, ${bookingAmount}, ${status})
+      RETURNING id
+    `;
+    return jsonResponse({ success: true, id: row?.id, nights }, 200);
+  } catch (err) {
+    console.error("[handleAdminCreateBooking]:", err instanceof Error ? err.message : err);
+    return jsonResponse({ error: "Internal error" }, 500);
+  }
+}

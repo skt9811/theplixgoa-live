@@ -6,6 +6,15 @@
 // to localStorage on the web build where Preferences isn't meaningfully
 // different from it anyway.
 import { Capacitor } from "@capacitor/core";
+import { apiUrl, withTimeout } from "@/lib/capacitor-utils";
+
+// A native plugin bridge that never responds (unlinked plugin, a device
+// storage hiccup, etc.) leaves its promise permanently unsettled — this is
+// what silently froze the Android app's login button, since every native
+// call below is awaited directly. 2s is generous for a local Preferences
+// read/write; past that, falling back to localStorage is always safer than
+// blocking the caller (often the login flow) forever.
+const NATIVE_CALL_TIMEOUT_MS = 2000;
 
 export type PortalStoredSession = {
   portal_token: string;
@@ -37,12 +46,13 @@ export async function savePortalSession(session: PortalStoredSession): Promise<v
   const value = JSON.stringify(session);
   const Preferences = await getPreferences();
   if (Preferences) {
-    try {
-      await Preferences.set({ key: STORAGE_KEY, value });
-      return;
-    } catch {
-      // native call rejected (plugin not implemented, storage error, etc.) — fall through to localStorage
-    }
+    const saved = await withTimeout(
+      Preferences.set({ key: STORAGE_KEY, value }).then(() => true),
+      NATIVE_CALL_TIMEOUT_MS,
+      false,
+    );
+    if (saved) return;
+    // rejected or timed out — fall through to localStorage
   }
   try {
     localStorage.setItem(STORAGE_KEY, value);
@@ -54,16 +64,17 @@ export async function savePortalSession(session: PortalStoredSession): Promise<v
 export async function loadPortalSession(): Promise<PortalStoredSession | null> {
   const Preferences = await getPreferences();
   let raw: string | null = null;
-  let nativeFailed = false;
+  let nativeOk = false;
   if (Preferences) {
-    try {
-      const result = await Preferences.get({ key: STORAGE_KEY });
-      raw = result.value;
-    } catch {
-      nativeFailed = true;
-    }
+    const result = await withTimeout<{ ok: boolean; value: string | null }>(
+      Preferences.get({ key: STORAGE_KEY }).then((r) => ({ ok: true, value: r.value })),
+      NATIVE_CALL_TIMEOUT_MS,
+      { ok: false, value: null },
+    );
+    nativeOk = result.ok;
+    raw = result.value;
   }
-  if (!Preferences || nativeFailed) {
+  if (!Preferences || !nativeOk) {
     try {
       raw = localStorage.getItem(STORAGE_KEY);
     } catch {
@@ -81,12 +92,14 @@ export async function loadPortalSession(): Promise<PortalStoredSession | null> {
 export async function clearPortalSession(): Promise<void> {
   const Preferences = await getPreferences();
   if (Preferences) {
-    try {
-      await Preferences.remove({ key: STORAGE_KEY });
-    } catch {
-      // fall through — still clear localStorage below as a defensive backstop
-      // in case an earlier save() had fallen back there itself
-    }
+    await withTimeout(
+      Preferences.remove({ key: STORAGE_KEY }).then(() => true),
+      NATIVE_CALL_TIMEOUT_MS,
+      false,
+    );
+    // Whether that succeeded, rejected, or timed out, still clear
+    // localStorage below as a defensive backstop in case an earlier save()
+    // had fallen back there itself.
   }
   try {
     localStorage.removeItem(STORAGE_KEY);
@@ -108,5 +121,5 @@ export async function portalFetch(input: string, init: RequestInit = {}): Promis
   if (session?.portal_token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${session.portal_token}`);
   }
-  return fetch(input, { ...init, headers });
+  return fetch(apiUrl(input), { ...init, headers, credentials: "include" });
 }

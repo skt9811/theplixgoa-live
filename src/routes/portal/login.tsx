@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import { savePortalSession } from "@/lib/portal-native-session";
+import { apiUrl, withTimeout } from "@/lib/capacitor-utils";
 import { Capacitor } from "@capacitor/core";
 
 export const Route = createFileRoute("/portal/login")({
@@ -27,13 +28,21 @@ async function registerPushNotifications(phone: string) {
   if (!Capacitor.isNativePlatform()) return;
   try {
     const { PushNotifications } = await import("@capacitor/push-notifications");
-    const permission = await PushNotifications.requestPermissions();
+    // Both native calls are timeout-raced, not just try/catch'd — a plugin
+    // bridge that never responds (no Firebase project configured yet, an
+    // unlinked plugin, etc.) leaves its promise permanently unsettled, which
+    // a plain try/catch does nothing for. This function is already
+    // fire-and-forget from handleSignIn below, but hardening it here means
+    // it can never turn into a dangling hang even if something later awaits it.
+    const permission = await withTimeout(PushNotifications.requestPermissions(), 2000, { receive: "denied" as const });
     if (permission.receive !== "granted") return;
-    await PushNotifications.register();
+    const registered = await withTimeout(PushNotifications.register().then(() => true), 2000, false);
+    if (!registered) return;
     PushNotifications.addListener("registration", (token) => {
-      fetch("/api/portal/register-push-token", {
+      fetch(apiUrl("/api/portal/register-push-token"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ phone, deviceToken: token.value, platform: Capacitor.getPlatform() }),
       }).catch(() => {
         // best-effort; a missed registration just means no push until next login
@@ -57,9 +66,10 @@ function PortalLoginPage() {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      const res = await fetch("/api/portal/auth", {
+      const res = await fetch(apiUrl("/api/portal/auth"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ phone, pin }),
       });
       const data = (await res.json()) as {
@@ -103,6 +113,15 @@ function PortalLoginPage() {
       // own URL for the flat punch-in ledger, it's just no longer where
       // login sends admin by default.
       void navigate({ to: "/portal/dashboard" });
+      // Belt-and-braces fallback for the Android WebView: if the router
+      // hasn't actually left this screen a moment later (a stalled/failed
+      // client-side transition), force a real navigation rather than leave
+      // the user stranded on a login screen that already succeeded.
+      window.setTimeout(() => {
+        if (window.location.pathname === "/portal/login") {
+          window.location.href = "/portal/dashboard";
+        }
+      }, 800);
     } catch {
       toast.error("Network error — please try again");
     } finally {

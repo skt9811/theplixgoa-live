@@ -121,6 +121,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
                booking_amount, status, created_at
         FROM public.portal_bookings
         WHERE property_id = ${session.propertySlug}
+          AND status != 'cancelled'
       `,
     ]);
 

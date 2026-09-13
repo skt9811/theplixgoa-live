@@ -1,12 +1,12 @@
-import { BarChart3, CalendarCheck, LayoutDashboard, Settings, SlidersHorizontal } from "lucide-react";
+import { CalendarCheck, CalendarDays, LayoutDashboard, Settings, SlidersHorizontal } from "lucide-react";
 
-export type PortalTab = "dashboard" | "bookings" | "rates" | "insights" | "settings";
+export type PortalTab = "dashboard" | "bookings" | "rates" | "calendar" | "settings";
 
 const TABS: { id: PortalTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "bookings", label: "Bookings", icon: CalendarCheck },
   { id: "rates", label: "Rates", icon: SlidersHorizontal },
-  { id: "insights", label: "Insights", icon: BarChart3 },
+  { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 

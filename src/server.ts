@@ -11,7 +11,9 @@ import { handlePasswordSignIn, handlePasswordSignUp, handleLogout } from "./lib/
 import { handlePortalAuth, handlePortalLogout } from "./lib/portal-auth.server";
 import { handleGetPortalBookings } from "./lib/portal-bookings-api.server";
 import { handleGetPortalMe, handleChangePortalPin } from "./lib/portal-settings-api.server";
+import { handleRegisterPushToken } from "./lib/portal-push-api.server";
 import { handleAdminCreateBooking } from "./lib/admin-bookings-api.server";
+import { handleAdminUpdateBooking, handleAdminDeleteBooking } from "./lib/admin-bookings-crud.server";
 import { getAuthConfig } from "./lib/auth.server";
 import { StartAuthJS } from "start-authjs";
 
@@ -278,12 +280,40 @@ export default {
         });
       }
     }
+    if (url.pathname === "/api/portal/register-push-token") {
+      try {
+        return await handleRegisterPushToken(request);
+      } catch (error) {
+        console.error("[portal-register-push-token] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
     // Admin booking punch-in — manual/offline/walk-in reservations.
     if (url.pathname === "/api/admin/bookings") {
       try {
         return await handleAdminCreateBooking(request);
       } catch (error) {
         console.error("[admin-bookings] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    // Admin ledger Edit/Delete — path has a booking id segment, so it's
+    // matched by prefix rather than the flat-string equality every other
+    // route here uses.
+    if (url.pathname.startsWith("/api/admin/bookings/") && (request.method === "PATCH" || request.method === "DELETE")) {
+      const id = url.pathname.slice("/api/admin/bookings/".length);
+      try {
+        return request.method === "PATCH"
+          ? await handleAdminUpdateBooking(request, id)
+          : await handleAdminDeleteBooking(request, id);
+      } catch (error) {
+        console.error("[admin-bookings-crud] unhandled error:", error);
         return new Response(JSON.stringify({ error: "Internal error" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },

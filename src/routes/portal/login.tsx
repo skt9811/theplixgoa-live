@@ -2,6 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
+import { savePortalSession } from "@/lib/portal-native-session";
+import { Capacitor } from "@capacitor/core";
 
 export const Route = createFileRoute("/portal/login")({
   head: () => ({
@@ -15,6 +17,32 @@ export const Route = createFileRoute("/portal/login")({
 
 const PHONE_PATTERN = /^[0-9]{10}$/;
 const PIN_PATTERN = /^[0-9]{4}$/;
+
+// Best-effort, native only — inert on web, and inert server-side until FCM
+// credentials exist (see push-notifications.server.ts), but wired up now so
+// the whole pipeline is exercised today. Registers by phone rather than the
+// portal session, so the master admin (no portal session — see
+// portal-auth.server.ts) can register a device too.
+async function registerPushNotifications(phone: string) {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    const { PushNotifications } = await import("@capacitor/push-notifications");
+    const permission = await PushNotifications.requestPermissions();
+    if (permission.receive !== "granted") return;
+    await PushNotifications.register();
+    PushNotifications.addListener("registration", (token) => {
+      fetch("/api/portal/register-push-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, deviceToken: token.value, platform: Capacitor.getPlatform() }),
+      }).catch(() => {
+        // best-effort; a missed registration just means no push until next login
+      });
+    });
+  } catch {
+    // push plugin unavailable on this platform — silently skip
+  }
+}
 
 function PortalLoginPage() {
   const navigate = useNavigate();
@@ -38,6 +66,9 @@ function PortalLoginPage() {
         success?: boolean;
         error?: string;
         role?: "admin" | "owner";
+        propertySlug?: string;
+        ownerPhone?: string;
+        portal_token?: string;
         redirectTo?: string;
       };
       if (!res.ok || !data.success) {
@@ -55,7 +86,18 @@ function PortalLoginPage() {
           // localStorage unavailable — falls through to /admin/bookings's
           // own PIN gate instead, which still works correctly.
         }
+      } else if (data.role === "owner" && data.portal_token && data.propertySlug) {
+        // Durable native storage — survives Android killing the WebView,
+        // unlike the HttpOnly cookie also set by this same response.
+        await savePortalSession({
+          portal_token: data.portal_token,
+          propertySlug: data.propertySlug,
+          role: "owner",
+          ownerPhone: data.ownerPhone,
+        });
       }
+      void registerPushNotifications(phone);
+
       // Literal branches, not `data.redirectTo` directly — the router's
       // `to` param is a closed union of known routes, not a plain string.
       if (data.role === "admin") {
@@ -126,9 +168,18 @@ function PortalLoginPage() {
               here
             </a>
             <br />
-            Or reach to us at{" "}
-            <a href="tel:+917887884877" className="font-medium underline underline-offset-2">
-              +91 788 788 4877
+            Or reach out to us at{" "}
+            <a href="tel:+919009800809" className="font-medium underline underline-offset-2">
+              +91 90098 00809
+            </a>{" "}
+            /{" "}
+            <a
+              href="https://wa.me/919009800809"
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium underline underline-offset-2"
+            >
+              WhatsApp
             </a>
           </p>
         </div>

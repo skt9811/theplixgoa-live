@@ -90,6 +90,7 @@ export async function updateBookingPayment(
 export type BookingRow = BookingRecord & {
   id: string;
   created_at: string;
+  source: "online" | "manual";
 };
 
 /** Direct bookings with a check-in today or later, soonest first — for the admin dashboard. */

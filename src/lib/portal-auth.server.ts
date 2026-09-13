@@ -4,7 +4,7 @@
 // login screen submits phone + PIN together in one request (no separate
 // phone-lookup step), so there's nothing to resolve ahead of time.
 import { findPortalOwnerByPhone, normalizePhone, PORTAL_ADMIN_PHONE } from "@/lib/portal-pins.server";
-import { buildPortalSessionCookie, clearPortalSessionCookie } from "@/lib/portal-session.server";
+import { buildPortalSessionCookie, buildPortalToken, clearPortalSessionCookie } from "@/lib/portal-session.server";
 
 function jsonResponse(body: unknown, status: number, headers?: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
@@ -47,8 +47,20 @@ export async function handlePortalAuth(request: Request): Promise<Response> {
   }
 
   const cookie = await buildPortalSessionCookie(request, owner.propertySlug);
+  // portal_token is the durable fallback for native storage (@capacitor/
+  // preferences, see portal-native-session.ts) — cookies alone don't survive
+  // Android killing the WebView/clearing its cache, so the app resends this
+  // as an Authorization: Bearer header once the cookie is gone.
+  const portalToken = await buildPortalToken(owner.propertySlug);
   return jsonResponse(
-    { success: true, role: "owner", propertySlug: owner.propertySlug, redirectTo: "/portal/dashboard" },
+    {
+      success: true,
+      role: "owner",
+      propertySlug: owner.propertySlug,
+      ownerPhone: owner.phone,
+      portal_token: portalToken,
+      redirectTo: "/portal/dashboard",
+    },
     200,
     { "Set-Cookie": cookie },
   );

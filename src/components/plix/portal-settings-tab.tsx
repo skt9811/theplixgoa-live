@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { LogOut, Mail, MessageCircle, Phone, Loader as Loader2 } from "lucide-react";
+import { clearPortalSession, portalFetch } from "@/lib/portal-native-session";
 
-const SUPPORT_PHONE = "+917887884877";
+const SUPPORT_PHONE = "+919009800809";
 const SUPPORT_EMAIL = "reservations@theplixgoa.com";
 
 type Me = { propertySlug: string; propertyName: string; phone: string };
@@ -13,7 +14,7 @@ export function PortalSettingsTab({ propertySlug, propertyName }: { propertySlug
   const [me, setMe] = useState<Me | null>(null);
 
   useEffect(() => {
-    fetch("/api/portal/me")
+    portalFetch("/api/portal/me")
       .then((res) => res.json())
       .then((data: Partial<Me>) => {
         if (data.phone) setMe({ propertySlug: propertySlug, propertyName, phone: data.phone });
@@ -23,10 +24,11 @@ export function PortalSettingsTab({ propertySlug, propertyName }: { propertySlug
 
   async function handleLogout() {
     try {
-      await fetch("/api/portal/logout", { method: "POST" });
+      await portalFetch("/api/portal/logout", { method: "POST" });
     } catch {
       // best-effort; navigate away regardless
     }
+    await clearPortalSession();
     void navigate({ to: "/portal/login" });
   }
 
@@ -75,7 +77,7 @@ export function PortalSettingsTab({ propertySlug, propertyName }: { propertySlug
             href={`tel:${SUPPORT_PHONE}`}
             className="flex items-center gap-2.5 rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-white hover:bg-white/5"
           >
-            <Phone className="size-4 text-bronze" aria-hidden /> Call {SUPPORT_PHONE}
+            <Phone className="size-4 text-bronze" aria-hidden /> Call +91 90098 00809
           </a>
           <a
             href={`mailto:${SUPPORT_EMAIL}`}
@@ -117,7 +119,7 @@ function ChangePinCard() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/portal/change-pin", {
+      const res = await portalFetch("/api/portal/change-pin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPin, newPin }),

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Loader as Loader2, X } from "lucide-react";
 import { PROPERTIES, formatINR } from "@/lib/plix";
 import { fetchBlockedDates, fetchRateOverrides, isMultiRoomProperty, saveRateOverrides, toggleBlockedDate } from "@/lib/rates";
 import { computeAvailableRooms } from "@/lib/inventory";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
@@ -13,7 +14,7 @@ function isoDate(year: number, month: number, day: number): string {
   return `${year}-${pad(month + 1)}-${pad(day)}`;
 }
 
-export function PortalRatesTab({ propertySlug }: { propertySlug: string }) {
+export function PortalRatesTab({ propertySlug, refreshSignal }: { propertySlug: string; refreshSignal?: number }) {
   const property = useMemo(() => PROPERTIES.find((p) => p.slug === propertySlug), [propertySlug]);
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
@@ -58,7 +59,8 @@ export function PortalRatesTab({ propertySlug }: { propertySlug: string }) {
 
   useEffect(() => {
     void loadMonth();
-  }, [loadMonth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadMonth, refreshSignal]);
 
   function changeMonth(delta: number) {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
@@ -110,8 +112,10 @@ export function PortalRatesTab({ propertySlug }: { propertySlug: string }) {
         </div>
 
         {!loaded ? (
-          <div className="flex justify-center py-10">
-            <Loader2 className="size-5 animate-spin text-white/40" aria-hidden />
+          <div className="mt-3 grid grid-cols-7 gap-1">
+            {Array.from({ length: 35 }, (_, i) => (
+              <Skeleton key={i} className="aspect-square rounded-lg" />
+            ))}
           </div>
         ) : (
           <div className="mt-3 grid grid-cols-7 gap-1">

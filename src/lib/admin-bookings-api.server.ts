@@ -6,6 +6,8 @@
 // new env var.
 import postgres from "postgres";
 import { differenceInCalendarDays } from "date-fns";
+import { notifyNewBooking } from "@/lib/push-notifications.server";
+import { PROPERTIES } from "@/lib/plix";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
 
@@ -73,6 +75,11 @@ export async function handleAdminCreateBooking(request: Request): Promise<Respon
         (${propertySlug}, ${guestName}, ${guestPhone}, ${checkIn}, ${checkOut}, ${nights}, ${guestsCount}, ${bookingAmount}, ${status})
       RETURNING id
     `;
+    if (status !== "blocked") {
+      const property = PROPERTIES.find((p) => p.slug === propertySlug);
+      void notifyNewBooking(propertySlug, property?.name ?? propertySlug, guestName, bookingAmount, checkIn, nights);
+    }
+
     return jsonResponse({ success: true, id: row?.id, nights }, 200);
   } catch (err) {
     console.error("[handleAdminCreateBooking]:", err instanceof Error ? err.message : err);

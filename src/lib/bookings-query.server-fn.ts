@@ -40,9 +40,10 @@ export type BookingRow = {
   payment_status: string;
   host_email: string | null;
   created_at: string;
+  source: "online" | "manual";
 };
 
-type RawBookingRow = Omit<BookingRow, "subtotal" | "taxes" | "total_amount" | "created_at" | "check_in" | "check_out"> & {
+type RawBookingRow = Omit<BookingRow, "subtotal" | "taxes" | "total_amount" | "created_at" | "check_in" | "check_out" | "source"> & {
   subtotal: string | number;
   taxes: string | number;
   total_amount: string | number;
@@ -69,6 +70,7 @@ function normalizeRow(row: RawBookingRow): BookingRow {
     created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
     check_in: toDateString(row.check_in),
     check_out: toDateString(row.check_out),
+    source: "online",
   };
 }
 
@@ -82,7 +84,7 @@ type ManualBookingRow = {
   nights: number;
   guests_count: number;
   booking_amount: string | number;
-  status: "confirmed" | "checked_in" | "completed" | "blocked";
+  status: "confirmed" | "checked_in" | "completed" | "blocked" | "cancelled";
   created_at: string | Date;
 };
 
@@ -94,7 +96,7 @@ type ManualBookingRow = {
 // not guest bookings, so they're excluded from this ledger entirely —
 // same as how GET /api/portal/bookings treats them.
 function manualRowToBookingRow(row: ManualBookingRow): BookingRow | null {
-  if (row.status === "blocked") return null;
+  if (row.status === "blocked" || row.status === "cancelled") return null;
   const property = PROPERTIES.find((p) => p.slug === row.property_id);
   const amount = Number(row.booking_amount);
   return {
@@ -118,6 +120,7 @@ function manualRowToBookingRow(row: ManualBookingRow): BookingRow | null {
     payment_status: "paid",
     host_email: null,
     created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    source: "manual",
   };
 }
 
@@ -132,14 +135,14 @@ export const fetchUpcomingBookingsServerFn = createServerFn({ method: "GET" }).h
       const [onlineRows, manualRows] = await Promise.all([
         sql<RawBookingRow[]>`
           SELECT * FROM public.bookings
-          WHERE check_in >= ${todayStr}
+          WHERE check_in >= ${todayStr} AND payment_status != 'cancelled'
           ORDER BY check_in ASC
         `,
         sql<ManualBookingRow[]>`
           SELECT id, property_id, guest_name, guest_phone, check_in, check_out,
                  nights, guests_count, booking_amount, status, created_at
           FROM public.portal_bookings
-          WHERE check_in >= ${todayStr}
+          WHERE check_in >= ${todayStr} AND status != 'cancelled'
           ORDER BY check_in ASC
         `,
       ]);

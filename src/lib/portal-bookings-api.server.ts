@@ -44,6 +44,11 @@ export type PortalBooking = {
    * Inventory tab's "Tentative" status chip. null for manual bookings,
    * which have no online payment lifecycle at all. */
   payment_status: "pending" | "paid" | "simulated" | null;
+  /** Set only for manually punched-in bookings that recorded it (see the
+   * admin "+ Create Booking" flow) — null for online bookings and for any
+   * manual booking created before that field existed. The Home tab's
+   * Today's Operations card shows it "if available", not as a guarantee. */
+  rooms_count: number | null;
 };
 
 function toDateString(value: string | Date): string {
@@ -101,6 +106,7 @@ type ManualRow = {
   booking_amount: string | number;
   status: PortalBookingStatus;
   created_at: string | Date;
+  rooms_count: number | null;
 };
 
 export async function handleGetPortalBookings(request: Request): Promise<Response> {
@@ -124,7 +130,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
       sql<ManualRow[]>`
         SELECT id, property_id, guest_name, guest_phone,
                check_in, check_out, nights, guests_count,
-               booking_amount, status, created_at
+               booking_amount, status, created_at, rooms_count
         FROM public.portal_bookings
         WHERE property_id = ${propertySlug}
           AND status != 'cancelled'
@@ -148,6 +154,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         source: "online",
         created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
         payment_status: r.payment_status,
+        rooms_count: null,
       };
     });
 
@@ -168,6 +175,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         source: "manual",
         created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
         payment_status: null,
+        rooms_count: r.rooms_count,
       };
     });
 

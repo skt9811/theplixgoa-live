@@ -1,12 +1,13 @@
-import { useMemo, useState } from "react";
-import { ArrowRight, Mail, MessageCircle, Phone, X } from "lucide-react";
+import { useMemo } from "react";
+import { CalendarCheck, CalendarClock } from "lucide-react";
 import { formatINR } from "@/lib/plix";
 import type { PortalBooking } from "@/lib/portal-bookings-client";
 import type { PortalTab } from "@/components/plix/portal-bottom-nav";
 import { PortalRevenuePieChart } from "@/components/plix/portal-revenue-pie-chart";
+import { isRealBooking, monthRange, overlapStats } from "@/lib/period-stats";
 
-const SUPPORT_PHONE = "+919009800809";
-const SUPPORT_EMAIL = "reservations@theplixgoa.com";
+const CHECK_IN_TIME = "02:00 pm";
+const CHECK_OUT_TIME = "11:00 am";
 
 // Indian lakh/crore compact notation, matching the reference's "₹ 32.63L" —
 // not a general-purpose helper (formatINR in lib/plix.ts covers the normal
@@ -17,28 +18,56 @@ function formatCompactINR(value: number): string {
   return formatINR(value);
 }
 
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function PortalHomeTab({
   propertySlug,
   bookings,
   onNavigateTab,
+  onFocusBooking,
 }: {
   propertySlug: string;
   bookings: PortalBooking[];
   onNavigateTab: (tab: PortalTab) => void;
+  onFocusBooking: (bookingId: string) => void;
 }) {
-  const [contactsOpen, setContactsOpen] = useState(false);
-
-  // Since-inception totals (not month-scoped) — the full month-by-month
-  // breakdown lives on the Analytics tab now.
+  // Current-month totals — a stay that only partly overlaps the month
+  // (e.g. checks in in August, out in September) is pro-rated the same way
+  // the Analytics tab already does, so the two never disagree with each
+  // other about what "this month" earned.
   const totals = useMemo(() => {
-    const real = bookings.filter((b) => b.status !== "blocked" && b.payment_status !== "pending");
-    return {
-      revenue: real.reduce((sum, b) => sum + b.booking_amount, 0),
-      nights: real.reduce((sum, b) => sum + b.nights, 0),
-    };
+    const now = new Date();
+    const { start, end } = monthRange(now.getFullYear(), now.getMonth());
+    const real = bookings.filter(isRealBooking);
+    let revenue = 0;
+    let nights = 0;
+    for (const b of real) {
+      const overlap = overlapStats(b, start, end);
+      revenue += overlap.revenue;
+      nights += overlap.nights;
+    }
+    return { revenue, nights };
   }, [bookings]);
 
-  const whatsappHref = `https://wa.me/91${SUPPORT_PHONE.replace(/\D/g, "").slice(-10)}`;
+  const today = todayISO();
+  const todayLabel = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
+
+  const checkIns = useMemo(
+    () => bookings.filter((b) => isRealBooking(b) && b.check_in === today),
+    [bookings, today],
+  );
+  const checkOuts = useMemo(
+    () => bookings.filter((b) => isRealBooking(b) && b.check_out === today),
+    [bookings, today],
+  );
+
+  function handleFocus(bookingId: string) {
+    onFocusBooking(bookingId);
+    onNavigateTab("booking");
+  }
 
   return (
     <>
@@ -59,11 +88,67 @@ export function PortalHomeTab({
           onClick={() => onNavigateTab("analytics")}
           className="mt-4 flex items-center gap-1.5 text-sm font-semibold text-slate-900 hover:underline"
         >
-          Open Full Analytics <ArrowRight className="size-3.5" aria-hidden />
+          Open Full Analytics <span aria-hidden>→</span>
         </button>
         <p className="mt-3 text-[11px] leading-snug text-slate-600">
-          The above numbers represent performance metrics from the start up to the current date.
+          Performance metrics representing all confirmed bookings for the current month.
         </p>
+      </div>
+
+      <div className="mt-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+        <p className="text-sm font-semibold text-slate-900">Today's Operations</p>
+        <p className="text-xs text-slate-500">{todayLabel}</p>
+
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <div>
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <CalendarCheck className="size-3.5 text-emerald-500" aria-hidden /> Check-ins ({checkIns.length})
+            </p>
+            {checkIns.length === 0 ? (
+              <p className="mt-2 text-xs text-slate-400">No check-ins today</p>
+            ) : (
+              <div className="mt-2 grid gap-1.5">
+                {checkIns.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => handleFocus(b.id)}
+                    className="rounded-xl bg-slate-50 px-2.5 py-2 text-left hover:bg-slate-100"
+                  >
+                    <p className="truncate text-xs font-medium text-slate-900">{b.guest_name}</p>
+                    <p className="text-[10px] text-slate-400">
+                      {CHECK_IN_TIME}
+                      {b.rooms_count ? ` · ${b.rooms_count} room${b.rooms_count === 1 ? "" : "s"}` : ""}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <CalendarClock className="size-3.5 text-amber-500" aria-hidden /> Check-outs ({checkOuts.length})
+            </p>
+            {checkOuts.length === 0 ? (
+              <p className="mt-2 text-xs text-slate-400">No check-outs today</p>
+            ) : (
+              <div className="mt-2 grid gap-1.5">
+                {checkOuts.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => handleFocus(b.id)}
+                    className="rounded-xl bg-slate-50 px-2.5 py-2 text-left hover:bg-slate-100"
+                  >
+                    <p className="truncate text-xs font-medium text-slate-900">{b.guest_name}</p>
+                    <p className="text-[10px] text-slate-400">{CHECK_OUT_TIME} · {b.status === "checked_in" ? "In-house" : "Completed"}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="mt-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -71,74 +156,6 @@ export function PortalHomeTab({
         <p className="text-xs text-slate-500">How your room nights are being used</p>
         <PortalRevenuePieChart propertySlug={propertySlug} bookings={bookings} />
       </div>
-
-      <div className="mt-4 rounded-3xl p-5" style={{ backgroundColor: "#fff1eb" }}>
-        <div className="flex -space-x-2">
-          {["MF", "AS", "SB"].map((initials) => (
-            <div
-              key={initials}
-              className="flex size-9 items-center justify-center rounded-full border-2 text-xs font-semibold text-bronze-foreground"
-              style={{ borderColor: "#fff1eb", backgroundColor: "var(--bronze)" }}
-            >
-              {initials}
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-sm font-semibold text-slate-900">Team Support</p>
-        <p className="text-xs text-slate-600">You have 3 dedicated contacts available</p>
-        <button
-          type="button"
-          onClick={() => setContactsOpen(true)}
-          className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-bronze hover:underline"
-        >
-          View Contacts <ArrowRight className="size-3.5" aria-hidden />
-        </button>
-      </div>
-
-      {contactsOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setContactsOpen(false)}>
-          <div
-            className="w-full max-w-lg rounded-t-3xl bg-white p-6 pb-8"
-            style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200" />
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">Contact Plix Support</h2>
-              <button
-                type="button"
-                onClick={() => setContactsOpen(false)}
-                aria-label="Close"
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="size-5" aria-hidden />
-              </button>
-            </div>
-            <div className="mt-4 grid gap-2.5">
-              <a
-                href={whatsappHref}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-900 hover:bg-slate-50"
-              >
-                <MessageCircle className="size-4 text-emerald-500" aria-hidden /> WhatsApp Us
-              </a>
-              <a
-                href={`tel:${SUPPORT_PHONE}`}
-                className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-900 hover:bg-slate-50"
-              >
-                <Phone className="size-4 text-bronze" aria-hidden /> Call +91 90098 00809
-              </a>
-              <a
-                href={`mailto:${SUPPORT_EMAIL}`}
-                className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-900 hover:bg-slate-50"
-              >
-                <Mail className="size-4 text-bronze" aria-hidden /> {SUPPORT_EMAIL}
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

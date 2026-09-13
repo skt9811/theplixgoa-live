@@ -67,6 +67,7 @@ function PortalDashboardPage() {
   const [tab, setTab] = useState<PortalTab>("home");
   const [recentAlerts, setRecentAlerts] = useState<PortalAlert[]>([]);
   const [bannerAlert, setBannerAlert] = useState<PortalAlert | null>(null);
+  const [focusBookingId, setFocusBookingId] = useState<string | null>(null);
   const seenBookingIds = useRef<Set<string> | null>(null);
 
   useOnlineStatusToast();
@@ -289,7 +290,12 @@ function PortalDashboardPage() {
         <div className="mt-4">
           {tab === "home" && (
             <PortalPullToRefresh onRefresh={() => load(role === "admin" ? propertySlug : undefined)}>
-              <PortalHomeTab propertySlug={propertySlug} bookings={bookings} onNavigateTab={setTab} />
+              <PortalHomeTab
+                propertySlug={propertySlug}
+                bookings={bookings}
+                onNavigateTab={setTab}
+                onFocusBooking={setFocusBookingId}
+              />
             </PortalPullToRefresh>
           )}
           {tab === "inventory" && <PortalInventoryTab propertySlug={propertySlug} bookings={bookings} role={role ?? "owner"} />}
@@ -300,6 +306,8 @@ function PortalDashboardPage() {
                 bookings={bookings}
                 role={role ?? "owner"}
                 onCreated={() => load(role === "admin" ? propertySlug : undefined)}
+                focusBookingId={focusBookingId}
+                onFocusHandled={() => setFocusBookingId(null)}
               />
             </PortalPullToRefresh>
           )}

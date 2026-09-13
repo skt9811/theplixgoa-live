@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { differenceInCalendarDays } from "date-fns";
 import { Info, Loader as Loader2, MapPin, MessageCircle, Plus, Users, X } from "lucide-react";
@@ -51,23 +51,38 @@ export function PortalBookingTab({
   bookings,
   role,
   onCreated,
+  focusBookingId,
+  onFocusHandled,
 }: {
   propertySlug: string;
   bookings: PortalBooking[];
   role: "owner" | "admin";
   onCreated: () => void;
+  focusBookingId: string | null;
+  onFocusHandled: () => void;
 }) {
   const property = PROPERTIES.find((p) => p.slug === propertySlug);
   const [monthFilter, setMonthFilter] = useState(() => todayISO().slice(0, 7));
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
+  // Always the full current year plus the year before and after — every
+  // calendar month is selectable regardless of whether a booking exists in
+  // it, rather than only offering months that already have data.
   const months = useMemo(() => {
-    const set = new Set<string>();
-    for (const b of bookings) set.add(b.check_in.slice(0, 7));
-    set.add(todayISO().slice(0, 7));
-    return Array.from(set).sort();
-  }, [bookings]);
+    const thisYear = new Date().getFullYear();
+    const opts: { key: string; label: string }[] = [];
+    for (const year of [thisYear - 1, thisYear, thisYear + 1]) {
+      for (let month = 0; month < 12; month++) {
+        const key = `${year}-${String(month + 1).padStart(2, "0")}`;
+        const label = new Date(year, month, 1).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+        opts.push({ key, label });
+      }
+    }
+    return opts;
+  }, []);
 
   const filtered = useMemo(() => {
     return bookings
@@ -79,6 +94,30 @@ export function PortalBookingTab({
     const [y, m] = monthFilter.split("-").map(Number);
     return new Date(y!, m! - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
   }, [monthFilter]);
+
+  // Landed here from the Home tab's Today's Operations card — jump to that
+  // booking's month, expand its card, and scroll it into view.
+  useEffect(() => {
+    if (!focusBookingId) return;
+    const target = bookings.find((b) => b.id === focusBookingId);
+    if (!target) {
+      onFocusHandled();
+      return;
+    }
+    setMonthFilter(target.check_in.slice(0, 7));
+    setExpandedId(target.id);
+    setHighlightId(target.id);
+    const scrollTimer = window.setTimeout(() => {
+      cardRefs.current.get(target.id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      onFocusHandled();
+    }, 150);
+    const highlightTimer = window.setTimeout(() => setHighlightId(null), 3000);
+    return () => {
+      window.clearTimeout(scrollTimer);
+      window.clearTimeout(highlightTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusBookingId]);
 
   return (
     <>
@@ -104,38 +143,35 @@ export function PortalBookingTab({
           onChange={(e) => setMonthFilter(e.target.value)}
           className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none"
         >
-          {months.map((m) => {
-            const [y, mo] = m.split("-").map(Number);
-            const label = new Date(y!, mo! - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
-            return (
-              <option key={m} value={m}>
-                {label}
-              </option>
-            );
-          })}
+          {months.map((m) => (
+            <option key={m.key} value={m.key}>
+              {m.label}
+            </option>
+          ))}
         </select>
-      </div>
-
-      {/* No pending-approval concept exists in this data model — every
-          booking here is already confirmed the moment it's created — so
-          this stays a static, always-zero indicator rather than a live filter. */}
-      <div className="mt-3 flex items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
-        <p className="text-xs font-medium text-slate-600">Review All Pending Booking Approvals (0)</p>
-        <span className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full bg-slate-200">
-          <span className="ml-0.5 size-4 rounded-full bg-white shadow" />
-        </span>
       </div>
 
       <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">{monthLabel}</p>
 
       <div className="mt-2 grid gap-3">
-        {filtered.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No bookings this month.</p>}
+        {filtered.length === 0 && (
+          <p className="py-8 text-center text-sm text-slate-400">No bookings scheduled for {monthLabel}</p>
+        )}
         {filtered.map((b) => {
           const lifecycle = lifecycleStatus(b);
           const pill = STATUS_PILL[lifecycle];
           const expanded = expandedId === b.id;
           return (
-            <div key={b.id} className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
+            <div
+              key={b.id}
+              ref={(el) => {
+                if (el) cardRefs.current.set(b.id, el);
+                else cardRefs.current.delete(b.id);
+              }}
+              className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition-colors ${
+                highlightId === b.id ? "border-bronze ring-1 ring-bronze" : "border-slate-100"
+              }`}
+            >
               <div className="flex items-center gap-1.5 bg-slate-50 px-4 py-2 text-[11px] font-medium text-slate-500">
                 <MapPin className="size-3" aria-hidden />
                 {property?.name ?? propertySlug}, {property?.region ?? ""}

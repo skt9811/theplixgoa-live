@@ -8,7 +8,7 @@ import { handleContactEnquiryRequest } from "./lib/contact-enquiry.server";
 import { handleSitemapRequest } from "./lib/sitemap.server";
 import { handleSendWelcomeEmail } from "./lib/send-welcome-email.server";
 import { handlePasswordSignIn, handlePasswordSignUp, handleLogout } from "./lib/auth-routes.server";
-import { handlePortalAuth, handlePortalLogout, handlePortalLookupPhone } from "./lib/portal-auth.server";
+import { handlePortalAuth, handlePortalLogout } from "./lib/portal-auth.server";
 import { handleGetPortalBookings, handleBlockDates } from "./lib/portal-bookings-api.server";
 import { handleAdminCreateBooking } from "./lib/admin-bookings-api.server";
 import { getAuthConfig } from "./lib/auth.server";
@@ -222,17 +222,6 @@ export default {
     }
     // Hotelier partner portal — PIN login (sets its own session cookie,
     // separate from Auth.js's), bookings read, and block-dates write.
-    if (url.pathname === "/api/portal/lookup-phone") {
-      try {
-        return await handlePortalLookupPhone(request);
-      } catch (error) {
-        console.error("[portal-lookup-phone] unhandled error:", error);
-        return new Response(JSON.stringify({ error: "Internal error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    }
     if (url.pathname === "/api/portal/auth") {
       try {
         return await handlePortalAuth(request);

@@ -1,7 +1,7 @@
 // Minimal offline service worker for PWABuilder compatibility
 // Caches the app shell and static assets for offline use
 
-const CACHE_NAME = "plix-admin-v2";
+const CACHE_NAME = "plix-admin-v3";
 const PRECACHE_URLS = [
   "/admin",
   "/",
@@ -49,11 +49,17 @@ self.addEventListener("fetch", (event) => {
   // Skip cross-origin requests (Supabase, Razorpay, etc.)
   if (url.origin !== self.location.origin) return;
 
-  // Never cache server function calls (property/rate/review data, etc.) —
-  // these are GET requests to /_serverFn/* that must always hit the network,
-  // otherwise a browser that ever cached one keeps serving that stale
-  // response forever, regardless of any later database or code change.
-  if (url.pathname.startsWith("/_serverFn/")) return;
+  // Never cache server function calls or API routes (property/rate/review
+  // data, auth session checks, portal bookings, etc.) — these are GET
+  // requests to /_serverFn/* or /api/* that must always hit the network.
+  // A browser that ever cached one keeps serving that stale response
+  // forever, regardless of any later database, session, or code change —
+  // this is exactly what let /api/auth/session keep answering "signed in"
+  // after a real sign-out cleared the cookie server-side: the cache-first
+  // branch below was serving the pre-sign-out response from a hard reload
+  // even though a hard reload otherwise bypasses the HTTP cache, because it
+  // does not bypass an active service worker's fetch interception.
+  if (url.pathname.startsWith("/_serverFn/") || url.pathname.startsWith("/api/")) return;
 
   // Network-first for navigation requests (HTML pages)
   if (request.mode === "navigate") {

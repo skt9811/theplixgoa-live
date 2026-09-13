@@ -27,6 +27,16 @@ function AccountPage() {
   const [loadedBookings, setLoadedBookings] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
+  async function handleSignOut() {
+    await signOutGuest();
+    // Full reload, not a SPA state update: the service worker's fetch
+    // interception survives a plain hard refresh (Cmd+Shift+R bypasses the
+    // HTTP cache, not an active SW), so this also acts as a deliberate
+    // verification step that the just-fixed sw.js truly stopped serving a
+    // stale cached /api/auth/session response.
+    window.location.replace("/account");
+  }
+
   async function handleDownloadVoucher(booking: BookingRow) {
     setDownloadingId(booking.id);
     try {
@@ -100,7 +110,7 @@ function AccountPage() {
           </p>
         </div>
         <button
-          onClick={() => void signOutGuest()}
+          onClick={() => void handleSignOut()}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
         >
           <LogOut className="size-3.5" aria-hidden />

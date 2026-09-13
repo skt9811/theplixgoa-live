@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, Lock, X } from "lucide-react";
+import { ChevronDown, Lock, RotateCw, TriangleAlert, X } from "lucide-react";
 import type { PortalBooking } from "@/lib/portal-bookings-client";
 import { portalFetch } from "@/lib/portal-native-session";
 import { useOnlineStatusToast } from "@/lib/use-online-status";
@@ -76,6 +76,14 @@ function PortalDashboardPage() {
   // requests never carry it: the server derives their property from the
   // session alone (see resolveEffectivePropertySlug), so nothing here can
   // let an owner see another property's data even if this were tampered with.
+  // A genuine 401 (the server explicitly rejecting the token/cookie) is the
+  // only thing that should ever navigate away — anything else (a network
+  // blip, a 500, a malformed response) must render as a retryable error
+  // *within* this page instead. Conflating the two used to mean any
+  // non-auth failure left propertySlug null forever, which fell into the
+  // same "Redirecting to login…" branch below even though authed was still
+  // true and no navigation was actually happening — a confusing dead end
+  // that looked like an unexplained bounce-back but wasn't one.
   const load = useCallback(
     async (forProperty?: string) => {
       try {
@@ -87,6 +95,7 @@ function PortalDashboardPage() {
           void navigate({ to: "/portal/login" });
           return;
         }
+        if (!res.ok) return;
         const data = (await res.json()) as {
           bookings?: PortalBooking[];
           propertySlug?: string;
@@ -188,11 +197,34 @@ function PortalDashboardPage() {
     );
   }
 
-  if (!authed || !propertySlug) {
+  if (!authed) {
     return (
       <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-3 bg-[#f7f8fc] text-slate-500">
         <Lock className="size-6 text-bronze" aria-hidden />
         <p className="text-sm">Redirecting to login…</p>
+      </div>
+    );
+  }
+
+  if (!propertySlug) {
+    // Still authenticated — this is a failed/incomplete fetch, not a lost
+    // session, so it gets a retry button here instead of silently landing
+    // on the misleading "Redirecting to login…" screen above forever.
+    return (
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-[#f7f8fc] px-6 text-center text-slate-500">
+        <TriangleAlert className="size-8 text-bronze" aria-hidden />
+        <p className="text-sm">Couldn't load your dashboard. Check your connection and try again.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setLoaded(false);
+            void load();
+          }}
+          className="flex items-center gap-2 rounded-full bg-bronze px-6 py-3 text-sm font-semibold text-bronze-foreground"
+        >
+          <RotateCw className="size-4" aria-hidden />
+          Retry
+        </button>
       </div>
     );
   }

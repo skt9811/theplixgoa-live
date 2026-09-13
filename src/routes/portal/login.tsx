@@ -19,13 +19,28 @@ export const Route = createFileRoute("/portal/login")({
 const PHONE_PATTERN = /^[0-9]{10}$/;
 const PIN_PATTERN = /^[0-9]{4}$/;
 
+// Client-side mirror of push-notifications.server.ts's FCM_SERVER_KEY gate:
+// @capacitor/push-notifications' register() calls into Firebase Messaging
+// on Android, which throws a native IllegalStateException (uncatchable from
+// JS — it crashes the Activity before the bridge can reject a promise) if
+// android/app/google-services.json isn't present, i.e. no Firebase project
+// has been linked yet. Requesting the OS notification permission first
+// doesn't avoid this: once a user grants it, "granted" is returned
+// immediately on every future call with no re-prompt, so if register()
+// crashes once, it crashes again on every subsequent login — the reported
+// "infinite loop". Until a real Firebase project exists, skip the whole
+// permission+register attempt outright rather than relying on JS-side
+// error handling that can't catch a native crash. Flip this on (and add
+// google-services.json) once Firebase is actually configured.
+const FCM_CONFIGURED = Boolean(import.meta.env["VITE_FCM_CONFIGURED"]);
+
 // Best-effort, native only — inert on web, and inert server-side until FCM
 // credentials exist (see push-notifications.server.ts), but wired up now so
 // the whole pipeline is exercised today. Registers by phone rather than the
 // portal session, so the master admin (no portal session — see
 // portal-auth.server.ts) can register a device too.
 async function registerPushNotifications(phone: string) {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!Capacitor.isNativePlatform() || !FCM_CONFIGURED) return;
   try {
     const { PushNotifications } = await import("@capacitor/push-notifications");
     // Both native calls are timeout-raced, not just try/catch'd — a plugin

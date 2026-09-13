@@ -6,6 +6,7 @@
 // named for (an id, or a guest's own email), never an open-ended query.
 import { createServerFn } from "@tanstack/react-start";
 import postgres from "postgres";
+import { PROPERTIES } from "@/lib/plix";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
 
@@ -71,7 +72,56 @@ function normalizeRow(row: RawBookingRow): BookingRow {
   };
 }
 
-/** Bookings with a check-in today or later, soonest first — for the admin dashboard. */
+type ManualBookingRow = {
+  id: string;
+  property_id: string;
+  guest_name: string;
+  guest_phone: string | null;
+  check_in: string | Date;
+  check_out: string | Date;
+  nights: number;
+  guests_count: number;
+  booking_amount: string | number;
+  status: "confirmed" | "checked_in" | "completed" | "blocked";
+  created_at: string | Date;
+};
+
+// portal_bookings has no payment lifecycle of its own (no online payment
+// ever happens for a manually punched-in booking) — mapping every real
+// status to "paid" lets it render as the same green "Confirmed" badge
+// bookings-manager.tsx already draws for a real online payment, with zero
+// changes needed there. "blocked" rows are maintenance/owner-stay markers,
+// not guest bookings, so they're excluded from this ledger entirely —
+// same as how GET /api/portal/bookings treats them.
+function manualRowToBookingRow(row: ManualBookingRow): BookingRow | null {
+  if (row.status === "blocked") return null;
+  const property = PROPERTIES.find((p) => p.slug === row.property_id);
+  const amount = Number(row.booking_amount);
+  return {
+    id: row.id,
+    property_id: row.property_id,
+    property_name: property?.name ?? row.property_id,
+    property_location: property?.location ?? "",
+    guest_name: row.guest_name,
+    guest_email: "",
+    guest_mobile: row.guest_phone ?? "",
+    check_in: toDateString(row.check_in),
+    check_out: toDateString(row.check_out),
+    guests: row.guests_count,
+    nights: row.nights,
+    subtotal: amount,
+    taxes: 0,
+    total_amount: amount,
+    razorpay_order_id: null,
+    razorpay_payment_id: null,
+    razorpay_signature: null,
+    payment_status: "paid",
+    host_email: null,
+    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+  };
+}
+
+/** Bookings with a check-in today or later, soonest first — for the admin dashboard. Merges online Razorpay bookings with admin-punched manual ones (portal_bookings). */
 export const fetchUpcomingBookingsServerFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<BookingRow[]> => {
     const sql = getSql();
@@ -79,12 +129,23 @@ export const fetchUpcomingBookingsServerFn = createServerFn({ method: "GET" }).h
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     try {
-      const rows = await sql<RawBookingRow[]>`
-        SELECT * FROM public.bookings
-        WHERE check_in >= ${todayStr}
-        ORDER BY check_in ASC
-      `;
-      return rows.map(normalizeRow);
+      const [onlineRows, manualRows] = await Promise.all([
+        sql<RawBookingRow[]>`
+          SELECT * FROM public.bookings
+          WHERE check_in >= ${todayStr}
+          ORDER BY check_in ASC
+        `,
+        sql<ManualBookingRow[]>`
+          SELECT id, property_id, guest_name, guest_phone, check_in, check_out,
+                 nights, guests_count, booking_amount, status, created_at
+          FROM public.portal_bookings
+          WHERE check_in >= ${todayStr}
+          ORDER BY check_in ASC
+        `,
+      ]);
+      const online = onlineRows.map(normalizeRow);
+      const manual = manualRows.map(manualRowToBookingRow).filter((r): r is BookingRow => r !== null);
+      return [...online, ...manual].sort((a, b) => a.check_in.localeCompare(b.check_in));
     } catch (err) {
       console.error("[fetchUpcomingBookingsServerFn]:", err instanceof Error ? err.message : err);
       return [];

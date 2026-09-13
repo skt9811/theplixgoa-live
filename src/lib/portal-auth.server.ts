@@ -27,16 +27,25 @@ export async function handlePortalAuth(request: Request): Promise<Response> {
 
   // Master admin bypass — checked before the owner map so it can never be
   // shadowed by a placeholder owner entry that happens to share a phone.
-  // No portal session cookie is issued here: admin access to /admin/bookings
-  // is gated by its own existing client-side PIN check (VITE_ADMIN_PIN),
-  // which the login screen also satisfies client-side on this response so
-  // the admin isn't asked to re-enter the PIN a second time.
+  // /admin/bookings itself still only gates on the client-side PIN check
+  // (VITE_ADMIN_PIN), which the login screen also satisfies client-side on
+  // this response — but admin ALSO gets a real portal session/token here now,
+  // since admin can browse the property Dashboard (/portal/dashboard) too,
+  // picking any property via its own selector, and that dashboard's APIs
+  // (GET /api/portal/bookings, /me) require a valid portal session to
+  // authenticate at all.
   if (phone === PORTAL_ADMIN_PHONE) {
     const adminPin = process.env["VITE_ADMIN_PIN"] ?? "1979";
     if (pin !== adminPin) {
       return jsonResponse({ error: "Invalid mobile number or PIN" }, 401);
     }
-    return jsonResponse({ success: true, role: "admin", redirectTo: "/admin/bookings" }, 200);
+    const cookie = await buildPortalSessionCookie(request, "", "admin");
+    const portalToken = await buildPortalToken("", "admin");
+    return jsonResponse(
+      { success: true, role: "admin", portal_token: portalToken, redirectTo: "/portal/dashboard" },
+      200,
+      { "Set-Cookie": cookie },
+    );
   }
 
   // Deliberately generic error — never reveal whether the phone number or

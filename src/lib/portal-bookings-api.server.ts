@@ -12,7 +12,7 @@
 // rates.ts) — the same mechanism /admin's rate calendar uses — called
 // directly from the portal's Dashboard and Rates & Inventory tabs.
 import postgres from "postgres";
-import { getPortalSessionFromRequest } from "@/lib/portal-session.server";
+import { getPortalSessionFromRequest, resolveEffectivePropertySlug } from "@/lib/portal-session.server";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
 
@@ -101,9 +101,10 @@ type ManualRow = {
 export async function handleGetPortalBookings(request: Request): Promise<Response> {
   const session = await getPortalSessionFromRequest(request);
   if (!session) return jsonResponse({ error: "Not authenticated" }, 401);
+  const propertySlug = resolveEffectivePropertySlug(request, session);
 
   const sql = getSql();
-  if (!sql) return jsonResponse({ bookings: [] }, 200);
+  if (!sql) return jsonResponse({ bookings: [], propertySlug, role: session.role }, 200);
 
   try {
     const [onlineRows, manualRows] = await Promise.all([
@@ -112,7 +113,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
                check_in, check_out, nights, guests AS guests_count,
                total_amount AS booking_amount, created_at
         FROM public.bookings
-        WHERE property_id = ${session.propertySlug}
+        WHERE property_id = ${propertySlug}
           AND payment_status IN ('paid', 'simulated')
       `,
       sql<ManualRow[]>`
@@ -120,7 +121,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
                check_in, check_out, nights, guests_count,
                booking_amount, status, created_at
         FROM public.portal_bookings
-        WHERE property_id = ${session.propertySlug}
+        WHERE property_id = ${propertySlug}
           AND status != 'cancelled'
       `,
     ]);
@@ -164,7 +165,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
     });
 
     const bookings = [...online, ...manual].sort((a, b) => a.check_in.localeCompare(b.check_in));
-    return jsonResponse({ bookings, propertySlug: session.propertySlug }, 200);
+    return jsonResponse({ bookings, propertySlug, role: session.role }, 200);
   } catch (err) {
     console.error("[handleGetPortalBookings]:", err instanceof Error ? err.message : err);
     return jsonResponse({ error: "Internal error" }, 500);

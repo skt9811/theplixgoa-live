@@ -13,6 +13,7 @@
 // native app's durable fallback. Same payload/expiry either way.
 import { decode as decodeSessionJwt, encode as encodeSessionJwt } from "@auth/core/jwt";
 import { isSecureRequest } from "@/lib/session-cookie.server";
+import { PROPERTIES } from "@/lib/plix";
 
 const SESSION_MAX_AGE_SECONDS = 90 * 24 * 60 * 60; // 90 days — must never auto-logout on app close/restart, per spec
 const TOKEN_SALT = "plix-portal-token"; // fixed, unlike the cookie's secure-flag-dependent name, since a bearer token has no "cookie name" of its own
@@ -45,14 +46,14 @@ function readBearerToken(req: Request): string | undefined {
   return match?.[1];
 }
 
-export async function buildPortalSessionCookie(req: Request, propertySlug: string): Promise<string> {
+export async function buildPortalSessionCookie(req: Request, propertySlug: string, role: "owner" | "admin" = "owner"): Promise<string> {
   const secure = isSecureRequest(req);
   const name = portalCookieName(secure);
   const secret = process.env["AUTH_SECRET"];
   if (!secret) throw new Error("AUTH_SECRET not configured on the server.");
 
   const token = await encodeSessionJwt({
-    token: { sub: propertySlug, portal: true },
+    token: { sub: propertySlug, portal: true, role },
     secret,
     salt: name,
     maxAge: SESSION_MAX_AGE_SECONDS,
@@ -70,11 +71,11 @@ export async function buildPortalSessionCookie(req: Request, propertySlug: strin
 }
 
 /** The bearer-token counterpart to the cookie above, for native storage. Same claims, same 90-day expiry, fixed salt. */
-export async function buildPortalToken(propertySlug: string): Promise<string> {
+export async function buildPortalToken(propertySlug: string, role: "owner" | "admin" = "owner"): Promise<string> {
   const secret = process.env["AUTH_SECRET"];
   if (!secret) throw new Error("AUTH_SECRET not configured on the server.");
   return encodeSessionJwt({
-    token: { sub: propertySlug, portal: true },
+    token: { sub: propertySlug, portal: true, role },
     secret,
     salt: TOKEN_SALT,
     maxAge: SESSION_MAX_AGE_SECONDS,
@@ -88,7 +89,11 @@ export function clearPortalSessionCookie(req: Request): string {
   return parts.join("; ");
 }
 
-export type PortalSession = { propertySlug: string };
+// propertySlug is the empty string for an admin session — admin isn't bound
+// to one property the way an owner is, so which property's data comes back
+// is decided per-request (a `?property=` query param the client controls,
+// defaulting to the first PROPERTIES entry), not by anything in the token.
+export type PortalSession = { propertySlug: string; role: "owner" | "admin" };
 
 async function decodePortalPayload(token: string, salt: string): Promise<PortalSession | null> {
   const secret = process.env["AUTH_SECRET"];
@@ -96,7 +101,8 @@ async function decodePortalPayload(token: string, salt: string): Promise<PortalS
   try {
     const payload = await decodeSessionJwt({ token, secret, salt });
     if (!payload || typeof payload["sub"] !== "string" || payload["portal"] !== true) return null;
-    return { propertySlug: payload["sub"] };
+    const role = payload["role"] === "admin" ? "admin" : "owner";
+    return { propertySlug: payload["sub"], role };
   } catch {
     return null;
   }
@@ -116,4 +122,20 @@ export async function getPortalSessionFromRequest(req: Request): Promise<PortalS
   }
 
   return null;
+}
+
+/**
+ * Which property a portal API request should act on. An owner is always
+ * bound to their own session.propertySlug — a `?property=` query param on
+ * an owner's request is deliberately ignored, never trusted, so one owner
+ * can never read/write another property's data by just editing the URL.
+ * Admin isn't bound to any single property, so this reads the query param
+ * instead (the client-side property selector controls it), falling back to
+ * the first configured property if it's missing or not a real slug.
+ */
+export function resolveEffectivePropertySlug(req: Request, session: PortalSession): string {
+  if (session.role === "owner") return session.propertySlug;
+  const requested = new URL(req.url).searchParams.get("property");
+  const match = requested && PROPERTIES.some((p) => p.slug === requested);
+  return match ? requested! : (PROPERTIES[0]?.slug ?? "");
 }

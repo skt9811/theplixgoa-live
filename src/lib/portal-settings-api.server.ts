@@ -1,7 +1,8 @@
 // Server-only. GET /api/portal/me and POST /api/portal/change-pin — backs
 // the Settings tab's Property Info card and Change PIN form.
-import { findPortalOwnerBySlug, updateOwnerPin } from "@/lib/portal-pins.server";
-import { getPortalSessionFromRequest } from "@/lib/portal-session.server";
+import { findPortalOwnerBySlug, PORTAL_ADMIN_PHONE, updateOwnerPin } from "@/lib/portal-pins.server";
+import { getPortalSessionFromRequest, resolveEffectivePropertySlug } from "@/lib/portal-session.server";
+import { PROPERTIES } from "@/lib/plix";
 
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -14,11 +15,24 @@ export async function handleGetPortalMe(request: Request): Promise<Response> {
   const session = await getPortalSessionFromRequest(request);
   if (!session) return jsonResponse({ error: "Not authenticated" }, 401);
 
+  // Admin has no portal_owners row (it isn't tied to one property) — resolve
+  // the display name from the static PROPERTIES list for whichever property
+  // the client's selector currently has picked, and report the admin's own
+  // phone rather than an owner's.
+  if (session.role === "admin") {
+    const propertySlug = resolveEffectivePropertySlug(request, session);
+    const property = PROPERTIES.find((p) => p.slug === propertySlug);
+    return jsonResponse(
+      { propertySlug, propertyName: property?.name ?? propertySlug, phone: PORTAL_ADMIN_PHONE, role: "admin" },
+      200,
+    );
+  }
+
   const owner = await findPortalOwnerBySlug(session.propertySlug);
   if (!owner) return jsonResponse({ error: "Property not found" }, 404);
 
   return jsonResponse(
-    { propertySlug: owner.propertySlug, propertyName: owner.propertyName, phone: owner.phone },
+    { propertySlug: owner.propertySlug, propertyName: owner.propertyName, phone: owner.phone, role: "owner" },
     200,
   );
 }
@@ -28,6 +42,9 @@ const PIN_PATTERN = /^[0-9]{4}$/;
 export async function handleChangePortalPin(request: Request): Promise<Response> {
   const session = await getPortalSessionFromRequest(request);
   if (!session) return jsonResponse({ error: "Not authenticated" }, 401);
+  // Admin's PIN is the site-wide VITE_ADMIN_PIN env var, not a portal_owners
+  // row — there's nothing here for the admin session to change.
+  if (session.role === "admin") return jsonResponse({ error: "Not available for the admin account" }, 400);
 
   let body: unknown;
   try {

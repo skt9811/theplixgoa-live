@@ -9,7 +9,15 @@ const SUPPORT_EMAIL = "reservations@theplixgoa.com";
 
 type Me = { propertySlug: string; propertyName: string; phone: string };
 
-export function PortalSettingsTab({ propertySlug, propertyName }: { propertySlug: string; propertyName: string }) {
+export function PortalSettingsTab({
+  propertySlug,
+  propertyName,
+  role,
+}: {
+  propertySlug: string;
+  propertyName: string;
+  role: "owner" | "admin";
+}) {
   const navigate = useNavigate();
   const [me, setMe] = useState<Me | null>(null);
 
@@ -28,7 +36,21 @@ export function PortalSettingsTab({ propertySlug, propertyName }: { propertySlug
     } catch {
       // best-effort; navigate away regardless
     }
-    await clearPortalSession();
+    try {
+      await clearPortalSession();
+    } catch {
+      // native storage unavailable — the cookie clear above already ends the session
+    }
+    // /admin/bookings' own PIN gate reads this same flag independently of the
+    // portal session — clear it too so signing out of the portal doesn't
+    // leave the admin bypass silently still active there.
+    if (role === "admin") {
+      try {
+        localStorage.removeItem("plix_admin_auth");
+      } catch {
+        // noop
+      }
+    }
     void navigate({ to: "/portal/login" });
   }
 
@@ -59,7 +81,7 @@ export function PortalSettingsTab({ propertySlug, propertyName }: { propertySlug
         </div>
       </div>
 
-      <ChangePinCard />
+      {role === "owner" && <ChangePinCard />}
 
       {/* Support */}
       <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">

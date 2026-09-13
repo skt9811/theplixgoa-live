@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Lock, X } from "lucide-react";
+import { ChevronDown, Lock, X } from "lucide-react";
 import type { PortalBooking } from "@/lib/portal-bookings-client";
 import { portalFetch } from "@/lib/portal-native-session";
 import { useOnlineStatusToast } from "@/lib/use-online-status";
+import { PROPERTIES, formatINR } from "@/lib/plix";
 import { PortalBottomNav, type PortalTab } from "@/components/plix/portal-bottom-nav";
 import { PortalDashboardTab } from "@/components/plix/portal-dashboard-tab";
 import { PortalBookingsTab } from "@/components/plix/portal-bookings-tab";
@@ -13,7 +14,6 @@ import { PortalCalendarTab } from "@/components/plix/portal-calendar-tab";
 import { PortalSettingsTab } from "@/components/plix/portal-settings-tab";
 import { PortalPullToRefresh } from "@/components/plix/portal-pull-to-refresh";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatINR } from "@/lib/plix";
 
 export const Route = createFileRoute("/portal/dashboard")({
   head: () => ({
@@ -55,6 +55,7 @@ function PortalDashboardPage() {
   const [bookings, setBookings] = useState<PortalBooking[]>([]);
   const [propertySlug, setPropertySlug] = useState<string | null>(null);
   const [propertyName, setPropertyName] = useState<string>("Your Property");
+  const [role, setRole] = useState<"owner" | "admin" | null>(null);
   const [tab, setTab] = useState<PortalTab>("dashboard");
   const [ratesRefreshSignal, setRatesRefreshSignal] = useState(0);
   const [newBookingAlert, setNewBookingAlert] = useState<{ guestName: string; amount: number } | null>(null);
@@ -62,38 +63,65 @@ function PortalDashboardPage() {
 
   useOnlineStatusToast();
 
-  const load = useCallback(async () => {
-    try {
-      const res = await portalFetch("/api/portal/bookings");
-      if (res.status === 401) {
-        setAuthed(false);
+  // Admin isn't bound to one property — this is the client-side selector's
+  // own state, sent as `?property=` on every portal API call. An owner's
+  // requests never carry it: the server derives their property from the
+  // session alone (see resolveEffectivePropertySlug), so nothing here can
+  // let an owner see another property's data even if this were tampered with.
+  const load = useCallback(
+    async (forProperty?: string) => {
+      try {
+        const query = forProperty ? `?property=${encodeURIComponent(forProperty)}` : "";
+        const res = await portalFetch(`/api/portal/bookings${query}`);
+        if (res.status === 401) {
+          setAuthed(false);
+          setLoaded(true);
+          void navigate({ to: "/portal/login" });
+          return;
+        }
+        const data = (await res.json()) as {
+          bookings?: PortalBooking[];
+          propertySlug?: string;
+          role?: "owner" | "admin";
+        };
+        setBookings(data.bookings ?? []);
+        if (data.propertySlug) setPropertySlug(data.propertySlug);
+        if (data.role) setRole(data.role);
+      } catch {
+        toast.error("Could not load bookings");
+      } finally {
         setLoaded(true);
-        void navigate({ to: "/portal/login" });
-        return;
       }
-      const data = (await res.json()) as { bookings?: PortalBooking[]; propertySlug?: string };
-      setBookings(data.bookings ?? []);
-      if (data.propertySlug) setPropertySlug(data.propertySlug);
-    } catch {
-      toast.error("Could not load bookings");
-    } finally {
-      setLoaded(true);
-    }
-  }, [navigate]);
+    },
+    [navigate],
+  );
 
   useEffect(() => {
     void load();
+    // Only on mount — switching properties re-fetches via handleSelectProperty below,
+    // not this effect, so it doesn't need propertySlug/role in its deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load]);
 
   useEffect(() => {
     if (!propertySlug) return;
-    portalFetch("/api/portal/me")
+    const query = role === "admin" ? `?property=${encodeURIComponent(propertySlug)}` : "";
+    portalFetch(`/api/portal/me${query}`)
       .then((res) => res.json())
       .then((data: { propertyName?: string }) => {
         if (data.propertyName) setPropertyName(data.propertyName);
       })
       .catch(() => {});
-  }, [propertySlug]);
+  }, [propertySlug, role]);
+
+  function handleSelectProperty(slug: string) {
+    if (!slug || slug === propertySlug) return;
+    setLoaded(false);
+    seenBookingIds.current = null;
+    setNewBookingAlert(null);
+    setPropertySlug(slug);
+    void load(slug);
+  }
 
   // In-app new-booking banner: purely data-driven (no push infra needed) —
   // poll while this screen is open and diff booking IDs against the last
@@ -102,7 +130,8 @@ function PortalDashboardPage() {
     if (!propertySlug) return;
     const interval = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      portalFetch("/api/portal/bookings")
+      const query = role === "admin" ? `?property=${encodeURIComponent(propertySlug)}` : "";
+      portalFetch(`/api/portal/bookings${query}`)
         .then((res) => (res.ok ? res.json() : null))
         .then((data: { bookings?: PortalBooking[] } | null) => {
           if (!data?.bookings) return;
@@ -121,7 +150,7 @@ function PortalDashboardPage() {
         .catch(() => {});
     }, NEW_BOOKING_POLL_MS);
     return () => window.clearInterval(interval);
-  }, [propertySlug]);
+  }, [propertySlug, role]);
 
   useEffect(() => {
     if (!loaded || seenBookingIds.current) return;
@@ -180,13 +209,33 @@ function PortalDashboardPage() {
       )}
 
       <div className="mx-auto w-full max-w-lg">
+        {role === "admin" && (
+          <label className="mb-4 flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm text-white">
+            <span className="shrink-0 text-white/50">Property</span>
+            <span className="relative flex-1">
+              <select
+                value={propertySlug}
+                onChange={(e) => handleSelectProperty(e.target.value)}
+                className="w-full appearance-none bg-transparent pr-6 font-semibold text-white outline-none"
+              >
+                {PROPERTIES.map((p) => (
+                  <option key={p.slug} value={p.slug} className="bg-navy text-white">
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-0 top-1/2 size-4 -translate-y-1/2 text-white/50" aria-hidden />
+            </span>
+          </label>
+        )}
+
         {tab === "dashboard" && (
-          <PortalPullToRefresh onRefresh={load}>
+          <PortalPullToRefresh onRefresh={() => load(role === "admin" ? propertySlug : undefined)}>
             <PortalDashboardTab propertySlug={propertySlug} propertyName={propertyName} bookings={bookings} onNavigateTab={setTab} />
           </PortalPullToRefresh>
         )}
         {tab === "bookings" && (
-          <PortalPullToRefresh onRefresh={load}>
+          <PortalPullToRefresh onRefresh={() => load(role === "admin" ? propertySlug : undefined)}>
             <PortalBookingsTab bookings={bookings} />
           </PortalPullToRefresh>
         )}
@@ -196,7 +245,7 @@ function PortalDashboardPage() {
           </PortalPullToRefresh>
         )}
         {tab === "calendar" && <PortalCalendarTab propertySlug={propertySlug} bookings={bookings} />}
-        {tab === "settings" && <PortalSettingsTab propertySlug={propertySlug} propertyName={propertyName} />}
+        {tab === "settings" && <PortalSettingsTab propertySlug={propertySlug} propertyName={propertyName} role={role ?? "owner"} />}
       </div>
 
       <PortalBottomNav active={tab} onChange={setTab} />

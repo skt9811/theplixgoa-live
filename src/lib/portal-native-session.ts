@@ -16,18 +16,33 @@ export type PortalStoredSession = {
 
 const STORAGE_KEY = "plix_portal_session";
 
+// Every native call below is wrapped in its own try/catch, not just this
+// dynamic import — a plugin that isn't actually linked into a given native
+// build (or a storage error on-device) rejects at the call site, not at
+// import time, and an uncaught rejection here previously propagated all the
+// way up through the post-login hook in login.tsx and crashed that
+// lifecycle instead of just falling back to localStorage like a web build
+// already does.
 async function getPreferences() {
   if (!Capacitor.isNativePlatform()) return null;
-  const { Preferences } = await import("@capacitor/preferences");
-  return Preferences;
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    return Preferences;
+  } catch {
+    return null;
+  }
 }
 
 export async function savePortalSession(session: PortalStoredSession): Promise<void> {
   const value = JSON.stringify(session);
   const Preferences = await getPreferences();
   if (Preferences) {
-    await Preferences.set({ key: STORAGE_KEY, value });
-    return;
+    try {
+      await Preferences.set({ key: STORAGE_KEY, value });
+      return;
+    } catch {
+      // native call rejected (plugin not implemented, storage error, etc.) — fall through to localStorage
+    }
   }
   try {
     localStorage.setItem(STORAGE_KEY, value);
@@ -39,10 +54,16 @@ export async function savePortalSession(session: PortalStoredSession): Promise<v
 export async function loadPortalSession(): Promise<PortalStoredSession | null> {
   const Preferences = await getPreferences();
   let raw: string | null = null;
+  let nativeFailed = false;
   if (Preferences) {
-    const result = await Preferences.get({ key: STORAGE_KEY });
-    raw = result.value;
-  } else {
+    try {
+      const result = await Preferences.get({ key: STORAGE_KEY });
+      raw = result.value;
+    } catch {
+      nativeFailed = true;
+    }
+  }
+  if (!Preferences || nativeFailed) {
     try {
       raw = localStorage.getItem(STORAGE_KEY);
     } catch {
@@ -60,8 +81,12 @@ export async function loadPortalSession(): Promise<PortalStoredSession | null> {
 export async function clearPortalSession(): Promise<void> {
   const Preferences = await getPreferences();
   if (Preferences) {
-    await Preferences.remove({ key: STORAGE_KEY });
-    return;
+    try {
+      await Preferences.remove({ key: STORAGE_KEY });
+    } catch {
+      // fall through — still clear localStorage below as a defensive backstop
+      // in case an earlier save() had fallen back there itself
+    }
   }
   try {
     localStorage.removeItem(STORAGE_KEY);

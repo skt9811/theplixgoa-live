@@ -17,6 +17,7 @@ import { Route as BookingSuccessRouteImport } from './routes/booking-success'
 import { Route as CancellationRouteImport } from './routes/cancellation'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as FaqRouteImport } from './routes/faq'
+import { Route as PortalRouteImport } from './routes/portal'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as StaysRouteImport } from './routes/stays'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -68,6 +69,11 @@ const FaqRoute = FaqRouteImport.update({
   path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -99,19 +105,19 @@ const BlogSlugRoute = BlogSlugRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const PortalIndexRoute = PortalIndexRouteImport.update({
-  id: '/portal/',
-  path: '/portal/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => PortalRoute,
 } as any)
 const PortalDashboardRoute = PortalDashboardRouteImport.update({
-  id: '/portal/dashboard',
-  path: '/portal/dashboard',
-  getParentRoute: () => rootRouteImport,
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => PortalRoute,
 } as any)
 const PortalLoginRoute = PortalLoginRouteImport.update({
-  id: '/portal/login',
-  path: '/portal/login',
-  getParentRoute: () => rootRouteImport,
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => PortalRoute,
 } as any)
 const PropertiesSlugRoute = PropertiesSlugRouteImport.update({
   id: '/properties/$slug',
@@ -128,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/cancellation': typeof CancellationRoute
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
+  '/portal': typeof PortalRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/stays': typeof StaysRoute
   '/terms': typeof TermsRoute
@@ -169,6 +176,7 @@ export interface FileRoutesById {
   '/cancellation': typeof CancellationRoute
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
+  '/portal': typeof PortalRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/stays': typeof StaysRoute
   '/terms': typeof TermsRoute
@@ -191,6 +199,7 @@ export interface FileRouteTypes {
     | '/cancellation'
     | '/contact'
     | '/faq'
+    | '/portal'
     | '/privacy'
     | '/stays'
     | '/terms'
@@ -231,6 +240,7 @@ export interface FileRouteTypes {
     | '/cancellation'
     | '/contact'
     | '/faq'
+    | '/portal'
     | '/privacy'
     | '/stays'
     | '/terms'
@@ -252,16 +262,14 @@ export interface RootRouteChildren {
   CancellationRoute: typeof CancellationRoute
   ContactRoute: typeof ContactRoute
   FaqRoute: typeof FaqRoute
+  PortalRoute: typeof PortalRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
   StaysRoute: typeof StaysRoute
   TermsRoute: typeof TermsRoute
   AdminBookingsRoute: typeof AdminBookingsRoute
   BlogSlugRoute: typeof BlogSlugRoute
-  PortalDashboardRoute: typeof PortalDashboardRoute
-  PortalLoginRoute: typeof PortalLoginRoute
   PropertiesSlugRoute: typeof PropertiesSlugRoute
   BlogIndexRoute: typeof BlogIndexRoute
-  PortalIndexRoute: typeof PortalIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -322,6 +330,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -366,24 +381,24 @@ declare module '@tanstack/react-router' {
     }
     '/portal/': {
       id: '/portal/'
-      path: '/portal'
+      path: '/'
       fullPath: '/portal/'
       preLoaderRoute: typeof PortalIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/portal/dashboard': {
       id: '/portal/dashboard'
-      path: '/portal/dashboard'
+      path: '/dashboard'
       fullPath: '/portal/dashboard'
       preLoaderRoute: typeof PortalDashboardRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/portal/login': {
       id: '/portal/login'
-      path: '/portal/login'
+      path: '/login'
       fullPath: '/portal/login'
       preLoaderRoute: typeof PortalLoginRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/properties/$slug': {
       id: '/properties/$slug'
@@ -395,6 +410,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface PortalRouteChildren {
+  PortalDashboardRoute: typeof PortalDashboardRoute
+  PortalLoginRoute: typeof PortalLoginRoute
+  PortalIndexRoute: typeof PortalIndexRoute
+}
+
+const PortalRouteChildren: PortalRouteChildren = {
+  PortalDashboardRoute: PortalDashboardRoute,
+  PortalLoginRoute: PortalLoginRoute,
+  PortalIndexRoute: PortalIndexRoute,
+}
+
+const PortalRouteWithChildren =
+  PortalRoute._addFileChildren(PortalRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -404,16 +434,14 @@ const rootRouteChildren: RootRouteChildren = {
   CancellationRoute: CancellationRoute,
   ContactRoute: ContactRoute,
   FaqRoute: FaqRoute,
+  PortalRoute: PortalRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
   StaysRoute: StaysRoute,
   TermsRoute: TermsRoute,
   AdminBookingsRoute: AdminBookingsRoute,
   BlogSlugRoute: BlogSlugRoute,
-  PortalDashboardRoute: PortalDashboardRoute,
-  PortalLoginRoute: PortalLoginRoute,
   PropertiesSlugRoute: PropertiesSlugRoute,
   BlogIndexRoute: BlogIndexRoute,
-  PortalIndexRoute: PortalIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

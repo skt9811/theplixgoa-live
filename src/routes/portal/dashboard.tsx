@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { differenceInCalendarDays } from "date-fns";
 import { CalendarClock, Loader as Loader2, LogOut, Lock, X } from "lucide-react";
 import { formatINR, PROPERTIES, todayISO } from "@/lib/plix";
 import type { PortalBooking } from "@/lib/portal-bookings-client";
 import { PortalCalendar } from "@/components/plix/portal-calendar";
+import { usePortalBackButton } from "@/lib/use-portal-back-button";
 
 export const Route = createFileRoute("/portal/dashboard")({
   head: () => ({
@@ -70,10 +71,9 @@ function PortalDashboardPage() {
         void navigate({ to: "/portal/login" });
         return;
       }
-      const data = (await res.json()) as { bookings?: PortalBooking[] };
-      const rows = data.bookings ?? [];
-      setBookings(rows);
-      if (rows[0]) setPropertySlug(rows[0].property_id);
+      const data = (await res.json()) as { bookings?: PortalBooking[]; propertySlug?: string };
+      setBookings(data.bookings ?? []);
+      if (data.propertySlug) setPropertySlug(data.propertySlug);
     } catch {
       toast.error("Could not load bookings");
     } finally {
@@ -85,6 +85,23 @@ function PortalDashboardPage() {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Android hardware back button: close whichever overlay is open first,
+  // rather than falling straight through to the default "exit app".
+  usePortalBackButton(
+    useCallback(() => {
+      if (blockModalOpen) {
+        setBlockModalOpen(false);
+        return true;
+      }
+      if (drawerDate) {
+        setDrawerDate(null);
+        setSelected(null);
+        return true;
+      }
+      return false;
+    }, [blockModalOpen, drawerDate]),
+  );
 
   const propertyName = useMemo(() => PROPERTIES.find((p) => p.slug === propertySlug)?.name, [propertySlug]);
 

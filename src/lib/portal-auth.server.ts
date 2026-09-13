@@ -1,6 +1,6 @@
-// Server-only. POST /api/portal/auth — validates a property + 4-digit PIN
-// and, on success, issues the hotelier portal session cookie.
-import { PORTAL_PROPERTY_PINS } from "@/lib/portal-pins.server";
+// Server-only. POST /api/portal/auth — validates an owner's mobile number +
+// 4-digit PIN and, on success, issues the hotelier portal session cookie.
+import { findPortalOwnerByPhone } from "@/lib/portal-pins.server";
 import { buildPortalSessionCookie, clearPortalSessionCookie } from "@/lib/portal-session.server";
 
 function jsonResponse(body: unknown, status: number, headers?: Record<string, string>): Response {
@@ -15,23 +15,25 @@ export async function handlePortalAuth(request: Request): Promise<Response> {
   try {
     body = await request.json();
   } catch {
-    return jsonResponse({ success: false, error: "Invalid request" }, 400);
+    return jsonResponse({ error: "Invalid request" }, 400);
   }
 
-  const propertySlug = typeof (body as { propertySlug?: unknown })?.propertySlug === "string"
-    ? (body as { propertySlug: string }).propertySlug
-    : "";
+  const phone = typeof (body as { phone?: unknown })?.phone === "string" ? (body as { phone: string }).phone : "";
   const pin = typeof (body as { pin?: unknown })?.pin === "string" ? (body as { pin: string }).pin : "";
 
-  // Deliberately generic error — never reveal whether the property or the
-  // PIN itself was wrong.
-  const expectedPin = PORTAL_PROPERTY_PINS[propertySlug];
-  if (!expectedPin || expectedPin !== pin) {
-    return jsonResponse({ success: false, error: "Invalid PIN" }, 401);
+  // Deliberately generic error — never reveal whether the phone number or
+  // the PIN itself was wrong.
+  const owner = findPortalOwnerByPhone(phone);
+  if (!owner || owner.pin !== pin) {
+    return jsonResponse({ error: "Invalid mobile number or PIN" }, 401);
   }
 
-  const cookie = await buildPortalSessionCookie(request, propertySlug);
-  return jsonResponse({ success: true, propertySlug }, 200, { "Set-Cookie": cookie });
+  const cookie = await buildPortalSessionCookie(request, owner.propertySlug);
+  return jsonResponse(
+    { success: true, propertyName: owner.propertyName, propertySlug: owner.propertySlug },
+    200,
+    { "Set-Cookie": cookie },
+  );
 }
 
 export function handlePortalLogout(request: Request): Response {

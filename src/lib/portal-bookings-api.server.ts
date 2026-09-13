@@ -156,7 +156,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
     });
 
     const bookings = [...online, ...manual].sort((a, b) => a.check_in.localeCompare(b.check_in));
-    return jsonResponse({ bookings }, 200);
+    return jsonResponse({ bookings, propertySlug: session.propertySlug }, 200);
   } catch (err) {
     console.error("[handleGetPortalBookings]:", err instanceof Error ? err.message : err);
     return jsonResponse({ error: "Internal error" }, 500);

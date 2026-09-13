@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Plix Partner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  </head>
+  <body>
+    <!--
+      This file is never actually shown — capacitor.config.ts sets
+      server.url to the live theplixgoa.com portal, so the WebView loads
+      that instead of this local bundle. Capacitor still requires webDir to
+      point at a real folder with an index.html for `cap sync`/`cap add`
+      to succeed, which is the only reason this file exists (and why this
+      folder is capacitor-www/, not dist/ — dist is gitignored elsewhere
+      in this repo as a real build-output directory). See
+      capacitor.config.ts's comment for why the app loads a live URL
+      rather than a bundled static copy of the site.
+    -->
+    <p>Loading Plix Partner…</p>
+  </body>
+</html>

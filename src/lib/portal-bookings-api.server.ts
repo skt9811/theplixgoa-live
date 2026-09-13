@@ -1,10 +1,17 @@
-// Server-only. Backs GET /api/portal/bookings and POST /api/portal/block-dates.
-// Every SELECT here explicitly whitelists columns — never `SELECT *` — so
-// internal fields from the `bookings` table (razorpay_*, payment_status,
-// host_email, coupon_code, discount_amount, subtotal, taxes) can never leak
-// into the portal response, regardless of future columns added to that table.
+// Server-only. Backs GET /api/portal/bookings. Every SELECT here explicitly
+// whitelists columns — never `SELECT *` — so internal fields from the
+// `bookings` table (razorpay_*, payment_status, host_email, coupon_code,
+// discount_amount, subtotal, taxes) can never leak into the portal
+// response, regardless of future columns added to that table.
+//
+// Blocking dates is NOT handled here — it previously wrote a fake
+// status:'blocked' row into portal_bookings via a POST /api/portal/
+// block-dates endpoint that has been removed, because that table has
+// nothing to do with the public site's actual availability check. Real
+// blocking goes through blocked_dates via toggleBlockedDate() (src/lib/
+// rates.ts) — the same mechanism /admin's rate calendar uses — called
+// directly from the portal's Dashboard and Rates & Inventory tabs.
 import postgres from "postgres";
-import { differenceInCalendarDays } from "date-fns";
 import { getPortalSessionFromRequest } from "@/lib/portal-session.server";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
@@ -159,44 +166,6 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
     return jsonResponse({ bookings, propertySlug: session.propertySlug }, 200);
   } catch (err) {
     console.error("[handleGetPortalBookings]:", err instanceof Error ? err.message : err);
-    return jsonResponse({ error: "Internal error" }, 500);
-  }
-}
-
-export async function handleBlockDates(request: Request): Promise<Response> {
-  const session = await getPortalSessionFromRequest(request);
-  if (!session) return jsonResponse({ error: "Not authenticated" }, 401);
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return jsonResponse({ error: "Invalid request" }, 400);
-  }
-
-  const checkIn = typeof (body as { checkIn?: unknown })?.checkIn === "string" ? (body as { checkIn: string }).checkIn : "";
-  const checkOut = typeof (body as { checkOut?: unknown })?.checkOut === "string" ? (body as { checkOut: string }).checkOut : "";
-  const reason = typeof (body as { reason?: unknown })?.reason === "string" ? (body as { reason: string }).reason : null;
-
-  const nights = checkIn && checkOut ? differenceInCalendarDays(new Date(checkOut), new Date(checkIn)) : 0;
-  if (!checkIn || !checkOut || nights <= 0) {
-    return jsonResponse({ error: "check-out must be after check-in" }, 400);
-  }
-
-  const sql = getSql();
-  if (!sql) return jsonResponse({ error: "Database not configured" }, 500);
-
-  try {
-    const [row] = await sql<{ id: string }[]>`
-      INSERT INTO public.portal_bookings
-        (property_id, guest_name, check_in, check_out, nights, guests_count, booking_amount, status, notes)
-      VALUES
-        (${session.propertySlug}, 'Blocked', ${checkIn}, ${checkOut}, ${nights}, 0, 0, 'blocked', ${reason})
-      RETURNING id
-    `;
-    return jsonResponse({ success: true, id: row?.id }, 200);
-  } catch (err) {
-    console.error("[handleBlockDates]:", err instanceof Error ? err.message : err);
     return jsonResponse({ error: "Internal error" }, 500);
   }
 }

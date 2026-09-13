@@ -9,7 +9,8 @@ import { handleSitemapRequest } from "./lib/sitemap.server";
 import { handleSendWelcomeEmail } from "./lib/send-welcome-email.server";
 import { handlePasswordSignIn, handlePasswordSignUp, handleLogout } from "./lib/auth-routes.server";
 import { handlePortalAuth, handlePortalLogout } from "./lib/portal-auth.server";
-import { handleGetPortalBookings, handleBlockDates } from "./lib/portal-bookings-api.server";
+import { handleGetPortalBookings } from "./lib/portal-bookings-api.server";
+import { handleGetPortalMe, handleChangePortalPin } from "./lib/portal-settings-api.server";
 import { handleAdminCreateBooking } from "./lib/admin-bookings-api.server";
 import { getAuthConfig } from "./lib/auth.server";
 import { StartAuthJS } from "start-authjs";
@@ -255,11 +256,22 @@ export default {
         });
       }
     }
-    if (url.pathname === "/api/portal/block-dates") {
+    if (url.pathname === "/api/portal/me") {
       try {
-        return await handleBlockDates(request);
+        return await handleGetPortalMe(request);
       } catch (error) {
-        console.error("[portal-block-dates] unhandled error:", error);
+        console.error("[portal-me] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    if (url.pathname === "/api/portal/change-pin") {
+      try {
+        return await handleChangePortalPin(request);
+      } catch (error) {
+        console.error("[portal-change-pin] unhandled error:", error);
         return new Response(JSON.stringify({ error: "Internal error" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },

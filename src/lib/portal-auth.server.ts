@@ -41,7 +41,7 @@ export async function handlePortalAuth(request: Request): Promise<Response> {
 
   // Deliberately generic error — never reveal whether the phone number or
   // the PIN itself was wrong.
-  const owner = findPortalOwnerByPhone(phone);
+  const owner = await findPortalOwnerByPhone(phone);
   if (!owner || owner.pin !== pin) {
     return jsonResponse({ error: "Invalid mobile number or PIN" }, 401);
   }

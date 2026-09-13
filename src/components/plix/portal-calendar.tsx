@@ -28,11 +28,14 @@ function bookingForDate(bookings: PortalBooking[], date: string): PortalBooking 
 
 export function PortalCalendar({
   bookings,
+  blockedDates,
   onSelectDate,
   onMonthChange,
 }: {
   bookings: PortalBooking[];
-  onSelectDate: (date: string, booking: PortalBooking | null) => void;
+  /** Real blocked_dates rows (see rates.ts's fetchBlockedDates) — the mechanism that actually locks the public booking engine. */
+  blockedDates: Set<string>;
+  onSelectDate: (date: string, booking: PortalBooking | null, isBlocked: boolean) => void;
   onMonthChange?: (monthStart: Date) => void;
 }) {
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -53,14 +56,14 @@ export function PortalCalendar({
     const lastDay = new Date(year, month + 1, 0);
     const startWeekday = firstDay.getDay();
     const totalDays = lastDay.getDate();
-    const cells: ({ date: string; day: number; booking: PortalBooking | null } | null)[] = [];
+    const cells: ({ date: string; day: number; booking: PortalBooking | null; blocked: boolean } | null)[] = [];
     for (let i = 0; i < startWeekday; i++) cells.push(null);
     for (let d = 1; d <= totalDays; d++) {
       const date = isoDate(year, month, d);
-      cells.push({ date, day: d, booking: bookingForDate(bookings, date) });
+      cells.push({ date, day: d, booking: bookingForDate(bookings, date), blocked: blockedDates.has(date) });
     }
     return cells;
-  }, [currentMonth, bookings]);
+  }, [currentMonth, bookings, blockedDates]);
 
   const monthLabel = currentMonth.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
   const todayStr = todayISO();
@@ -96,20 +99,26 @@ export function PortalCalendar({
         {days.map((cell, i) => {
           if (!cell) return <div key={i} />;
           const isToday = cell.date === todayStr;
+          const highlighted = cell.booking || cell.blocked;
           return (
             <button
               key={cell.date}
               type="button"
-              onClick={() => onSelectDate(cell.date, cell.booking)}
+              onClick={() => onSelectDate(cell.date, cell.booking, cell.blocked)}
               className={`relative flex aspect-square flex-col items-center justify-center rounded-lg text-xs transition-colors ${
-                cell.booking
-                  ? "bg-bronze/25 font-semibold text-white hover:bg-bronze/40"
-                  : "text-white/70 hover:bg-white/10"
+                cell.blocked && !cell.booking
+                  ? "bg-red-500/20 font-semibold text-white hover:bg-red-500/30"
+                  : highlighted
+                    ? "bg-bronze/25 font-semibold text-white hover:bg-bronze/40"
+                    : "text-white/70 hover:bg-white/10"
               } ${isToday ? "ring-1 ring-bronze" : ""}`}
             >
               {cell.day}
               {cell.booking && (
                 <span className={`absolute bottom-1 size-1 rounded-full ${STATUS_DOT[cell.booking.status]}`} aria-hidden />
+              )}
+              {!cell.booking && cell.blocked && (
+                <span className="absolute bottom-1 size-1 rounded-full bg-red-500" aria-hidden />
               )}
             </button>
           );

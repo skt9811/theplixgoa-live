@@ -255,7 +255,7 @@ function PortalDashboardPage() {
 
       <div className="mx-auto w-full max-w-lg">
         <div
-          className="relative overflow-hidden rounded-3xl border border-slate-200/60 p-5"
+          className="relative z-10 rounded-3xl border border-slate-200/60 p-5"
           style={{ backgroundColor: "#F3F6FB" }}
         >
           <div className="pr-14">

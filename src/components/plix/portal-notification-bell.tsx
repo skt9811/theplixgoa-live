@@ -30,8 +30,8 @@ export function PortalNotificationBell({ alerts, onDismiss }: { alerts: PortalAl
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-12 z-50 w-72 rounded-2xl border border-slate-100 bg-white p-2 shadow-lg">
-            <p className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Recent Bookings</p>
+          <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[90vw] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xl">
+            <p className="px-1 pb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Recent Bookings</p>
             {alerts.length === 0 ? (
               <p className="px-2 py-4 text-center text-sm text-slate-400">No new bookings yet.</p>
             ) : (

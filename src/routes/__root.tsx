@@ -5,6 +5,7 @@ import {
   createRootRouteWithContext,
   HeadContent,
   Scripts,
+  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -218,6 +219,11 @@ gtag('config', 'AW-18001047926');`,
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  // The hotelier partner portal is a standalone native-app-style flow — no
+  // public marketing header/search widget, footer, or floating WhatsApp
+  // button (which lives inside SiteFooter). Checked here, not per-route,
+  // since SiteHeader/SiteFooter are otherwise unconditional for every page.
+  const isPortalRoute = useRouterState({ select: (s) => s.location.pathname.startsWith("/portal") });
 
   useEffect(() => {
     if (document.readyState === "complete") {
@@ -227,6 +233,19 @@ function RootComponent() {
     window.addEventListener("load", loadDeferredAnalytics, { once: true });
     return () => window.removeEventListener("load", loadDeferredAnalytics);
   }, []);
+
+  if (isPortalRoute) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <div className="min-h-screen overflow-x-hidden bg-background">
+          <Outlet />
+        </div>
+        <Toaster position="top-center" richColors />
+        <SpeedInsights />
+        <Analytics />
+      </QueryClientProvider>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

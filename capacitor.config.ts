@@ -17,10 +17,17 @@ const config: CapacitorConfig = {
   appName: "Plix Partner",
   webDir: "capacitor-www",
   server: {
-    // Swap to a local dev URL (e.g. "http://10.0.2.2:PORT") while testing
-    // against `npx vite dev` from an Android emulator; androidScheme
-    // switches to "http" automatically for a non-https server.url below.
-    url: "https://theplixgoa.com/portal/login",
+    // Bare /portal, not /portal/login directly — /portal/index.tsx
+    // redirects to /portal/dashboard, which itself bounces to /portal/login
+    // on a 401. That means a returning owner within their 30-day session
+    // lands straight on the dashboard, while a fresh install still lands
+    // on Screen 1 (mobile number entry), exactly as if they'd gone to
+    // /portal/login directly — just without an unnecessary extra hop for
+    // the common case. Swap to a local dev URL (e.g. "http://10.0.2.2:PORT")
+    // while testing against `npx vite dev` from an Android emulator;
+    // androidScheme switches to "http" automatically for a non-https
+    // server.url.
+    url: "https://theplixgoa.com/portal",
     cleartext: false,
   },
   android: {

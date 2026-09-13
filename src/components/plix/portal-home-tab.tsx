@@ -4,7 +4,7 @@ import { Phone } from "lucide-react";
 import { formatINR, PROPERTIES } from "@/lib/plix";
 import type { PortalBooking } from "@/lib/portal-bookings-client";
 import type { PortalTab } from "@/components/plix/portal-bottom-nav";
-import { PortalRevenuePieChart } from "@/components/plix/portal-revenue-pie-chart";
+import { PortalOccupancyWidget } from "@/components/plix/portal-occupancy-widget";
 import { isRealBooking, monthRange, overlapStats } from "@/lib/period-stats";
 
 const CHECK_IN_TIME = "02:00 pm";
@@ -218,11 +218,7 @@ export function PortalHomeTab({
         </div>
       </div>
 
-      <div className="mt-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-        <p className="text-sm font-semibold text-slate-900">Revenue &amp; Booking Source</p>
-        <p className="text-xs text-slate-500">How your room nights are being used</p>
-        <PortalRevenuePieChart propertySlug={propertySlug} bookings={bookings} />
-      </div>
+      <PortalOccupancyWidget propertySlug={propertySlug} bookings={bookings} onNavigateTab={onNavigateTab} />
     </>
   );
 }

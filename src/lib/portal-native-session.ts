@@ -55,6 +55,20 @@ function clearLocal(): void {
   }
 }
 
+/**
+ * A plain synchronous localStorage check — not the actual auth mechanism
+ * (that's portalFetch/loadPortalSession, which also weighs in a native
+ * fallback), just a cheap heuristic the welcome/login screens use to decide
+ * their *initial* render before any effect has run, so a signed-in user
+ * cold-launching the app never even flashes a "Sign In" button before
+ * redirecting to the dashboard. A stored session that turns out to be
+ * stale/expired is caught the same way it already is everywhere else: the
+ * dashboard's own 401 handling takes over and sends them back to login.
+ */
+export function hasStoredPortalSessionSync(): boolean {
+  return readLocal() !== null;
+}
+
 async function getPreferences() {
   if (!Capacitor.isNativePlatform()) return null;
   try {

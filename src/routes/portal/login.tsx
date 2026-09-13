@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
-import { savePortalSession } from "@/lib/portal-native-session";
+import { ArrowLeft, Loader as Loader2 } from "lucide-react";
+import { hasStoredPortalSessionSync, savePortalSession } from "@/lib/portal-native-session";
 import { apiUrl, withTimeout } from "@/lib/capacitor-utils";
 import { Capacitor } from "@capacitor/core";
 
@@ -73,6 +73,19 @@ function PortalLoginPage() {
   const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Covers a signed-in user landing here manually (e.g. the Android back
+  // button) rather than via a cold launch — /portal/index.tsx handles the
+  // cold-launch case itself, but this page is reachable independently of
+  // it. A useEffect, not a useState lazy initializer — see index.tsx's own
+  // comment on this exact pattern for why (SSR/hydration mismatch).
+  const [resuming, setResuming] = useState(false);
+
+  useEffect(() => {
+    if (hasStoredPortalSessionSync()) {
+      setResuming(true);
+      void navigate({ to: "/portal/dashboard", replace: true });
+    }
+  }, [navigate]);
 
   const canSubmit = PHONE_PATTERN.test(phone) && PIN_PATTERN.test(pin) && !submitting;
 
@@ -148,6 +161,14 @@ function PortalLoginPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (resuming) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-white">
+        <Loader2 className="size-6 animate-spin text-stone-400" aria-hidden />
+      </div>
+    );
   }
 
   return (

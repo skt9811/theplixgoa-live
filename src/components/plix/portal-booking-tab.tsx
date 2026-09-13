@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { differenceInCalendarDays } from "date-fns";
-import { Info, Loader as Loader2, MapPin, MessageCircle, Plus, Users, X } from "lucide-react";
+import { ChevronDown, Info, Loader as Loader2, MapPin, MessageCircle, Plus, Users, X } from "lucide-react";
 import { formatINR, PROPERTIES, todayISO } from "@/lib/plix";
 import type { PortalBooking } from "@/lib/portal-bookings-client";
+import { portalFetch } from "@/lib/portal-native-session";
 import { PAYMENT_STATUS_OPTIONS, CHANNEL_OPTIONS } from "@/lib/booking-options";
 import { createBooking, type CreateBookingPayload } from "@/lib/create-booking-client";
 
@@ -62,49 +63,95 @@ export function PortalBookingTab({
   onFocusHandled: () => void;
 }) {
   const property = PROPERTIES.find((p) => p.slug === propertySlug);
-  const [monthFilter, setMonthFilter] = useState(() => todayISO().slice(0, 7));
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  // Always the full current year plus the year before and after — every
-  // calendar month is selectable regardless of whether a booking exists in
-  // it, rather than only offering months that already have data.
-  const months = useMemo(() => {
-    const thisYear = new Date().getFullYear();
-    const opts: { key: string; label: string }[] = [];
-    for (const year of [thisYear - 1, thisYear, thisYear + 1]) {
-      for (let month = 0; month < 12; month++) {
-        const key = `${year}-${String(month + 1).padStart(2, "0")}`;
-        const label = new Date(year, month, 1).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
-        opts.push({ key, label });
+  // "all" is admin-only — an owner is always bound to their one property
+  // (same as everywhere else in the portal), so this only ever differs from
+  // propertySlug when role === "admin" explicitly picks it.
+  const [propertyFilter, setPropertyFilter] = useState<string>(propertySlug);
+  const [allPropertiesBookings, setAllPropertiesBookings] = useState<PortalBooking[] | null>(null);
+  const [loadingAll, setLoadingAll] = useState(false);
+
+  // Stay in sync with the shared dashboard-level property selector — if the
+  // admin switches property there while this tab has "All Properties"
+  // picked, drop back to matching it rather than showing stale cross-
+  // property data for whichever property used to be selected.
+  useEffect(() => {
+    setPropertyFilter(propertySlug);
+  }, [propertySlug]);
+
+  useEffect(() => {
+    if (propertyFilter !== "all") {
+      setAllPropertiesBookings(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingAll(true);
+    Promise.all(
+      PROPERTIES.map((p) =>
+        portalFetch(`/api/portal/bookings?property=${p.slug}`)
+          .then((res) => (res.ok ? res.json() : { bookings: [] as PortalBooking[] }))
+          .then((data: { bookings?: PortalBooking[] }) => data.bookings ?? []),
+      ),
+    )
+      .then((results) => {
+        if (cancelled) return;
+        setAllPropertiesBookings(results.flat());
+      })
+      .catch(() => {
+        if (!cancelled) toast.error("Could not load bookings for all properties");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingAll(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [propertyFilter]);
+
+  const sourceBookings = propertyFilter === "all" ? (allPropertiesBookings ?? []) : bookings;
+
+  function propertyFor(b: PortalBooking) {
+    return PROPERTIES.find((p) => p.slug === b.property_id);
+  }
+
+  // Unfiltered chronological feed, ascending by check-in — active/upcoming
+  // stays surface first, followed by everything further out, with a sticky
+  // month divider wherever the month changes walking down the list.
+  const sorted = useMemo(() => {
+    return sourceBookings
+      .filter((b) => b.status !== "blocked" && b.payment_status !== "pending")
+      .sort((a, b) => a.check_in.localeCompare(b.check_in));
+  }, [sourceBookings]);
+
+  const grouped = useMemo(() => {
+    const groups: { key: string; label: string; items: PortalBooking[] }[] = [];
+    for (const b of sorted) {
+      const key = b.check_in.slice(0, 7);
+      const last = groups[groups.length - 1];
+      if (last?.key === key) {
+        last.items.push(b);
+      } else {
+        const [y, m] = key.split("-").map(Number);
+        const label = new Date(y!, m! - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+        groups.push({ key, label, items: [b] });
       }
     }
-    return opts;
-  }, []);
+    return groups;
+  }, [sorted]);
 
-  const filtered = useMemo(() => {
-    return bookings
-      .filter((b) => b.status !== "blocked" && b.payment_status !== "pending" && b.check_in.slice(0, 7) === monthFilter)
-      .sort((a, b) => a.check_in.localeCompare(b.check_in));
-  }, [bookings, monthFilter]);
-
-  const monthLabel = useMemo(() => {
-    const [y, m] = monthFilter.split("-").map(Number);
-    return new Date(y!, m! - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
-  }, [monthFilter]);
-
-  // Landed here from the Home tab's Today's Operations card — jump to that
-  // booking's month, expand its card, and scroll it into view.
+  // Landed here from the Home tab's Today's Operations card — expand that
+  // booking's card and scroll it into view (no month filter to jump any more).
   useEffect(() => {
     if (!focusBookingId) return;
-    const target = bookings.find((b) => b.id === focusBookingId);
+    const target = sourceBookings.find((b) => b.id === focusBookingId);
     if (!target) {
       onFocusHandled();
       return;
     }
-    setMonthFilter(target.check_in.slice(0, 7));
     setExpandedId(target.id);
     setHighlightId(target.id);
     const scrollTimer = window.setTimeout(() => {
@@ -134,140 +181,160 @@ export function PortalBookingTab({
         )}
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <div className="rounded-full bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-600">
-          {property?.name ?? propertySlug}
-        </div>
-        <select
-          value={monthFilter}
-          onChange={(e) => setMonthFilter(e.target.value)}
-          className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none"
-        >
-          {months.map((m) => (
-            <option key={m.key} value={m.key}>
-              {m.label}
-            </option>
-          ))}
-        </select>
+      <div className="mt-4">
+        {role === "admin" ? (
+          <label className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm">
+            <span className="relative flex-1">
+              <select
+                value={propertyFilter}
+                onChange={(e) => setPropertyFilter(e.target.value)}
+                className="w-full appearance-none bg-transparent pr-5 outline-none"
+              >
+                <option value="all">All Properties</option>
+                {PROPERTIES.map((p) => (
+                  <option key={p.slug} value={p.slug}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-0 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" aria-hidden />
+            </span>
+          </label>
+        ) : (
+          <div className="rounded-full bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-600">
+            {property?.name ?? propertySlug}
+          </div>
+        )}
       </div>
 
-      <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">{monthLabel}</p>
-
-      <div className="mt-2 grid gap-3">
-        {filtered.length === 0 && (
-          <p className="py-8 text-center text-sm text-slate-400">No bookings scheduled for {monthLabel}</p>
-        )}
-        {filtered.map((b) => {
-          const lifecycle = lifecycleStatus(b);
-          const pill = STATUS_PILL[lifecycle];
-          const expanded = expandedId === b.id;
-          return (
-            <div
-              key={b.id}
-              ref={(el) => {
-                if (el) cardRefs.current.set(b.id, el);
-                else cardRefs.current.delete(b.id);
-              }}
-              className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition-colors ${
-                highlightId === b.id ? "border-bronze ring-1 ring-bronze" : "border-slate-100"
-              }`}
-            >
-              <div className="flex items-center gap-1.5 bg-slate-50 px-4 py-2 text-[11px] font-medium text-slate-500">
-                <MapPin className="size-3" aria-hidden />
-                {property?.name ?? propertySlug}, {property?.region ?? ""}
-              </div>
-
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
-                      {initials(b.guest_name)}
+      <div className="mt-4 grid gap-3">
+        {loadingAll ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="size-5 animate-spin text-slate-400" aria-hidden />
+          </div>
+        ) : grouped.length === 0 ? (
+          <p className="py-8 text-center text-sm text-slate-400">No bookings scheduled.</p>
+        ) : (
+          grouped.map((group) => (
+            <div key={group.key} className="grid gap-3">
+              <p className="sticky top-0 z-10 -mx-4 bg-[#f7f8fc] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {group.label}
+              </p>
+              {group.items.map((b) => {
+                const lifecycle = lifecycleStatus(b);
+                const pill = STATUS_PILL[lifecycle];
+                const expanded = expandedId === b.id;
+                const bProperty = propertyFilter === "all" ? propertyFor(b) : property;
+                return (
+                  <div
+                    key={b.id}
+                    ref={(el) => {
+                      if (el) cardRefs.current.set(b.id, el);
+                      else cardRefs.current.delete(b.id);
+                    }}
+                    className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition-colors ${
+                      highlightId === b.id ? "border-bronze ring-1 ring-bronze" : "border-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 bg-slate-50 px-4 py-2 text-[11px] font-medium text-slate-500">
+                      <MapPin className="size-3" aria-hidden />
+                      {bProperty?.name ?? b.property_id}, {bProperty?.region ?? ""}
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{b.guest_name}</p>
-                      <p className="text-[11px] text-slate-400">Booking ID: {shortBookingId(b.id)}</p>
+
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-10 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                            {initials(b.guest_name)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{b.guest_name}</p>
+                            <p className="text-[11px] text-slate-400">Booking ID: {shortBookingId(b.id)}</p>
+                          </div>
+                        </div>
+                        <span
+                          className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold"
+                          style={{ backgroundColor: pill.bg, color: pill.text }}
+                        >
+                          {pill.label}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-3 items-center gap-2 rounded-2xl bg-slate-50 p-3 text-center">
+                        <div>
+                          <p className="text-[10px] text-slate-400">Check-in</p>
+                          <p className="text-xs font-semibold text-slate-800">{formatDate(b.check_in)}</p>
+                          <p className="text-[10px] text-slate-500">{CHECK_IN_TIME}</p>
+                        </div>
+                        <div className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+                          {b.nights} Night{b.nights === 1 ? "" : "s"}
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400">Check-out</p>
+                          <p className="text-xs font-semibold text-slate-800">{formatDate(b.check_out)}</p>
+                          <p className="text-[10px] text-slate-500">{CHECK_OUT_TIME}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
+                        <span>Rooms: 1</span>
+                        <span>Type: Not specified</span>
+                        <span className="flex items-center gap-1">
+                          <Users className="size-3" aria-hidden /> Adults: {b.guests_count}
+                        </span>
+                        <span>Staff Count: 0</span>
+                        <span>Pets: 0</span>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+                        <div>
+                          <p className="text-[11px] text-slate-400">Stay Amount</p>
+                          <p className="text-sm font-semibold text-slate-900">{formatINR(b.booking_amount)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(expanded ? null : b.id)}
+                          className="text-xs font-semibold text-bronze hover:underline"
+                        >
+                          {expanded ? "Hide details" : "View details"}
+                        </button>
+                      </div>
+
+                      {expanded && (
+                        <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-slate-500">Total Amount</span>
+                            <span className="font-semibold text-slate-900">{formatINR(b.booking_amount)}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-400">Note: Final amount may vary due to payment gateway charges.</p>
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <a
+                          href={SUPPORT_WHATSAPP}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          <Info className="size-3" aria-hidden /> Indemnity Collection
+                        </a>
+                        <a
+                          href={SUPPORT_WHATSAPP}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          <MessageCircle className="size-3" aria-hidden /> ID Cards
+                        </a>
+                      </div>
                     </div>
                   </div>
-                  <span
-                    className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold"
-                    style={{ backgroundColor: pill.bg, color: pill.text }}
-                  >
-                    {pill.label}
-                  </span>
-                </div>
-
-                <div className="mt-4 grid grid-cols-3 items-center gap-2 rounded-2xl bg-slate-50 p-3 text-center">
-                  <div>
-                    <p className="text-[10px] text-slate-400">Check-in</p>
-                    <p className="text-xs font-semibold text-slate-800">{formatDate(b.check_in)}</p>
-                    <p className="text-[10px] text-slate-500">{CHECK_IN_TIME}</p>
-                  </div>
-                  <div className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
-                    {b.nights} Night{b.nights === 1 ? "" : "s"}
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-slate-400">Check-out</p>
-                    <p className="text-xs font-semibold text-slate-800">{formatDate(b.check_out)}</p>
-                    <p className="text-[10px] text-slate-500">{CHECK_OUT_TIME}</p>
-                  </div>
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
-                  <span>Rooms: 1</span>
-                  <span>Type: Not specified</span>
-                  <span className="flex items-center gap-1">
-                    <Users className="size-3" aria-hidden /> Adults: {b.guests_count}
-                  </span>
-                  <span>Staff Count: 0</span>
-                  <span>Pets: 0</span>
-                </div>
-
-                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                  <div>
-                    <p className="text-[11px] text-slate-400">Stay Amount</p>
-                    <p className="text-sm font-semibold text-slate-900">{formatINR(b.booking_amount)}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedId(expanded ? null : b.id)}
-                    className="text-xs font-semibold text-bronze hover:underline"
-                  >
-                    {expanded ? "Hide details" : "View details"}
-                  </button>
-                </div>
-
-                {expanded && (
-                  <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-500">Total Amount</span>
-                      <span className="font-semibold text-slate-900">{formatINR(b.booking_amount)}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400">Note: Final amount may vary due to payment gateway charges.</p>
-                  </div>
-                )}
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <a
-                    href={SUPPORT_WHATSAPP}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <Info className="size-3" aria-hidden /> Indemnity Collection
-                  </a>
-                  <a
-                    href={SUPPORT_WHATSAPP}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <MessageCircle className="size-3" aria-hidden /> ID Cards
-                  </a>
-                </div>
-              </div>
+                );
+              })}
             </div>
-          );
-        })}
+          ))
+        )}
       </div>
 
       {creating && (

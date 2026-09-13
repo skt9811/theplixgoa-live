@@ -24,4 +24,9 @@ export type PortalBooking = {
   payment_status: "pending" | "paid" | "simulated" | null;
   /** Set only for manual bookings that recorded it — shown "if available", not guaranteed. */
   rooms_count: number | null;
+  /** The admin "+ Create Booking" flow's own payment tracking — distinct
+   * from `payment_status` above (the online-checkout lifecycle, always
+   * null for manual bookings). Always "paid" for an online booking. */
+  admin_payment_status: "paid" | "partial" | "pending" | null;
+  advance_amount: number | null;
 };

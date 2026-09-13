@@ -49,6 +49,14 @@ export type PortalBooking = {
    * manual booking created before that field existed. The Home tab's
    * Today's Operations card shows it "if available", not as a guarantee. */
   rooms_count: number | null;
+  /** The admin "+ Create Booking" flow's own payment tracking (paid/
+   * partial/pending), distinct from `payment_status` above — that field is
+   * the online-checkout lifecycle (always null for manual bookings); this
+   * one is manually entered and always "paid" for an online booking, since
+   * a completed Razorpay payment has no partial/balance concept. */
+  admin_payment_status: "paid" | "partial" | "pending" | null;
+  /** Only meaningful alongside admin_payment_status === "partial" — null for online bookings and for manual ones that didn't record it. */
+  advance_amount: number | null;
 };
 
 function toDateString(value: string | Date): string {
@@ -107,6 +115,8 @@ type ManualRow = {
   status: PortalBookingStatus;
   created_at: string | Date;
   rooms_count: number | null;
+  payment_status: "paid" | "partial" | "pending";
+  advance_amount: string | number | null;
 };
 
 export async function handleGetPortalBookings(request: Request): Promise<Response> {
@@ -130,7 +140,8 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
       sql<ManualRow[]>`
         SELECT id, property_id, guest_name, guest_phone,
                check_in, check_out, nights, guests_count,
-               booking_amount, status, created_at, rooms_count
+               booking_amount, status, created_at, rooms_count,
+               payment_status, advance_amount
         FROM public.portal_bookings
         WHERE property_id = ${propertySlug}
           AND status != 'cancelled'
@@ -155,6 +166,8 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
         payment_status: r.payment_status,
         rooms_count: null,
+        admin_payment_status: "paid",
+        advance_amount: null,
       };
     });
 
@@ -176,6 +189,8 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
         payment_status: null,
         rooms_count: r.rooms_count,
+        admin_payment_status: r.payment_status,
+        advance_amount: r.advance_amount === null ? null : Number(r.advance_amount),
       };
     });
 

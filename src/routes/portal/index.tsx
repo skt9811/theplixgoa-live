@@ -1,5 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Loader as Loader2 } from "lucide-react";
 import landingImage from "@/assets/Landing_partner_app.jpg";
+import { hasStoredPortalSessionSync } from "@/lib/portal-native-session";
 
 export const Route = createFileRoute("/portal/")({
   head: () => ({
@@ -12,6 +15,41 @@ export const Route = createFileRoute("/portal/")({
 });
 
 function PortalWelcomePage() {
+  const navigate = useNavigate();
+  // Capacitor's server.url points straight at this route, so it's the true
+  // landing point on every cold launch (swipe-kill + reopen included) — a
+  // signed-in user should never be stuck re-entering credentials for a
+  // session that's already valid. A stale/expired token is still caught,
+  // just later: dashboard.tsx's own 401 handling already redirects to
+  // login without this page needing to pre-validate anything.
+  //
+  // This is a useEffect, deliberately not a useState lazy initializer:
+  // localStorage doesn't exist during SSR, so the server always renders the
+  // normal welcome screen — calling navigate() during the initial render
+  // (which runs identically on the server and the client's first pass)
+  // fired a "setState while rendering a different component" warning and a
+  // genuine hydration mismatch, since the client's first paint no longer
+  // matched what the server sent. Resolving this after mount instead means
+  // a signed-in user sees this screen for one frame before redirecting,
+  // which is the correct trade-off — imperceptible in practice, and it
+  // never breaks hydration.
+  const [resuming, setResuming] = useState(false);
+
+  useEffect(() => {
+    if (hasStoredPortalSessionSync()) {
+      setResuming(true);
+      void navigate({ to: "/portal/dashboard", replace: true });
+    }
+  }, [navigate]);
+
+  if (resuming) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-navy">
+        <Loader2 className="size-6 animate-spin text-white/50" aria-hidden />
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-screen w-full overflow-hidden">
       <img

@@ -1,6 +1,7 @@
-import { useMemo } from "react";
-import { CalendarCheck, CalendarClock } from "lucide-react";
-import { formatINR } from "@/lib/plix";
+import { useMemo, useState } from "react";
+import { differenceInCalendarDays } from "date-fns";
+import { Phone } from "lucide-react";
+import { formatINR, PROPERTIES } from "@/lib/plix";
 import type { PortalBooking } from "@/lib/portal-bookings-client";
 import type { PortalTab } from "@/components/plix/portal-bottom-nav";
 import { PortalRevenuePieChart } from "@/components/plix/portal-revenue-pie-chart";
@@ -8,6 +9,8 @@ import { isRealBooking, monthRange, overlapStats } from "@/lib/period-stats";
 
 const CHECK_IN_TIME = "02:00 pm";
 const CHECK_OUT_TIME = "11:00 am";
+
+type Segment = "checkins" | "checkouts" | "inhouse";
 
 // Indian lakh/crore compact notation, matching the reference's "₹ 32.63L" —
 // not a general-purpose helper (formatINR in lib/plix.ts covers the normal
@@ -23,6 +26,15 @@ function todayISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function balanceLine(b: PortalBooking): string {
+  if (b.admin_payment_status === "pending") return "Payment Pending";
+  if (b.admin_payment_status === "partial") {
+    const due = b.booking_amount - (b.advance_amount ?? 0);
+    return `Balance Due: ${formatINR(Math.max(0, due))}`;
+  }
+  return "Fully Paid";
+}
+
 export function PortalHomeTab({
   propertySlug,
   bookings,
@@ -34,6 +46,9 @@ export function PortalHomeTab({
   onNavigateTab: (tab: PortalTab) => void;
   onFocusBooking: (bookingId: string) => void;
 }) {
+  const property = PROPERTIES.find((p) => p.slug === propertySlug);
+  const [segment, setSegment] = useState<Segment>("checkins");
+
   // Current-month totals — a stay that only partly overlaps the month
   // (e.g. checks in in August, out in September) is pro-rated the same way
   // the Analytics tab already does, so the two never disagree with each
@@ -55,12 +70,10 @@ export function PortalHomeTab({
   const today = todayISO();
   const todayLabel = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
 
-  const checkIns = useMemo(
-    () => bookings.filter((b) => isRealBooking(b) && b.check_in === today),
-    [bookings, today],
-  );
-  const checkOuts = useMemo(
-    () => bookings.filter((b) => isRealBooking(b) && b.check_out === today),
+  const checkIns = useMemo(() => bookings.filter((b) => isRealBooking(b) && b.check_in === today), [bookings, today]);
+  const checkOuts = useMemo(() => bookings.filter((b) => isRealBooking(b) && b.check_out === today), [bookings, today]);
+  const inHouse = useMemo(
+    () => bookings.filter((b) => isRealBooking(b) && b.check_in < today && b.check_out > today),
     [bookings, today],
   );
 
@@ -68,6 +81,12 @@ export function PortalHomeTab({
     onFocusBooking(bookingId);
     onNavigateTab("booking");
   }
+
+  const SEGMENTS: { key: Segment; label: string; count: number }[] = [
+    { key: "checkins", label: "Check-ins", count: checkIns.length },
+    { key: "checkouts", label: "Check-outs", count: checkOuts.length },
+    { key: "inhouse", label: "In-House", count: inHouse.length },
+  ];
 
   return (
     <>
@@ -99,55 +118,103 @@ export function PortalHomeTab({
         <p className="text-sm font-semibold text-slate-900">Today's Operations</p>
         <p className="text-xs text-slate-500">{todayLabel}</p>
 
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div>
-            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              <CalendarCheck className="size-3.5 text-emerald-500" aria-hidden /> Check-ins ({checkIns.length})
-            </p>
-            {checkIns.length === 0 ? (
-              <p className="mt-2 text-xs text-slate-400">No check-ins today</p>
+        <div className="mt-4 flex gap-1 rounded-full border border-slate-200 p-1">
+          {SEGMENTS.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setSegment(s.key)}
+              className={`flex-1 rounded-full px-2 py-2 text-[11px] font-semibold transition-colors ${
+                segment === s.key ? "bg-bronze text-bronze-foreground" : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              {s.label} ({s.count})
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-3 grid gap-2">
+          {segment === "checkins" &&
+            (checkIns.length === 0 ? (
+              <p className="py-4 text-center text-xs text-slate-400">No check-ins today</p>
             ) : (
-              <div className="mt-2 grid gap-1.5">
-                {checkIns.map((b) => (
+              checkIns.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => handleFocus(b.id)}
+                  className="rounded-xl bg-slate-50 px-3 py-2.5 text-left hover:bg-slate-100"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-medium text-slate-900">{b.guest_name}</p>
+                    <span className="shrink-0 text-xs font-semibold text-slate-600">{CHECK_IN_TIME}</span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-400">
+                    {property?.name ?? propertySlug}
+                    {b.rooms_count ? ` · ${b.rooms_count} room${b.rooms_count === 1 ? "" : "s"}` : ""}
+                  </p>
+                  {b.guest_phone && (
+                    <p className="mt-1 flex items-center gap-1 text-[11px] text-slate-500">
+                      <Phone className="size-3" aria-hidden /> {b.guest_phone}
+                    </p>
+                  )}
+                </button>
+              ))
+            ))}
+
+          {segment === "checkouts" &&
+            (checkOuts.length === 0 ? (
+              <p className="py-4 text-center text-xs text-slate-400">No check-outs today</p>
+            ) : (
+              checkOuts.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => handleFocus(b.id)}
+                  className="rounded-xl bg-slate-50 px-3 py-2.5 text-left hover:bg-slate-100"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-medium text-slate-900">{b.guest_name}</p>
+                    <span className="shrink-0 text-xs font-semibold text-slate-600">{CHECK_OUT_TIME}</span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{property?.name ?? propertySlug}</p>
+                  <p
+                    className={`mt-1 text-[11px] font-medium ${
+                      b.admin_payment_status === "paid" || b.admin_payment_status === null ? "text-emerald-600" : "text-amber-600"
+                    }`}
+                  >
+                    {balanceLine(b)}
+                  </p>
+                </button>
+              ))
+            ))}
+
+          {segment === "inhouse" &&
+            (inHouse.length === 0 ? (
+              <p className="py-4 text-center text-xs text-slate-400">No in-house guests</p>
+            ) : (
+              inHouse.map((b) => {
+                const nightNumber = Math.min(b.nights, differenceInCalendarDays(new Date(`${today}T00:00:00`), new Date(`${b.check_in}T00:00:00`)) + 1);
+                return (
                   <button
                     key={b.id}
                     type="button"
                     onClick={() => handleFocus(b.id)}
-                    className="rounded-xl bg-slate-50 px-2.5 py-2 text-left hover:bg-slate-100"
+                    className="rounded-xl bg-slate-50 px-3 py-2.5 text-left hover:bg-slate-100"
                   >
-                    <p className="truncate text-xs font-medium text-slate-900">{b.guest_name}</p>
-                    <p className="text-[10px] text-slate-400">
-                      {CHECK_IN_TIME}
-                      {b.rooms_count ? ` · ${b.rooms_count} room${b.rooms_count === 1 ? "" : "s"}` : ""}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-sm font-medium text-slate-900">{b.guest_name}</p>
+                      <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm">
+                        Night {nightNumber} of {b.nights}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-slate-400">
+                      {property?.name ?? propertySlug} · {b.guests_count} guest{b.guests_count === 1 ? "" : "s"}
                     </p>
                   </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              <CalendarClock className="size-3.5 text-amber-500" aria-hidden /> Check-outs ({checkOuts.length})
-            </p>
-            {checkOuts.length === 0 ? (
-              <p className="mt-2 text-xs text-slate-400">No check-outs today</p>
-            ) : (
-              <div className="mt-2 grid gap-1.5">
-                {checkOuts.map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => handleFocus(b.id)}
-                    className="rounded-xl bg-slate-50 px-2.5 py-2 text-left hover:bg-slate-100"
-                  >
-                    <p className="truncate text-xs font-medium text-slate-900">{b.guest_name}</p>
-                    <p className="text-[10px] text-slate-400">{CHECK_OUT_TIME} · {b.status === "checked_in" ? "In-house" : "Completed"}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+                );
+              })
+            ))}
         </div>
       </div>
 

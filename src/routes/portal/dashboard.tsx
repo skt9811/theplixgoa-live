@@ -316,7 +316,14 @@ function PortalDashboardPage() {
               />
             </PortalPullToRefresh>
           )}
-          {tab === "analytics" && <PortalAnalyticsTab propertySlug={propertySlug} bookings={bookings} />}
+          {tab === "analytics" && (
+            <PortalAnalyticsTab
+              propertySlug={propertySlug}
+              bookings={bookings}
+              onNavigateTab={setTab}
+              onFocusBooking={setFocusBookingId}
+            />
+          )}
           {tab === "menu" && <PortalMenuTab propertySlug={propertySlug} propertyName={propertyName} role={role ?? "owner"} />}
         </div>
       </div>

@@ -303,8 +303,16 @@ export function PortalBookingTab({
                       {expanded && (
                         <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3">
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-slate-500">Total Amount</span>
+                            <span className="text-slate-500">Gross Booking Value</span>
                             <span className="font-semibold text-slate-900">{formatINR(b.booking_amount)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-slate-500">Platform Commission ({b.commission_pct.toFixed(2)}%)</span>
+                            <span className="font-semibold text-rose-600">− {formatINR(b.commission_amount)}</span>
+                          </div>
+                          <div className="flex items-center justify-between border-t border-dashed border-slate-200 pt-2 text-sm">
+                            <span className="font-semibold text-slate-700">Net Property Payout</span>
+                            <span className="font-bold text-emerald-600">{formatINR(b.booking_amount - b.commission_amount)}</span>
                           </div>
                           <p className="text-[11px] text-slate-400">Note: Final amount may vary due to payment gateway charges.</p>
                         </div>
@@ -370,12 +378,16 @@ function CreateBookingSheet({
   const [roomsCount, setRoomsCount] = useState(1);
   const [bookingAmount, setBookingAmount] = useState(0);
   const [advanceAmount, setAdvanceAmount] = useState(0);
+  const [commissionPct, setCommissionPct] = useState(22);
   const [paymentStatus, setPaymentStatus] = useState<CreateBookingPayload["paymentStatus"]>("paid");
   const [channel, setChannel] = useState<CreateBookingPayload["channel"]>("direct");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
   const nights = checkIn && checkOut ? Math.max(0, differenceInCalendarDays(new Date(checkOut), new Date(checkIn))) : 0;
+  // Display-only — the server always recomputes and persists the real
+  // figure from commissionPct, never trusting this client-side number.
+  const commissionAmount = bookingAmount * (commissionPct / 100);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -404,6 +416,7 @@ function CreateBookingSheet({
       roomsCount,
       bookingAmount,
       advanceAmount,
+      commissionPct,
       paymentStatus,
       channel,
       notes: notes.trim(),
@@ -547,6 +560,27 @@ function CreateBookingSheet({
             </label>
           </div>
           {bookingAmount > 0 && <p className="-mt-2 text-xs text-slate-400">{formatINR(bookingAmount)}</p>}
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-slate-500">Commission %</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.01}
+                value={commissionPct}
+                onChange={(e) => setCommissionPct(Math.min(100, Math.max(0, Number(e.target.value))))}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-slate-500">Plix Commission (₹)</span>
+              <div className="flex items-center rounded-xl border border-slate-100 bg-slate-50 px-3.5 py-2.5 text-slate-500">
+                {formatINR(commissionAmount)}
+              </div>
+            </label>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-1.5 text-sm">

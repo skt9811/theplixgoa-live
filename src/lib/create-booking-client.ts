@@ -19,6 +19,8 @@ export type CreateBookingPayload = {
   roomsCount: number;
   bookingAmount: number;
   advanceAmount: number;
+  /** Percentage only — the server always (re)derives commission_amount from this, never trusting a client-computed figure. */
+  commissionPct: number;
   paymentStatus: (typeof PAYMENT_STATUS_OPTIONS)[number]["value"];
   channel: (typeof CHANNEL_OPTIONS)[number]["value"];
   notes: string;

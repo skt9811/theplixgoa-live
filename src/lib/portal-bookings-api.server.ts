@@ -57,6 +57,11 @@ export type PortalBooking = {
   admin_payment_status: "paid" | "partial" | "pending" | null;
   /** Only meaningful alongside admin_payment_status === "partial" — null for online bookings and for manual ones that didn't record it. */
   advance_amount: number | null;
+  /** Platform commission rate applied to this booking. Defaults to 0 for
+   * any booking that predates commission tracking or never had a rate set. */
+  commission_pct: number;
+  /** commission_pct% of booking_amount, computed and stored server-side at write time. */
+  commission_amount: number;
 };
 
 function toDateString(value: string | Date): string {
@@ -100,6 +105,8 @@ type OnlineRow = {
   booking_amount: string | number;
   created_at: string | Date;
   payment_status: "pending" | "paid" | "simulated";
+  commission_pct: string | number;
+  commission_amount: string | number;
 };
 
 type ManualRow = {
@@ -117,6 +124,8 @@ type ManualRow = {
   rooms_count: number | null;
   payment_status: "paid" | "partial" | "pending";
   advance_amount: string | number | null;
+  commission_pct: string | number;
+  commission_amount: string | number;
 };
 
 export async function handleGetPortalBookings(request: Request): Promise<Response> {
@@ -132,7 +141,8 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
       sql<OnlineRow[]>`
         SELECT id, property_id, guest_name, guest_mobile AS guest_phone,
                check_in, check_out, nights, guests AS guests_count,
-               total_amount AS booking_amount, created_at, payment_status
+               total_amount AS booking_amount, created_at, payment_status,
+               commission_pct, commission_amount
         FROM public.bookings
         WHERE property_id = ${propertySlug}
           AND payment_status IN ('paid', 'simulated', 'pending')
@@ -141,7 +151,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         SELECT id, property_id, guest_name, guest_phone,
                check_in, check_out, nights, guests_count,
                booking_amount, status, created_at, rooms_count,
-               payment_status, advance_amount
+               payment_status, advance_amount, commission_pct, commission_amount
         FROM public.portal_bookings
         WHERE property_id = ${propertySlug}
           AND status != 'cancelled'
@@ -168,6 +178,8 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         rooms_count: null,
         admin_payment_status: "paid",
         advance_amount: null,
+        commission_pct: Number(r.commission_pct),
+        commission_amount: Number(r.commission_amount),
       };
     });
 
@@ -191,6 +203,8 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         rooms_count: r.rooms_count,
         admin_payment_status: r.payment_status,
         advance_amount: r.advance_amount === null ? null : Number(r.advance_amount),
+        commission_pct: Number(r.commission_pct),
+        commission_amount: Number(r.commission_amount),
       };
     });
 

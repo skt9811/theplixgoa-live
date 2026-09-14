@@ -73,6 +73,14 @@ export async function handleAdminCreateBooking(request: Request): Promise<Respon
   const guestsCount = adultsCount + childrenCount || 1;
   const bookingAmount = typeof rawBody["bookingAmount"] === "number" ? rawBody["bookingAmount"] : 0;
   const advanceAmount = typeof rawBody["advanceAmount"] === "number" ? Math.max(0, rawBody["advanceAmount"]) : 0;
+  // commission_amount is always derived here, never trusted from the client
+  // (same rule this handler already applies to nights/guestsCount) — the
+  // form only lets the operator edit the percentage and shows the amount as
+  // a read-only computed figure, so the server recomputing it is just
+  // re-deriving what the client already displayed, not overriding intent.
+  const commissionPctRaw = typeof rawBody["commissionPct"] === "number" ? rawBody["commissionPct"] : 22;
+  const commissionPct = Math.min(100, Math.max(0, commissionPctRaw));
+  const commissionAmount = Math.round(bookingAmount * (commissionPct / 100) * 100) / 100;
 
   const nights = checkIn && checkOut ? differenceInCalendarDays(new Date(checkOut), new Date(checkIn)) : 0;
 
@@ -87,10 +95,12 @@ export async function handleAdminCreateBooking(request: Request): Promise<Respon
     const [row] = await sql<{ id: string }[]>`
       INSERT INTO public.portal_bookings
         (property_id, guest_name, guest_phone, guest_email, check_in, check_out, nights, guests_count,
-         adults_count, children_count, rooms_count, booking_amount, advance_amount, payment_status, channel, notes, status)
+         adults_count, children_count, rooms_count, booking_amount, advance_amount, payment_status, channel, notes, status,
+         commission_pct, commission_amount)
       VALUES
         (${propertySlug}, ${guestName}, ${guestPhone}, ${guestEmail}, ${checkIn}, ${checkOut}, ${nights}, ${guestsCount},
-         ${adultsCount}, ${childrenCount}, ${roomsCount}, ${bookingAmount}, ${advanceAmount}, ${paymentStatus}, ${channel}, ${notes}, ${status})
+         ${adultsCount}, ${childrenCount}, ${roomsCount}, ${bookingAmount}, ${advanceAmount}, ${paymentStatus}, ${channel}, ${notes}, ${status},
+         ${commissionPct}, ${commissionAmount})
       RETURNING id
     `;
     if (status !== "blocked") {

@@ -197,6 +197,28 @@ export function PortalAnalyticsTab({
     return [...bookingsInPeriod].sort((a, b) => b.booking_amount - a.booking_amount).slice(0, 3);
   }, [bookingsInPeriod]);
 
+  // Independent of the month-chip/timeframe picker above — always the
+  // current calendar month vs. the property's full history, matching how a
+  // commission summary is normally read (this month's payable vs. lifetime).
+  const commissionSummary = useMemo(() => {
+    const real = bookings.filter(isRealBooking);
+    const now = new Date();
+    const thisMonth = monthRange(now.getFullYear(), now.getMonth());
+    let monthCommission = 0;
+    let monthGbv = 0;
+    let allTimeCommission = 0;
+    let allTimeGbv = 0;
+    for (const b of real) {
+      allTimeCommission += b.commission_amount;
+      allTimeGbv += b.booking_amount;
+      if (b.check_in >= thisMonth.start && b.check_in < thisMonth.end) {
+        monthCommission += b.commission_amount;
+        monthGbv += b.booking_amount;
+      }
+    }
+    return { monthCommission, monthGbv, allTimeCommission, allTimeGbv };
+  }, [bookings]);
+
   function handleTopBookingClick(bookingId: string) {
     onFocusBooking(bookingId);
     onNavigateTab("booking");
@@ -276,6 +298,28 @@ export function PortalAnalyticsTab({
           <p className="mt-1 text-[11px] text-slate-500">
             {timeframe === "month" ? `${stats.daysRemaining} days left to sell` : `${stats.vacantNights} nights vacant`}
           </p>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl p-4 shadow-sm" style={{ backgroundColor: "#111827" }}>
+        <p className="text-sm font-semibold" style={{ color: "#C59B62" }}>
+          Plix Commission
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-[11px] text-white/50">This Month</p>
+            <p className="mt-1 text-lg font-bold text-white">{formatINR(Math.round(commissionSummary.monthCommission))}</p>
+            <p className="mt-0.5 text-[11px]" style={{ color: "#C59B62" }}>
+              GBV {formatINR(Math.round(commissionSummary.monthGbv))}
+            </p>
+          </div>
+          <div className="border-l border-white/10 pl-3">
+            <p className="text-[11px] text-white/50">All Time</p>
+            <p className="mt-1 text-lg font-bold text-white">{formatINR(Math.round(commissionSummary.allTimeCommission))}</p>
+            <p className="mt-0.5 text-[11px]" style={{ color: "#C59B62" }}>
+              GBV {formatINR(Math.round(commissionSummary.allTimeGbv))}
+            </p>
+          </div>
         </div>
       </div>
 

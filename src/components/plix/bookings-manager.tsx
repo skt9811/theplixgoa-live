@@ -381,12 +381,16 @@ function CreateBookingModal({ onClose, onCreated }: { onClose: () => void; onCre
   const [roomsCount, setRoomsCount] = useState(1);
   const [bookingAmount, setBookingAmount] = useState(0);
   const [advanceAmount, setAdvanceAmount] = useState(0);
+  const [commissionPct, setCommissionPct] = useState(22);
   const [paymentStatus, setPaymentStatus] = useState<CreateBookingPayload["paymentStatus"]>("paid");
   const [channel, setChannel] = useState<CreateBookingPayload["channel"]>("direct");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
   const nights = checkIn && checkOut ? Math.max(0, differenceInCalendarDays(new Date(checkOut), new Date(checkIn))) : 0;
+  // Display-only — the server always recomputes and persists the real
+  // figure from commissionPct, never trusting this client-side number.
+  const commissionAmount = bookingAmount * (commissionPct / 100);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -415,6 +419,7 @@ function CreateBookingModal({ onClose, onCreated }: { onClose: () => void; onCre
       roomsCount,
       bookingAmount,
       advanceAmount,
+      commissionPct,
       paymentStatus,
       channel,
       notes: notes.trim(),
@@ -570,6 +575,27 @@ function CreateBookingModal({ onClose, onCreated }: { onClose: () => void; onCre
             </label>
           </div>
           {bookingAmount > 0 && <p className="-mt-2 text-xs text-white/50">{formatINR(bookingAmount)}</p>}
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-white/70">Commission %</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.01}
+                value={commissionPct}
+                onChange={(e) => setCommissionPct(Math.min(100, Math.max(0, Number(e.target.value))))}
+                className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none focus:ring-2 focus:ring-bronze/50"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-white/70">Plix Commission (₹)</span>
+              <div className="flex items-center rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-white/70">
+                {formatINR(commissionAmount)}
+              </div>
+            </label>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-1.5 text-sm">

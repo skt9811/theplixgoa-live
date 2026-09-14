@@ -29,4 +29,8 @@ export type PortalBooking = {
    * null for manual bookings). Always "paid" for an online booking. */
   admin_payment_status: "paid" | "partial" | "pending" | null;
   advance_amount: number | null;
+  /** Platform commission rate applied to this booking — 0 for anything that predates commission tracking. */
+  commission_pct: number;
+  /** commission_pct% of booking_amount, computed and stored server-side at write time. */
+  commission_amount: number;
 };

@@ -34,3 +34,7 @@ dist-ssr
 .vercel
 .vite
 .env*
+
+# Android release signing credentials — never committed
+android/keystore.properties
+keystore.properties

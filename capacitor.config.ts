@@ -13,7 +13,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 // repo) whose content is never actually shown — `server.url` overrides
 // it at runtime, so the WebView loads the real, live portal directly.
 const config: CapacitorConfig = {
-  appId: "com.theplixgoa.partner",
+  appId: "com.plix.partner",
   appName: "Plix Partner",
   webDir: "capacitor-www",
   server: {

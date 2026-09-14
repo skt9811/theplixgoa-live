@@ -124,33 +124,38 @@ function manualRowToBookingRow(row: ManualBookingRow): BookingRow | null {
   };
 }
 
-/** Bookings with a check-in today or later, soonest first — for the admin dashboard. Merges online Razorpay bookings with admin-punched manual ones (portal_bookings). */
-export const fetchUpcomingBookingsServerFn = createServerFn({ method: "GET" }).handler(
+/** The full booking ledger across every property, most recent check-in
+ * first — for the admin dashboard. Merges online Razorpay bookings with
+ * admin-punched manual ones (portal_bookings). Previously scoped to
+ * check_in >= today ("upcoming" only), which silently dropped every
+ * already-arrived/departed booking from the list — easy to misread as "only
+ * property X has bookings" when in fact every other property's history had
+ * just aged out of the window. Property filtering happens client-side in
+ * bookings-manager.tsx since this already returns every property's rows. */
+export const fetchAllBookingsServerFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<BookingRow[]> => {
     const sql = getSql();
     if (!sql) return [];
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     try {
       const [onlineRows, manualRows] = await Promise.all([
         sql<RawBookingRow[]>`
           SELECT * FROM public.bookings
-          WHERE check_in >= ${todayStr} AND payment_status != 'cancelled'
-          ORDER BY check_in ASC
+          WHERE payment_status != 'cancelled'
+          ORDER BY check_in DESC
         `,
         sql<ManualBookingRow[]>`
           SELECT id, property_id, guest_name, guest_phone, check_in, check_out,
                  nights, guests_count, booking_amount, status, created_at
           FROM public.portal_bookings
-          WHERE check_in >= ${todayStr} AND status != 'cancelled'
-          ORDER BY check_in ASC
+          WHERE status != 'cancelled'
+          ORDER BY check_in DESC
         `,
       ]);
       const online = onlineRows.map(normalizeRow);
       const manual = manualRows.map(manualRowToBookingRow).filter((r): r is BookingRow => r !== null);
-      return [...online, ...manual].sort((a, b) => a.check_in.localeCompare(b.check_in));
+      return [...online, ...manual].sort((a, b) => b.check_in.localeCompare(a.check_in));
     } catch (err) {
-      console.error("[fetchUpcomingBookingsServerFn]:", err instanceof Error ? err.message : err);
+      console.error("[fetchAllBookingsServerFn]:", err instanceof Error ? err.message : err);
       return [];
     }
   },

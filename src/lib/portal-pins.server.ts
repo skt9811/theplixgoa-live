@@ -70,6 +70,47 @@ export async function findPortalOwnerBySlug(propertySlug: string): Promise<Porta
   }
 }
 
+/** Every property's portal login credentials, ordered by property name — backs the admin web "Portal Access" tab, replacing what was previously only doable by hand against the database. */
+export async function findAllPortalOwners(): Promise<PortalOwnerMapping[]> {
+  const sql = getSql();
+  if (!sql) return [];
+  try {
+    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name FROM public.portal_owners ORDER BY property_name`;
+    return rows.map(toMapping);
+  } catch (err) {
+    console.error("[findAllPortalOwners]:", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+/** Sets a property's owner phone + PIN together — the admin "Portal Access" tab's edit action. Distinct from updateOwnerPin (the owner's own Settings-tab self-service PIN change, which never touches phone). */
+export async function updateOwnerCredentials(
+  propertySlug: string,
+  phone: string,
+  pin: string,
+): Promise<{ error: string | null }> {
+  const sql = getSql();
+  if (!sql) return { error: "Database not configured" };
+  try {
+    const conflict = await sql<{ property_slug: string }[]>`
+      SELECT property_slug FROM public.portal_owners WHERE phone = ${phone} AND property_slug != ${propertySlug}
+    `;
+    if (conflict.length > 0) return { error: "This phone number is already registered to another property" };
+
+    const rows = await sql<{ property_slug: string }[]>`
+      UPDATE public.portal_owners SET phone = ${phone}, pin = ${pin}, updated_at = now()
+      WHERE property_slug = ${propertySlug}
+      RETURNING property_slug
+    `;
+    if (rows.length === 0) return { error: "Property not found" };
+    return { error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[updateOwnerCredentials]:", message);
+    return { error: message };
+  }
+}
+
 /** Updates a property owner's PIN. Caller must have already verified the current PIN. */
 export async function updateOwnerPin(propertySlug: string, newPin: string): Promise<{ error: string | null }> {
   const sql = getSql();

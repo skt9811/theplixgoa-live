@@ -14,6 +14,7 @@ import { handleGetPortalMe, handleChangePortalPin } from "./lib/portal-settings-
 import { handleRegisterPushToken } from "./lib/portal-push-api.server";
 import { handleAdminCreateBooking } from "./lib/admin-bookings-api.server";
 import { handleAdminUpdateBooking, handleAdminDeleteBooking } from "./lib/admin-bookings-crud.server";
+import { handleAdminListPortalOwners, handleAdminUpdatePortalOwner } from "./lib/admin-portal-owners-api.server";
 import { getAuthConfig } from "./lib/auth.server";
 import { StartAuthJS } from "start-authjs";
 
@@ -314,6 +315,31 @@ export default {
           : await handleAdminDeleteBooking(request, id);
       } catch (error) {
         console.error("[admin-bookings-crud] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    // Admin "Portal Access" tab — list every property's owner login
+    // credentials, and edit one property's phone+PIN.
+    if (url.pathname === "/api/admin/portal-owners" && request.method === "GET") {
+      try {
+        return await handleAdminListPortalOwners(request);
+      } catch (error) {
+        console.error("[admin-portal-owners] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    if (url.pathname.startsWith("/api/admin/portal-owners/") && request.method === "PATCH") {
+      const slug = url.pathname.slice("/api/admin/portal-owners/".length);
+      try {
+        return await handleAdminUpdatePortalOwner(request, slug);
+      } catch (error) {
+        console.error("[admin-portal-owners] unhandled error:", error);
         return new Response(JSON.stringify({ error: "Internal error" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },

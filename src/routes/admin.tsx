@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, BookOpenCheck, CalendarDays, FileText, Hop as Home, LayoutGrid, Lock, Loader as Loader2, MapPin, Save, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpenCheck, CalendarDays, FileText, Hop as Home, KeyRound, LayoutGrid, Lock, Loader as Loader2, MapPin, Save, X } from "lucide-react";
 import { PROPERTIES, formatINR, todayISO } from "@/lib/plix";
 import {
   saveRateOverrides,
@@ -18,6 +18,7 @@ import { PropertiesManager } from "@/components/plix/properties-manager";
 import { LocationsManager } from "@/components/plix/locations-manager";
 import { PageContentEditor } from "@/components/plix/page-content-editor";
 import { BookingsManager } from "@/components/plix/bookings-manager";
+import { PortalAccessManager } from "@/components/plix/portal-access-manager";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -115,7 +116,7 @@ type RatesMap = Record<string, number>;
 type BlockedMap = Record<string, boolean>;
 
 function AdminDashboard() {
-  const [tab, setTab] = useState<"rates" | "blogs" | "properties" | "locations" | "content" | "bookings">("rates");
+  const [tab, setTab] = useState<"rates" | "blogs" | "properties" | "locations" | "content" | "bookings" | "access">("rates");
   const [selectedPropertyId, setSelectedPropertyId] = useState(PROPERTIES[0].id);
   const [currentMonth, setCurrentMonth] = useState(() => {
     const d = new Date();
@@ -446,6 +447,15 @@ function AdminDashboard() {
             <FileText className="size-4" />
             Blogs
           </button>
+          <button
+            onClick={() => setTab("access")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+              tab === "access" ? "bg-white/15 text-white" : "text-white/50 hover:text-white/80"
+            }`}
+          >
+            <KeyRound className="size-4" />
+            App Access
+          </button>
         </div>
       </header>
 
@@ -460,6 +470,8 @@ function AdminDashboard() {
           <LocationsManager />
         ) : tab === "content" ? (
           <PageContentEditor />
+        ) : tab === "access" ? (
+          <PortalAccessManager />
         ) : (
           <>
             {/* Property selector */}

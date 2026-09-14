@@ -4,7 +4,7 @@ import { createRazorpayOrderServerFn } from "@/lib/create-razorpay-order.server-
 import { confirmBookingServerFn } from "@/lib/confirm-booking.server-fn";
 import { updateBookingPaymentServerFn } from "@/lib/update-booking-payment.server-fn";
 import {
-  fetchUpcomingBookingsServerFn,
+  fetchAllBookingsServerFn,
   fetchBookingByIdServerFn,
   fetchBookingsForGuestServerFn,
   type BookingRow as ServerBookingRow,
@@ -93,12 +93,12 @@ export type BookingRow = BookingRecord & {
   source: "online" | "manual";
 };
 
-/** Direct bookings with a check-in today or later, soonest first — for the admin dashboard. */
-export async function fetchUpcomingBookings(): Promise<BookingRow[]> {
+/** The full direct-booking ledger across every property, most recent check-in first — for the admin dashboard. */
+export async function fetchAllBookings(): Promise<BookingRow[]> {
   try {
-    return (await fetchUpcomingBookingsServerFn()) as ServerBookingRow[] as BookingRow[];
+    return (await fetchAllBookingsServerFn()) as ServerBookingRow[] as BookingRow[];
   } catch (err) {
-    console.error("[fetchUpcomingBookings]:", err instanceof Error ? err.message : err);
+    console.error("[fetchAllBookings]:", err instanceof Error ? err.message : err);
     return [];
   }
 }

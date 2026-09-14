@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { differenceInCalendarDays } from "date-fns";
 import { Loader as Loader2, Mail, Pencil, Phone, Plus, Tag, Users, X } from "lucide-react";
-import { fetchUpcomingBookings, type BookingRow } from "@/lib/booking";
+import { fetchAllBookings, type BookingRow } from "@/lib/booking";
 import { formatINR, PROPERTIES, todayISO } from "@/lib/plix";
 import { PAYMENT_STATUS_OPTIONS, CHANNEL_OPTIONS } from "@/lib/booking-options";
 import { createBooking, type CreateBookingPayload } from "@/lib/create-booking-client";
@@ -72,9 +72,10 @@ export function BookingsManager() {
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [propertyFilter, setPropertyFilter] = useState<string>("all");
 
   async function load() {
-    const data = await fetchUpcomingBookings();
+    const data = await fetchAllBookings();
     setBookings(data);
     setLoaded(true);
   }
@@ -105,9 +106,23 @@ export function BookingsManager() {
     void load();
   }
 
+  const filteredBookings = propertyFilter === "all" ? bookings : bookings.filter((b) => b.property_id === propertyFilter);
+
   return (
     <div className="grid gap-3">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <select
+          value={propertyFilter}
+          onChange={(e) => setPropertyFilter(e.target.value)}
+          className="rounded-full border border-white/15 bg-white/5 px-3.5 py-2 text-xs font-semibold text-white outline-none focus:ring-2 focus:ring-bronze/50"
+        >
+          <option value="all" className="bg-navy">All Properties</option>
+          {PROPERTIES.map((p) => (
+            <option key={p.slug} value={p.slug} className="bg-navy">
+              {p.name}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
           onClick={() => setCreating(true)}
@@ -121,10 +136,12 @@ export function BookingsManager() {
         <div className="flex items-center justify-center py-16 text-white/40">
           <Loader2 className="size-5 animate-spin" />
         </div>
-      ) : bookings.length === 0 ? (
-        <p className="py-6 text-center text-sm text-white/40">No upcoming bookings.</p>
+      ) : filteredBookings.length === 0 ? (
+        <p className="py-6 text-center text-sm text-white/40">
+          {propertyFilter === "all" ? "No bookings yet." : "No bookings for this property yet."}
+        </p>
       ) : (
-        bookings.map((b) => {
+        filteredBookings.map((b) => {
         const badge = statusBadge(b.payment_status);
         const source = sourceBadge(b.source);
         return (

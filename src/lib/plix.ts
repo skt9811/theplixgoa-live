@@ -1457,18 +1457,27 @@ export const PROPERTIES: Property[] = [
     name: "Vivenda Chico - 8 BHK Heritage Bungalow",
     location: "Candolim",
     region: "North Goa",
-    tagline: "CANDOLIM, NORTH GOA • 8 BHK HERITAGE BUNGALOW WITH POOL",
+    tagline: "CANDOLIM, NORTH GOA • BOUTIQUE RESORT • BOOK BY ROOM OR THE WHOLE BUNGALOW",
     description:
-      "Sprawling heritage estate for unforgettable celebrations. A magnificent 8-bedroom estate with private grounds and grand pool for up to 20 guests. Vivenda Chico features a private pool, spacious dining halls, and sprawling lawns ideal for large group stays, weddings, and reunions — the ultimate venue for grand celebrations in North Goa.",
+      "A heritage estate that books your way. Vivenda Chico is now a boutique resort with 8 individually bookable rooms (up to 3 guests each) sharing a private pool, dining halls, and sprawling lawns — book just the rooms you need, or reserve the entire bungalow (up to 24 guests) for weddings, reunions, and large group celebrations in North Goa.",
     seo_title: "Vivenda Chico Candolim | 8 BHK Heritage Bungalow Pool",
     seo_description:
-      "Magnificent 8 BHK heritage estate in Candolim for up to 20 guests. Sprawling lawns, grand pool, and dining halls for weddings & reunions.",
+      "Boutique 8-room heritage resort in Candolim near a private pool — book individual rooms or the entire bungalow for up to 24 guests. Sprawling lawns and dining halls for weddings & reunions.",
     seo_keywords: ["8 BHK Villa Candolim", "Heritage Bungalow Goa", "Wedding Venue Candolim", "Large Group Villa North Goa", "Villa with Pool Candolim"],
     enclave: null,
     bedrooms: 8,
     bathrooms: 8,
-    max_guests: 20,
-    base_price: 22000,
+    // 24 = 8 rooms x 3 guests/room (GUESTS_PER_ROOM in rates.ts), for the
+    // whole-bungalow booking mode. Individual-room bookings are further
+    // capped per-room via maxGuestsForRooms.
+    max_guests: 24,
+    // Per-room nightly rate (admin-editable per night via Rate & Inventory,
+    // same as Harbor Court/Morjim Pride) — derived from the previous
+    // whole-villa rate of 22000/night divided across 8 rooms, so a
+    // full-bungalow booking at the base rate lands close to the prior
+    // price rather than an arbitrary new number. Adjust in Rate &
+    // Inventory if the actual desired per-room rate differs.
+    base_price: 2750,
     distance_to_beach: "6 mins drive to Candolim Beach",
     // Replacement photo set (2026-09-11) — all 42 vivendachico* source files
     // verified valid and resized to a 1920px max width / JPEG q82. Slot 0
@@ -1505,7 +1514,7 @@ export const PROPERTIES: Property[] = [
     longitude: 73.762,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3844.3223041428723!2d73.76651777478182!3d15.520843253885856!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfc105cc2ac883%3A0x47be2befb7da01d3!2sVivenda%20Chico!5e0!3m2!1sen!2sin!4v1787225678244!5m2!1sen!2sin",
-    total_inventory: 1,
+    total_inventory: 8,
   },
   {
     id: "the-plix-resort-morjim",

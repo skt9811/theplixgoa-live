@@ -34,6 +34,10 @@ type OrderInput = {
   check_out: string;
   guests: number;
   nights: number;
+  /** How many rooms this stay reserves — 1 for a whole-villa property, the
+   * selected room count for a multi-room one. Defaults to 1 when omitted
+   * (every caller predating this field). */
+  rooms?: number;
   subtotal: number;
   taxes: number;
   total_amount: number;
@@ -63,7 +67,8 @@ function isOrderInput(data: unknown): data is OrderInput {
     typeof d["nights"] === "number" &&
     typeof d["subtotal"] === "number" &&
     typeof d["taxes"] === "number" &&
-    typeof d["total_amount"] === "number"
+    typeof d["total_amount"] === "number" &&
+    (d["rooms"] === undefined || typeof d["rooms"] === "number")
   );
 }
 
@@ -92,17 +97,18 @@ async function insertBooking(
 ): Promise<string> {
   const sql = getSql();
   if (!sql) throw new Error("DATABASE_URL not configured on the server.");
+  const rooms = input.rooms && input.rooms > 0 ? Math.round(input.rooms) : 1;
   const rows = await sql<{ id: string }[]>`
     INSERT INTO public.bookings (
       property_id, property_name, property_location,
       guest_name, guest_email, guest_mobile,
-      check_in, check_out, guests, nights,
+      check_in, check_out, guests, nights, rooms,
       subtotal, taxes, total_amount,
       razorpay_order_id, payment_status, host_email, user_id
     ) VALUES (
       ${input.property_id}, ${input.property_name}, ${input.property_location},
       ${input.guest_name}, ${input.guest_email}, ${input.guest_mobile},
-      ${input.check_in}, ${input.check_out}, ${input.guests}, ${input.nights},
+      ${input.check_in}, ${input.check_out}, ${input.guests}, ${input.nights}, ${rooms},
       ${input.subtotal}, ${input.taxes}, ${input.total_amount},
       ${extra.razorpay_order_id}, 'pending', ${extra.host_email}, ${extra.user_id}
     )

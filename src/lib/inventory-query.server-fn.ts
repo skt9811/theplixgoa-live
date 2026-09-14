@@ -23,7 +23,7 @@ export const fetchOverlappingPaidBookingsServerFn = createServerFn({ method: "GE
     }
     return { propertyId: d.propertyId, checkIn: d.checkIn, checkOut: d.checkOut };
   })
-  .handler(async ({ data }): Promise<{ check_in: string; check_out: string }[]> => {
+  .handler(async ({ data }): Promise<{ check_in: string; check_out: string; rooms: number }[]> => {
     const sql = getSql();
     if (!sql) return [];
     try {
@@ -32,8 +32,8 @@ export const fetchOverlappingPaidBookingsServerFn = createServerFn({ method: "GE
       // eachNight() in inventory.ts can't call .split("-") on; that threw
       // and was silently swallowed by this function's own fail-open catch
       // below, so multi-room availability always reported everything free.
-      return await sql<{ check_in: string; check_out: string }[]>`
-        SELECT check_in::text AS check_in, check_out::text AS check_out FROM public.bookings
+      return await sql<{ check_in: string; check_out: string; rooms: number }[]>`
+        SELECT check_in::text AS check_in, check_out::text AS check_out, rooms FROM public.bookings
         WHERE property_id = ${data.propertyId} AND payment_status = 'paid'
           AND check_in::date < ${data.checkOut}::date AND check_out::date > ${data.checkIn}::date
       `;

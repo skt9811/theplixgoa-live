@@ -14,11 +14,10 @@ export type NightlyAvailability = Record<string, number>; // date -> rooms still
  * that migration was never applied to the live database, so this reads
  * from what's actually there today instead.)
  *
- * Known approximation: this counts *bookings* overlapping each night, not
- * rooms — the `bookings` table has no rooms column live, so a booking for
- * 3 rooms in one checkout counts the same as a booking for 1. Undercounts
- * consumption for multi-room single bookings; exact for the common case of
- * one room per booking.
+ * Decrements by each booking's own `rooms` count (added specifically so a
+ * multi-room checkout — e.g. Vivenda Chico's "book the entire bungalow"
+ * reserving all 8 rooms at once — correctly reserves that many rooms of
+ * availability instead of just 1).
  */
 export async function computeAvailableRooms(
   propertyId: string,
@@ -35,9 +34,10 @@ export async function computeAvailableRooms(
     const data = await fetchOverlappingPaidBookingsServerFn({ data: { propertyId, checkIn, checkOut } });
 
     for (const booking of data ?? []) {
+      const roomsBooked = booking.rooms > 0 ? booking.rooms : 1;
       for (const night of eachNight(booking.check_in, booking.check_out)) {
         const remaining = availability[night];
-        if (remaining !== undefined) availability[night] = remaining - 1;
+        if (remaining !== undefined) availability[night] = remaining - roomsBooked;
       }
     }
   } catch (err) {

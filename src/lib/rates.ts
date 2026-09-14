@@ -240,7 +240,12 @@ export async function autoBlockDatesForStay(
 }
 
 export function isMultiRoomProperty(propertyId: string): boolean {
-  return propertyId === "harbor-court" || propertyId === "morjim-pride" || propertyId === "the-plix-resort-morjim";
+  return (
+    propertyId === "harbor-court" ||
+    propertyId === "morjim-pride" ||
+    propertyId === "the-plix-resort-morjim" ||
+    propertyId === "vivenda-chico"
+  );
 }
 
 export const GUESTS_PER_ROOM = 3;
@@ -253,7 +258,19 @@ export function maxRoomsForProperty(propertyId: string): number {
   if (propertyId === "harbor-court") return 10;
   if (propertyId === "morjim-pride") return 22;
   if (propertyId === "the-plix-resort-morjim") return 10;
+  if (propertyId === "vivenda-chico") return 8;
   return 1;
+}
+
+// Every other multi-room property's checkout charges base_price x nights
+// regardless of how many rooms the guest selects (a pre-existing behavior
+// left untouched here — see hasInsufficientRooms for the separate
+// availability check, which is unaffected by this). Vivenda Chico is the
+// only property where the room count actually multiplies the price, both
+// for "book individual rooms" (1-8 rooms) and "book the entire bungalow"
+// (fixed at 8 rooms) — see properties.$slug.tsx's nightlyRates computation.
+export function scalesPriceByRooms(propertyId: string): boolean {
+  return propertyId === "vivenda-chico";
 }
 
 // Formats a Date using its local calendar parts (not UTC) so the string

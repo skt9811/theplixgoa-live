@@ -44,6 +44,7 @@ import {
   maxGuestsForRooms,
   maxRoomsForProperty,
   quoteWithDiscount,
+  scalesPriceByRooms,
   type RateOverride,
 } from "@/lib/rates";
 import { computeAvailableRooms, hasInsufficientRooms, type NightlyAvailability } from "@/lib/inventory";
@@ -184,6 +185,9 @@ function PropertyDetail() {
   const [checkOut, setCheckOut] = useState(urlSearch.checkOut ?? todayISO(5));
   const [guests, setGuests] = useState(urlSearch.guests ?? 2);
   const [rooms, setRooms] = useState(urlSearch.rooms ?? 1);
+  // Only meaningful for a property where scalesPriceByRooms is true
+  // (Vivenda Chico) — every other property ignores this entirely.
+  const [bookingMode, setBookingMode] = useState<"rooms" | "whole">("rooms");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [rateOverrides, setRateOverrides] = useState<RateOverride>({});
   const [blockedDates, setBlockedDates] = useState<Set<string>>(new Set());
@@ -195,6 +199,9 @@ function PropertyDetail() {
 
   const isMultiRoom = isMultiRoomProperty(property?.id ?? "");
   const maxRooms = property ? maxRoomsForProperty(property.id) : 1;
+  // Vivenda Chico only (see scalesPriceByRooms) — lets a guest book the
+  // entire bungalow as one unit instead of picking individual rooms.
+  const canBookWhole = Boolean(property && scalesPriceByRooms(property.id));
   const effectiveMaxGuests = isMultiRoom
     ? maxGuestsForRooms(rooms, property?.max_guests ?? 1)
     : property?.max_guests ?? 1;
@@ -202,8 +209,12 @@ function PropertyDetail() {
   const images = property ? resolveImages(property.image_keys) : [];
   const nights = property ? nightsBetween(checkIn, checkOut) : 0;
   const nightsList = nights > 0 ? eachNight(checkIn, checkOut) : [];
+  // Only Vivenda Chico multiplies each night's rate by the selected room
+  // count — every other property (including the other multi-room ones)
+  // keeps its existing base_price x nights behavior unchanged.
+  const roomPriceMultiplier = property && scalesPriceByRooms(property.id) ? rooms : 1;
   const nightlyRates = property
-    ? nightsList.map((n) => rateOverrides[n] ?? property.base_price)
+    ? nightsList.map((n) => (rateOverrides[n] ?? property.base_price) * roomPriceMultiplier)
     : [];
   const couponDiscount = appliedCoupon?.valid ? appliedCoupon.discountAmount : 0;
   const {
@@ -258,6 +269,18 @@ function PropertyDetail() {
   useEffect(() => {
     void loadRazorpayScript();
   }, []);
+
+  // Booking the entire bungalow always reserves all of its rooms — keeps
+  // `rooms` (and therefore price + availability + guest cap, all derived
+  // from it) in sync whenever the guest switches modes or the property
+  // itself loads in already set to "whole".
+  useEffect(() => {
+    if (!property || !canBookWhole) return;
+    if (bookingMode === "whole" && rooms !== property.total_inventory) {
+      setRooms(property.total_inventory);
+      setGuestError("");
+    }
+  }, [bookingMode, property, canBookWhole, rooms]);
 
   const loadRatesAndAvailability = useCallback(() => {
     if (!property || nights === 0) return;
@@ -537,6 +560,29 @@ function PropertyDetail() {
               </label>
             </div>
 
+            {canBookWhole && (
+              <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted p-1">
+                <button
+                  type="button"
+                  onClick={() => setBookingMode("rooms")}
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                    bookingMode === "rooms" ? "bg-card text-navy shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Individual Rooms
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBookingMode("whole")}
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                    bookingMode === "whole" ? "bg-card text-navy shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Entire Bungalow
+                </button>
+              </div>
+            )}
+
             {isMultiRoom && (
               <label className="mt-3 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Rooms
@@ -545,9 +591,15 @@ function PropertyDetail() {
                   min={1}
                   max={maxRooms}
                   value={rooms}
+                  disabled={bookingMode === "whole"}
                   onChange={(e) => handleRoomsChange(Number(e.target.value))}
-                  className={`${input} min-h-[44px]`}
+                  className={`${input} min-h-[44px] disabled:cursor-not-allowed disabled:opacity-60`}
                 />
+                {bookingMode === "whole" && (
+                  <span className="mt-1 block text-[11px] font-normal normal-case text-muted-foreground">
+                    All {property.total_inventory} rooms included
+                  </span>
+                )}
               </label>
             )}
 
@@ -578,7 +630,9 @@ function PropertyDetail() {
               ) : (
                 <div className="flex justify-between text-muted-foreground">
                   <span>
-                    {formatINR(property.base_price)} × {nights} night{nights === 1 ? "" : "s"}
+                    {formatINR(property.base_price)}
+                    {roomPriceMultiplier > 1 ? ` × ${roomPriceMultiplier} room${roomPriceMultiplier === 1 ? "" : "s"}` : ""} ×{" "}
+                    {nights} night{nights === 1 ? "" : "s"}
                   </span>
                   <span className="text-foreground">{formatINR(subtotal)}</span>
                 </div>

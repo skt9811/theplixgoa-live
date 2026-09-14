@@ -33,6 +33,19 @@ function formatDate(dateStr: string): string {
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
+// commission_pct/commission_amount are 0 for any booking that predates
+// commission tracking or never had a rate explicitly set — falling back to
+// 22% here (rather than showing a 0 commission/full payout) matches the
+// admin "+ Create Booking" form's own default rate, so a card without an
+// explicit rate reads the same way a freshly-created booking would.
+function effectiveCommissionPct(b: PortalBooking): number {
+  return b.commission_pct || 22;
+}
+
+function effectiveCommissionAmount(b: PortalBooking): number {
+  return b.commission_amount || b.booking_amount * (effectiveCommissionPct(b) / 100);
+}
+
 type LifecycleStatus = "upcoming" | "in_house" | "checkout";
 
 function lifecycleStatus(booking: PortalBooking): LifecycleStatus {
@@ -286,15 +299,21 @@ export function PortalBookingTab({
                         <span>Pets: 0</span>
                       </div>
 
-                      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                        <div>
-                          <p className="text-[11px] text-slate-400">Stay Amount</p>
-                          <p className="text-sm font-semibold text-slate-900">{formatINR(b.booking_amount)}</p>
+                      <div className="mt-3 flex items-start justify-between border-t border-slate-100 pt-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] text-slate-400">Total Amount</p>
+                          <p style={{ fontSize: "18px", fontWeight: 700, color: "#1e293b" }}>{formatINR(b.booking_amount)}</p>
+                          <p className="mt-1" style={{ fontSize: "12px", color: "#64748b" }}>
+                            Commission ({effectiveCommissionPct(b)}%): −{formatINR(effectiveCommissionAmount(b))}
+                          </p>
+                          <p style={{ fontSize: "12px", color: "#64748b" }}>
+                            Net Payout: {formatINR(b.booking_amount - effectiveCommissionAmount(b))}
+                          </p>
                         </div>
                         <button
                           type="button"
                           onClick={() => setExpandedId(expanded ? null : b.id)}
-                          className="text-xs font-semibold text-bronze hover:underline"
+                          className="shrink-0 text-xs font-semibold text-bronze hover:underline"
                         >
                           {expanded ? "Hide details" : "View details"}
                         </button>
@@ -307,12 +326,12 @@ export function PortalBookingTab({
                             <span className="font-semibold text-slate-900">{formatINR(b.booking_amount)}</span>
                           </div>
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-slate-500">Platform Commission ({b.commission_pct.toFixed(2)}%)</span>
-                            <span className="font-semibold text-rose-600">− {formatINR(b.commission_amount)}</span>
+                            <span className="text-slate-500">Platform Commission ({effectiveCommissionPct(b).toFixed(2)}%)</span>
+                            <span className="font-semibold text-rose-600">− {formatINR(effectiveCommissionAmount(b))}</span>
                           </div>
                           <div className="flex items-center justify-between border-t border-dashed border-slate-200 pt-2 text-sm">
                             <span className="font-semibold text-slate-700">Net Property Payout</span>
-                            <span className="font-bold text-emerald-600">{formatINR(b.booking_amount - b.commission_amount)}</span>
+                            <span className="font-bold text-emerald-600">{formatINR(b.booking_amount - effectiveCommissionAmount(b))}</span>
                           </div>
                           <p className="text-[11px] text-slate-400">Note: Final amount may vary due to payment gateway charges.</p>
                         </div>

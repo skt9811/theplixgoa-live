@@ -335,7 +335,9 @@ function PortalDashboardPage() {
               onFocusBooking={setFocusBookingId}
             />
           )}
-          {tab === "menu" && <PortalMenuTab propertySlug={propertySlug} propertyName={propertyName} role={role ?? "owner"} />}
+          {tab === "menu" && (
+            <PortalMenuTab propertySlug={propertySlug} propertyName={propertyName} role={role ?? "owner"} bookings={bookings} />
+          )}
         </div>
       </div>
 

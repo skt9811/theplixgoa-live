@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { LogOut, Mail, MessageCircle, Phone, Loader as Loader2 } from "lucide-react";
 import { clearPortalSession, portalFetch } from "@/lib/portal-native-session";
+import type { PortalBooking } from "@/lib/portal-bookings-client";
+import { PortalReportsCard } from "@/components/plix/portal-reports-card";
 
 const SUPPORT_PHONE = "+919009800809";
 const SUPPORT_EMAIL = "reservations@theplixgoa.com";
@@ -13,10 +15,12 @@ export function PortalMenuTab({
   propertySlug,
   propertyName,
   role,
+  bookings,
 }: {
   propertySlug: string;
   propertyName: string;
   role: "owner" | "admin";
+  bookings: PortalBooking[];
 }) {
   const navigate = useNavigate();
   const [me, setMe] = useState<Me | null>(null);
@@ -82,6 +86,8 @@ export function PortalMenuTab({
       </div>
 
       {role === "owner" && <ChangePinCard />}
+
+      <PortalReportsCard bookings={bookings} propertyName={propertyName} />
 
       {/* Support */}
       <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">

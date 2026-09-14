@@ -303,7 +303,7 @@ export function PortalAnalyticsTab({
 
       <div className="mt-4 rounded-2xl p-4 shadow-sm" style={{ backgroundColor: "#111827" }}>
         <p className="text-sm font-semibold" style={{ color: "#C59B62" }}>
-          Plix Commission
+          Plix Commission &amp; Payout
         </p>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
@@ -312,12 +312,24 @@ export function PortalAnalyticsTab({
             <p className="mt-0.5 text-[11px]" style={{ color: "#C59B62" }}>
               GBV {formatINR(Math.round(commissionSummary.monthGbv))}
             </p>
+            <p className="mt-1.5 border-t border-white/10 pt-1.5 text-[11px] text-white/50">
+              Net Payout{" "}
+              <span className="font-semibold text-emerald-400">
+                {formatINR(Math.round(commissionSummary.monthGbv - commissionSummary.monthCommission))}
+              </span>
+            </p>
           </div>
           <div className="border-l border-white/10 pl-3">
             <p className="text-[11px] text-white/50">All Time</p>
             <p className="mt-1 text-lg font-bold text-white">{formatINR(Math.round(commissionSummary.allTimeCommission))}</p>
             <p className="mt-0.5 text-[11px]" style={{ color: "#C59B62" }}>
               GBV {formatINR(Math.round(commissionSummary.allTimeGbv))}
+            </p>
+            <p className="mt-1.5 border-t border-white/10 pt-1.5 text-[11px] text-white/50">
+              Net Payout{" "}
+              <span className="font-semibold text-emerald-400">
+                {formatINR(Math.round(commissionSummary.allTimeGbv - commissionSummary.allTimeCommission))}
+              </span>
             </p>
           </div>
         </div>

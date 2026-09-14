@@ -27,30 +27,48 @@ export function PortalAnalyticsTab({
   const chipScrollRef = useRef<HTMLDivElement>(null);
   const [activeChartBar, setActiveChartBar] = useState<number | null>(null);
 
-  // Every calendar month a real booking touches, through the current month —
-  // a hotelier's own history, ascending so the chip scroller reads left
-  // (earliest) to right (now), matching how a horizontal date scroller is
-  // normally read.
+  // All 12 months of the active financial year (April–March) containing
+  // today — e.g. September 2026 falls in FY Apr 2026–Mar 2027, so the strip
+  // shows Apr 2026 through Mar 2027 regardless of whether a given month is
+  // in the past or future relative to today. Every month gets a chip;
+  // hasBookings just flags whether to enable it — this is a plain useMemo
+  // over the live `bookings` prop, so a booking added later for a
+  // previously-empty month (e.g. a December reservation made in September)
+  // automatically lights that chip up on the next render, no extra wiring.
   const monthOptions = useMemo(() => {
     const now = new Date();
-    const opts: { key: string; year: number; month: number; label: string }[] = [];
-    const earliest = bookings.reduce((min, b) => (b.check_in < min ? b.check_in : min), toISO(now));
-    const [ey, em] = earliest.split("-").map(Number);
-    const cursor = new Date(ey!, em! - 1, 1);
-    const end = new Date(now.getFullYear(), now.getMonth(), 1);
-    while (cursor <= end) {
+    const fyStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    const real = bookings.filter(isRealBooking);
+    const opts: { key: string; year: number; month: number; label: string; hasBookings: boolean }[] = [];
+    for (let i = 0; i < 12; i++) {
+      const cursor = new Date(fyStartYear, 3 + i, 1); // April = month index 3
+      const { start, end } = monthRange(cursor.getFullYear(), cursor.getMonth());
       opts.push({
         key: `${cursor.getFullYear()}-${pad(cursor.getMonth() + 1)}`,
         year: cursor.getFullYear(),
         month: cursor.getMonth(),
         label: cursor.toLocaleDateString("en-IN", { month: "short", year: "numeric" }),
+        hasBookings: real.some((b) => b.check_in >= start && b.check_in < end),
       });
-      cursor.setMonth(cursor.getMonth() + 1);
     }
     return opts;
   }, [bookings]);
 
-  const [selectedKey, setSelectedKey] = useState(() => monthOptions[monthOptions.length - 1]?.key ?? "");
+  // Defaults to the current calendar month; if that month has no bookings,
+  // falls back to whichever active (has-bookings) month is chip-closest to
+  // it, so the owner never lands on a blank screen by default.
+  const [selectedKey, setSelectedKey] = useState(() => {
+    const now = new Date();
+    const currentKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+    const currentIndex = monthOptions.findIndex((o) => o.key === currentKey);
+    if (currentIndex === -1) return monthOptions[0]?.key ?? currentKey;
+    if (monthOptions[currentIndex]!.hasBookings) return currentKey;
+    const activeWithDistance = monthOptions
+      .map((o, i) => ({ key: o.key, hasBookings: o.hasBookings, dist: Math.abs(i - currentIndex) }))
+      .filter((o) => o.hasBookings)
+      .sort((a, b) => a.dist - b.dist);
+    return activeWithDistance[0]?.key ?? currentKey;
+  });
   const selected = monthOptions.find((o) => o.key === selectedKey) ?? monthOptions[monthOptions.length - 1];
 
   useEffect(() => {
@@ -197,27 +215,28 @@ export function PortalAnalyticsTab({
     return [...bookingsInPeriod].sort((a, b) => b.booking_amount - a.booking_amount).slice(0, 3);
   }, [bookingsInPeriod]);
 
-  // Independent of the month-chip/timeframe picker above — always the
-  // current calendar month vs. the property's full history, matching how a
-  // commission summary is normally read (this month's payable vs. lifetime).
+  // Tracks whichever period the rest of the tab is currently reporting on
+  // (the selected month chip, or the full lifetime span for "All Time") —
+  // same `period` the KPI cards above already use, so this card's left
+  // column always matches what's selected instead of a fixed "this real
+  // calendar month". allTime* stays the lifetime figure regardless, for the
+  // always-present right-hand comparison column.
   const commissionSummary = useMemo(() => {
     const real = bookings.filter(isRealBooking);
-    const now = new Date();
-    const thisMonth = monthRange(now.getFullYear(), now.getMonth());
-    let monthCommission = 0;
-    let monthGbv = 0;
+    let periodCommission = 0;
+    let periodGbv = 0;
     let allTimeCommission = 0;
     let allTimeGbv = 0;
     for (const b of real) {
       allTimeCommission += b.commission_amount;
       allTimeGbv += b.booking_amount;
-      if (b.check_in >= thisMonth.start && b.check_in < thisMonth.end) {
-        monthCommission += b.commission_amount;
-        monthGbv += b.booking_amount;
+      if (b.check_in >= period.start && b.check_in < period.end) {
+        periodCommission += b.commission_amount;
+        periodGbv += b.booking_amount;
       }
     }
-    return { monthCommission, monthGbv, allTimeCommission, allTimeGbv };
-  }, [bookings]);
+    return { periodCommission, periodGbv, allTimeCommission, allTimeGbv };
+  }, [bookings, period]);
 
   function handleTopBookingClick(bookingId: string) {
     onFocusBooking(bookingId);
@@ -256,11 +275,14 @@ export function PortalAnalyticsTab({
               key={o.key}
               type="button"
               data-chip-key={o.key}
+              disabled={!o.hasBookings}
               onClick={() => setSelectedKey(o.key)}
               className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                 o.key === selectedKey
                   ? "border-bronze bg-bronze text-bronze-foreground"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                  : o.hasBookings
+                    ? "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                    : "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300"
               }`}
             >
               {o.label}
@@ -305,23 +327,39 @@ export function PortalAnalyticsTab({
         <p className="text-sm font-semibold" style={{ color: "#C59B62" }}>
           Plix Commission &amp; Payout
         </p>
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-[11px] text-white/50">This Month</p>
-            <p className="mt-1 text-lg font-bold text-white">{formatINR(Math.round(commissionSummary.monthCommission))}</p>
-            <p className="mt-0.5 text-[11px]" style={{ color: "#C59B62" }}>
-              GBV {formatINR(Math.round(commissionSummary.monthGbv))}
-            </p>
-            <p className="mt-1.5 border-t border-white/10 pt-1.5 text-[11px] text-white/50">
-              Net Payout{" "}
-              <span className="font-semibold text-emerald-400">
-                {formatINR(Math.round(commissionSummary.monthGbv - commissionSummary.monthCommission))}
-              </span>
-            </p>
+        {timeframe === "month" ? (
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-[11px] text-white/50">{selected?.label ?? "Selected Month"}</p>
+              <p className="mt-1 text-lg font-bold text-white">{formatINR(Math.round(commissionSummary.periodCommission))}</p>
+              <p className="mt-0.5 text-[11px]" style={{ color: "#C59B62" }}>
+                GBV {formatINR(Math.round(commissionSummary.periodGbv))}
+              </p>
+              <p className="mt-1.5 border-t border-white/10 pt-1.5 text-[11px] text-white/50">
+                Net Payout{" "}
+                <span className="font-semibold text-emerald-400">
+                  {formatINR(Math.round(commissionSummary.periodGbv - commissionSummary.periodCommission))}
+                </span>
+              </p>
+            </div>
+            <div className="border-l border-white/10 pl-3">
+              <p className="text-[11px] text-white/50">All Time</p>
+              <p className="mt-1 text-lg font-bold text-white">{formatINR(Math.round(commissionSummary.allTimeCommission))}</p>
+              <p className="mt-0.5 text-[11px]" style={{ color: "#C59B62" }}>
+                GBV {formatINR(Math.round(commissionSummary.allTimeGbv))}
+              </p>
+              <p className="mt-1.5 border-t border-white/10 pt-1.5 text-[11px] text-white/50">
+                Net Payout{" "}
+                <span className="font-semibold text-emerald-400">
+                  {formatINR(Math.round(commissionSummary.allTimeGbv - commissionSummary.allTimeCommission))}
+                </span>
+              </p>
+            </div>
           </div>
-          <div className="border-l border-white/10 pl-3">
-            <p className="text-[11px] text-white/50">All Time</p>
-            <p className="mt-1 text-lg font-bold text-white">{formatINR(Math.round(commissionSummary.allTimeCommission))}</p>
+        ) : (
+          <div className="mt-3">
+            <p className="text-[11px] text-white/50">Lifetime</p>
+            <p className="mt-1 text-2xl font-bold text-white">{formatINR(Math.round(commissionSummary.allTimeCommission))}</p>
             <p className="mt-0.5 text-[11px]" style={{ color: "#C59B62" }}>
               GBV {formatINR(Math.round(commissionSummary.allTimeGbv))}
             </p>
@@ -332,7 +370,7 @@ export function PortalAnalyticsTab({
               </span>
             </p>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">

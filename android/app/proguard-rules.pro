@@ -19,3 +19,9 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Capacitor bridge/plugin classes are invoked via reflection — keep them
+# intact even though minifyEnabled is false here, as a defensive guard
+# against any future/Play-Store-side re-processing stripping them.
+-keep class com.getcapacitor.** { *; }
+-keep class com.plix.partner.** { *; }

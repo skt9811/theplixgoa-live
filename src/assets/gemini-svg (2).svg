@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Rich Slate Background -->
+    <radialGradient id="bgGradient" cx="50%" cy="38%" r="62%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#090D16"/>
+    </radialGradient>
+
+    <!-- Vibrant Sunset Gradient from your logo -->
+    <linearGradient id="sunsetSun" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FF7A00"/>
+      <stop offset="100%" stop-color="#EA580C"/>
+    </linearGradient>
+
+    <!-- Warm Gold Ring Gradient -->
+    <linearGradient id="goldBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E2B770"/>
+      <stop offset="100%" stop-color="#9E7638"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Canvas -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGradient)"/>
+  <rect width="508" height="508" x="2" y="2" rx="110" fill="none" stroke="url(#goldBorder)" stroke-width="1.5" stroke-opacity="0.3"/>
+
+  <!-- Plix Hospitality Palm & Sun Emblem -->
+  <g transform="translate(256, 195)">
+    <!-- Sun -->
+    <circle cx="5" cy="10" r="74" fill="url(#sunsetSun)"/>
+
+    <!-- Palm Tree Silhouette -->
+    <!-- Trunk -->
+    <path d="M-6,95 C-6,30 -2,-10 -1,-25 L9,-25 C8,-10 6,30 4,95 Z" fill="#1C1917"/>
+
+    <!-- Fronds / Leaves -->
+    <!-- Center Top Leaves -->
+    <path d="M3,-25 Q4,-85 -2,-100 Q-8,-75 -2,-25 Z" fill="#1C1917"/>
+    <path d="M4,-25 Q18,-85 24,-94 Q15,-70 5,-25 Z" fill="#1C1917"/>
+    
+    <!-- Left Fronds -->
+    <path d="M0,-24 C-25,-55 -58,-68 -84,-56 C-62,-44 -32,-35 -3,-20 Z" fill="#1C1917"/>
+    <path d="M-2,-20 C-32,-40 -72,-42 -96,-25 C-72,-16 -40,-13 -4,-14 Z" fill="#1C1917"/>
+    <path d="M-2,-14 C-35,-24 -75,-16 -95,8 C-74,9 -44,3 -3,-7 Z" fill="#1C1917"/>
+    <path d="M-3,-7 C-30,-7 -65,15 -80,44 C-65,35 -40,18 -3,-1 Z" fill="#1C1917"/>
+    
+    <!-- Right Fronds -->
+    <path d="M6,-24 C30,-58 64,-70 90,-58 C68,-44 38,-35 8,-20 Z" fill="#1C1917"/>
+    <path d="M7,-20 C36,-42 78,-44 102,-25 C78,-16 46,-14 8,-13 Z" fill="#1C1917"/>
+    <path d="M7,-13 C38,-22 80,-14 100,10 C78,11 48,5 8,-6 Z" fill="#1C1917"/>
+    <path d="M6,-6 C34,-5 72,18 86,47 C72,37 45,20 7,0 Z" fill="#1C1917"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="256" y="375" text-anchor="middle" font-family="-apple-system, 'Playfair Display', serif" font-size="44" font-weight="700" letter-spacing="8" fill="#FFFFFF">
+    THE PLIX
+  </text>
+  <text x="256" y="412" text-anchor="middle" font-family="-apple-system, 'Inter', sans-serif" font-size="13" font-weight="600" letter-spacing="5" fill="#FF7A00">
+    LUXURY HOSPITALITY
+  </text>
+</svg>

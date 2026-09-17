@@ -1,4 +1,4 @@
-package com.theplixgoa.partner;
+package com.plix.partner;
 
 import com.getcapacitor.BridgeActivity;
 

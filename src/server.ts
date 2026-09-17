@@ -8,6 +8,11 @@ import { handleContactEnquiryRequest } from "./lib/contact-enquiry.server";
 import { handleSitemapRequest } from "./lib/sitemap.server";
 import { handleSendWelcomeEmail } from "./lib/send-welcome-email.server";
 import { handlePasswordSignIn, handlePasswordSignUp, handleLogout } from "./lib/auth-routes.server";
+import { handleMobileGoogleAuth } from "./lib/mobile-auth.server";
+import { handleMobileCreateOrder, handleMobileVerifyPayment } from "./lib/mobile-razorpay.server";
+import { handleMobileListProperties, handleMobileGetProperty } from "./lib/mobile-properties.server";
+import { handleMobileAvailability } from "./lib/mobile-availability.server";
+import { mobilePreflight, mobileJson } from "./lib/mobile-cors.server";
 import { handlePortalAuth, handlePortalLogout } from "./lib/portal-auth.server";
 import { handleGetPortalBookings } from "./lib/portal-bookings-api.server";
 import { handleGetPortalMe, handleChangePortalPin } from "./lib/portal-settings-api.server";
@@ -186,6 +191,31 @@ export default {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });
+      }
+    }
+    // The Plix mobile app (Capacitor) — see mobile-auth.server.ts and
+    // mobile-razorpay.server.ts for why these exist separately from the
+    // website's cookie/RPC-based equivalents. Every one of these needs the
+    // CORS preflight handled first, since they're the only routes on this
+    // site ever called cross-origin.
+    if (url.pathname.startsWith("/api/mobile/")) {
+      const preflight = mobilePreflight(request);
+      if (preflight) return preflight;
+
+      try {
+        if (url.pathname === "/api/mobile/auth/google") return await handleMobileGoogleAuth(request);
+        if (url.pathname === "/api/mobile/create-order") return await handleMobileCreateOrder(request);
+        if (url.pathname === "/api/mobile/verify-payment") return await handleMobileVerifyPayment(request);
+        if (url.pathname === "/api/mobile/availability") return await handleMobileAvailability(request);
+        if (url.pathname === "/api/mobile/properties") return await handleMobileListProperties(request);
+        if (url.pathname.startsWith("/api/mobile/properties/")) {
+          const slug = url.pathname.slice("/api/mobile/properties/".length);
+          return await handleMobileGetProperty(request, slug);
+        }
+        return mobileJson(request, { error: "Not found" }, 404);
+      } catch (error) {
+        console.error("[mobile]", url.pathname, "unhandled error:", error);
+        return mobileJson(request, { error: "Internal error" }, 500);
       }
     }
     // Custom email+password routes — checked before the /api/auth/* catch-all

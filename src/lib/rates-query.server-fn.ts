@@ -84,6 +84,27 @@ export const fetchRateOverridesServerFn = createServerFn({ method: "GET" })
     }
   });
 
+// Plain query, decoupled from createServerFn's isomorphic RPC wrapping —
+// reused directly by mobile-availability.server.ts (The Plix mobile app)
+// so there's one implementation of "which dates are blocked", not two.
+export async function fetchBlockedDatesCore(propertyId: string, startDate: string, endDate: string): Promise<string[]> {
+  const sql = getSql();
+  if (!sql) return [];
+  try {
+    // date::text — same reasoning as fetchRateOverridesServerFn above:
+    // without it these come back as Date objects, which never match the
+    // "YYYY-MM-DD" strings hasBlockedOverlap() checks the Set against.
+    const rows = await sql<{ date: string }[]>`
+      SELECT date::text AS date FROM public.blocked_dates
+      WHERE property_id = ${propertyId} AND date::date BETWEEN ${startDate}::date AND ${endDate}::date
+    `;
+    return rows.map((r) => r.date);
+  } catch (err) {
+    console.error("[fetchBlockedDatesCore]:", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
 export const fetchBlockedDatesServerFn = createServerFn({ method: "GET" })
   .validator((data: unknown) => ({
     propertyId: str(data, "propertyId"),
@@ -91,21 +112,7 @@ export const fetchBlockedDatesServerFn = createServerFn({ method: "GET" })
     endDate: str(data, "endDate"),
   }))
   .handler(async ({ data }): Promise<string[]> => {
-    const sql = getSql();
-    if (!sql) return [];
-    try {
-      // date::text — same reasoning as fetchRateOverridesServerFn above:
-      // without it these come back as Date objects, which never match the
-      // "YYYY-MM-DD" strings hasBlockedOverlap() checks the Set against.
-      const rows = await sql<{ date: string }[]>`
-        SELECT date::text AS date FROM public.blocked_dates
-        WHERE property_id = ${data.propertyId} AND date::date BETWEEN ${data.startDate}::date AND ${data.endDate}::date
-      `;
-      return rows.map((r) => r.date);
-    } catch (err) {
-      console.error("[fetchBlockedDatesServerFn]:", err instanceof Error ? err.message : err);
-      return [];
-    }
+    return fetchBlockedDatesCore(data.propertyId, data.startDate, data.endDate);
   });
 
 type RateRow = { property_id: string; date: string; rate: number };

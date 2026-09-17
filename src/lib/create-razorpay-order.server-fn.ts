@@ -23,7 +23,7 @@ function getSql() {
   return sqlClient;
 }
 
-type OrderInput = {
+export type OrderInput = {
   property_id: string;
   property_name: string;
   property_location: string;
@@ -51,7 +51,7 @@ export type CreateRazorpayOrderResult = {
   key_id: string;
 };
 
-function isOrderInput(data: unknown): data is OrderInput {
+export function isOrderInput(data: unknown): data is OrderInput {
   if (!data || typeof data !== "object") return false;
   const d = data as Record<string, unknown>;
   return (
@@ -125,7 +125,7 @@ async function insertBooking(
 // but a genuinely missing/wrong-typed field here throws before a booking row
 // or Razorpay order ever gets created, so this needs to be visible from
 // production logs rather than a generic "missing required booking fields".
-function describeOrderInputShape(data: unknown): string {
+export function describeOrderInputShape(data: unknown): string {
   if (!data || typeof data !== "object") return `payload is not an object (got ${typeof data})`;
   const d = data as Record<string, unknown>;
   const stringFields = [
@@ -140,6 +140,65 @@ function describeOrderInputShape(data: unknown): string {
   return parts.join(", ");
 }
 
+// The actual order-creation logic, decoupled from how the caller authenticated
+// the guest. createRazorpayOrderServerFn (below) is the website's entry point —
+// it derives userId from the Auth.js session cookie via getAuthenticatedUserId().
+// The mobile app has no cookie (separate origin, separate app); its entry point
+// (handleMobileCreateOrder, in mobile-razorpay.server.ts) derives userId from
+// its own bearer JWT instead and calls this same function, so both surfaces
+// share one Razorpay-order + booking-insert implementation rather than two
+// copies that could drift.
+export async function createRazorpayOrderCore(
+  data: OrderInput,
+  userId: number | null,
+): Promise<CreateRazorpayOrderResult> {
+  const razorpayKeyId = process.env["RAZORPAY_KEY_ID"] || process.env["VITE_RAZORPAY_KEY_ID"] || "";
+  const razorpayKeySecret = process.env["RAZORPAY_KEY_SECRET"] ?? "";
+  const hostEmail = process.env["PLIX_HOST_EMAIL"] ?? "reservations@theplixgoa.com";
+
+  if (!razorpayKeyId || !razorpayKeySecret) {
+    console.error("[createRazorpayOrderCore] Razorpay credentials not configured in Vercel");
+    throw new Error("Razorpay credentials not configured in Vercel");
+  }
+
+  const amountInPaise = Math.round(data.total_amount * 100);
+  const auth = Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString("base64");
+
+  const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Basic ${auth}`,
+    },
+    body: JSON.stringify({
+      amount: amountInPaise,
+      currency: "INR",
+      receipt: `plix_${Date.now()}`,
+      notes: { property_id: data.property_id, guest_email: data.guest_email },
+    }),
+  });
+  if (!rzpRes.ok) {
+    const errText = await rzpRes.text();
+    console.error("[createRazorpayOrderCore] Razorpay API error:", rzpRes.status, errText);
+    throw new Error("Unable to start payment. Please try again.");
+  }
+  const order = (await rzpRes.json()) as { id: string };
+
+  const bookingId = await insertBooking(data, {
+    razorpay_order_id: order.id,
+    host_email: hostEmail,
+    user_id: userId,
+  });
+
+  return {
+    booking_id: bookingId,
+    order_id: order.id,
+    amount: amountInPaise,
+    currency: "INR",
+    key_id: razorpayKeyId,
+  };
+}
+
 export const createRazorpayOrderServerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => {
     if (!isOrderInput(data)) {
@@ -149,50 +208,6 @@ export const createRazorpayOrderServerFn = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }): Promise<CreateRazorpayOrderResult> => {
-    const razorpayKeyId = process.env["RAZORPAY_KEY_ID"] || process.env["VITE_RAZORPAY_KEY_ID"] || "";
-    const razorpayKeySecret = process.env["RAZORPAY_KEY_SECRET"] ?? "";
-    const hostEmail = process.env["PLIX_HOST_EMAIL"] ?? "reservations@theplixgoa.com";
-
-    if (!razorpayKeyId || !razorpayKeySecret) {
-      console.error("[createRazorpayOrderServerFn] Razorpay credentials not configured in Vercel");
-      throw new Error("Razorpay credentials not configured in Vercel");
-    }
-
     const userId = await getAuthenticatedUserId();
-    const amountInPaise = Math.round(data.total_amount * 100);
-    const auth = Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString("base64");
-
-    const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      },
-      body: JSON.stringify({
-        amount: amountInPaise,
-        currency: "INR",
-        receipt: `plix_${Date.now()}`,
-        notes: { property_id: data.property_id, guest_email: data.guest_email },
-      }),
-    });
-    if (!rzpRes.ok) {
-      const errText = await rzpRes.text();
-      console.error("[createRazorpayOrderServerFn] Razorpay API error:", rzpRes.status, errText);
-      throw new Error("Unable to start payment. Please try again.");
-    }
-    const order = (await rzpRes.json()) as { id: string };
-
-    const bookingId = await insertBooking(data, {
-      razorpay_order_id: order.id,
-      host_email: hostEmail,
-      user_id: userId,
-    });
-
-    return {
-      booking_id: bookingId,
-      order_id: order.id,
-      amount: amountInPaise,
-      currency: "INR",
-      key_id: razorpayKeyId,
-    };
+    return createRazorpayOrderCore(data, userId);
   });

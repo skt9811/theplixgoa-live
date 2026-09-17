@@ -1,5 +1,5 @@
 import { eachNight } from "@/lib/rates";
-import { fetchOverlappingPaidBookingsServerFn } from "@/lib/inventory-query.server-fn";
+import { fetchOverlappingPaidBookingsCore } from "@/lib/inventory-query.server-fn";
 
 export type NightlyAvailability = Record<string, number>; // date -> rooms still available
 
@@ -31,7 +31,7 @@ export async function computeAvailableRooms(
   if (nights.length === 0) return availability;
 
   try {
-    const data = await fetchOverlappingPaidBookingsServerFn({ data: { propertyId, checkIn, checkOut } });
+    const data = await fetchOverlappingPaidBookingsCore(propertyId, checkIn, checkOut);
 
     for (const booking of data ?? []) {
       const roomsBooked = booking.rooms > 0 ? booking.rooms : 1;

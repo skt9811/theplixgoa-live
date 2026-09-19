@@ -179,11 +179,6 @@ const LOCATION_POSTAL_CODES: Record<string, string> = {
 };
 
 export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
-  const avgRating = reviews.length > 0
-    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
-    : "4.9";
-  const reviewCount = reviews.length > 0 ? String(reviews.length) : "1";
-
   const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
     // Every property uniformly, not just bedrooms >= 8 — a plain string, not
@@ -223,20 +218,27 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
             longitude: p.longitude,
           }
         : undefined,
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: avgRating,
-      reviewCount,
-      bestRating: "5",
-      worstRating: "1",
-    },
     // Plain string, not an @id-linked object — avoids giving any parser a
     // second entity/URL to potentially conflate with this one.
     brand: "Plix Hospitality",
   };
 
+  // Google's structured data policy prohibits fabricated ratings/reviews —
+  // aggregateRating and review are only emitted when there's at least one
+  // real guest review to back them. A property with zero reviews yet
+  // simply omits both fields rather than claiming a 4.9-star rating from a
+  // review that doesn't exist, which risked losing rich-result eligibility
+  // if Google's spam detection ever flagged it.
   if (reviews.length > 0) {
-    schema.review = reviews.map((r) => ({
+    const avgRating = (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1);
+    schema["aggregateRating"] = {
+      "@type": "AggregateRating",
+      ratingValue: avgRating,
+      reviewCount: String(reviews.length),
+      bestRating: "5",
+      worstRating: "1",
+    };
+    schema["review"] = reviews.map((r) => ({
       "@type": "Review",
       author: { "@type": "Person", name: r.guest_name },
       reviewRating: { "@type": "Rating", ratingValue: String(r.rating), bestRating: "5" },

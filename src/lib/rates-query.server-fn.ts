@@ -27,6 +27,34 @@ function str(data: unknown, key: string): string {
 // like morjim-pride, have no `properties` row at all). Backs the homepage/
 // search/location-grid property cards' displayed price: properties-data.ts
 // applies this map against every property in the static PROPERTIES list.
+// Plain query, decoupled from createServerFn's isomorphic RPC wrapping —
+// see fetchActivePropertiesCore's comment in properties-query.server-fn.ts
+// for why this needed to exist as a callable-outside-TanStack-dispatch
+// function. properties-data.ts's fetchPropertiesWithOverrides calls this
+// directly now instead of the serverFn below.
+export async function fetchRatesForDateCore(date: string | null | undefined): Promise<Record<string, number>> {
+  const sql = getSql();
+  if (!sql) return {};
+  // A malformed (non-"YYYY-MM-DD") string would fail the ::date cast below
+  // outright rather than falling through to CURRENT_DATE via COALESCE
+  // (COALESCE only substitutes on NULL, not on a cast error) — validated
+  // here, not just at the serverFn's own .validator(), so this stays safe
+  // regardless of which caller reaches it.
+  const safeDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+  try {
+    const rows = await sql<{ property_id: string; rate: string | number }[]>`
+      SELECT property_id, rate FROM public.property_rates
+      WHERE date = COALESCE(${safeDate}::date, CURRENT_DATE)
+    `;
+    const map: Record<string, number> = {};
+    for (const row of rows) map[row.property_id] = Number(row.rate);
+    return map;
+  } catch (err) {
+    console.error("[fetchRatesForDateCore]:", err instanceof Error ? err.message : err);
+    return {};
+  }
+}
+
 export const fetchRatesForDateServerFn = createServerFn({ method: "GET" })
   .validator((data: unknown) => {
     const raw = str(data, "date");
@@ -36,22 +64,7 @@ export const fetchRatesForDateServerFn = createServerFn({ method: "GET" })
     // never stale relative to whatever timezone the client happens to be in.
     return { date: /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null };
   })
-  .handler(async ({ data }): Promise<Record<string, number>> => {
-    const sql = getSql();
-    if (!sql) return {};
-    try {
-      const rows = await sql<{ property_id: string; rate: string | number }[]>`
-        SELECT property_id, rate FROM public.property_rates
-        WHERE date = COALESCE(${data.date}::date, CURRENT_DATE)
-      `;
-      const map: Record<string, number> = {};
-      for (const row of rows) map[row.property_id] = Number(row.rate);
-      return map;
-    } catch (err) {
-      console.error("[fetchRatesForDateServerFn]:", err instanceof Error ? err.message : err);
-      return {};
-    }
-  });
+  .handler(async ({ data }): Promise<Record<string, number>> => fetchRatesForDateCore(data.date));
 
 export const fetchRateOverridesServerFn = createServerFn({ method: "GET" })
   .validator((data: unknown) => ({

@@ -51,25 +51,36 @@ export type PropertyDbRow = {
 // base price no matter what override existed. This query is intentionally
 // independent of `properties` so properties-data.ts can apply it against
 // every property in the static list, DB row or not.
+// Plain query, decoupled from createServerFn's isomorphic RPC wrapping —
+// properties-data.ts's fetchPropertiesWithOverrides calls this directly.
+// createServerFn-wrapped functions require a TanStack Start "Start context"
+// that only exists inside the framework's own request dispatch; calling one
+// from a handler invoked directly in src/server.ts (sitemap.server.ts, in
+// this case) throws "No Start context found in AsyncLocalStorage" instead
+// of running — that was silently failing sitemap generation (caught, so it
+// degraded to static data rather than 500ing, but every /sitemap.xml
+// request was hitting this).
+export async function fetchActivePropertiesCore(): Promise<PropertyDbRow[]> {
+  const sql = getSql();
+  if (!sql) return [];
+  try {
+    const rows = await sql<PropertyDbRow[]>`
+      SELECT * FROM public.properties WHERE is_active = true ORDER BY created_at ASC
+    `;
+    return rows.map((r) => ({
+      ...r,
+      base_price: Number(r.base_price),
+      latitude: r.latitude === null ? null : Number(r.latitude),
+      longitude: r.longitude === null ? null : Number(r.longitude),
+    }));
+  } catch (err) {
+    console.error("[fetchActivePropertiesCore]:", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
 export const fetchActivePropertiesServerFn = createServerFn({ method: "GET" }).handler(
-  async (): Promise<PropertyDbRow[]> => {
-    const sql = getSql();
-    if (!sql) return [];
-    try {
-      const rows = await sql<PropertyDbRow[]>`
-        SELECT * FROM public.properties WHERE is_active = true ORDER BY created_at ASC
-      `;
-      return rows.map((r) => ({
-        ...r,
-        base_price: Number(r.base_price),
-        latitude: r.latitude === null ? null : Number(r.latitude),
-        longitude: r.longitude === null ? null : Number(r.longitude),
-      }));
-    } catch (err) {
-      console.error("[fetchActivePropertiesServerFn]:", err instanceof Error ? err.message : err);
-      return [];
-    }
-  },
+  fetchActivePropertiesCore,
 );
 
 type SavePropertyInput = {

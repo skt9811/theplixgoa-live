@@ -1,6 +1,6 @@
 import { notifyDataChange } from "@/lib/rates";
-import { fetchActivePropertiesServerFn, savePropertyServerFn } from "@/lib/properties-query.server-fn";
-import { fetchRatesForDateServerFn } from "@/lib/rates-query.server-fn";
+import { fetchActivePropertiesCore, savePropertyServerFn } from "@/lib/properties-query.server-fn";
+import { fetchRatesForDateCore } from "@/lib/rates-query.server-fn";
 import { PROPERTIES, imageMap, type Property } from "@/lib/plix";
 
 type PropertyOverride = {
@@ -142,7 +142,7 @@ export async function fetchPropertiesWithOverrides(targetDate?: string): Promise
   // static list, not just ones the DB fetch below happens to return. A
   // failure here shouldn't take down the whole properties list — just means
   // no card gets a discounted price this load.
-  const ratesMap = await fetchRatesForDateServerFn({ data: { date: targetDate ?? "" } }).catch((err: unknown) => {
+  const ratesMap = await fetchRatesForDateCore(targetDate ?? null).catch((err: unknown) => {
     console.error("[fetchPropertiesWithOverrides] rate lookup failed:", err instanceof Error ? err.message : err);
     return {} as Record<string, number>;
   });
@@ -153,7 +153,7 @@ export async function fetchPropertiesWithOverrides(targetDate?: string): Promise
   }
 
   try {
-    const data = await fetchActivePropertiesServerFn();
+    const data = await fetchActivePropertiesCore();
 
     if (data && data.length > 0) {
       const dbMap: Record<string, PropertyOverride> = {};

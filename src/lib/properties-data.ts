@@ -1,6 +1,7 @@
 import { notifyDataChange } from "@/lib/rates";
-import { fetchActivePropertiesCore, savePropertyServerFn } from "@/lib/properties-query.server-fn";
-import { fetchRatesForDateCore } from "@/lib/rates-query.server-fn";
+import { savePropertyServerFn } from "@/lib/properties-query.server-fn";
+import { fetchActivePropertiesCore } from "@/lib/properties-core.server";
+import { fetchRatesForDateCore } from "@/lib/rates-core.server";
 import { PROPERTIES, imageMap, type Property } from "@/lib/plix";
 
 type PropertyOverride = {

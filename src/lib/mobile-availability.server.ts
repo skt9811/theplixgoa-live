@@ -5,7 +5,7 @@
 // separate/approximated source.
 import { PROPERTIES } from "@/lib/plix";
 import { computeNightlyRates, eachNight, isMultiRoomProperty, maxRoomsForProperty, quoteFromRates } from "@/lib/rates";
-import { fetchBlockedDatesCore, fetchRateOverridesCore } from "@/lib/rates-query.server-fn";
+import { fetchBlockedDatesCore, fetchRateOverridesCore } from "@/lib/rates-core.server";
 import { fetchOverlappingPaidBookingsCore } from "@/lib/inventory-query.server-fn";
 import { computeAvailableRooms } from "@/lib/inventory";
 import { mobileJson } from "@/lib/mobile-cors.server";

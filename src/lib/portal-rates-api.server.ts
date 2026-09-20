@@ -15,7 +15,7 @@ import {
   fetchRateOverridesCore,
   saveRateOverridesCore,
   toggleBlockedDateCore,
-} from "@/lib/rates-query.server-fn";
+} from "@/lib/rates-core.server";
 import { getPortalSessionFromRequest, resolveEffectivePropertySlug } from "@/lib/portal-session.server";
 
 function jsonResponse(body: unknown, status: number): Response {

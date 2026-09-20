@@ -3,15 +3,17 @@ import { toast } from "sonner";
 import { ChevronDown, KeyRound, Loader as Loader2, Save } from "lucide-react";
 import { PROPERTIES } from "@/lib/plix";
 
-const ADMIN_PIN = (import.meta.env["VITE_ADMIN_PIN"] as string) || "1979";
-
 type OwnerRow = { phone: string; pin: string; propertySlug: string; propertyName: string };
 
 type EditState = { phone: string; pin: string };
 
+// Both endpoints below authenticate via the admin session cookie set at
+// /admin login (see portal-session.server.ts's requireAdminSession) — not
+// a PIN in the request, which used to be read from VITE_ADMIN_PIN and was
+// therefore visible to anyone in the public client bundle.
 async function fetchOwners(): Promise<OwnerRow[]> {
   try {
-    const res = await fetch(`/api/admin/portal-owners?pin=${encodeURIComponent(ADMIN_PIN)}`);
+    const res = await fetch("/api/admin/portal-owners");
     if (!res.ok) return [];
     const data = (await res.json()) as { owners?: OwnerRow[] };
     return data.owners ?? [];
@@ -25,7 +27,7 @@ async function saveOwner(propertySlug: string, phone: string, newPin: string): P
     const res = await fetch(`/api/admin/portal-owners/${encodeURIComponent(propertySlug)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pin: ADMIN_PIN, phone, newPin }),
+      body: JSON.stringify({ phone, newPin }),
     });
     const data = (await res.json()) as { success?: boolean; error?: string };
     if (!res.ok || !data.success) return data.error || "Could not save";

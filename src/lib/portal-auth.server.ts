@@ -27,16 +27,18 @@ export async function handlePortalAuth(request: Request): Promise<Response> {
 
   // Master admin bypass — checked before the owner map so it can never be
   // shadowed by a placeholder owner entry that happens to share a phone.
-  // /admin/bookings itself still only gates on the client-side PIN check
-  // (VITE_ADMIN_PIN), which the login screen also satisfies client-side on
-  // this response — but admin ALSO gets a real portal session/token here now,
-  // since admin can browse the property Dashboard (/portal/dashboard) too,
-  // picking any property via its own selector, and that dashboard's APIs
-  // (GET /api/portal/bookings, /me) require a valid portal session to
-  // authenticate at all.
+  // This is now the ONLY place the admin PIN is ever checked — /admin and
+  // /admin/bookings both authenticate by calling this same endpoint and
+  // then verifying the resulting session server-side (see portal-session.
+  // server.ts's requireAdminSession), not by comparing a client-visible
+  // value. ADMIN_PIN (deliberately no VITE_ prefix — Vite inlines anything
+  // VITE_-prefixed into the public client bundle, which is exactly how the
+  // old VITE_ADMIN_PIN ended up shipped in plaintext to every visitor) has
+  // no default: if it isn't configured, admin login fails closed rather
+  // than falling back to a guessable value.
   if (phone === PORTAL_ADMIN_PHONE) {
-    const adminPin = process.env["VITE_ADMIN_PIN"] ?? "1979";
-    if (pin !== adminPin) {
+    const adminPin = process.env["ADMIN_PIN"];
+    if (!adminPin || pin !== adminPin) {
       return jsonResponse({ error: "Invalid mobile number or PIN" }, 401);
     }
     const cookie = await buildPortalSessionCookie(request, "", "admin");

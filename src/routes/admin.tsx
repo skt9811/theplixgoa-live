@@ -33,40 +33,66 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
+// The site's own published contact number, already public on the Contact
+// page/footer — not a secret. Real authentication is the PIN, checked
+// server-side against ADMIN_PIN (see portal-auth.server.ts); this is just
+// the fixed "identity" half of the phone+PIN pair the shared /api/portal/
+// auth endpoint expects, matching PORTAL_ADMIN_PHONE there. Deliberately
+// not imported from portal-pins.server.ts — that file has a top-level
+// `import postgres`, and importing anything from it here would drag that
+// into the client bundle (see properties-core.server.ts's header comment
+// for the exact failure mode this app has hit from that before).
+const ADMIN_PHONE = "9009800809";
+
 function AdminPage() {
-  const [authed, setAuthed] = useState(() => {
-    if (typeof localStorage === "undefined") return false;
-    try {
-      return localStorage.getItem("plix_admin_auth") === "true";
-    } catch {
-      return false;
-    }
-  });
+  const [checking, setChecking] = useState(true);
+  const [authed, setAuthed] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function checkPin(e: React.FormEvent) {
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/portal/me")
+      .then((res) => {
+        if (!cancelled) setAuthed(res.ok);
+      })
+      .catch(() => {
+        if (!cancelled) setAuthed(false);
+      })
+      .finally(() => {
+        if (!cancelled) setChecking(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function checkPin(e: React.FormEvent) {
     e.preventDefault();
-    if (!pinInput) return;
-    const envPin = import.meta.env.VITE_ADMIN_PIN;
-    // "1979" is this app's long-standing documented default (still the
-    // fallback everywhere else that reads VITE_ADMIN_PIN — e.g.
-    // portal-auth.server.ts's admin bypass) — accepted here too, alongside
-    // whatever VITE_ADMIN_PIN is actually configured to in this deployment
-    // (currently "1234"), rather than only ever accepting one of the two.
-    const validPins = envPin ? [envPin, "1979"] : ["1979"];
-    console.log("PIN entered:", pinInput, "Valid PIN:", validPins);
-    if (validPins.includes(pinInput)) {
-      setAuthed(true);
-      setPinError("");
-      try {
-        localStorage.setItem("plix_admin_auth", "true");
-      } catch {
-        // localStorage unavailable
+    if (!pinInput || submitting) return;
+    setSubmitting(true);
+    setPinError("");
+    try {
+      const res = await fetch("/api/portal/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: ADMIN_PHONE, pin: pinInput }),
+      });
+      if (res.ok) {
+        setAuthed(true);
+      } else {
+        setPinError("Incorrect PIN");
       }
-    } else {
-      setPinError("Incorrect PIN");
+    } catch {
+      setPinError("Network error — please try again");
+    } finally {
+      setSubmitting(false);
     }
+  }
+
+  if (checking) {
+    return <div className="flex min-h-[100dvh] items-center justify-center bg-navy" />;
   }
 
   if (!authed) {
@@ -100,9 +126,10 @@ function AdminPage() {
             {pinError && <p className="text-center text-xs text-red-400">{pinError}</p>}
             <button
               type="submit"
-              className="w-full rounded-full bg-bronze px-6 py-3.5 text-sm font-semibold text-bronze-foreground shadow-lg transition-transform active:scale-95"
+              disabled={submitting}
+              className="w-full rounded-full bg-bronze px-6 py-3.5 text-sm font-semibold text-bronze-foreground shadow-lg transition-transform active:scale-95 disabled:opacity-60"
             >
-              Unlock
+              {submitting ? "Checking…" : "Unlock"}
             </button>
           </form>
           <div className="mt-4 text-center">
@@ -389,8 +416,9 @@ function AdminDashboard() {
           <img src="/Plix_Transparent_(1).png" alt="The Plix Goa" className="h-8 w-auto object-contain" />
           <button
             onClick={() => {
-              try { localStorage.removeItem("plix_admin_auth"); } catch { /* noop */ }
-              window.location.href = "/";
+              void fetch("/api/portal/logout", { method: "POST" }).finally(() => {
+                window.location.href = "/";
+              });
             }}
             className="rounded-full border border-white/20 px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/10"
           >

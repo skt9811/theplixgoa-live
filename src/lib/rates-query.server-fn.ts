@@ -7,6 +7,7 @@
 // why a plain exported function here (rather than one wrapped in
 // `.handler()`) previously broke this guarantee.
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import {
   fetchRatesForDateCore,
   fetchRateOverridesCore,
@@ -18,6 +19,7 @@ import {
   autoBlockDatesForStayCore,
   type RateRow,
 } from "@/lib/rates-core.server";
+import { requireAdminSession } from "@/lib/portal-session.server";
 
 function str(data: unknown, key: string): string {
   const v = (data as Record<string, unknown>)?.[key];
@@ -57,7 +59,10 @@ export const saveRateOverridesServerFn = createServerFn({ method: "POST" })
     if (!Array.isArray(rows)) throw new Error("Missing rows");
     return { rows: rows as RateRow[] };
   })
-  .handler(async ({ data }): Promise<{ error: string | null }> => saveRateOverridesCore(data.rows));
+  .handler(async ({ data }): Promise<{ error: string | null }> => {
+    if (!(await requireAdminSession(getRequest()))) return { error: "Not authenticated" };
+    return saveRateOverridesCore(data.rows);
+  });
 
 export const deleteRateOverridesServerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => {
@@ -65,7 +70,10 @@ export const deleteRateOverridesServerFn = createServerFn({ method: "POST" })
     if (typeof d.propertyId !== "string" || !Array.isArray(d.dates)) throw new Error("Missing propertyId/dates");
     return { propertyId: d.propertyId, dates: d.dates as string[] };
   })
-  .handler(async ({ data }): Promise<{ error: string | null }> => deleteRateOverridesCore(data.propertyId, data.dates.map(String)));
+  .handler(async ({ data }): Promise<{ error: string | null }> => {
+    if (!(await requireAdminSession(getRequest()))) return { error: "Not authenticated" };
+    return deleteRateOverridesCore(data.propertyId, data.dates.map(String));
+  });
 
 export const toggleBlockedDateServerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => {
@@ -78,9 +86,10 @@ export const toggleBlockedDateServerFn = createServerFn({ method: "POST" })
       reason: typeof d.reason === "string" ? d.reason : null,
     };
   })
-  .handler(async ({ data }): Promise<{ error: string | null }> =>
-    toggleBlockedDateCore(data.propertyId, data.date, data.isBlocked, data.reason),
-  );
+  .handler(async ({ data }): Promise<{ error: string | null }> => {
+    if (!(await requireAdminSession(getRequest()))) return { error: "Not authenticated" };
+    return toggleBlockedDateCore(data.propertyId, data.date, data.isBlocked, data.reason);
+  });
 
 export const fetchBlockedDatesWithReasonServerFn = createServerFn({ method: "GET" })
   .validator((data: unknown) => ({

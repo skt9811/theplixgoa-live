@@ -45,16 +45,6 @@ export function PortalMenuTab({
     } catch {
       // native storage unavailable — the cookie clear above already ends the session
     }
-    // /admin/bookings' own PIN gate reads this same flag independently of the
-    // portal session — clear it too so signing out of the portal doesn't
-    // leave the admin bypass silently still active there.
-    if (role === "admin") {
-      try {
-        localStorage.removeItem("plix_admin_auth");
-      } catch {
-        // noop
-      }
-    }
     void navigate({ to: "/portal/login" });
   }
 

@@ -1,12 +1,13 @@
 // Server-only. POST /api/admin/bookings — the admin punch-in endpoint for
-// manual/offline/walk-in reservations. Re-validates the PIN server-side
-// against the same value the client-side /admin gate already uses
-// (VITE_ADMIN_PIN, fallback "1979") — today's other admin writes have no
-// server-side check at all, so this closes that gap without introducing a
-// new env var.
+// manual/offline/walk-in reservations. Gated on a real server-verified
+// admin session (see portal-session.server.ts's requireAdminSession), not
+// a PIN value passed in the request body — that PIN check used to compare
+// against VITE_ADMIN_PIN, which Vite inlines into the public client
+// bundle, so it was never actually a secret.
 import postgres from "postgres";
 import { differenceInCalendarDays } from "date-fns";
 import { notifyNewBooking } from "@/lib/push-notifications.server";
+import { requireAdminSession } from "@/lib/portal-session.server";
 import { PROPERTIES } from "@/lib/plix";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
@@ -32,6 +33,10 @@ const ALLOWED_PAYMENT_STATUSES = new Set(["paid", "partial", "pending"]);
 const ALLOWED_CHANNELS = new Set(["direct", "offline_phone", "airbnb", "booking_com", "walk_in"]);
 
 export async function handleAdminCreateBooking(request: Request): Promise<Response> {
+  if (!(await requireAdminSession(request))) {
+    return jsonResponse({ error: "Not authenticated" }, 401);
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -41,12 +46,6 @@ export async function handleAdminCreateBooking(request: Request): Promise<Respon
 
   const get = (key: string): string =>
     typeof (body as Record<string, unknown>)?.[key] === "string" ? ((body as Record<string, unknown>)[key] as string) : "";
-
-  const pin = get("pin");
-  const expectedPin = process.env["VITE_ADMIN_PIN"] ?? "1979";
-  if (pin !== expectedPin) {
-    return jsonResponse({ error: "Invalid PIN" }, 401);
-  }
 
   const propertySlug = get("propertySlug");
   const guestName = get("guestName").trim();

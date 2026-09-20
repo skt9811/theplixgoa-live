@@ -25,10 +25,10 @@ export type PortalOwnerMapping = {
 };
 
 // Master admin bypass: logging in with this phone + the site's admin PIN
-// (same VITE_ADMIN_PIN /admin already gates on — reused here rather than a
-// separate constant, so rotating one rotates both) grants role: "admin"
-// instead of a single-property owner session. Not a per-property row, so
-// it stays a code constant rather than moving into portal_owners.
+// (ADMIN_PIN, server-only env var — see portal-auth.server.ts) grants
+// role: "admin" instead of a single-property owner session. Not a
+// per-property row, so it stays a code constant rather than moving into
+// portal_owners.
 export const PORTAL_ADMIN_PHONE = "9009800809";
 
 /** Strips whitespace, +91 / 91 / 0 prefixes, and any non-digit characters, keeping the last 10 digits. */

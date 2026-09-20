@@ -7,8 +7,6 @@ import { formatINR, PROPERTIES, todayISO } from "@/lib/plix";
 import { PAYMENT_STATUS_OPTIONS, CHANNEL_OPTIONS } from "@/lib/booking-options";
 import { createBooking, type CreateBookingPayload } from "@/lib/create-booking-client";
 
-const ADMIN_PIN = (import.meta.env["VITE_ADMIN_PIN"] as string) || "1979";
-
 function formatDate(dateStr: string): string {
   const d = new Date(`${dateStr}T00:00:00`);
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -40,7 +38,7 @@ async function patchBooking(id: string, source: BookingRow["source"], body: Reco
     const res = await fetch(`/api/admin/bookings/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...body, source, pin: ADMIN_PIN }),
+      body: JSON.stringify({ ...body, source }),
     });
     const data = (await res.json()) as { success?: boolean; error?: string };
     if (!res.ok || !data.success) return data.error || "Could not save changes";
@@ -55,7 +53,7 @@ async function deleteBooking(id: string, source: BookingRow["source"]): Promise<
     const res = await fetch(`/api/admin/bookings/${id}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ source, pin: ADMIN_PIN }),
+      body: JSON.stringify({ source }),
     });
     const data = (await res.json()) as { success?: boolean; error?: string };
     if (!res.ok || !data.success) return data.error || "Could not cancel booking";

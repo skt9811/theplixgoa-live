@@ -2,7 +2,9 @@
 // server-side handler bundle, so the Neon connection string never reaches
 // the client bundle.
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import postgres from "postgres";
+import { requireAdminSession } from "@/lib/portal-session.server";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
 
@@ -57,6 +59,7 @@ export const saveLocationGridServerFn = createServerFn({ method: "POST" })
     return { id: typeof d.id === "string" ? d.id : undefined, location: d.location as LocationPayload };
   })
   .handler(async ({ data }): Promise<{ id: string | null; error: string | null }> => {
+    if (!(await requireAdminSession(getRequest()))) return { id: null, error: "Not authenticated" };
     const sql = getSql();
     if (!sql) return { id: null, error: "DATABASE_URL not configured on the server." };
     const p = data.location;
@@ -91,6 +94,7 @@ export const deleteLocationGridServerFn = createServerFn({ method: "POST" })
     return { id };
   })
   .handler(async ({ data }): Promise<{ error: string | null }> => {
+    if (!(await requireAdminSession(getRequest()))) return { error: "Not authenticated" };
     const sql = getSql();
     if (!sql) return { error: "DATABASE_URL not configured on the server." };
     try {

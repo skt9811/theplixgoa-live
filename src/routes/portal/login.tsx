@@ -119,17 +119,7 @@ function PortalLoginPage() {
         setPin("");
         return;
       }
-      if (data.role === "admin") {
-        // /admin and /admin/bookings gate on this same localStorage flag —
-        // setting it here means the admin bypass lands straight on the
-        // punch-in screen instead of being asked for the PIN a second time.
-        try {
-          localStorage.setItem("plix_admin_auth", "true");
-        } catch {
-          // localStorage unavailable — falls through to /admin/bookings's
-          // own PIN gate instead, which still works correctly.
-        }
-      } else if (data.role === "owner" && data.portal_token && data.propertySlug) {
+      if (data.role === "owner" && data.portal_token && data.propertySlug) {
         // Durable native storage — survives Android killing the WebView,
         // unlike the HttpOnly cookie also set by this same response. Not
         // awaited: savePortalSession writes to localStorage synchronously

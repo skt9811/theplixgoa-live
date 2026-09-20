@@ -3,10 +3,12 @@
 // tables (bookings = Razorpay online payments, portal_bookings = manual
 // punch-ins). `source` in the request body says which table `:id` lives in
 // — the client already knows this from the row's own source tag, so no
-// lookup-by-id-across-both-tables is needed here. Same PIN re-check
-// convention as handleAdminCreateBooking (admin-bookings-api.server.ts).
+// lookup-by-id-across-both-tables is needed here. Gated on a real
+// server-verified admin session, same as handleAdminCreateBooking
+// (admin-bookings-api.server.ts) — see that file's header comment.
 import postgres from "postgres";
 import { differenceInCalendarDays } from "date-fns";
+import { requireAdminSession } from "@/lib/portal-session.server";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
 
@@ -26,17 +28,15 @@ function jsonResponse(body: unknown, status: number): Response {
   });
 }
 
-function checkPin(body: Record<string, unknown>): boolean {
-  const pin = typeof body["pin"] === "string" ? body["pin"] : "";
-  const expectedPin = process.env["VITE_ADMIN_PIN"] ?? "1979";
-  return pin === expectedPin;
-}
-
 function isValidSource(value: unknown): value is "online" | "manual" {
   return value === "online" || value === "manual";
 }
 
 export async function handleAdminUpdateBooking(request: Request, id: string): Promise<Response> {
+  if (!(await requireAdminSession(request))) {
+    return jsonResponse({ error: "Not authenticated" }, 401);
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -44,8 +44,6 @@ export async function handleAdminUpdateBooking(request: Request, id: string): Pr
     return jsonResponse({ error: "Invalid request" }, 400);
   }
   const rawBody = body as Record<string, unknown>;
-
-  if (!checkPin(rawBody)) return jsonResponse({ error: "Invalid PIN" }, 401);
 
   const source = rawBody["source"];
   if (!isValidSource(source)) return jsonResponse({ error: "Invalid source" }, 400);
@@ -91,6 +89,10 @@ export async function handleAdminUpdateBooking(request: Request, id: string): Pr
 }
 
 export async function handleAdminDeleteBooking(request: Request, id: string): Promise<Response> {
+  if (!(await requireAdminSession(request))) {
+    return jsonResponse({ error: "Not authenticated" }, 401);
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -98,8 +100,6 @@ export async function handleAdminDeleteBooking(request: Request, id: string): Pr
     return jsonResponse({ error: "Invalid request" }, 400);
   }
   const rawBody = body as Record<string, unknown>;
-
-  if (!checkPin(rawBody)) return jsonResponse({ error: "Invalid PIN" }, 401);
 
   const source = rawBody["source"];
   if (!isValidSource(source)) return jsonResponse({ error: "Invalid source" }, 400);

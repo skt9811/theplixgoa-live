@@ -1,9 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { differenceInCalendarDays } from "date-fns";
 import { CalendarPlus, Loader as Loader2, Lock } from "lucide-react";
 import { PROPERTIES, formatINR, todayISO } from "@/lib/plix";
+
+// Same non-secret admin phone as routes/admin.tsx — see that file's
+// comment for why this is hardcoded here rather than imported from
+// portal-pins.server.ts.
+const ADMIN_PHONE = "9009800809";
 
 export const Route = createFileRoute("/admin_/bookings")({
   head: () => ({
@@ -23,32 +28,54 @@ const STATUS_OPTIONS = [
 ] as const;
 
 function AdminBookingsPage() {
-  const [authed, setAuthed] = useState(() => {
-    if (typeof localStorage === "undefined") return false;
-    try {
-      return localStorage.getItem("plix_admin_auth") === "true";
-    } catch {
-      return false;
-    }
-  });
+  const [checking, setChecking] = useState(true);
+  const [authed, setAuthed] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function checkPin(e: React.FormEvent) {
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/portal/me")
+      .then((res) => {
+        if (!cancelled) setAuthed(res.ok);
+      })
+      .catch(() => {
+        if (!cancelled) setAuthed(false);
+      })
+      .finally(() => {
+        if (!cancelled) setChecking(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function checkPin(e: React.FormEvent) {
     e.preventDefault();
-    if (!pinInput) return;
-    const validPin = import.meta.env["VITE_ADMIN_PIN"] || "1979";
-    if (pinInput === validPin) {
-      setAuthed(true);
-      setPinError("");
-      try {
-        localStorage.setItem("plix_admin_auth", "true");
-      } catch {
-        // localStorage unavailable
+    if (!pinInput || submitting) return;
+    setSubmitting(true);
+    setPinError("");
+    try {
+      const res = await fetch("/api/portal/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: ADMIN_PHONE, pin: pinInput }),
+      });
+      if (res.ok) {
+        setAuthed(true);
+      } else {
+        setPinError("Incorrect PIN");
       }
-    } else {
-      setPinError("Incorrect PIN");
+    } catch {
+      setPinError("Network error — please try again");
+    } finally {
+      setSubmitting(false);
     }
+  }
+
+  if (checking) {
+    return <div className="flex min-h-[100dvh] items-center justify-center bg-navy" />;
   }
 
   if (!authed) {
@@ -76,9 +103,10 @@ function AdminBookingsPage() {
             {pinError && <p className="text-center text-xs text-red-400">{pinError}</p>}
             <button
               type="submit"
-              className="w-full rounded-full bg-bronze px-6 py-3.5 text-sm font-semibold text-bronze-foreground shadow-lg transition-transform active:scale-95"
+              disabled={submitting}
+              className="w-full rounded-full bg-bronze px-6 py-3.5 text-sm font-semibold text-bronze-foreground shadow-lg transition-transform active:scale-95 disabled:opacity-60"
             >
-              Unlock
+              {submitting ? "Checking…" : "Unlock"}
             </button>
           </form>
           <div className="mt-4 text-center">
@@ -91,10 +119,10 @@ function AdminBookingsPage() {
     );
   }
 
-  return <PunchInForm pin={pinInput || (import.meta.env["VITE_ADMIN_PIN"] as string) || "1979"} />;
+  return <PunchInForm />;
 }
 
-function PunchInForm({ pin }: { pin: string }) {
+function PunchInForm() {
   const [propertySlug, setPropertySlug] = useState(PROPERTIES[0]!.slug);
   const [checkIn, setCheckIn] = useState(todayISO());
   const [checkOut, setCheckOut] = useState(todayISO(1));
@@ -136,7 +164,6 @@ function PunchInForm({ pin }: { pin: string }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pin,
           propertySlug,
           guestName: guestName.trim(),
           guestPhone: guestPhone.trim() || undefined,

@@ -2,10 +2,12 @@
 // — the admin web "Portal Access" tab's list + edit actions, replacing what
 // was previously only doable by hand against the database (see the phone/
 // PIN mappings this table already seeds — some placeholder numbers still
-// need swapping for real owner numbers, which this tab is for). Same PIN
-// re-check convention as every other admin write in this app
-// (VITE_ADMIN_PIN, fallback "1979").
+// need swapping for real owner numbers, which this tab is for). Gated on a
+// real server-verified admin session — this endpoint hands back every
+// property owner's phone + PIN in one response, so it especially can't be
+// left on a client-visible PIN check.
 import { findAllPortalOwners, updateOwnerCredentials, normalizePhone } from "@/lib/portal-pins.server";
+import { requireAdminSession } from "@/lib/portal-session.server";
 
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -14,23 +16,22 @@ function jsonResponse(body: unknown, status: number): Response {
   });
 }
 
-function checkPin(pin: string): boolean {
-  const expectedPin = process.env["VITE_ADMIN_PIN"] ?? "1979";
-  return pin === expectedPin;
-}
-
 const PIN_PATTERN = /^[0-9]{4}$/;
 
 export async function handleAdminListPortalOwners(request: Request): Promise<Response> {
-  const url = new URL(request.url);
-  const pin = url.searchParams.get("pin") ?? "";
-  if (!checkPin(pin)) return jsonResponse({ error: "Invalid PIN" }, 401);
+  if (!(await requireAdminSession(request))) {
+    return jsonResponse({ error: "Not authenticated" }, 401);
+  }
 
   const owners = await findAllPortalOwners();
   return jsonResponse({ owners }, 200);
 }
 
 export async function handleAdminUpdatePortalOwner(request: Request, propertySlug: string): Promise<Response> {
+  if (!(await requireAdminSession(request))) {
+    return jsonResponse({ error: "Not authenticated" }, 401);
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -38,9 +39,6 @@ export async function handleAdminUpdatePortalOwner(request: Request, propertySlu
     return jsonResponse({ error: "Invalid request" }, 400);
   }
   const rawBody = body as Record<string, unknown>;
-
-  const pin = typeof rawBody["pin"] === "string" ? rawBody["pin"] : "";
-  if (!checkPin(pin)) return jsonResponse({ error: "Invalid PIN" }, 401);
 
   const phone = normalizePhone(typeof rawBody["phone"] === "string" ? rawBody["phone"] : "");
   const newPin = typeof rawBody["newPin"] === "string" ? rawBody["newPin"] : "";

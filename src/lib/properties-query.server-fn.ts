@@ -6,7 +6,9 @@
 // `postgres` directly — all the actual DB logic lives in
 // properties-core.server.ts instead; see that file's header comment.
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { fetchActivePropertiesCore, savePropertyCore, type SavePropertyInput } from "@/lib/properties-core.server";
+import { requireAdminSession } from "@/lib/portal-session.server";
 
 export type { JsonValue, PropertyDbRow } from "@/lib/properties-core.server";
 
@@ -23,4 +25,7 @@ export const savePropertyServerFn = createServerFn({ method: "POST" })
     if (!isSavePropertyInput(data)) throw new Error("Invalid property payload");
     return data;
   })
-  .handler(async ({ data }): Promise<{ error: string | null }> => savePropertyCore(data));
+  .handler(async ({ data }): Promise<{ error: string | null }> => {
+    if (!(await requireAdminSession(getRequest()))) return { error: "Not authenticated" };
+    return savePropertyCore(data);
+  });

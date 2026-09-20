@@ -108,6 +108,18 @@ async function decodePortalPayload(token: string, salt: string): Promise<PortalS
   }
 }
 
+/**
+ * True only for a real, server-verified admin session — never trust a `pin`
+ * field in a request body again (that was the actual vulnerability: every
+ * admin write endpoint re-checked a PIN value that was itself exposed to
+ * the client via VITE_ADMIN_PIN, and one — savePropertyServerFn — didn't
+ * check anything at all). Every admin-only write now gates on this instead.
+ */
+export async function requireAdminSession(req: Request): Promise<boolean> {
+  const session = await getPortalSessionFromRequest(req);
+  return session?.role === "admin";
+}
+
 /** Reads and verifies the portal session from a raw Request — the cookie first, then an Authorization: Bearer token (the native app's durable fallback when cookies get wiped). */
 export async function getPortalSessionFromRequest(req: Request): Promise<PortalSession | null> {
   const cookieToken = readCookie(req, portalCookieName(isSecureRequest(req)));

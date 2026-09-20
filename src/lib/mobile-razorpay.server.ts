@@ -9,11 +9,8 @@
 // exactly one implementation of "create a Razorpay order" and "confirm a
 // paid booking" — this file just exposes them as plain REST, authenticated
 // by the mobile bearer JWT instead of a cookie.
-import {
-  createRazorpayOrderCore,
-  describeOrderInputShape,
-  isOrderInput,
-} from "@/lib/create-razorpay-order.server-fn";
+import { createRazorpayOrderCore } from "@/lib/razorpay-order-core.server";
+import { describeOrderInputShape, isOrderInput } from "@/lib/create-razorpay-order.server-fn";
 import { confirmBookingAndSendEmails } from "@/lib/booking-confirmation.server";
 import { verifyRazorpayCheckoutSignature } from "@/lib/razorpay-verify.server";
 import { getMobileSession } from "@/lib/mobile-auth.server";

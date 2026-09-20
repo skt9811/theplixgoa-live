@@ -1,7 +1,6 @@
 import { notifyDataChange } from "@/lib/rates";
-import { savePropertyServerFn } from "@/lib/properties-query.server-fn";
-import { fetchActivePropertiesCore } from "@/lib/properties-core.server";
-import { fetchRatesForDateCore } from "@/lib/rates-core.server";
+import { fetchActivePropertiesServerFn, savePropertyServerFn } from "@/lib/properties-query.server-fn";
+import { fetchRatesForDateServerFn } from "@/lib/rates-query.server-fn";
 import { PROPERTIES, imageMap, type Property } from "@/lib/plix";
 
 type PropertyOverride = {
@@ -133,6 +132,19 @@ function writeLocalOverrides(data: Record<string, PropertyOverride>): void {
  * @param targetDate "YYYY-MM-DD" to price against (e.g. the guest's selected
  * check-in date on /stays) — defaults to today server-side when omitted
  * (the homepage grid, which has no search state).
+ *
+ * Calls the createServerFn RPC wrappers (fetchActivePropertiesServerFn,
+ * fetchRatesForDateServerFn), not the raw Core functions directly — this
+ * function is called from genuinely client-side code (properties-manager.tsx,
+ * the admin dashboard's Properties tab) as well as from React Query loaders
+ * (plix-queries.ts, used by the homepage, /stays, and every property detail
+ * page), and a raw Core function pulls the `postgres` driver into the
+ * client bundle even via a dynamic import — TanStack Start's router eagerly
+ * preloads every chunk reachable from a route's component tree, dynamic
+ * import or not, so `postgres`'s use of `Buffer` (a Node global absent in
+ * browsers) threw on every page that reached this function, breaking
+ * hydration silently. See fetchPropertiesWithOverridesForSitemap below for
+ * why sitemap.server.ts can't use this same RPC-based path.
  */
 export async function fetchPropertiesWithOverrides(targetDate?: string): Promise<Property[]> {
   const overrides = readLocalOverrides();
@@ -143,7 +155,7 @@ export async function fetchPropertiesWithOverrides(targetDate?: string): Promise
   // static list, not just ones the DB fetch below happens to return. A
   // failure here shouldn't take down the whole properties list — just means
   // no card gets a discounted price this load.
-  const ratesMap = await fetchRatesForDateCore(targetDate ?? null).catch((err: unknown) => {
+  const ratesMap = await fetchRatesForDateServerFn({ data: { date: targetDate ?? null } }).catch((err: unknown) => {
     console.error("[fetchPropertiesWithOverrides] rate lookup failed:", err instanceof Error ? err.message : err);
     return {} as Record<string, number>;
   });
@@ -154,7 +166,7 @@ export async function fetchPropertiesWithOverrides(targetDate?: string): Promise
   }
 
   try {
-    const data = await fetchActivePropertiesCore();
+    const data = await fetchActivePropertiesServerFn();
 
     if (data && data.length > 0) {
       const dbMap: Record<string, PropertyOverride> = {};

@@ -3,7 +3,7 @@
 // would never pick up new ones added via the admin panel) with a real,
 // DB-backed generator — registered at GET /sitemap.xml in src/server.ts,
 // same raw-HTTP-route convention as /api/subscribe and /api/contact-enquiry.
-import { fetchPropertiesWithOverrides } from "@/lib/properties-data";
+import { fetchActivePropertiesForSitemap } from "@/lib/sitemap-properties.server";
 import { PROPERTIES, type Property } from "@/lib/plix";
 import { SITE_URL } from "@/lib/seo";
 
@@ -39,9 +39,9 @@ function buildSitemapXml(properties: Property[]): string {
 export async function handleSitemapRequest(): Promise<Response> {
   let properties: Property[];
   try {
-    properties = await fetchPropertiesWithOverrides();
+    properties = await fetchActivePropertiesForSitemap();
   } catch (err) {
-    console.error("[handleSitemapRequest] fetchPropertiesWithOverrides failed, falling back to static data:", err instanceof Error ? err.message : err);
+    console.error("[handleSitemapRequest] fetchActivePropertiesForSitemap failed, falling back to static data:", err instanceof Error ? err.message : err);
     properties = PROPERTIES;
   }
 

@@ -6,8 +6,7 @@
 import { PROPERTIES } from "@/lib/plix";
 import { computeNightlyRates, eachNight, isMultiRoomProperty, maxRoomsForProperty, quoteFromRates } from "@/lib/rates";
 import { fetchBlockedDatesCore, fetchRateOverridesCore } from "@/lib/rates-core.server";
-import { fetchOverlappingPaidBookingsCore } from "@/lib/inventory-query.server-fn";
-import { computeAvailableRooms } from "@/lib/inventory";
+import { fetchOverlappingPaidBookingsCore, computeAvailableRoomsCore } from "@/lib/inventory-core.server";
 import { mobileJson } from "@/lib/mobile-cors.server";
 
 // Shared by both handlers below — the exact same "which nights in this range
@@ -22,7 +21,7 @@ async function computeBlockedDatesInRange(propertyId: string, startDate: string,
 
   if (isMultiRoomProperty(propertyId)) {
     const capacity = maxRoomsForProperty(propertyId);
-    const nightly = await computeAvailableRooms(propertyId, startDate, endDate, capacity);
+    const nightly = await computeAvailableRoomsCore(propertyId, startDate, endDate, capacity);
     for (const [night, roomsLeft] of Object.entries(nightly)) {
       if (roomsLeft < 1) blocked.add(night);
     }

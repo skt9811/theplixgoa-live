@@ -1,6 +1,10 @@
-// Server-only. createServerFn splits this into a server-side handler bundle
-// — the Neon connection string and Razorpay secret key never reach the
-// client bundle. Ported from supabase/functions/create-razorpay-order.
+// createServerFn splits the `.handler(...)` body into a server-side handler
+// bundle — the Neon connection string and Razorpay secret key never reach
+// the client bundle. This file itself IS imported by booking.ts (client-safe,
+// used by checkout-modal.tsx/properties.$slug.tsx/admin.tsx/account.tsx/
+// booking-success.tsx), so it must never import `postgres` directly — the
+// actual order-creation/DB logic lives in razorpay-order-core.server.ts
+// instead; see that file's header comment.
 //
 // No demo/simulation fallback: missing Razorpay credentials, a failed
 // Razorpay API call, or a failed booking insert all throw — the client
@@ -8,48 +12,9 @@
 // instead of silently proceeding with a fake order that isn't backed by a
 // real payment or a real booking row.
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
-import postgres from "postgres";
-import { getSessionFromRequest } from "@/lib/session-cookie.server";
+import { createRazorpayOrderCore, getAuthenticatedUserId, type OrderInput, type CreateRazorpayOrderResult } from "@/lib/razorpay-order-core.server";
 
-let sqlClient: ReturnType<typeof postgres> | null = null;
-
-function getSql() {
-  const connectionString = process.env["DATABASE_URL"];
-  if (!connectionString) return null;
-  if (!sqlClient) {
-    sqlClient = postgres(connectionString, { ssl: "require" });
-  }
-  return sqlClient;
-}
-
-export type OrderInput = {
-  property_id: string;
-  property_name: string;
-  property_location: string;
-  guest_name: string;
-  guest_email: string;
-  guest_mobile: string;
-  check_in: string;
-  check_out: string;
-  guests: number;
-  nights: number;
-  /** How many rooms this stay reserves — 1 for a whole-villa property, the
-   * selected room count for a multi-room one. Defaults to 1 when omitted
-   * (every caller predating this field). */
-  rooms?: number;
-  subtotal: number;
-  taxes: number;
-  total_amount: number;
-};
-
-export type CreateRazorpayOrderResult = {
-  booking_id: string;
-  order_id: string;
-  amount: number;
-  currency: string;
-  key_id: string;
-};
+export type { OrderInput, CreateRazorpayOrderResult } from "@/lib/razorpay-order-core.server";
 
 export function isOrderInput(data: unknown): data is OrderInput {
   if (!data || typeof data !== "object") return false;
@@ -72,53 +37,6 @@ export function isOrderInput(data: unknown): data is OrderInput {
   );
 }
 
-// The Auth.js session cookie is the source of truth for who's booking, not
-// anything the client claims — a client-supplied "user id" field would be
-// trivially spoofable. Returns null for a signed-out guest, which is still a
-// valid checkout (user_id is nullable) — the client already gates on
-// guestUser before ever calling this, so a null here past that gate usually
-// means the client's cached auth state and the actual cookie have drifted;
-// safer to let the booking through un-linked than to hard-block payment.
-async function getAuthenticatedUserId(): Promise<number | null> {
-  try {
-    const req = getRequest();
-    const session = await getSessionFromRequest(req);
-    if (!session?.sub) return null;
-    const id = Number(session.sub);
-    return Number.isInteger(id) ? id : null;
-  } catch {
-    return null;
-  }
-}
-
-async function insertBooking(
-  input: OrderInput,
-  extra: { razorpay_order_id: string; host_email: string; user_id: number | null },
-): Promise<string> {
-  const sql = getSql();
-  if (!sql) throw new Error("DATABASE_URL not configured on the server.");
-  const rooms = input.rooms && input.rooms > 0 ? Math.round(input.rooms) : 1;
-  const rows = await sql<{ id: string }[]>`
-    INSERT INTO public.bookings (
-      property_id, property_name, property_location,
-      guest_name, guest_email, guest_mobile,
-      check_in, check_out, guests, nights, rooms,
-      subtotal, taxes, total_amount,
-      razorpay_order_id, payment_status, host_email, user_id
-    ) VALUES (
-      ${input.property_id}, ${input.property_name}, ${input.property_location},
-      ${input.guest_name}, ${input.guest_email}, ${input.guest_mobile},
-      ${input.check_in}, ${input.check_out}, ${input.guests}, ${input.nights}, ${rooms},
-      ${input.subtotal}, ${input.taxes}, ${input.total_amount},
-      ${extra.razorpay_order_id}, 'pending', ${extra.host_email}, ${extra.user_id}
-    )
-    RETURNING id
-  `;
-  const id = rows[0]?.id;
-  if (!id) throw new Error("Booking insert returned no row");
-  return id;
-}
-
 // Field-level diagnostic for a live checkout payload that fails the shape
 // check — the guest-facing checkout form can legitimately produce empty
 // strings (e.g. an optional field left blank) that still pass typeof checks,
@@ -138,65 +56,6 @@ export function describeOrderInputShape(data: unknown): string {
     ...numberFields.map((f) => `${f}=${typeof d[f] === "number" ? "ok" : JSON.stringify(d[f])}`),
   ];
   return parts.join(", ");
-}
-
-// The actual order-creation logic, decoupled from how the caller authenticated
-// the guest. createRazorpayOrderServerFn (below) is the website's entry point —
-// it derives userId from the Auth.js session cookie via getAuthenticatedUserId().
-// The mobile app has no cookie (separate origin, separate app); its entry point
-// (handleMobileCreateOrder, in mobile-razorpay.server.ts) derives userId from
-// its own bearer JWT instead and calls this same function, so both surfaces
-// share one Razorpay-order + booking-insert implementation rather than two
-// copies that could drift.
-export async function createRazorpayOrderCore(
-  data: OrderInput,
-  userId: number | null,
-): Promise<CreateRazorpayOrderResult> {
-  const razorpayKeyId = process.env["RAZORPAY_KEY_ID"] || process.env["VITE_RAZORPAY_KEY_ID"] || "";
-  const razorpayKeySecret = process.env["RAZORPAY_KEY_SECRET"] ?? "";
-  const hostEmail = process.env["PLIX_HOST_EMAIL"] ?? "reservations@theplixgoa.com";
-
-  if (!razorpayKeyId || !razorpayKeySecret) {
-    console.error("[createRazorpayOrderCore] Razorpay credentials not configured in Vercel");
-    throw new Error("Razorpay credentials not configured in Vercel");
-  }
-
-  const amountInPaise = Math.round(data.total_amount * 100);
-  const auth = Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString("base64");
-
-  const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Basic ${auth}`,
-    },
-    body: JSON.stringify({
-      amount: amountInPaise,
-      currency: "INR",
-      receipt: `plix_${Date.now()}`,
-      notes: { property_id: data.property_id, guest_email: data.guest_email },
-    }),
-  });
-  if (!rzpRes.ok) {
-    const errText = await rzpRes.text();
-    console.error("[createRazorpayOrderCore] Razorpay API error:", rzpRes.status, errText);
-    throw new Error("Unable to start payment. Please try again.");
-  }
-  const order = (await rzpRes.json()) as { id: string };
-
-  const bookingId = await insertBooking(data, {
-    razorpay_order_id: order.id,
-    host_email: hostEmail,
-    user_id: userId,
-  });
-
-  return {
-    booking_id: bookingId,
-    order_id: order.id,
-    amount: amountInPaise,
-    currency: "INR",
-    key_id: razorpayKeyId,
-  };
 }
 
 export const createRazorpayOrderServerFn = createServerFn({ method: "POST" })

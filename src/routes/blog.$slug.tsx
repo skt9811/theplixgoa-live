@@ -9,6 +9,7 @@ import {
   SITE_URL,
   SITE_NAME,
   canonicalUrl,
+  blogSeoTitle,
   blogPostingJsonLd,
   jsonLdScript,
 } from "@/lib/seo";
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/blog/$slug")({
     }
     const { post } = loaderData;
     const url = `${SITE_URL}/blog/${post.slug}`;
+    const seoTitle = blogSeoTitle(post.title);
     const schema = blogPostingJsonLd({
       title: post.title,
       excerpt: post.excerpt,
@@ -37,7 +39,7 @@ export const Route = createFileRoute("/blog/$slug")({
     });
     return {
       meta: [
-        { title: `${post.title} | The Plix Goa Blog` },
+        { title: seoTitle },
         { name: "description", content: post.excerpt },
         { name: "robots", content: "index, follow" },
         { property: "og:title", content: post.title },

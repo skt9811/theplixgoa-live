@@ -62,6 +62,20 @@ export function propertySeoTitle(p: Property): string {
   return basePropertyTitle(p);
 }
 
+// Same "no blind auto-append" rule as propertySeoTitle above, applied to
+// blog posts: unlike properties, posts don't have a separate hand-tuned
+// seo_title field — the post's own headline (already descriptive/complete
+// editorial copy) is all there is, and post titles run long by nature. A
+// suffix that always gets appended regardless of the base title's own
+// length pushed 32 of 33 live posts past Google's ~60-char SERP budget —
+// only add it when there's room left for it.
+const BLOG_TITLE_SUFFIX = " | The Plix Goa";
+const BLOG_TITLE_BUDGET = 60;
+export function blogSeoTitle(rawTitle: string): string {
+  const withSuffix = `${rawTitle}${BLOG_TITLE_SUFFIX}`;
+  return withSuffix.length <= BLOG_TITLE_BUDGET ? withSuffix : rawTitle;
+}
+
 function basePropertyDescription(p: Property): string {
   if (p.seo_description) return p.seo_description;
   const beds = p.bedrooms <= 6 ? `${p.bedrooms} BHK` : `${p.bedrooms} bedroom`;

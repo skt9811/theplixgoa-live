@@ -27,6 +27,10 @@ function isScheduled(publishedAt: string): boolean {
 
 export function MinimalBlogPublisher() {
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Preserves the ORIGINAL slug across an edit — see startEdit/publish
+  // below for why this can't just be re-derived from the (possibly
+  // edited) title on every save.
+  const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Nightlife");
   const [coverImage, setCoverImage] = useState("");
@@ -52,6 +56,7 @@ export function MinimalBlogPublisher() {
 
   function resetForm() {
     setEditingId(null);
+    setEditingSlug(null);
     setTitle("");
     setCategory("Nightlife");
     setCoverImage("");
@@ -63,6 +68,7 @@ export function MinimalBlogPublisher() {
 
   function startEdit(post: BlogPost) {
     setEditingId(post.id);
+    setEditingSlug(post.slug);
     setTitle(post.title);
     setCategory(post.category);
     setCoverImage(post.cover_image);
@@ -111,10 +117,17 @@ export function MinimalBlogPublisher() {
       ? new Date(publishDate).toISOString()
       : new Date().toISOString();
 
+    // A brand-new post's slug is derived from its title (the only sensible
+    // source). Editing an EXISTING post must keep its original slug no
+    // matter what the title changes to — this app has no redirect
+    // mechanism, so silently changing a live post's slug (and therefore
+    // its URL) on every title edit would 404 that post's existing
+    // canonical URL, any external links to it, and its sitemap entry the
+    // instant anyone fixed a typo in the title.
     const { error } = await saveBlogPost({
       id: editingId ?? undefined,
       title: title.trim(),
-      slug: slugify(title),
+      slug: editingSlug ?? slugify(title),
       category,
       cover_image: coverImage,
       excerpt,

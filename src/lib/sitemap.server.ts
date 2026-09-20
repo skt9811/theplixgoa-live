@@ -6,6 +6,7 @@
 import { fetchActivePropertiesForSitemap } from "@/lib/sitemap-properties.server";
 import { PROPERTIES, type Property } from "@/lib/plix";
 import { LOCATION_HUBS } from "@/lib/locations";
+import { fetchPublishedBlogSlugsForSitemap } from "@/lib/blogs-core.server";
 import { SITE_URL } from "@/lib/seo";
 
 type StaticPage = { path: string; changefreq: string; priority: string };
@@ -29,13 +30,14 @@ function urlEntry(loc: string, changefreq: string, priority: string): string {
   return `  <url>\n    <loc>${loc}</loc>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
 }
 
-function buildSitemapXml(properties: Property[]): string {
+function buildSitemapXml(properties: Property[], blogSlugs: string[]): string {
   const staticEntries = STATIC_PAGES.map((p) => urlEntry(`${SITE_URL}${p.path}`, p.changefreq, p.priority));
   const propertyEntries = properties.map((p) =>
     urlEntry(`${SITE_URL}/properties/${p.slug}`, "weekly", "0.8"),
   );
   const locationEntries = LOCATION_HUBS.map((l) => urlEntry(`${SITE_URL}/locations/${l.slug}`, "weekly", "0.8"));
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...staticEntries, ...locationEntries, ...propertyEntries].join("\n")}\n</urlset>`;
+  const blogEntries = blogSlugs.map((slug) => urlEntry(`${SITE_URL}/blog/${slug}`, "monthly", "0.6"));
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...staticEntries, ...locationEntries, ...propertyEntries, ...blogEntries].join("\n")}\n</urlset>`;
 }
 
 export async function handleSitemapRequest(): Promise<Response> {
@@ -47,7 +49,11 @@ export async function handleSitemapRequest(): Promise<Response> {
     properties = PROPERTIES;
   }
 
-  return new Response(buildSitemapXml(properties), {
+  // fetchPublishedBlogSlugsForSitemap() already resolves internally on DB
+  // failure (returns []) — it never rejects, so no extra try/catch needed.
+  const blogSlugs = (await fetchPublishedBlogSlugsForSitemap()).map((r) => r.slug);
+
+  return new Response(buildSitemapXml(properties, blogSlugs), {
     status: 200,
     headers: {
       "Content-Type": "application/xml; charset=utf-8",

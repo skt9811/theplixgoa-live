@@ -256,6 +256,31 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
   return schema;
 }
 
+export function blogPostingJsonLd(input: {
+  title: string;
+  excerpt: string;
+  coverImage: string;
+  author: string;
+  publishedAt: string;
+  url: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: input.title,
+    description: input.excerpt,
+    image: input.coverImage,
+    author: { "@type": "Organization", name: input.author },
+    datePublished: input.publishedAt,
+    mainEntityOfPage: input.url,
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      logo: { "@type": "ImageObject", url: `${SITE_URL}/Plix_Transparent_(1).png` },
+    },
+  };
+}
+
 export function collectionPageJsonLd(input: {
   name: string;
   description: string;

@@ -1,57 +1,86 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Calendar, Clock, Facebook, Hop as Home, Link2, Loader, Twitter } from "lucide-react";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { ArrowLeft, ArrowRight, Calendar, Clock, Facebook, Hop as Home, Link2, Twitter } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { blogQuery, blogsQuery, estimateReadingTime, formatDate } from "@/lib/blog";
 import {
   SITE_URL,
+  SITE_NAME,
   canonicalUrl,
+  blogPostingJsonLd,
+  jsonLdScript,
 } from "@/lib/seo";
 
 export const Route = createFileRoute("/blog/$slug")({
-  head: ({ params }) => ({
-    meta: [
-      { title: `${params.slug} — The Plix Goa Blog` },
-      { name: "robots", content: "index, follow" },
-    ],
-    links: [{ rel: "canonical", href: canonicalUrl(`/blog/${params.slug}`) }],
-  }),
   loader: async ({ params, context }) => {
-    await context.queryClient.prefetchQuery(blogQuery(params.slug));
+    const post = await context.queryClient.ensureQueryData(blogQuery(params.slug));
+    if (!post) throw notFound();
+    return { post };
   },
+  head: ({ loaderData }) => {
+    if (!loaderData) {
+      return {
+        meta: [{ title: "Article not found — The Plix Goa" }, { name: "robots", content: "noindex" }],
+      };
+    }
+    const { post } = loaderData;
+    const url = `${SITE_URL}/blog/${post.slug}`;
+    const schema = blogPostingJsonLd({
+      title: post.title,
+      excerpt: post.excerpt,
+      coverImage: post.cover_image,
+      author: post.author,
+      publishedAt: post.published_at,
+      url,
+    });
+    return {
+      meta: [
+        { title: `${post.title} | The Plix Goa Blog` },
+        { name: "description", content: post.excerpt },
+        { name: "robots", content: "index, follow" },
+        { property: "og:title", content: post.title },
+        { property: "og:description", content: post.excerpt },
+        { property: "og:image", content: post.cover_image },
+        { property: "og:type", content: "article" },
+        { property: "og:url", content: url },
+        { property: "og:site_name", content: SITE_NAME },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: post.title },
+        { name: "twitter:description", content: post.excerpt },
+        { name: "twitter:image", content: post.cover_image },
+      ],
+      links: [{ rel: "canonical", href: canonicalUrl(`/blog/${post.slug}`) }],
+      scripts: [{ type: "application/ld+json", id: "blog-post-jsonld", children: jsonLdScript(schema) }],
+    };
+  },
+  notFoundComponent: () => <BlogPostNotFound />,
   component: BlogPostPage,
 });
 
+function BlogPostNotFound() {
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+      <h1 className="text-2xl font-semibold text-navy">Article not found</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        This blog post may have been removed or moved.
+      </p>
+      <Link
+        to="/blog"
+        className="mt-6 inline-block rounded-full bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground"
+      >
+        Back to Blog
+      </Link>
+    </div>
+  );
+}
+
 function BlogPostPage() {
   const { slug } = Route.useParams();
-  const { data: post, isLoading } = useQuery(blogQuery(slug));
+  const { data: post } = useSuspenseQuery(blogQuery(slug));
   const { data: allBlogs = [] } = useQuery(blogsQuery);
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader className="size-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!post) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-24 text-center">
-        <h1 className="text-2xl font-semibold text-navy">Article not found</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          This blog post may have been removed or moved.
-        </p>
-        <Link
-          to="/blog"
-          className="mt-6 inline-block rounded-full bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground"
-        >
-          Back to Blog
-        </Link>
-      </div>
-    );
-  }
+  if (!post) return <BlogPostNotFound />;
 
   const related = allBlogs.filter((b) => b.id !== post.id).slice(0, 3);
   const shareUrl = `${SITE_URL}/blog/${post.slug}`;

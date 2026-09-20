@@ -11,6 +11,8 @@ import {
   SITE_NAME,
   canonicalUrl,
   collectionPageJsonLd,
+  breadcrumbJsonLd,
+  faqPageJsonLd,
   jsonLdScript,
 } from "@/lib/seo";
 
@@ -46,6 +48,22 @@ export const Route = createFileRoute("/locations/$slug")({
       url,
       items: localProperties.map((p) => ({ name: p.name, url: `${SITE_URL}/properties/${p.slug}` })),
     });
+    const breadcrumbs = breadcrumbJsonLd([
+      { name: "Home", url: "/" },
+      { name: "Stays", url: "/stays" },
+      { name: hub.name, url: `/locations/${hub.slug}` },
+    ]);
+    const hubFaqs = [
+      { q: `What's the best time to visit ${hub.name}?`, a: hub.bestMonths },
+      { q: `How many nights should I stay in ${hub.name}?`, a: hub.idealStay },
+      {
+        q: `What's near a Plix villa in ${hub.name}?`,
+        a:
+          hub.localHighlights.length > 0
+            ? `${hub.localHighlights.map((h) => `${h.name} (${h.distance})`).join(", ")}.`
+            : `Contact our concierge team for the closest attractions to your specific villa in ${hub.name}.`,
+      },
+    ];
     return {
       meta: [
         { title },
@@ -61,7 +79,11 @@ export const Route = createFileRoute("/locations/$slug")({
         { name: "twitter:description", content: description },
       ],
       links: [{ rel: "canonical", href: canonicalUrl(`/locations/${hub.slug}`) }],
-      scripts: [{ type: "application/ld+json", id: "location-collection-jsonld", children: jsonLdScript(schema) }],
+      scripts: [
+        { type: "application/ld+json", id: "location-collection-jsonld", children: jsonLdScript(schema) },
+        { type: "application/ld+json", id: "location-breadcrumb-jsonld", children: jsonLdScript(breadcrumbs) },
+        { type: "application/ld+json", id: "location-faq-jsonld", children: jsonLdScript(faqPageJsonLd(hubFaqs)) },
+      ],
     };
   },
   notFoundComponent: () => <LocationNotFound />,

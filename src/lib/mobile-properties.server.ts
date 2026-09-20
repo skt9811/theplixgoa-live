@@ -38,6 +38,24 @@ function ratingFor(propertyId: string): { rating: number; reviewCount: number } 
   return { rating: Math.round(avg * 10) / 10, reviewCount: matches.length };
 }
 
+export type MobileReview = {
+  id: string;
+  author: string;
+  city: string | null;
+  rating: number;
+  text: string;
+};
+
+function reviewsFor(propertyId: string): MobileReview[] {
+  return REVIEWS.filter((r) => r.property_id === propertyId).map((r) => ({
+    id: r.id,
+    author: r.guest_name,
+    city: r.guest_city,
+    rating: r.rating,
+    text: r.comment,
+  }));
+}
+
 export type MobileProperty = {
   id: string;
   name: string;
@@ -51,6 +69,7 @@ export type MobileProperty = {
   pricePerNight: number;
   rating: number;
   reviewCount: number;
+  reviews: MobileReview[];
   amenities: string[];
   description: string;
   collections: string[];
@@ -72,6 +91,7 @@ function mapProperty(p: SiteProperty): MobileProperty {
     pricePerNight: p.starting_price ?? p.base_price,
     rating,
     reviewCount,
+    reviews: reviewsFor(p.id),
     amenities: p.amenity_tags,
     description: p.description,
     collections: inferCollections(p),

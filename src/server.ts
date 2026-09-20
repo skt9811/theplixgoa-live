@@ -8,10 +8,11 @@ import { handleContactEnquiryRequest } from "./lib/contact-enquiry.server";
 import { handleSitemapRequest } from "./lib/sitemap.server";
 import { handleSendWelcomeEmail } from "./lib/send-welcome-email.server";
 import { handlePasswordSignIn, handlePasswordSignUp, handleLogout } from "./lib/auth-routes.server";
-import { handleMobileGoogleAuth } from "./lib/mobile-auth.server";
+import { handleMobileGoogleAuth, handleMobileEmailSignIn, handleMobileEmailSignUp } from "./lib/mobile-auth.server";
 import { handleMobileCreateOrder, handleMobileVerifyPayment } from "./lib/mobile-razorpay.server";
 import { handleMobileListProperties, handleMobileGetProperty } from "./lib/mobile-properties.server";
-import { handleMobileAvailability } from "./lib/mobile-availability.server";
+import { handleMobileAvailability, handleMobileAvailabilityRange } from "./lib/mobile-availability.server";
+import { handleMobileUserBookings } from "./lib/mobile-user-bookings.server";
 import { mobilePreflight, mobileJson } from "./lib/mobile-cors.server";
 import { handlePortalAuth, handlePortalLogout } from "./lib/portal-auth.server";
 import { handleGetPortalBookings } from "./lib/portal-bookings-api.server";
@@ -211,10 +212,20 @@ export default {
 
       try {
         if (url.pathname === "/api/mobile/auth/google") return await handleMobileGoogleAuth(request);
+        if (url.pathname === "/api/mobile/auth/login") return await handleMobileEmailSignIn(request);
+        if (url.pathname === "/api/mobile/auth/signup") return await handleMobileEmailSignUp(request);
+        if (url.pathname === "/api/mobile/user/bookings") return await handleMobileUserBookings(request);
         if (url.pathname === "/api/mobile/create-order") return await handleMobileCreateOrder(request);
         if (url.pathname === "/api/mobile/verify-payment") return await handleMobileVerifyPayment(request);
         if (url.pathname === "/api/mobile/availability") return await handleMobileAvailability(request);
         if (url.pathname === "/api/mobile/properties") return await handleMobileListProperties(request);
+        // Checked before the generic /api/mobile/properties/<slug> handler
+        // below, whose prefix match would otherwise swallow this as a slug
+        // literally named "<slug>/availability".
+        if (url.pathname.startsWith("/api/mobile/properties/") && url.pathname.endsWith("/availability")) {
+          const slug = url.pathname.slice("/api/mobile/properties/".length, -"/availability".length);
+          return await handleMobileAvailabilityRange(request, slug);
+        }
         if (url.pathname.startsWith("/api/mobile/properties/")) {
           const slug = url.pathname.slice("/api/mobile/properties/".length);
           return await handleMobileGetProperty(request, slug);

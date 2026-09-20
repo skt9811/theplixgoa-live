@@ -17,7 +17,7 @@
 // of the session cookie, since cookies aren't a usable primitive here.
 import { jwtVerify, SignJWT } from "jose";
 import { getAuthPool } from "@/lib/auth.server";
-import { findUserByEmail } from "@/lib/password-auth.server";
+import { createUserWithPassword, findUserByEmail, verifyPassword } from "@/lib/password-auth.server";
 import { mobileJson } from "@/lib/mobile-cors.server";
 
 const MOBILE_SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days, matches the website's cookie session
@@ -152,5 +152,78 @@ export async function handleMobileGoogleAuth(req: Request): Promise<Response> {
   }
 
   const token = await signMobileToken(user);
+  return mobileJson(req, { success: true, token, user: { id: user.id, email: user.email, name: user.name } }, 200);
+}
+
+const MIN_PASSWORD_LENGTH = 6; // matches auth-routes.server.ts's password-signup policy exactly
+
+// Same `users` table, same scrypt hash/verify (password-auth.server.ts) the
+// website's own /api/auth/password-signin and /api/auth/password-signup
+// routes use — this is genuinely the same account, not a mobile-only copy.
+// The one real difference: those routes mint an HttpOnly session cookie
+// (buildSessionCookie) since the website is same-origin with its own API;
+// this mints the bearer JWT every other /api/mobile/* route already expects
+// (signMobileToken), since a cookie set for theplixgoa.com is never sent by
+// a request from this app's own separate origin — same reasoning
+// handleMobileGoogleAuth above already documents for Google sign-in.
+export async function handleMobileEmailSignIn(req: Request): Promise<Response> {
+  if (req.method !== "POST") return mobileJson(req, { success: false, error: "Method not allowed" }, 405);
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return mobileJson(req, { success: false, error: "Invalid JSON body" }, 400);
+  }
+  const email = typeof (body as { email?: unknown })?.email === "string" ? (body as { email: string }).email.trim().toLowerCase() : "";
+  const password = typeof (body as { password?: unknown })?.password === "string" ? (body as { password: string }).password : "";
+  if (!email || !password) return mobileJson(req, { success: false, error: "Email and password are required." }, 400);
+
+  const user = await findUserByEmail(email).catch(() => null);
+  if (!user || !user.password_hash) {
+    return mobileJson(req, { success: false, error: "Sign-in failed. Please try again." }, 401);
+  }
+
+  const valid = await verifyPassword(password, user.password_hash);
+  if (!valid) return mobileJson(req, { success: false, error: "Sign-in failed. Please try again." }, 401);
+
+  const token = await signMobileToken({ id: user.id, name: user.name, email: user.email });
+  return mobileJson(req, { success: true, token, user: { id: user.id, email: user.email, name: user.name } }, 200);
+}
+
+export async function handleMobileEmailSignUp(req: Request): Promise<Response> {
+  if (req.method !== "POST") return mobileJson(req, { success: false, error: "Method not allowed" }, 405);
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return mobileJson(req, { success: false, error: "Invalid JSON body" }, 400);
+  }
+  const email = typeof (body as { email?: unknown })?.email === "string" ? (body as { email: string }).email.trim().toLowerCase() : "";
+  const password = typeof (body as { password?: unknown })?.password === "string" ? (body as { password: string }).password : "";
+  // "Name" only — the website's `users` table (and its own signup form) has
+  // no phone column at all; phone is collected per-booking at checkout
+  // instead (bookings.guest_mobile), not stored on the account. Collecting
+  // it here would create a field this same table can't actually persist.
+  const name = typeof (body as { name?: unknown })?.name === "string" ? (body as { name: string }).name.trim() : "";
+
+  if (!email || !password) return mobileJson(req, { success: false, error: "Email and password are required." }, 400);
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return mobileJson(req, { success: false, error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` }, 400);
+  }
+
+  const existing = await findUserByEmail(email).catch(() => null);
+  if (existing) return mobileJson(req, { success: false, error: "An account with this email already exists." }, 409);
+
+  let user;
+  try {
+    user = await createUserWithPassword(email, password, name);
+  } catch (err) {
+    console.error("[handleMobileEmailSignUp] insert failed:", err instanceof Error ? err.message : err);
+    return mobileJson(req, { success: false, error: "Sign-up failed. Please try again." }, 500);
+  }
+
+  const token = await signMobileToken({ id: user.id, name: user.name, email: user.email });
   return mobileJson(req, { success: true, token, user: { id: user.id, email: user.email, name: user.name } }, 200);
 }

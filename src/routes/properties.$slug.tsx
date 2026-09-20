@@ -17,6 +17,8 @@ import { PropertyExploreMore } from "@/components/plix/property-explore-more";
 import { PropertyReviewsSection } from "@/components/plix/property-reviews-section";
 import { PROPERTY_REVIEWS } from "@/lib/property-reviews-data";
 import { PropertyHeroGallery } from "@/components/plix/property-hero-gallery";
+import { PropertyKeyFacts } from "@/components/plix/property-key-facts";
+import { locationSlug } from "@/lib/locations";
 import { PropertySubNav, SUB_NAV_HEIGHT } from "@/components/plix/property-sub-nav";
 import { PropertyQuickFacts } from "@/components/plix/property-quick-facts";
 import { PropertyRefundTimeline } from "@/components/plix/property-refund-timeline";
@@ -57,8 +59,10 @@ import {
   propertyOgImage,
   vacationRentalJsonLd,
   breadcrumbJsonLd,
+  faqPageJsonLd,
   jsonLdScript,
 } from "@/lib/seo";
+import { buildPropertyFaqs } from "@/lib/property-faqs";
 
 type PropertySearch = {
   checkIn?: string | undefined;
@@ -110,12 +114,16 @@ export const Route = createFileRoute("/properties/$slug")({
       : `Book ${loaderData.name} in ${loaderData.location}, Goa direct with The Plix Goa. Best price guaranteed, zero commission.`;
     const slug = p?.slug ?? loaderData.slug ?? "";
     const ogImage = p ? propertyOgImage(p) : `${SITE_URL}/og-home.jpg`;
-    // Two standalone JSON-LD blocks, each in its own <script> — not @graph-
-    // combined. __root.tsx only renders WebSite globally; the full brand
-    // schema renders on the homepage only (index.tsx) — this page's
+    // Three standalone JSON-LD blocks, each in its own <script> — not
+    // @graph-combined. __root.tsx only renders WebSite globally; the full
+    // brand schema renders on the homepage only (index.tsx) — this page's
     // property entity references it back with a plain `brand` string (see
-    // vacationRentalJsonLd) rather than duplicating it. Three scripts total
-    // per property page: this one's two + root's WebSite one.
+    // vacationRentalJsonLd) rather than duplicating it. Four scripts total
+    // per property page: this one's three + root's WebSite one. The FAQ
+    // schema's questions/answers come from buildPropertyFaqs — the exact
+    // same source the rendered accordion further down the page reads from,
+    // so the structured data can never claim something the visible page
+    // doesn't actually say.
     const scripts = p
       ? [
           {
@@ -133,6 +141,11 @@ export const Route = createFileRoute("/properties/$slug")({
                 { name: p.name, url: `/properties/${p.slug}` },
               ]),
             ),
+          },
+          {
+            type: "application/ld+json",
+            id: "property-faq-jsonld",
+            children: jsonLdScript(faqPageJsonLd(buildPropertyFaqs(p))),
           },
         ]
       : [];
@@ -240,7 +253,6 @@ function PropertyDetail() {
   // most of it.
   const hasRestaurant = property?.amenity_tags.some((t) => t.toLowerCase().includes("restaurant")) ?? false;
   const hasBreakfast = property?.amenity_tags.some((t) => t.toLowerCase().includes("breakfast")) ?? false;
-  const isPetFriendly = property?.amenity_tags.some((t) => t.toLowerCase().includes("pet")) ?? false;
   const roomsLabel = isMultiRoom ? "Rooms" : "Bedrooms";
   const roomsCount = property ? (isMultiRoom ? property.total_inventory : property.bedrooms) : 0;
 
@@ -356,8 +368,11 @@ function PropertyDetail() {
         <h1 className="text-3xl font-semibold text-navy md:text-4xl">{property.name}</h1>
         <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <MapPin className="size-4 text-primary" aria-hidden /> {property.location},{" "}
-            {property.region}
+            <MapPin className="size-4 text-primary" aria-hidden />
+            <Link to="/locations/$slug" params={{ slug: locationSlug(property.location) }} className="hover:text-primary hover:underline">
+              {property.location}
+            </Link>
+            , {property.region}
           </span>
           {property.distance_to_beach && (
             <span className="flex items-center gap-1.5">
@@ -367,6 +382,13 @@ function PropertyDetail() {
           )}
         </p>
       </header>
+
+      <PropertyKeyFacts
+        property={property}
+        isMultiRoom={isMultiRoom}
+        roomsLabel={roomsLabel}
+        roomsCount={roomsCount}
+      />
 
       <PropertyHeroGallery
         images={images}
@@ -514,7 +536,7 @@ function PropertyDetail() {
             </ul>
           </section>
 
-          <PropertyFaq propertyName={property.name} isPetFriendly={isPetFriendly} />
+          <PropertyFaq faqs={buildPropertyFaqs(property)} />
         </div>
 
         <aside

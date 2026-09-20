@@ -256,6 +256,30 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
   return schema;
 }
 
+export function collectionPageJsonLd(input: {
+  name: string;
+  description: string;
+  url: string;
+  items: { name: string; url: string }[];
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: input.name,
+    description: input.description,
+    url: input.url,
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: input.items.map((item, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: item.name,
+        url: item.url,
+      })),
+    },
+  };
+}
+
 export function faqPageJsonLd(faqs: { q: string; a: string }[]) {
   return {
     "@context": "https://schema.org",

@@ -1,0 +1,204 @@
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { CalendarDays, MapPin, MoonStar } from "lucide-react";
+import { PropertyCard } from "@/components/plix/property-card";
+import { propertiesQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
+import { findLocationHub, propertiesInLocation, LOCATION_HUBS } from "@/lib/locations";
+import { resolveImages } from "@/lib/plix";
+import { SmartImage } from "@/components/plix/smart-image";
+import {
+  SITE_URL,
+  SITE_NAME,
+  canonicalUrl,
+  collectionPageJsonLd,
+  jsonLdScript,
+} from "@/lib/seo";
+
+export const Route = createFileRoute("/locations/$slug")({
+  loader: async ({ context, params }) => {
+    const hub = findLocationHub(params.slug);
+    if (!hub) throw notFound();
+    const properties = await context.queryClient.ensureQueryData(propertiesQuery());
+    const localProperties = propertiesInLocation(properties, hub.name);
+    return {
+      hub,
+      // Lightweight — just enough for the ItemList schema in head(). The
+      // component re-reads the full property list itself from the same
+      // query (already cached by the loader's ensureQueryData call, so
+      // this isn't a second network round trip).
+      localProperties: localProperties.map((p) => ({ name: p.name, slug: p.slug })),
+    };
+  },
+  head: ({ loaderData }) => {
+    if (!loaderData) {
+      return {
+        meta: [{ title: "Destination not found — The Plix Goa" }, { name: "robots", content: "noindex" }],
+      };
+    }
+    const { hub, localProperties } = loaderData;
+    const propertyCount = localProperties.length;
+    const title = `Luxury Villas & Boutique Stays in ${hub.name}, North Goa | The Plix`;
+    const description = `${propertyCount} handpicked private-pool villas and boutique stays in ${hub.name}, North Goa. Best price guaranteed, book direct with The Plix.`;
+    const url = `${SITE_URL}/locations/${hub.slug}`;
+    const schema = collectionPageJsonLd({
+      name: title,
+      description,
+      url,
+      items: localProperties.map((p) => ({ name: p.name, url: `${SITE_URL}/properties/${p.slug}` })),
+    });
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { name: "robots", content: "index, follow, max-image-preview:large" },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:type", content: "website" },
+        { property: "og:url", content: url },
+        { property: "og:site_name", content: SITE_NAME },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: title },
+        { name: "twitter:description", content: description },
+      ],
+      links: [{ rel: "canonical", href: canonicalUrl(`/locations/${hub.slug}`) }],
+      scripts: [{ type: "application/ld+json", id: "location-collection-jsonld", children: jsonLdScript(schema) }],
+    };
+  },
+  notFoundComponent: () => <LocationNotFound />,
+  component: LocationHubPage,
+});
+
+function LocationNotFound() {
+  return (
+    <div className="mx-auto max-w-xl px-4 py-24 text-center">
+      <h1 className="text-2xl font-semibold text-navy">We couldn't find that destination</h1>
+      <Link to="/stays" className="mt-6 inline-block rounded-full bg-gradient-emerald px-6 py-3 text-sm font-semibold text-primary-foreground">
+        Browse all stays
+      </Link>
+    </div>
+  );
+}
+
+function LocationHubPage() {
+  const { slug } = Route.useParams();
+  const hub = findLocationHub(slug);
+  const { data: properties } = useSuspenseQuery(propertiesQuery());
+  usePropertiesLiveRefresh();
+
+  if (!hub) return <LocationNotFound />;
+
+  const localProperties = propertiesInLocation(properties, hub.name);
+  const heroImage = localProperties[0] ? resolveImages(localProperties[0].image_keys)[0] : undefined;
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-8 pb-24 md:px-6 md:pb-12">
+      <nav className="text-sm text-muted-foreground">
+        <Link to="/stays" className="hover:text-primary">
+          Stays
+        </Link>
+        <span className="px-2">/</span>
+        <span className="text-foreground">{hub.name}</span>
+      </nav>
+
+      {/* Hero & Overview */}
+      <header className="mt-4 overflow-hidden rounded-3xl border border-border bg-navy shadow-card">
+        <div className="relative aspect-[16/9] sm:aspect-[21/9]">
+          {heroImage && (
+            <SmartImage
+              src={heroImage}
+              alt={`A Plix property in ${hub.name}, North Goa`}
+              loading="eager"
+              width={1600}
+              height={700}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/40 to-navy/10" />
+          <div className="absolute inset-x-0 bottom-0 p-6 sm:p-10">
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+              <MapPin className="size-3.5" aria-hidden /> North Goa
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold text-navy-foreground sm:text-4xl">
+              Luxury Villas &amp; Boutique Stays in {hub.name}
+            </h1>
+          </div>
+        </div>
+        <p className="p-6 leading-relaxed text-navy-foreground/90 sm:p-10 sm:pt-6">{hub.overview}</p>
+      </header>
+
+      {/* High-density local facts block */}
+      <section aria-labelledby="local-facts-heading" className="mt-8 rounded-2xl border border-border bg-card p-5 shadow-soft sm:p-6">
+        <h2 id="local-facts-heading" className="text-xs font-semibold uppercase tracking-wider text-primary">
+          {hub.name} at a Glance
+        </h2>
+        <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+          {hub.localHighlights.length > 0 && (
+            <div className="sm:col-span-2">
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Nearby</dt>
+              <dd className="mt-1.5 flex flex-wrap gap-2">
+                {hub.localHighlights.map((h) => (
+                  <span
+                    key={h.name}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground"
+                  >
+                    {h.name} · {h.distance}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          )}
+          <div>
+            <dt className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <CalendarDays className="size-3.5 text-primary" aria-hidden /> Best Travel Months
+            </dt>
+            <dd className="mt-0.5 text-sm text-foreground">{hub.bestMonths}</dd>
+          </div>
+          <div>
+            <dt className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <MoonStar className="size-3.5 text-primary" aria-hidden /> Ideal Stay Duration
+            </dt>
+            <dd className="mt-0.5 text-sm text-foreground">{hub.idealStay}</dd>
+          </div>
+        </dl>
+      </section>
+
+      {/* Active property grid */}
+      <section className="mt-10">
+        <h2 className="text-2xl font-semibold text-navy">
+          {localProperties.length} {localProperties.length === 1 ? "stay" : "stays"} in {hub.name}
+        </h2>
+        {localProperties.length === 0 ? (
+          <div className="mt-6 rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">
+            No live properties in {hub.name} right now — explore the full collection instead.
+            <Link to="/stays" className="mt-3 block font-medium text-primary hover:underline">
+              Browse all stays
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {localProperties.map((p) => (
+              <PropertyCard key={p.id} property={p} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Other destinations */}
+      <section className="mt-16">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">Explore other destinations</h2>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {LOCATION_HUBS.filter((l) => l.slug !== hub.slug).map((l) => (
+            <Link
+              key={l.slug}
+              to="/locations/$slug"
+              params={{ slug: l.slug }}
+              className="rounded-full border border-border bg-card px-4 py-2 text-sm text-foreground/80 transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              {l.name}
+            </Link>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}

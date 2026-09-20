@@ -1,0 +1,20 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "LodgingBusiness",
+      "@id": "https://theplixgoa.com/#business",
+      "name": "Plix Hospitality Private Limited",
+      "alternateName": "The Plix",
+      "url": "https://theplixgoa.com",
+      "logo": "https://theplixgoa.com/Plix_Transparent_(1).png",
+      "areaServed": ["Vagator", "Anjuna", "Assagao", "Morjim", "Candolim"],
+      "priceRange": "₹4500 - ₹22000",
+      "knowsAbout": [
+        "Luxury private pool villas North Goa",
+        "Boutique resorts near Vagator and Morjim",
+        "Direct villa bookings without OTA commission"
+      ]
+    }
+  ]
+}

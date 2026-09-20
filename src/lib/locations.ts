@@ -93,3 +93,18 @@ export function locationSlug(locationName: string): string {
 export function propertiesInLocation(properties: Property[], locationName: string): Property[] {
   return properties.filter((p) => p.location === locationName);
 }
+
+type LocationTaggable = { title: string; excerpt: string };
+
+// Title + excerpt only, not the full post body — a location name mentioned
+// once in passing deep in an article's content (e.g. "20 mins from Chapora
+// Fort" in an otherwise-unrelated post) isn't a real topical match; a
+// location named in the title or excerpt is.
+export function postMentionsLocation(post: LocationTaggable, locationName: string): boolean {
+  const needle = locationName.toLowerCase();
+  return post.title.toLowerCase().includes(needle) || post.excerpt.toLowerCase().includes(needle);
+}
+
+export function matchLocationForPost(post: LocationTaggable): LocationHub | undefined {
+  return LOCATION_HUBS.find((hub) => postMentionsLocation(post, hub.name));
+}

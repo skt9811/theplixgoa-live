@@ -1,9 +1,10 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Calendar, Clock, Facebook, Hop as Home, Link2, Twitter } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calendar, Clock, Facebook, Hop as Home, Link2, MapPin, Twitter } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { blogQuery, blogsQuery, estimateReadingTime, formatDate } from "@/lib/blog";
+import { matchLocationForPost } from "@/lib/locations";
 import {
   SITE_URL,
   SITE_NAME,
@@ -83,6 +84,7 @@ function BlogPostPage() {
   if (!post) return <BlogPostNotFound />;
 
   const related = allBlogs.filter((b) => b.id !== post.id).slice(0, 3);
+  const matchedHub = matchLocationForPost({ title: post.title, excerpt: post.excerpt });
   const shareUrl = `${SITE_URL}/blog/${post.slug}`;
 
   return (
@@ -149,6 +151,17 @@ function BlogPostPage() {
           className="prose-blog"
           dangerouslySetInnerHTML={{ __html: post.content }}
         />
+
+        {matchedHub && (
+          <Link
+            to="/locations/$slug"
+            params={{ slug: matchedHub.slug }}
+            className="mt-8 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-accent"
+          >
+            <MapPin className="size-3.5" aria-hidden />
+            Explore Stays in {matchedHub.name}
+          </Link>
+        )}
 
         <div className="mt-10 rounded-2xl border border-border bg-gradient-to-br from-navy to-[#1a2a1a] p-8 text-center text-navy-foreground">
           <h3 className="font-serif text-xl font-normal md:text-2xl">

@@ -1,10 +1,11 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { CalendarDays, MapPin, MoonStar } from "lucide-react";
+import { CalendarDays, MapPin, MoonStar, BookOpen } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
 import { propertiesQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
-import { findLocationHub, propertiesInLocation, LOCATION_HUBS } from "@/lib/locations";
+import { findLocationHub, propertiesInLocation, postMentionsLocation, LOCATION_HUBS } from "@/lib/locations";
 import { resolveImages } from "@/lib/plix";
+import { blogsQuery } from "@/lib/blog";
 import { SmartImage } from "@/components/plix/smart-image";
 import {
   SITE_URL,
@@ -21,6 +22,12 @@ export const Route = createFileRoute("/locations/$slug")({
     const hub = findLocationHub(params.slug);
     if (!hub) throw notFound();
     const properties = await context.queryClient.ensureQueryData(propertiesQuery());
+    // Prefetched here (not just consumed in the component) so the "Travel
+    // Guides & Local Insights" cross-links are present in the initial SSR
+    // HTML, not only after client hydration — the whole point of cross-
+    // linking blog content from the hub is to be crawlable, not just
+    // clickable.
+    await context.queryClient.ensureQueryData(blogsQuery);
     const localProperties = propertiesInLocation(properties, hub.name);
     return {
       hub,
@@ -105,12 +112,14 @@ function LocationHubPage() {
   const { slug } = Route.useParams();
   const hub = findLocationHub(slug);
   const { data: properties } = useSuspenseQuery(propertiesQuery());
+  const { data: blogPosts } = useSuspenseQuery(blogsQuery);
   usePropertiesLiveRefresh();
 
   if (!hub) return <LocationNotFound />;
 
   const localProperties = propertiesInLocation(properties, hub.name);
   const heroImage = localProperties[0] ? resolveImages(localProperties[0].image_keys)[0] : undefined;
+  const relatedPosts = blogPosts.filter((post) => postMentionsLocation(post, hub.name)).slice(0, 3);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 pb-24 md:px-6 md:pb-12">
@@ -204,6 +213,48 @@ function LocationHubPage() {
           </div>
         )}
       </section>
+
+      {/* Travel guides & local insights — cross-links real blog posts already
+          about this neighborhood, matched by title/excerpt (see
+          postMentionsLocation in lib/locations.ts). */}
+      {relatedPosts.length > 0 && (
+        <section className="mt-10">
+          <h2 className="flex items-center gap-2 text-2xl font-semibold text-navy">
+            <BookOpen className="size-5 text-primary" aria-hidden />
+            Travel Guides &amp; Local Insights
+          </h2>
+          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {relatedPosts.map((post) => (
+              <Link
+                key={post.id}
+                to="/blog/$slug"
+                params={{ slug: post.slug }}
+                className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-card"
+              >
+                <div className="relative aspect-[16/10] overflow-hidden">
+                  {post.cover_image ? (
+                    <img
+                      src={post.cover_image}
+                      alt={post.title}
+                      loading="lazy"
+                      className="size-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex size-full items-center justify-center bg-accent" />
+                  )}
+                  <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-navy">
+                    {post.category}
+                  </span>
+                </div>
+                <div className="flex flex-1 flex-col p-5">
+                  <h3 className="font-serif text-lg font-normal leading-snug text-navy">{post.title}</h3>
+                  <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{post.excerpt}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Other destinations */}
       <section className="mt-16">

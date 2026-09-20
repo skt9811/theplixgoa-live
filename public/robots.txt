@@ -11,9 +11,15 @@ Allow: /
 
 User-agent: GPTBot
 Allow: /
+Allow: /entities.json
+Allow: /ai-faq.md
+Allow: /llms.txt
 
 User-agent: PerplexityBot
 Allow: /
+Allow: /entities.json
+Allow: /ai-faq.md
+Allow: /llms.txt
 
 User-agent: ClaudeBot
 Allow: /

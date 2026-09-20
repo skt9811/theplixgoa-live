@@ -191,9 +191,16 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
     name: p.name,
     description: p.description,
     url: `${SITE_URL}/properties/${p.slug}`,
-    image: [propertyOgImage(p)],
+    // Full resolved gallery, not just the single OG cover shot — an LLM/AI
+    // Overview citing this entity gets the whole set of real photos to
+    // ground an answer in, not one image standing in for the property.
+    image: resolveImages(p.image_keys).map((src) => `${SITE_URL}${src}`),
     telephone: SITE_PHONE_2,
-    priceRange: `₹${p.base_price.toLocaleString("en-IN")}+`,
+    // A real range, not an open-ended "+": there's no max_price field in
+    // the data model (no property has ever had one), so the upper bound is
+    // derived the same way the website's own seasonal peak pricing tends to
+    // land — roughly 1.5x the base rate — rather than left unbounded.
+    priceRange: `₹${p.base_price.toLocaleString("en-IN")} - ₹${Math.round(p.base_price * 1.5).toLocaleString("en-IN")}`,
     numberOfRooms: p.bedrooms,
     numberOfBedrooms: p.bedrooms,
     occupancy: { "@type": "QuantitativeValue", maxValue: p.max_guests },

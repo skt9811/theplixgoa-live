@@ -66,36 +66,45 @@ export const fetchRatesForDateServerFn = createServerFn({ method: "GET" })
   })
   .handler(async ({ data }): Promise<Record<string, number>> => fetchRatesForDateCore(data.date));
 
+// Plain query, decoupled from createServerFn's isomorphic RPC wrapping —
+// the partner portal's REST API (portal-rates-api.server.ts) calls this
+// directly, same reasoning as fetchBlockedDatesCore below.
+export async function fetchRateOverridesCore(
+  propertyId: string,
+  startDate: string,
+  endDate: string,
+): Promise<Record<string, number>> {
+  const sql = getSql();
+  if (!sql) return {};
+  try {
+    // date::text, not the bare column: postgres.js parses a `date` column
+    // into a JS Date object by default, not a "YYYY-MM-DD" string — using
+    // that as an object key here (`map[row.date]`) previously produced
+    // Date.toString() output ("Wed Aug 19 2026...") as the key, which
+    // never matched the "YYYY-MM-DD" strings every caller looks dates up
+    // by (rates.ts's computeNightlyRates, checkout-modal.tsx, etc.) — so
+    // every rate override silently missed and fell back to the base
+    // price. Casting to text in SQL sidesteps the parser entirely.
+    const rows = await sql<{ date: string; rate: string | number }[]>`
+      SELECT date::text AS date, rate FROM public.property_rates
+      WHERE property_id = ${propertyId} AND date::date BETWEEN ${startDate}::date AND ${endDate}::date
+    `;
+    const map: Record<string, number> = {};
+    for (const row of rows) map[row.date] = Number(row.rate);
+    return map;
+  } catch (err) {
+    console.error("[fetchRateOverridesCore]:", err instanceof Error ? err.message : err);
+    return {};
+  }
+}
+
 export const fetchRateOverridesServerFn = createServerFn({ method: "GET" })
   .validator((data: unknown) => ({
     propertyId: str(data, "propertyId"),
     startDate: str(data, "startDate"),
     endDate: str(data, "endDate"),
   }))
-  .handler(async ({ data }): Promise<Record<string, number>> => {
-    const sql = getSql();
-    if (!sql) return {};
-    try {
-      // date::text, not the bare column: postgres.js parses a `date` column
-      // into a JS Date object by default, not a "YYYY-MM-DD" string — using
-      // that as an object key here (`map[row.date]`) previously produced
-      // Date.toString() output ("Wed Aug 19 2026...") as the key, which
-      // never matched the "YYYY-MM-DD" strings every caller looks dates up
-      // by (rates.ts's computeNightlyRates, checkout-modal.tsx, etc.) — so
-      // every rate override silently missed and fell back to the base
-      // price. Casting to text in SQL sidesteps the parser entirely.
-      const rows = await sql<{ date: string; rate: string | number }[]>`
-        SELECT date::text AS date, rate FROM public.property_rates
-        WHERE property_id = ${data.propertyId} AND date::date BETWEEN ${data.startDate}::date AND ${data.endDate}::date
-      `;
-      const map: Record<string, number> = {};
-      for (const row of rows) map[row.date] = Number(row.rate);
-      return map;
-    } catch (err) {
-      console.error("[fetchRateOverridesServerFn]:", err instanceof Error ? err.message : err);
-      return {};
-    }
-  });
+  .handler(async ({ data }): Promise<Record<string, number>> => fetchRateOverridesCore(data.propertyId, data.startDate, data.endDate));
 
 // Plain query, decoupled from createServerFn's isomorphic RPC wrapping —
 // reused directly by mobile-availability.server.ts (The Plix mobile app)
@@ -130,30 +139,32 @@ export const fetchBlockedDatesServerFn = createServerFn({ method: "GET" })
 
 type RateRow = { property_id: string; date: string; rate: number };
 
+export async function saveRateOverridesCore(rows: RateRow[]): Promise<{ error: string | null }> {
+  const sql = getSql();
+  if (!sql) return { error: "DATABASE_URL not configured on the server." };
+  try {
+    for (const row of rows) {
+      await sql`
+        INSERT INTO public.property_rates (property_id, date, rate)
+        VALUES (${String(row.property_id)}, ${String(row.date)}, ${row.rate})
+        ON CONFLICT (property_id, date) DO UPDATE SET rate = EXCLUDED.rate, updated_at = now()
+      `;
+    }
+    return { error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[saveRateOverridesCore]:", message);
+    return { error: message };
+  }
+}
+
 export const saveRateOverridesServerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => {
     const rows = (data as { rows?: unknown })?.rows;
     if (!Array.isArray(rows)) throw new Error("Missing rows");
     return { rows: rows as RateRow[] };
   })
-  .handler(async ({ data }): Promise<{ error: string | null }> => {
-    const sql = getSql();
-    if (!sql) return { error: "DATABASE_URL not configured on the server." };
-    try {
-      for (const row of data.rows) {
-        await sql`
-          INSERT INTO public.property_rates (property_id, date, rate)
-          VALUES (${String(row.property_id)}, ${String(row.date)}, ${row.rate})
-          ON CONFLICT (property_id, date) DO UPDATE SET rate = EXCLUDED.rate, updated_at = now()
-        `;
-      }
-      return { error: null };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      console.error("[saveRateOverridesServerFn]:", message);
-      return { error: message };
-    }
-  });
+  .handler(async ({ data }): Promise<{ error: string | null }> => saveRateOverridesCore(data.rows));
 
 export const deleteRateOverridesServerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => {
@@ -177,6 +188,29 @@ export const deleteRateOverridesServerFn = createServerFn({ method: "POST" })
     }
   });
 
+export async function toggleBlockedDateCore(
+  propertyId: string,
+  date: string,
+  isBlocked: boolean,
+  reason: string | null,
+): Promise<{ error: string | null }> {
+  const sql = getSql();
+  if (!sql) return { error: "DATABASE_URL not configured on the server." };
+  try {
+    if (isBlocked) {
+      // Currently blocked — unblock it.
+      await sql`DELETE FROM public.blocked_dates WHERE property_id = ${propertyId} AND date = ${date}`;
+    } else {
+      await sql`INSERT INTO public.blocked_dates (property_id, date, reason) VALUES (${propertyId}, ${date}, ${reason})`;
+    }
+    return { error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[toggleBlockedDateCore]:", message);
+    return { error: message };
+  }
+}
+
 export const toggleBlockedDateServerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => {
     const d = data as { propertyId?: unknown; date?: unknown; isBlocked?: unknown; reason?: unknown };
@@ -188,49 +222,47 @@ export const toggleBlockedDateServerFn = createServerFn({ method: "POST" })
       reason: typeof d.reason === "string" ? d.reason : null,
     };
   })
-  .handler(async ({ data }): Promise<{ error: string | null }> => {
-    const sql = getSql();
-    if (!sql) return { error: "DATABASE_URL not configured on the server." };
-    try {
-      if (data.isBlocked) {
-        // Currently blocked — unblock it.
-        await sql`DELETE FROM public.blocked_dates WHERE property_id = ${data.propertyId} AND date = ${data.date}`;
-      } else {
-        await sql`INSERT INTO public.blocked_dates (property_id, date, reason) VALUES (${data.propertyId}, ${data.date}, ${data.reason})`;
-      }
-      return { error: null };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      console.error("[toggleBlockedDateServerFn]:", message);
-      return { error: message };
-    }
-  });
+  .handler(async ({ data }): Promise<{ error: string | null }> =>
+    toggleBlockedDateCore(data.propertyId, data.date, data.isBlocked, data.reason),
+  );
 
 // Same rows as fetchBlockedDatesServerFn but with `reason` included — added
 // separately (rather than widening that function's return shape) since the
 // public checkout flow and admin.tsx already depend on it returning a plain
 // string[]. Only the partner portal's Inventory tab (needs to tell an Owner
 // Stay block from a Maintenance block for its status chip colors) uses this.
+// Plain query, decoupled from createServerFn's isomorphic RPC wrapping —
+// the partner portal's REST API (portal-rates-api.server.ts) calls this
+// directly, same reasoning as fetchBlockedDatesCore above.
+export async function fetchBlockedDatesWithReasonCore(
+  propertyId: string,
+  startDate: string,
+  endDate: string,
+): Promise<{ date: string; reason: string | null }[]> {
+  const sql = getSql();
+  if (!sql) return [];
+  try {
+    const rows = await sql<{ date: string; reason: string | null }[]>`
+      SELECT date::text AS date, reason FROM public.blocked_dates
+      WHERE property_id = ${propertyId} AND date::date BETWEEN ${startDate}::date AND ${endDate}::date
+    `;
+    return rows;
+  } catch (err) {
+    console.error("[fetchBlockedDatesWithReasonCore]:", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
 export const fetchBlockedDatesWithReasonServerFn = createServerFn({ method: "GET" })
   .validator((data: unknown) => ({
     propertyId: str(data, "propertyId"),
     startDate: str(data, "startDate"),
     endDate: str(data, "endDate"),
   }))
-  .handler(async ({ data }): Promise<{ date: string; reason: string | null }[]> => {
-    const sql = getSql();
-    if (!sql) return [];
-    try {
-      const rows = await sql<{ date: string; reason: string | null }[]>`
-        SELECT date::text AS date, reason FROM public.blocked_dates
-        WHERE property_id = ${data.propertyId} AND date::date BETWEEN ${data.startDate}::date AND ${data.endDate}::date
-      `;
-      return rows;
-    } catch (err) {
-      console.error("[fetchBlockedDatesWithReasonServerFn]:", err instanceof Error ? err.message : err);
-      return [];
-    }
-  });
+  .handler(
+    async ({ data }): Promise<{ date: string; reason: string | null }[]> =>
+      fetchBlockedDatesWithReasonCore(data.propertyId, data.startDate, data.endDate),
+  );
 
 // Parses a "YYYY-MM-DD" string as local midnight and lists every night from
 // check-in (inclusive) to check-out (exclusive) — duplicated from rates.ts's

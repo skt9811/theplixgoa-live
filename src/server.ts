@@ -17,6 +17,13 @@ import { handlePortalAuth, handlePortalLogout } from "./lib/portal-auth.server";
 import { handleGetPortalBookings } from "./lib/portal-bookings-api.server";
 import { handleGetPortalMe, handleChangePortalPin } from "./lib/portal-settings-api.server";
 import { handleRegisterPushToken } from "./lib/portal-push-api.server";
+import {
+  handleGetPortalRates,
+  handleSavePortalRate,
+  handleGetPortalBlockedDates,
+  handleTogglePortalBlockedDate,
+} from "./lib/portal-rates-api.server";
+import { portalPreflight, withPortalCors } from "./lib/portal-cors.server";
 import { handleAdminCreateBooking } from "./lib/admin-bookings-api.server";
 import { handleAdminUpdateBooking, handleAdminDeleteBooking } from "./lib/admin-bookings-crud.server";
 import { handleAdminListPortalOwners, handleAdminUpdatePortalOwner } from "./lib/admin-portal-owners-api.server";
@@ -255,83 +262,54 @@ export default {
       }
     }
     // Hotelier partner portal — PIN login (sets its own session cookie,
-    // separate from Auth.js's), bookings read, and block-dates write.
-    if (url.pathname === "/api/portal/auth") {
+    // separate from Auth.js's), bookings read, rates/inventory read-write.
+    // Every response gets CORS headers now: the standalone Plix Partner app
+    // (its own Vercel project/domain, Capacitor shell — see portal-cors.
+    // server.ts) calls these cross-origin, same situation /api/mobile/*
+    // already handles for The Plix guest app. Harmless for the existing
+    // same-origin /portal web pages — a permissive Access-Control-Allow-
+    // Origin only matters to cross-origin callers in the first place.
+    if (url.pathname.startsWith("/api/portal/")) {
+      const preflight = portalPreflight(request);
+      if (preflight) return preflight;
+
       try {
-        return await handlePortalAuth(request);
+        if (url.pathname === "/api/portal/auth") return withPortalCors(await handlePortalAuth(request));
+        if (url.pathname === "/api/portal/logout") return withPortalCors(handlePortalLogout(request));
+        if (url.pathname === "/api/portal/bookings") return withPortalCors(await handleGetPortalBookings(request));
+        if (url.pathname === "/api/portal/me") return withPortalCors(await handleGetPortalMe(request));
+        if (url.pathname === "/api/portal/change-pin") return withPortalCors(await handleChangePortalPin(request));
+        if (url.pathname === "/api/portal/register-push-token") return withPortalCors(await handleRegisterPushToken(request));
+        if (url.pathname === "/api/portal/rates" && request.method === "GET") return withPortalCors(await handleGetPortalRates(request));
+        if (url.pathname === "/api/portal/rates" && request.method === "POST") return withPortalCors(await handleSavePortalRate(request));
+        if (url.pathname === "/api/portal/blocked-dates" && request.method === "GET")
+          return withPortalCors(await handleGetPortalBlockedDates(request));
+        if (url.pathname === "/api/portal/blocked-dates" && request.method === "POST")
+          return withPortalCors(await handleTogglePortalBlockedDate(request));
+        return withPortalCors(new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: { "Content-Type": "application/json" } }));
       } catch (error) {
-        console.error("[portal-auth] unhandled error:", error);
-        return new Response(JSON.stringify({ success: false, error: "Internal error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        console.error("[portal]", url.pathname, "unhandled error:", error);
+        return withPortalCors(
+          new Response(JSON.stringify({ error: "Internal error" }), { status: 500, headers: { "Content-Type": "application/json" } }),
+        );
       }
     }
-    if (url.pathname === "/api/portal/logout") {
-      try {
-        return handlePortalLogout(request);
-      } catch (error) {
-        console.error("[portal-logout] unhandled error:", error);
-        return new Response(JSON.stringify({ success: false, error: "Internal error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    }
-    if (url.pathname === "/api/portal/bookings") {
-      try {
-        return await handleGetPortalBookings(request);
-      } catch (error) {
-        console.error("[portal-bookings] unhandled error:", error);
-        return new Response(JSON.stringify({ error: "Internal error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    }
-    if (url.pathname === "/api/portal/me") {
-      try {
-        return await handleGetPortalMe(request);
-      } catch (error) {
-        console.error("[portal-me] unhandled error:", error);
-        return new Response(JSON.stringify({ error: "Internal error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    }
-    if (url.pathname === "/api/portal/change-pin") {
-      try {
-        return await handleChangePortalPin(request);
-      } catch (error) {
-        console.error("[portal-change-pin] unhandled error:", error);
-        return new Response(JSON.stringify({ error: "Internal error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    }
-    if (url.pathname === "/api/portal/register-push-token") {
-      try {
-        return await handleRegisterPushToken(request);
-      } catch (error) {
-        console.error("[portal-register-push-token] unhandled error:", error);
-        return new Response(JSON.stringify({ error: "Internal error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    }
-    // Admin booking punch-in — manual/offline/walk-in reservations.
+    // Admin booking punch-in — manual/offline/walk-in reservations. CORS'd
+    // the same way as /api/portal/* above: the partner app's Booking tab
+    // ("+ Create Booking") calls this cross-origin too, and it already
+    // authenticates via a client-supplied PIN in the body (see
+    // create-booking-client.ts), never cookies — identical reasoning to
+    // portal-cors.server.ts's header comment.
     if (url.pathname === "/api/admin/bookings") {
+      const preflight = portalPreflight(request);
+      if (preflight) return preflight;
       try {
-        return await handleAdminCreateBooking(request);
+        return withPortalCors(await handleAdminCreateBooking(request));
       } catch (error) {
         console.error("[admin-bookings] unhandled error:", error);
-        return new Response(JSON.stringify({ error: "Internal error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return withPortalCors(
+          new Response(JSON.stringify({ error: "Internal error" }), { status: 500, headers: { "Content-Type": "application/json" } }),
+        );
       }
     }
     // Admin ledger Edit/Delete — path has a booking id segment, so it's

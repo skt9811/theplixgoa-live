@@ -53,6 +53,8 @@ function toDateString(value: string | Date): string {
 }
 
 export async function handleMobileUserBookings(req: Request): Promise<Response> {
+  if (req.method !== "GET") return mobileJson(req, { error: "Method not allowed" }, 405);
+
   const session = await getMobileSession(req);
   if (!session) return mobileJson(req, { error: "Not authenticated" }, 401);
 

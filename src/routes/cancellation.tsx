@@ -5,6 +5,7 @@ import {
   SITE_URL,
   SITE_NAME,
   SITE_EMAIL,
+  EDGE_CACHE_CONTROL_LONG,
   canonicalUrl,
   jsonLdScript,
 } from "@/lib/seo";
@@ -32,6 +33,9 @@ export const Route = createFileRoute("/cancellation")({
       links: [{ rel: "canonical", href: canonicalUrl("/cancellation") }],
     };
   },
+  // Static page: cached at the edge for a day (see EDGE_CACHE_CONTROL_LONG).
+  // The server entry strips cache directives from any non-200 response.
+  headers: () => ({ "Cache-Control": EDGE_CACHE_CONTROL_LONG }),
   component: CancellationPage,
 });
 

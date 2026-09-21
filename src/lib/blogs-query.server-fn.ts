@@ -123,7 +123,20 @@ export const fetchBlogBySlugServerFn = createServerFn({ method: "GET" })
         FROM public.blogs WHERE slug = ${data.slug} LIMIT 1
       `;
       const row = rows[0];
-      return row ? normalize(row) : null;
+      if (!row) return null;
+      const post = normalize(row);
+      // Same reason as fetchBlogSummariesServerFn: a base64 data: cover
+      // embedded here lands in the page HTML several times over (the <img>,
+      // the serialized query state, the router's loader data) — one post's
+      // page was 4.9MB. This function only feeds the public post route (the
+      // admin editor reads through fetchAllBlogsAdmin, so saving never
+      // writes this URL back over the stored image), and fetchBlogBySlug
+      // already 404s unpublished posts, which the image endpoint also
+      // refuses to serve.
+      return {
+        ...post,
+        cover_image: post.cover_image.startsWith("data:") ? `/api/blog-cover/${post.slug}` : post.cover_image,
+      };
     } catch (err) {
       console.error("[fetchBlogBySlugServerFn]:", err instanceof Error ? err.message : err);
       return null;

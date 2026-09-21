@@ -46,8 +46,12 @@ export const Route = createFileRoute("/blog/$slug")({
     // real, static photographic cover the homepage's own og:image uses
     // (public/og-home.jpg — a proper 1200x630 crop, not the bare logo this
     // briefly fell back to before that file existed).
+    // "/api/blog-cover/…" is what a base64 cover is served as (see
+    // fetchBlogBySlugServerFn) — a ~1MB relative URL, no better for link
+    // previews than the raw data: URI it stands in for, so it takes the same
+    // fallback.
     const resolvedOgImage =
-      post.cover_image && !post.cover_image.startsWith("data:")
+      post.cover_image && !post.cover_image.startsWith("data:") && !post.cover_image.startsWith("/api/blog-cover/")
         ? post.cover_image
         : `${SITE_URL}/og-home.jpg`;
     const schema = blogPostingJsonLd({

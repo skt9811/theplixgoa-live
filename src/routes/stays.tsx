@@ -31,36 +31,52 @@ export const Route = createFileRoute("/stays")({
     guests: search["guests"] ? Number(search["guests"]) : undefined,
     rooms: search["rooms"] ? Number(search["rooms"]) : undefined,
   }),
-  head: () => ({
-    meta: [
-      { title: "Luxury Villas & Boutique Stays in North Goa | The Plix" },
-      {
-        name: "description",
-        content:
-          "Browse handpicked private pool villas and boutique resorts in Vagator, Anjuna, Morjim, and Candolim. Book directly with Plix Hospitality.",
-      },
-      { name: "robots", content: "index, follow, max-image-preview:large" },
-      { property: "og:title", content: "Luxury Villas & Boutique Stays in North Goa | The Plix" },
-      {
-        property: "og:description",
-        content:
-          "Compare 10 private-pool villas and boutique resorts across North Goa. Book direct with Plix Hospitality for the best guaranteed rate.",
-      },
-      { property: "og:type", content: "website" },
-      { property: "og:url", content: `${SITE_URL}/stays` },
-      { property: "og:site_name", content: SITE_NAME },
-      { property: "og:image", content: `${SITE_URL}/og-home.jpg` },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Luxury Villas & Boutique Stays in North Goa | The Plix" },
-      {
-        name: "twitter:description",
-        content: "Compare 10 private-pool villas and boutique resorts across North Goa. Book direct with Plix Hospitality.",
-      },
-    ],
-    links: [{ rel: "canonical", href: canonicalUrl("/stays") }],
-    // The brand-level schema is already rendered globally in __root.tsx —
-    // this page has no schema unique to it.
-  }),
+  head: ({ match }) => {
+    // Validated against the real location list, not used raw — an
+    // unrecognized value (a typo, or someone probing the URL) falls back
+    // to the generic default rather than getting reflected straight into
+    // an indexable <title>/description for a query that matches nothing.
+    const rawLocation = (match.search as StaySearch).location;
+    const location = rawLocation && (LOCATIONS as readonly string[]).includes(rawLocation) ? rawLocation : undefined;
+
+    const title = location
+      ? `Luxury Private Pool Villas & Stays in ${location} | The Plix`
+      : "Luxury Villas & Boutique Stays in North Goa | The Plix";
+    const description = location
+      ? `Explore handpicked luxury villas and boutique pool stays in ${location}, North Goa. Direct bookings with zero OTA commissions.`
+      : "Browse handpicked private pool villas and boutique resorts in Vagator, Anjuna, Morjim, and Candolim. Book directly with Plix Hospitality.";
+    const ogDescription = location
+      ? description
+      : "Compare 10 private-pool villas and boutique resorts across North Goa. Book direct with Plix Hospitality for the best guaranteed rate.";
+
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { name: "robots", content: "index, follow, max-image-preview:large" },
+        { property: "og:title", content: title },
+        { property: "og:description", content: ogDescription },
+        { property: "og:type", content: "website" },
+        { property: "og:url", content: `${SITE_URL}/stays` },
+        { property: "og:site_name", content: SITE_NAME },
+        { property: "og:image", content: `${SITE_URL}/og-home.jpg` },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: title },
+        { name: "twitter:description", content: ogDescription },
+      ],
+      // Deliberately still the bare /stays URL, not a per-location one:
+      // canonicalizing on every combination of location/dates/guests
+      // filters is exactly the duplicate-content sprawl a canonical tag
+      // exists to prevent — the five /locations/$slug hubs are the real,
+      // independently indexable pages for "villas in <location>" (with
+      // their own canonical, schema, and content); this page's dynamic
+      // title/description above fixes the literal duplicate-title/
+      // duplicate-description finding without re-opening that problem.
+      links: [{ rel: "canonical", href: canonicalUrl("/stays") }],
+      // The brand-level schema is already rendered globally in __root.tsx —
+      // this page has no schema unique to it.
+    };
+  },
   loader: ({ context, location }) =>
     context.queryClient.ensureQueryData(propertiesQuery((location.search as StaySearch).checkIn)),
   component: Stays,

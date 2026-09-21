@@ -29,8 +29,15 @@ export const Route = createFileRoute("/locations/$slug")({
     // clickable.
     await context.queryClient.ensureQueryData(blogsQuery);
     const localProperties = propertiesInLocation(properties, hub.name);
+    // Same "first property in the location" convention the component
+    // itself already uses for its own hero backdrop image — reused here
+    // so og:image shows a real photo of an actual villa in this specific
+    // location rather than the generic sitewide fallback whenever one
+    // exists.
+    const heroImage = localProperties[0] ? resolveImages(localProperties[0].image_keys)[0] : undefined;
     return {
       hub,
+      heroImage,
       // Lightweight — just enough for the ItemList schema in head(). The
       // component re-reads the full property list itself from the same
       // query (already cached by the loader's ensureQueryData call, so
@@ -44,11 +51,12 @@ export const Route = createFileRoute("/locations/$slug")({
         meta: [{ title: "Destination not found — The Plix Goa" }, { name: "robots", content: "noindex" }],
       };
     }
-    const { hub, localProperties } = loaderData;
+    const { hub, localProperties, heroImage } = loaderData;
     const propertyCount = localProperties.length;
     const title = `Luxury Villas & Boutique Stays in ${hub.name}, North Goa | The Plix`;
     const description = `${propertyCount} handpicked private-pool villas and boutique stays in ${hub.name}, North Goa. Best price guaranteed, book direct with The Plix.`;
     const url = `${SITE_URL}/locations/${hub.slug}`;
+    const ogImage = heroImage ?? `${SITE_URL}/og-home.jpg`;
     const schema = collectionPageJsonLd({
       name: title,
       description,
@@ -81,9 +89,11 @@ export const Route = createFileRoute("/locations/$slug")({
         { property: "og:type", content: "website" },
         { property: "og:url", content: url },
         { property: "og:site_name", content: SITE_NAME },
+        { property: "og:image", content: ogImage },
         { name: "twitter:card", content: "summary_large_image" },
         { name: "twitter:title", content: title },
         { name: "twitter:description", content: description },
+        { name: "twitter:image", content: ogImage },
       ],
       links: [{ rel: "canonical", href: canonicalUrl(`/locations/${hub.slug}`) }],
       scripts: [

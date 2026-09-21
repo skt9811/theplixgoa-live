@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { logDbError } from "@/lib/rates";
 import {
   fetchAllBlogsServerFn,
+  fetchBlogSummariesServerFn,
   fetchBlogBySlugServerFn,
   saveBlogPostServerFn,
   deleteBlogPostServerFn,
@@ -19,6 +20,9 @@ export type BlogPost = {
   published_at: string;
   created_at: string;
 };
+
+/** Card-sized shape for the blog index — no `content`, so the listing page never ships every post's full HTML body to the client. */
+export type BlogSummary = Omit<BlogPost, "content" | "created_at"> & { reading_time_minutes: number };
 
 export const BLOG_CATEGORIES = [
   "All",
@@ -183,13 +187,13 @@ function writeLocalBlogs(posts: BlogPost[]): void {
   }
 }
 
-function sortByPublished(posts: BlogPost[]): BlogPost[] {
+function sortByPublished<T extends { published_at: string }>(posts: T[]): T[] {
   return [...posts].sort(
     (a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime(),
   );
 }
 
-function filterPublished(posts: BlogPost[]): BlogPost[] {
+function filterPublished<T extends { published_at: string }>(posts: T[]): T[] {
   const now = Date.now();
   return posts.filter((p) => new Date(p.published_at).getTime() <= now);
 }
@@ -208,6 +212,24 @@ export async function fetchBlogs(): Promise<BlogPost[]> {
 
   // Fallback to localStorage only when Neon is unreachable/misconfigured
   return sortByPublished(filterPublished(readLocalBlogs()));
+}
+
+/** Card-sized fetch for the blog index — see BlogSummary/fetchBlogSummariesServerFn for why this exists instead of reusing fetchBlogs(). */
+export async function fetchBlogSummaries(): Promise<BlogSummary[]> {
+  try {
+    const data = await fetchBlogSummariesServerFn();
+    if (data) {
+      return sortByPublished(filterPublished(data));
+    }
+  } catch (err) {
+    logDbError("fetchBlogSummaries", err);
+  }
+
+  // Same fallback source as fetchBlogs() — just reduced to the summary shape.
+  return sortByPublished(filterPublished(readLocalBlogs())).map((p) => {
+    const { content, created_at: _created_at, ...rest } = p;
+    return { ...rest, reading_time_minutes: estimateReadingTime(content) };
+  });
 }
 
 export async function fetchAllBlogsAdmin(): Promise<BlogPost[]> {
@@ -311,6 +333,11 @@ export async function deleteBlogPost(id: string): Promise<{ error: string | null
 export const blogsQuery = queryOptions({
   queryKey: ["blogs"],
   queryFn: fetchBlogs,
+});
+
+export const blogSummariesQuery = queryOptions({
+  queryKey: ["blog-summaries"],
+  queryFn: fetchBlogSummaries,
 });
 
 export const blogQuery = (slug: string) =>

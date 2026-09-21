@@ -125,7 +125,17 @@ export function HeroCarousel({
     >
       <div className="size-full overflow-hidden" ref={emblaRef}>
         <div className="flex size-full">
-          {slides.map((slide, i) => (
+          {slides.map((slide, i) => {
+            // Only the first slide's heading is the page's <h1> — all three
+            // used to render as <h1> simultaneously in the SSR HTML (Embla
+            // just hides the other two visually via transform, it doesn't
+            // remove them from the DOM), which meant every page load shipped
+            // three competing <h1>s regardless of which slide a visitor
+            // actually saw first. The other slides' headings are real,
+            // meaningful section content — just not THE page heading — so
+            // <h2> is correct for them, not stripping the tag entirely.
+            const HeadingTag = i === 0 ? "h1" : "h2";
+            return (
             <div key={slide.heading} className="relative min-w-0 shrink-0 grow-0 basis-full">
               <img
                 src={slide.image}
@@ -150,9 +160,9 @@ export function HeroCarousel({
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
                   The Plix Goa · North Goa, India
                 </p>
-                <h1 className="my-2 max-w-3xl font-serif text-3xl font-normal leading-[1.15] tracking-wide text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.35)] lg:text-4xl xl:text-5xl">
+                <HeadingTag className="my-2 max-w-3xl font-serif text-3xl font-normal leading-[1.15] tracking-wide text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.35)] lg:text-4xl xl:text-5xl">
                   {slide.heading}
-                </h1>
+                </HeadingTag>
                 <p className="my-2 max-w-2xl mx-auto text-sm font-light text-white/90 lg:text-base">
                   {slide.subheading}
                 </p>
@@ -194,7 +204,8 @@ export function HeroCarousel({
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

@@ -55,6 +55,49 @@ export const fetchAllBlogsServerFn = createServerFn({ method: "GET" }).handler(
   },
 );
 
+type BlogSummarySourceRow = Omit<BlogPostRow, "created_at">;
+
+export type BlogSummaryRow = Omit<BlogSummarySourceRow, "content"> & { reading_time_minutes: number };
+
+function estimateReadingTimeServer(content: string): number {
+  const text = content.replace(/<[^>]*>/g, " ");
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / 200));
+}
+
+// The blog index renders every post as a card (title, excerpt, cover
+// image, category, date, reading time) — it never shows a post's full
+// body. fetchAllBlogsServerFn ships every post's complete HTML content to
+// the client just to read three lines off each card, which is most of
+// this route's SSR payload weight for no reason. content is still read
+// from Postgres here (reading time genuinely needs the real word count,
+// and there's no separate stored column for it), but it's reduced to a
+// single number before the response ever leaves the server — the raw
+// HTML itself never reaches the client on this route.
+export const fetchBlogSummariesServerFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<BlogSummaryRow[]> => {
+    const sql = getSql();
+    if (!sql) return [];
+    try {
+      const rows = await sql<BlogSummarySourceRow[]>`
+        SELECT id, title, slug, excerpt, content, cover_image, category, author, published_at
+        FROM public.blogs ORDER BY published_at DESC
+      `;
+      return rows.map((row) => {
+        const { content, published_at, ...rest } = row;
+        return {
+          ...rest,
+          published_at: published_at instanceof Date ? published_at.toISOString() : published_at,
+          reading_time_minutes: estimateReadingTimeServer(content),
+        };
+      });
+    } catch (err) {
+      console.error("[fetchBlogSummariesServerFn]:", err instanceof Error ? err.message : err);
+      return [];
+    }
+  },
+);
+
 export const fetchBlogBySlugServerFn = createServerFn({ method: "GET" })
   .validator((data: unknown) => {
     const slug = typeof (data as { slug?: unknown })?.slug === "string" ? (data as { slug: string }).slug : "";

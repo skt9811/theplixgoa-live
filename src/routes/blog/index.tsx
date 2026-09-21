@@ -2,30 +2,42 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ArrowRight, Calendar, ChevronDown, Clock, Loader } from "lucide-react";
-import { blogsQuery, BLOG_CATEGORIES, estimateReadingTime, formatDate } from "@/lib/blog";
-import { canonicalUrl } from "@/lib/seo";
+import { blogSummariesQuery, BLOG_CATEGORIES, formatDate } from "@/lib/blog";
+import { SITE_URL, SITE_NAME, canonicalUrl } from "@/lib/seo";
+
+const BLOG_INDEX_TITLE = "Goa Travel & Luxury Villa Guides | The Plix Goa Blog";
+const BLOG_INDEX_DESCRIPTION =
+  "Expert Goa travel guides, luxury stay recommendations, party venues, and insider tips from Plix Hospitality. Plan your North Goa getaway.";
 
 export const Route = createFileRoute("/blog/")({
   head: () => ({
     meta: [
-      { title: "Goa Travel & Luxury Villa Guides | The Plix Goa Blog" },
-      {
-        name: "description",
-        content:
-          "Expert Goa travel guides, luxury stay recommendations, party venues, and insider tips from Plix Hospitality. Plan your North Goa getaway.",
-      },
-      { property: "og:title", content: "Goa Travel & Luxury Villa Guides | The Plix Goa Blog" },
-      {
-        property: "og:description",
-        content:
-          "Expert Goa travel guides, luxury stay recommendations, party venues, and insider tips from Plix Hospitality. Plan your North Goa getaway.",
-      },
+      { title: BLOG_INDEX_TITLE },
+      { name: "description", content: BLOG_INDEX_DESCRIPTION },
+      { property: "og:title", content: BLOG_INDEX_TITLE },
+      { property: "og:description", content: BLOG_INDEX_DESCRIPTION },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: `${SITE_URL}/blog` },
+      { property: "og:image", content: `${SITE_URL}/og-home.jpg` },
+      { property: "og:site_name", content: SITE_NAME },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: BLOG_INDEX_TITLE },
+      { name: "twitter:description", content: BLOG_INDEX_DESCRIPTION },
+      { name: "twitter:image", content: `${SITE_URL}/og-home.jpg` },
     ],
     links: [{ rel: "canonical", href: canonicalUrl("/blog") }],
   }),
+  // The list itself changes at most a few times a day (new/edited posts);
+  // it doesn't need to be recomputed on every single request. s-maxage
+  // caches the SSR response at Vercel's edge; stale-while-revalidate means
+  // a visitor during that window still gets an instant cached response
+  // while a fresh one is fetched in the background for the next request,
+  // rather than ever blocking on a slow origin render.
+  headers: () => ({
+    "Cache-Control": "s-maxage=3600, stale-while-revalidate=86400",
+  }),
   loader: async ({ context }) => {
-    await context.queryClient.prefetchQuery(blogsQuery);
+    await context.queryClient.prefetchQuery(blogSummariesQuery);
   },
   component: BlogIndex,
 });
@@ -33,7 +45,7 @@ export const Route = createFileRoute("/blog/")({
 const VISIBLE_COUNT = 10;
 
 function BlogIndex() {
-  const { data: blogs = [], isLoading } = useQuery(blogsQuery);
+  const { data: blogs = [], isLoading } = useQuery(blogSummariesQuery);
   const [activeCategory, setActiveCategory] = useState<string>("All");
   const [showAll, setShowAll] = useState(false);
 
@@ -108,7 +120,7 @@ function BlogIndex() {
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Clock className="size-3.5" />
-                    {estimateReadingTime(featured.content)} min read
+                    {featured.reading_time_minutes} min read
                   </span>
                 </div>
                 <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary transition-transform group-hover:gap-3">
@@ -188,7 +200,7 @@ function BlogIndex() {
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Clock className="size-3" />
-                      {estimateReadingTime(post.content)} min
+                      {post.reading_time_minutes} min
                     </span>
                   </div>
                 </div>

@@ -26,17 +26,32 @@ const STATIC_PAGES: StaticPage[] = [
   { path: "/cancellation", changefreq: "monthly", priority: "0.5" },
 ];
 
-function urlEntry(loc: string, changefreq: string, priority: string): string {
-  return `  <url>\n    <loc>${loc}</loc>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+function urlEntry(loc: string, changefreq: string, priority: string, lastmod: string): string {
+  return `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
 }
 
-function buildSitemapXml(properties: Property[], blogSlugs: string[]): string {
-  const staticEntries = STATIC_PAGES.map((p) => urlEntry(`${SITE_URL}${p.path}`, p.changefreq, p.priority));
+function toDateOnly(value: string | Date): string {
+  const iso = value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+  return iso.split("T")[0]!;
+}
+
+function buildSitemapXml(properties: Property[], blogRows: { slug: string; published_at: string | Date }[]): string {
+  // Properties and location hubs have no per-item "last actually changed"
+  // timestamp anywhere in this data model (the static PROPERTIES array and
+  // LOCATION_HUBS have no updated_at field, and the DB properties table
+  // doesn't track one either) — today's date is the honest value here, not
+  // a guessed one, matching the task's own stated fallback for exactly
+  // this case. Blog posts DO have a real date (published_at), so that's
+  // used instead of today's date for those.
+  const today = toDateOnly(new Date());
+  const staticEntries = STATIC_PAGES.map((p) => urlEntry(`${SITE_URL}${p.path}`, p.changefreq, p.priority, today));
   const propertyEntries = properties.map((p) =>
-    urlEntry(`${SITE_URL}/properties/${p.slug}`, "weekly", "0.8"),
+    urlEntry(`${SITE_URL}/properties/${p.slug}`, "weekly", "0.8", today),
   );
-  const locationEntries = LOCATION_HUBS.map((l) => urlEntry(`${SITE_URL}/locations/${l.slug}`, "weekly", "0.8"));
-  const blogEntries = blogSlugs.map((slug) => urlEntry(`${SITE_URL}/blog/${slug}`, "monthly", "0.6"));
+  const locationEntries = LOCATION_HUBS.map((l) => urlEntry(`${SITE_URL}/locations/${l.slug}`, "weekly", "0.8", today));
+  const blogEntries = blogRows.map((row) =>
+    urlEntry(`${SITE_URL}/blog/${row.slug}`, "monthly", "0.6", toDateOnly(row.published_at)),
+  );
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...staticEntries, ...locationEntries, ...propertyEntries, ...blogEntries].join("\n")}\n</urlset>`;
 }
 
@@ -51,9 +66,9 @@ export async function handleSitemapRequest(): Promise<Response> {
 
   // fetchPublishedBlogSlugsForSitemap() already resolves internally on DB
   // failure (returns []) — it never rejects, so no extra try/catch needed.
-  const blogSlugs = (await fetchPublishedBlogSlugsForSitemap()).map((r) => r.slug);
+  const blogRows = await fetchPublishedBlogSlugsForSitemap();
 
-  return new Response(buildSitemapXml(properties, blogSlugs), {
+  return new Response(buildSitemapXml(properties, blogRows), {
     status: 200,
     headers: {
       "Content-Type": "application/xml; charset=utf-8",

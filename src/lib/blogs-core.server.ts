@@ -28,18 +28,18 @@ async function getSql() {
   }
 }
 
-export type SitemapBlogRow = { slug: string };
+export type SitemapBlogRow = { slug: string; published_at: string | Date };
 
-// Sitemap-relevant field only — buildSitemapXml only ever reads `.slug` —
-// matching fetchActivePropertiesForSitemap's own scoped-down field set.
-// Only currently-published posts, same filter blog.ts's fetchBlogs()
-// applies client-side (published_at <= now).
+// Sitemap-relevant fields only — buildSitemapXml only reads `.slug` and
+// `.published_at` (for <lastmod>) — matching fetchActivePropertiesFor
+// Sitemap's own scoped-down field set. Only currently-published posts,
+// same filter blog.ts's fetchBlogs() applies client-side (published_at <= now).
 export async function fetchPublishedBlogSlugsForSitemap(): Promise<SitemapBlogRow[]> {
   const sql = await getSql();
   if (!sql) return [];
   try {
     return await sql<SitemapBlogRow[]>`
-      SELECT slug FROM public.blogs WHERE published_at <= now() ORDER BY published_at DESC
+      SELECT slug, published_at FROM public.blogs WHERE published_at <= now() ORDER BY published_at DESC
     `;
   } catch (err) {
     console.error("[fetchPublishedBlogSlugsForSitemap]:", err instanceof Error ? err.message : err);

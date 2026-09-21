@@ -8,6 +8,7 @@ import { matchLocationForPost } from "@/lib/locations";
 import {
   SITE_URL,
   SITE_NAME,
+  EDGE_CACHE_CONTROL_LONG,
   canonicalUrl,
   blogSeoTitle,
   blogPostingJsonLd,
@@ -24,6 +25,9 @@ export const Route = createFileRoute("/blog/$slug")({
     await context.queryClient.ensureQueryData(blogSummariesQuery);
     return { post };
   },
+  // Only a found post is cached — an unknown or not-yet-published slug (404)
+  // or an error page is never what the edge holds for a day.
+  headers: ({ loaderData }) => (loaderData ? { "Cache-Control": EDGE_CACHE_CONTROL_LONG } : undefined),
   head: ({ loaderData }) => {
     if (!loaderData) {
       return {

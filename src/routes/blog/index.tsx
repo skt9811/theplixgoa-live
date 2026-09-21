@@ -9,6 +9,7 @@ import {
   EDGE_CACHE_CONTROL,
   canonicalUrl,
   blogJsonLd,
+  blogPostingJsonLd,
   jsonLdScript,
 } from "@/lib/seo";
 
@@ -21,7 +22,23 @@ export const Route = createFileRoute("/blog/")({
   // those from the options declared before them.
   loader: async ({ context }) => {
     const posts = await context.queryClient.ensureQueryData(blogSummariesQuery);
-    return { recent: posts.slice(0, 10).map((p) => ({ name: p.title, slug: p.slug })) };
+    // posts[0] is the same post the page renders as its featured hero card
+    // (see `featured` in BlogIndex), so the Article schema below describes
+    // an article that is genuinely on this page.
+    const first = posts[0];
+    return {
+      recent: posts.slice(0, 10).map((p) => ({ name: p.title, slug: p.slug })),
+      featured: first
+        ? {
+            name: first.title,
+            slug: first.slug,
+            excerpt: first.excerpt,
+            coverImage: first.cover_image,
+            author: first.author,
+            publishedAt: first.published_at,
+          }
+        : null,
+    };
   },
   head: ({ loaderData }) => ({
     meta: [
@@ -41,6 +58,12 @@ export const Route = createFileRoute("/blog/")({
     links: [{ rel: "canonical", href: canonicalUrl("/blog") }],
     // Only emitted when there are posts to list — a transient DB miss
     // shouldn't advertise a blog with zero articles.
+    //
+    // The /blog page itself is a listing, so it's described as a Blog — not
+    // as an Article. The Article block is for the featured post, the one
+    // real article this page presents in full (typed as both Article and
+    // BlogPosting: the latter is a subtype of the former, but checkers that
+    // look for a literal "Article" don't follow that hierarchy).
     scripts:
       loaderData && loaderData.recent.length > 0
         ? [
@@ -49,10 +72,33 @@ export const Route = createFileRoute("/blog/")({
               id: "blog-jsonld",
               children: jsonLdScript(
                 blogJsonLd({
-                  posts: loaderData.recent.map((p) => ({ name: p.name, url: `${SITE_URL}/blog/${p.slug}` })),
+                  posts: loaderData.recent
+                    .filter((p) => p.slug !== loaderData.featured?.slug)
+                    .map((p) => ({ name: p.name, url: `${SITE_URL}/blog/${p.slug}` })),
                 }),
               ),
             },
+            ...(loaderData.featured
+              ? [
+                  {
+                    type: "application/ld+json",
+                    id: "blog-featured-article-jsonld",
+                    children: jsonLdScript({
+                      ...blogPostingJsonLd({
+                        title: loaderData.featured.name,
+                        excerpt: loaderData.featured.excerpt,
+                        coverImage: loaderData.featured.coverImage.startsWith("/")
+                          ? `${SITE_URL}${loaderData.featured.coverImage}`
+                          : loaderData.featured.coverImage || `${SITE_URL}/og-home.jpg`,
+                        author: loaderData.featured.author,
+                        publishedAt: loaderData.featured.publishedAt,
+                        url: `${SITE_URL}/blog/${loaderData.featured.slug}`,
+                      }),
+                      "@type": ["Article", "BlogPosting"],
+                    }),
+                  },
+                ]
+              : []),
           ]
         : [],
   }),

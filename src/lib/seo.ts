@@ -33,6 +33,14 @@ export const PRICE_RANGE = "₹4500 - ₹22000";
 // browser itself always revalidates; only the edge holds the copy.
 export const EDGE_CACHE_CONTROL = "public, s-maxage=3600, stale-while-revalidate=86400";
 
+// Editorial pages that change rarely (individual blog articles, location and
+// collection hubs): a day at the edge, a week of stale-while-revalidate. Set
+// per route (guarded on real data loading) rather than as blanket
+// vercel.json rules, which would also cache 404s — e.g. a scheduled post
+// hit before its publish time — and empty/degraded pages for the full day.
+// A new deployment starts with an empty edge cache.
+export const EDGE_CACHE_CONTROL_LONG = "public, max-age=0, s-maxage=86400, stale-while-revalidate=604800";
+
 // Fallback-only budget: this list is tried in order and the first one that
 // fits wins, so the keyword-forward "[year]" format (closest to what ranks
 // best on CTR) is preferred whenever the property's own name is short enough

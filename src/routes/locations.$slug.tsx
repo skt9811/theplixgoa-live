@@ -10,7 +10,7 @@ import { SmartImage } from "@/components/plix/smart-image";
 import {
   SITE_URL,
   SITE_NAME,
-  EDGE_CACHE_CONTROL,
+  EDGE_CACHE_CONTROL_LONG,
   canonicalUrl,
   collectionPageJsonLd,
   breadcrumbJsonLd,
@@ -120,7 +120,7 @@ export const Route = createFileRoute("/locations/$slug")({
   },
   // Cached at the edge only when real data loaded — never an empty/error page.
   headers: ({ loaderData }) =>
-    loaderData && loaderData.localProperties.length > 0 ? { "Cache-Control": EDGE_CACHE_CONTROL } : undefined,
+    loaderData && loaderData.localProperties.length > 0 ? { "Cache-Control": EDGE_CACHE_CONTROL_LONG } : undefined,
   notFoundComponent: () => <LocationNotFound />,
   component: LocationHubPage,
 });

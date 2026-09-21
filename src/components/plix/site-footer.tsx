@@ -15,6 +15,8 @@ const quickLinks = [
   // Same reasoning: no standalone gallery page — /stays is the closest
   // real page (every property's full photo set) to what "Plix Gallery" means.
   { label: "Plix Gallery", to: "/stays" as const },
+  { label: "Large Group Stays", to: "/stays/large-groups" as const },
+  { label: "Private Pool Villas", to: "/stays/private-pool-villas" as const },
   { label: "Cancellation Policy", to: "/cancellation" as const },
 ];
 

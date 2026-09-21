@@ -29,6 +29,8 @@ import { Route as PortalIndexRouteImport } from './routes/portal/index'
 import { Route as PortalDashboardRouteImport } from './routes/portal/dashboard'
 import { Route as PortalLoginRouteImport } from './routes/portal/login'
 import { Route as PropertiesSlugRouteImport } from './routes/properties.$slug'
+import { Route as StaysLargeGroupsRouteImport } from './routes/stays.large-groups'
+import { Route as StaysPrivatePoolVillasRouteImport } from './routes/stays.private-pool-villas'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -130,6 +132,16 @@ const PropertiesSlugRoute = PropertiesSlugRouteImport.update({
   path: '/properties/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StaysLargeGroupsRoute = StaysLargeGroupsRouteImport.update({
+  id: '/large-groups',
+  path: '/large-groups',
+  getParentRoute: () => StaysRoute,
+} as any)
+const StaysPrivatePoolVillasRoute = StaysPrivatePoolVillasRouteImport.update({
+  id: '/private-pool-villas',
+  path: '/private-pool-villas',
+  getParentRoute: () => StaysRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -142,7 +154,7 @@ export interface FileRoutesByFullPath {
   '/faq': typeof FaqRoute
   '/portal': typeof PortalRouteWithChildren
   '/privacy': typeof PrivacyRoute
-  '/stays': typeof StaysRoute
+  '/stays': typeof StaysRouteWithChildren
   '/terms': typeof TermsRoute
   '/admin/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -150,6 +162,8 @@ export interface FileRoutesByFullPath {
   '/portal/dashboard': typeof PortalDashboardRoute
   '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
+  '/stays/large-groups': typeof StaysLargeGroupsRoute
+  '/stays/private-pool-villas': typeof StaysPrivatePoolVillasRoute
   '/blog/': typeof BlogIndexRoute
   '/portal/': typeof PortalIndexRoute
 }
@@ -163,7 +177,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/privacy': typeof PrivacyRoute
-  '/stays': typeof StaysRoute
+  '/stays': typeof StaysRouteWithChildren
   '/terms': typeof TermsRoute
   '/admin/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -171,6 +185,8 @@ export interface FileRoutesByTo {
   '/portal/dashboard': typeof PortalDashboardRoute
   '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
+  '/stays/large-groups': typeof StaysLargeGroupsRoute
+  '/stays/private-pool-villas': typeof StaysPrivatePoolVillasRoute
   '/blog': typeof BlogIndexRoute
   '/portal': typeof PortalIndexRoute
 }
@@ -186,7 +202,7 @@ export interface FileRoutesById {
   '/faq': typeof FaqRoute
   '/portal': typeof PortalRouteWithChildren
   '/privacy': typeof PrivacyRoute
-  '/stays': typeof StaysRoute
+  '/stays': typeof StaysRouteWithChildren
   '/terms': typeof TermsRoute
   '/admin_/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -194,6 +210,8 @@ export interface FileRoutesById {
   '/portal/dashboard': typeof PortalDashboardRoute
   '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
+  '/stays/large-groups': typeof StaysLargeGroupsRoute
+  '/stays/private-pool-villas': typeof StaysPrivatePoolVillasRoute
   '/blog/': typeof BlogIndexRoute
   '/portal/': typeof PortalIndexRoute
 }
@@ -218,6 +236,8 @@ export interface FileRouteTypes {
     | '/portal/dashboard'
     | '/portal/login'
     | '/properties/$slug'
+    | '/stays/large-groups'
+    | '/stays/private-pool-villas'
     | '/blog/'
     | '/portal/'
   fileRoutesByTo: FileRoutesByTo
@@ -239,6 +259,8 @@ export interface FileRouteTypes {
     | '/portal/dashboard'
     | '/portal/login'
     | '/properties/$slug'
+    | '/stays/large-groups'
+    | '/stays/private-pool-villas'
     | '/blog'
     | '/portal'
   id:
@@ -261,6 +283,8 @@ export interface FileRouteTypes {
     | '/portal/dashboard'
     | '/portal/login'
     | '/properties/$slug'
+    | '/stays/large-groups'
+    | '/stays/private-pool-villas'
     | '/blog/'
     | '/portal/'
   fileRoutesById: FileRoutesById
@@ -276,7 +300,7 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   PortalRoute: typeof PortalRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
-  StaysRoute: typeof StaysRoute
+  StaysRoute: typeof StaysRouteWithChildren
   TermsRoute: typeof TermsRoute
   AdminBookingsRoute: typeof AdminBookingsRoute
   BlogSlugRoute: typeof BlogSlugRoute
@@ -427,6 +451,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PropertiesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stays/large-groups': {
+      id: '/stays/large-groups'
+      path: '/large-groups'
+      fullPath: '/stays/large-groups'
+      preLoaderRoute: typeof StaysLargeGroupsRouteImport
+      parentRoute: typeof StaysRoute
+    }
+    '/stays/private-pool-villas': {
+      id: '/stays/private-pool-villas'
+      path: '/private-pool-villas'
+      fullPath: '/stays/private-pool-villas'
+      preLoaderRoute: typeof StaysPrivatePoolVillasRouteImport
+      parentRoute: typeof StaysRoute
+    }
   }
 }
 
@@ -445,6 +483,18 @@ const PortalRouteChildren: PortalRouteChildren = {
 const PortalRouteWithChildren =
   PortalRoute._addFileChildren(PortalRouteChildren)
 
+interface StaysRouteChildren {
+  StaysLargeGroupsRoute: typeof StaysLargeGroupsRoute
+  StaysPrivatePoolVillasRoute: typeof StaysPrivatePoolVillasRoute
+}
+
+const StaysRouteChildren: StaysRouteChildren = {
+  StaysLargeGroupsRoute: StaysLargeGroupsRoute,
+  StaysPrivatePoolVillasRoute: StaysPrivatePoolVillasRoute,
+}
+
+const StaysRouteWithChildren = StaysRoute._addFileChildren(StaysRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -456,7 +506,7 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   PortalRoute: PortalRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
-  StaysRoute: StaysRoute,
+  StaysRoute: StaysRouteWithChildren,
   TermsRoute: TermsRoute,
   AdminBookingsRoute: AdminBookingsRoute,
   BlogSlugRoute: BlogSlugRoute,

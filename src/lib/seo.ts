@@ -215,8 +215,11 @@ export function websiteJsonLd() {
 
 // Real, location-specific PIN codes — not one hardcoded code applied to
 // every property regardless of which of these five areas it's actually in
-// (a Candolim villa doesn't share a PIN with an Assagao one).
-const LOCATION_POSTAL_CODES: Record<string, string> = {
+// (a Candolim villa doesn't share a PIN with an Assagao one). Exported so
+// property.$slug.tsx can render the same postal code in the visible NAP
+// block that this file already uses in the address schema below — the
+// whole point of "NAP consistency" is that the two never drift apart.
+export const LOCATION_POSTAL_CODES: Record<string, string> = {
   Vagator: "403509",
   Anjuna: "403509",
   Assagao: "403507",
@@ -275,6 +278,20 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
     // second entity/URL to potentially conflate with this one.
     brand: "Plix Hospitality",
   };
+
+  // hasMap/sameAs only when a real Google Maps URL exists for this specific
+  // property — most are derived from that property's own Google-issued CID
+  // (decoded from the hex pair already embedded in google_maps_embed_url,
+  // e.g. "!1s0x...%3A0x8fe453355360f281!2sMarina...", which Google only
+  // generates for a place that actually exists in its database under that
+  // name), not invented. Two properties (Villa Madera, Casa Serenita) have
+  // no CID in their embed data, so their google_maps_url is a coordinate
+  // link instead — still real and accurate, just not tied to a specific
+  // verified listing the way the CID-based ones are.
+  if (p.google_maps_url) {
+    schema["hasMap"] = p.google_maps_url;
+    schema["sameAs"] = [p.google_maps_url];
+  }
 
   // Google's structured data policy prohibits fabricated ratings/reviews —
   // aggregateRating and review are only emitted when there's at least one

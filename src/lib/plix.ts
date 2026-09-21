@@ -882,6 +882,13 @@ export type Property = {
   latitude: number | null;
   longitude: number | null;
   google_maps_embed_url: string | null;
+  /** A real, clickable Google Maps link for "View on Google Maps" buttons
+   * and JSON-LD hasMap/sameAs — https://www.google.com/maps?cid=<decimal>
+   * decoded from this property's own google_maps_embed_url hex CID where
+   * one exists (see the comment above each property's value), or a plain
+   * coordinate link (https://www.google.com/maps?q=lat,lng) for the two
+   * properties whose embed URL has no CID. Never a guessed/typed-in URL. */
+  google_maps_url: string | null;
   /** Physical unit count: 1 for a whole villa (the property is the unit),
    * or the real room count for a multi-room resort. Admin-editable via
    * properties-data.ts; see isMultiRoomProperty in lib/rates.ts for which
@@ -1010,6 +1017,11 @@ export const PROPERTIES: Property[] = [
     longitude: 73.7425,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.870730595378!2d73.75229337478326!3d15.598554051866985!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfebc42ae85695%3A0x8fe453355360f281!2sMarina%20Villas%20by%20The%20Plix!5e0!3m2!1sen!2sin!4v1787225647279!5m2!1sen!2sin",
+    // CID 0x8fe453355360f281 decoded from the embed URL above -> decimal
+    // 10368503730610958977. Shared with Casa Moana and Casa Meadows below —
+    // all three share one Google Business Profile ("Marina Villas by The
+    // Plix"), matching their shared `enclave` field, not a data error.
+    google_maps_url: "https://www.google.com/maps?cid=10368503730610958977",
     total_inventory: 1,
   },
   {
@@ -1098,6 +1110,8 @@ export const PROPERTIES: Property[] = [
     longitude: 73.743,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.870730595378!2d73.75229337478326!3d15.598554051866985!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfebc42ae85695%3A0x8fe453355360f281!2sMarina%20Villas%20by%20The%20Plix!5e0!3m2!1sen!2sin!4v1787225647279!5m2!1sen!2sin",
+    // Same shared "Marina Villas by The Plix" GBP CID as Casa Marina above.
+    google_maps_url: "https://www.google.com/maps?cid=10368503730610958977",
     total_inventory: 1,
   },
   {
@@ -1189,6 +1203,8 @@ export const PROPERTIES: Property[] = [
     longitude: 73.7435,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.870730595378!2d73.75229337478326!3d15.598554051866985!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfebc42ae85695%3A0x8fe453355360f281!2sMarina%20Villas%20by%20The%20Plix!5e0!3m2!1sen!2sin!4v1787225647279!5m2!1sen!2sin",
+    // Same shared "Marina Villas by The Plix" GBP CID as Casa Marina above.
+    google_maps_url: "https://www.google.com/maps?cid=10368503730610958977",
     total_inventory: 1,
   },
   {
@@ -1291,6 +1307,8 @@ export const PROPERTIES: Property[] = [
     longitude: 73.7395,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.8798999229653!2d73.73791177478313!3d15.598064351879852!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfe95ccd301c61%3A0x70764f7ab0c2ac5b!2sHarbor%20court!5e0!3m2!1sen!2sin!4v1787225547033!5m2!1sen!2sin",
+    // CID 0x70764f7ab0c2ac5b -> decimal 8103751967869938779.
+    google_maps_url: "https://www.google.com/maps?cid=8103751967869938779",
     total_inventory: 10,
   },
   {
@@ -1370,6 +1388,8 @@ export const PROPERTIES: Property[] = [
     longitude: 73.752,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.843691896482!2d73.75493207478324!3d15.59999800182942!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfeb23f5d40b2b%3A0xbfa8e152957f9106!2sThe%20Plix%20Villa!5e0!3m2!1sen!2sin!4v1787225602144!5m2!1sen!2sin",
+    // CID 0xbfa8e152957f9106 -> decimal 13810536002143359238.
+    google_maps_url: "https://www.google.com/maps?cid=13810536002143359238",
     total_inventory: 1,
   },
   {
@@ -1449,6 +1469,8 @@ export const PROPERTIES: Property[] = [
     longitude: 73.734,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.325064000112!2d73.7377409747838!3d15.627669151108158!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfe95a6a32cc19%3A0x3ff28aba2cbdb21c!2sMorjim%20Pride!5e0!3m2!1sen!2sin!4v1787225624344!5m2!1sen!2sin",
+    // CID 0x3ff28aba2cbdb21c -> decimal 4607897900972618268.
+    google_maps_url: "https://www.google.com/maps?cid=4607897900972618268",
     total_inventory: 22,
   },
   {
@@ -1514,6 +1536,8 @@ export const PROPERTIES: Property[] = [
     longitude: 73.762,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3844.3223041428723!2d73.76651777478182!3d15.520843253885856!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfc105cc2ac883%3A0x47be2befb7da01d3!2sVivenda%20Chico!5e0!3m2!1sen!2sin!4v1787225678244!5m2!1sen!2sin",
+    // CID 0x47be2befb7da01d3 -> decimal 5169617730849604051.
+    google_maps_url: "https://www.google.com/maps?cid=5169617730849604051",
     total_inventory: 8,
   },
   {
@@ -1619,6 +1643,8 @@ export const PROPERTIES: Property[] = [
     longitude: 73.73172887478368,
     google_maps_embed_url:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3842.4262803934816!2d73.73172887478368!3d15.62227255124889!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfe994333c6b37%3A0xad13d91db2c953db!2sThe%20Plix%20Resort%20-%20Morjim!5e0!3m2!1sen!2sin!4v1787767469702!5m2!1sen!2sin",
+    // CID 0xad13d91db2c953db -> decimal 12471550514695853019.
+    google_maps_url: "https://www.google.com/maps?cid=12471550514695853019",
     total_inventory: 10,
   },
   {
@@ -1695,6 +1721,10 @@ export const PROPERTIES: Property[] = [
     longitude: 73.74978257478291,
     google_maps_embed_url:
       "https://www.google.com/maps?q=15.576005352453787,73.74978257478291&output=embed",
+    // No CID in this property's embed URL (it's a plain coordinate embed,
+    // not a place-based one like the others above) — coordinate link here
+    // too, rather than guessing at a place ID that can't be verified.
+    google_maps_url: "https://www.google.com/maps?q=15.576005352453787,73.74978257478291",
     total_inventory: 1,
   },
   {
@@ -1783,6 +1813,8 @@ export const PROPERTIES: Property[] = [
     longitude: 73.7467028747833,
     google_maps_embed_url:
       "https://www.google.com/maps?q=15.601282951795916,73.7467028747833&output=embed",
+    // No CID available — same coordinate-link reasoning as Villa Madera above.
+    google_maps_url: "https://www.google.com/maps?q=15.601282951795916,73.7467028747833",
     total_inventory: 1,
   },
 ].sort((a, b) => a.base_price - b.base_price);

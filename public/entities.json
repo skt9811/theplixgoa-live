@@ -8,12 +8,150 @@
       "alternateName": "The Plix",
       "url": "https://theplixgoa.com",
       "logo": "https://theplixgoa.com/Plix_Transparent_(1).png",
-      "areaServed": ["Vagator", "Anjuna", "Assagao", "Morjim", "Candolim"],
+      "areaServed": [
+        "Vagator",
+        "Anjuna",
+        "Assagao",
+        "Morjim",
+        "Candolim"
+      ],
       "priceRange": "₹4500 - ₹22000",
       "knowsAbout": [
         "Luxury private pool villas North Goa",
         "Boutique resorts near Vagator and Morjim",
         "Direct villa bookings without OTA commission"
+      ],
+      "containsPlace": [
+        {
+          "@type": "LodgingBusiness",
+          "name": "Casa Marina",
+          "url": "https://theplixgoa.com/properties/casa-marina",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Anjuna",
+            "addressRegion": "Goa",
+            "postalCode": "403509",
+            "addressCountry": "IN"
+          },
+          "hasMap": "https://www.google.com/maps?cid=10368503730610958977"
+        },
+        {
+          "@type": "LodgingBusiness",
+          "name": "Casa Moana",
+          "url": "https://theplixgoa.com/properties/casa-moana",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Anjuna",
+            "addressRegion": "Goa",
+            "postalCode": "403509",
+            "addressCountry": "IN"
+          },
+          "hasMap": "https://www.google.com/maps?cid=10368503730610958977"
+        },
+        {
+          "@type": "LodgingBusiness",
+          "name": "Casa Meadows",
+          "url": "https://theplixgoa.com/properties/casa-meadows",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Anjuna",
+            "addressRegion": "Goa",
+            "postalCode": "403509",
+            "addressCountry": "IN"
+          },
+          "hasMap": "https://www.google.com/maps?cid=10368503730610958977"
+        },
+        {
+          "@type": "LodgingBusiness",
+          "name": "Harbor Court - Boutique Resort Vagator",
+          "url": "https://theplixgoa.com/properties/harbor-court",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Vagator",
+            "addressRegion": "Goa",
+            "postalCode": "403509",
+            "addressCountry": "IN"
+          },
+          "hasMap": "https://www.google.com/maps?cid=8103751967869938779"
+        },
+        {
+          "@type": "LodgingBusiness",
+          "name": "The Plix Villa - 3 BHK Luxury Private Pool Villa",
+          "url": "https://theplixgoa.com/properties/the-plix-villa",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Assagao",
+            "addressRegion": "Goa",
+            "postalCode": "403507",
+            "addressCountry": "IN"
+          },
+          "hasMap": "https://www.google.com/maps?cid=13810536002143359238"
+        },
+        {
+          "@type": "LodgingBusiness",
+          "name": "Morjim Pride",
+          "url": "https://theplixgoa.com/properties/morjim-pride",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Morjim",
+            "addressRegion": "Goa",
+            "postalCode": "403512",
+            "addressCountry": "IN"
+          },
+          "hasMap": "https://www.google.com/maps?cid=4607897900972618268"
+        },
+        {
+          "@type": "LodgingBusiness",
+          "name": "Vivenda Chico - 8 BHK Heritage Bungalow",
+          "url": "https://theplixgoa.com/properties/vivenda-chico",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Candolim",
+            "addressRegion": "Goa",
+            "postalCode": "403515",
+            "addressCountry": "IN"
+          },
+          "hasMap": "https://www.google.com/maps?cid=5169617730849604051"
+        },
+        {
+          "@type": "LodgingBusiness",
+          "name": "The Plix Resort - Morjim",
+          "url": "https://theplixgoa.com/properties/the-plix-resort-morjim",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Morjim",
+            "addressRegion": "Goa",
+            "postalCode": "403512",
+            "addressCountry": "IN"
+          },
+          "hasMap": "https://www.google.com/maps?cid=12471550514695853019"
+        },
+        {
+          "@type": "LodgingBusiness",
+          "name": "Villa Madera",
+          "url": "https://theplixgoa.com/properties/villa-madera",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Anjuna",
+            "addressRegion": "Goa",
+            "postalCode": "403509",
+            "addressCountry": "IN"
+          },
+          "hasMap": "https://www.google.com/maps?q=15.576005352453787,73.74978257478291"
+        },
+        {
+          "@type": "LodgingBusiness",
+          "name": "Casa Serenita",
+          "url": "https://theplixgoa.com/properties/casa-serenita",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Vagator",
+            "addressRegion": "Goa",
+            "postalCode": "403509",
+            "addressCountry": "IN"
+          },
+          "hasMap": "https://www.google.com/maps?q=15.601282951795916,73.7467028747833"
+        }
       ]
     }
   ]

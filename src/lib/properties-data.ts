@@ -17,6 +17,7 @@ type PropertyOverride = {
   description: string;
   is_active: boolean;
   google_maps_embed_url?: string | null;
+  google_maps_url?: string | null;
   total_inventory?: number;
   starting_price?: number;
 };
@@ -197,6 +198,9 @@ export async function fetchPropertiesWithOverrides(targetDate?: string): Promise
             // backfilled, don't let an empty/null value blank out plix.ts's
             // static embed URL.
             google_maps_embed_url: override.google_maps_embed_url || p.google_maps_embed_url,
+            // Same reasoning as google_maps_embed_url above — no DB column
+            // for this yet either.
+            google_maps_url: override.google_maps_url || p.google_maps_url,
             starting_price: withStartingPrice(p, effectiveBasePrice),
           };
         }) as Property[],
@@ -217,6 +221,7 @@ export async function fetchPropertiesWithOverrides(targetDate?: string): Promise
         ...override,
         image_keys: hasValidImageKeys(override.image_keys) ? override.image_keys : p.image_keys,
         google_maps_embed_url: override.google_maps_embed_url || p.google_maps_embed_url,
+        google_maps_url: override.google_maps_url || p.google_maps_url,
         starting_price: withStartingPrice(p, effectiveBasePrice),
       };
     }) as Property[],
@@ -255,6 +260,8 @@ export async function savePropertyOverride(
     // google_maps_embed_url column yet. Cached to localStorage only so it
     // isn't lost if a future admin UI starts collecting it.
     google_maps_embed_url: override.google_maps_embed_url ?? existing.google_maps_embed_url,
+    // Same reasoning — no google_maps_url column in `properties` either.
+    google_maps_url: override.google_maps_url ?? existing.google_maps_url,
   };
 
   // Write to Neon. Note: total_inventory/seo_title/seo_description/

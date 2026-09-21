@@ -53,6 +53,8 @@ import { computeAvailableRooms, hasInsufficientRooms, type NightlyAvailability }
 import {
   SITE_URL,
   SITE_NAME,
+  SITE_PHONE_2,
+  LOCATION_POSTAL_CODES,
   canonicalUrl,
   propertySeoTitle,
   propertySeoDescription,
@@ -373,6 +375,10 @@ function PropertyDetail() {
               {property.location}
             </Link>
             , {property.region}
+            {/* Same postal code map the schema's address block uses
+                (LOCATION_POSTAL_CODES in seo.ts) — visible NAP text and the
+                LodgingBusiness JSON-LD address should never disagree. */}
+            {LOCATION_POSTAL_CODES[property.location] && `, ${LOCATION_POSTAL_CODES[property.location]}`}
           </span>
           {property.distance_to_beach && (
             <span className="flex items-center gap-1.5">
@@ -488,6 +494,13 @@ function PropertyDetail() {
 
           <section id="location" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">Where you'll be staying</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {property.location}, {property.region}
+              {LOCATION_POSTAL_CODES[property.location] && ` ${LOCATION_POSTAL_CODES[property.location]}`} · Concierge:{" "}
+              <a href={`tel:${SITE_PHONE_2}`} className="font-medium text-primary hover:underline">
+                {SITE_PHONE_2}
+              </a>
+            </p>
             {property.google_maps_embed_url ? (
               <div className="mt-4 h-[380px] w-full overflow-hidden rounded-2xl border border-border shadow-soft">
                 <iframe
@@ -502,7 +515,19 @@ function PropertyDetail() {
                   title={`Map showing the location of ${property.name}`}
                 />
               </div>
-            ) : (
+            ) : null}
+            {property.google_maps_url && (
+              <a
+                href={property.google_maps_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-navy-foreground"
+              >
+                <MapPin className="size-3.5" aria-hidden />
+                View on Google Maps
+              </a>
+            )}
+            {!property.google_maps_embed_url && (
               <div className="relative mt-4 overflow-hidden rounded-2xl border border-border bg-muted">
                 <div className="flex aspect-[16/9] flex-col items-center justify-center gap-2 bg-[radial-gradient(circle_at_30%_30%,color-mix(in_oklab,var(--primary)_18%,transparent),transparent_60%)] text-center">
                   <MapPin className="size-8 text-primary" aria-hidden />

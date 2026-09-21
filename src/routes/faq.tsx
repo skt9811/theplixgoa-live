@@ -12,6 +12,7 @@ import {
   canonicalUrl,
   faqPageJsonLd,
   jsonLdScript,
+  EDGE_CACHE_CONTROL_LONG,
 } from "@/lib/seo";
 
 export const Route = createFileRoute("/faq")({
@@ -41,6 +42,9 @@ export const Route = createFileRoute("/faq")({
       ],
     };
   },
+  // Static page: cached at the edge for a day (see EDGE_CACHE_CONTROL_LONG).
+  // The server entry strips cache directives from any non-200 response.
+  headers: () => ({ "Cache-Control": EDGE_CACHE_CONTROL_LONG }),
   component: FaqPage,
 });
 

@@ -144,6 +144,17 @@ async function bufferHtmlResponse(response: Response): Promise<Response> {
   }
 }
 
+// Routes opt into edge caching with a Cache-Control header, but a route's
+// `headers` option can't see the final response status — so a page that ends
+// up as a 404 or an error would still carry its s-maxage. Nothing but a 200
+// is ever allowed to keep a cache directive.
+function onlyCacheOk(response: Response): Response {
+  if (response.status === 200 || !response.headers.has("cache-control")) return response;
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "no-store");
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     // Handled directly here, before the SSR/router handler: Razorpay's
@@ -396,10 +407,10 @@ export default {
 
       const contentType = response.headers.get("content-type") ?? "";
       if (response.body && contentType.includes("text/html")) {
-        return await bufferHtmlResponse(response);
+        return onlyCacheOk(await bufferHtmlResponse(response));
       }
 
-      return await normalizeCatastrophicSsrResponse(response);
+      return onlyCacheOk(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {

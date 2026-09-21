@@ -29,6 +29,7 @@ import {
   faqPageJsonLd,
   brandJsonLd,
   jsonLdGraphScript,
+  EDGE_CACHE_CONTROL_LONG,
 } from "@/lib/seo";
 
 export const Route = createFileRoute("/")({
@@ -88,6 +89,9 @@ export const Route = createFileRoute("/")({
     void context.queryClient.ensureQueryData(propertiesQuery());
     void context.queryClient.ensureQueryData(reviewsQuery);
   },
+  // Static page: cached at the edge for a day (see EDGE_CACHE_CONTROL_LONG).
+  // The server entry strips cache directives from any non-200 response.
+  headers: () => ({ "Cache-Control": EDGE_CACHE_CONTROL_LONG }),
   component: Home,
 });
 

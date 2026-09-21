@@ -11,6 +11,7 @@ import {
   SITE_PHONE_1,
   SITE_ADDRESS,
   canonicalUrl,
+  EDGE_CACHE_CONTROL_LONG,
 } from "@/lib/seo";
 
 export const Route = createFileRoute("/contact")({
@@ -38,6 +39,9 @@ export const Route = createFileRoute("/contact")({
     ],
     links: [{ rel: "canonical", href: canonicalUrl("/contact") }],
   }),
+  // Static page: cached at the edge for a day (see EDGE_CACHE_CONTROL_LONG).
+  // The server entry strips cache directives from any non-200 response.
+  headers: () => ({ "Cache-Control": EDGE_CACHE_CONTROL_LONG }),
   component: Contact,
 });
 

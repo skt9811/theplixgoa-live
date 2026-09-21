@@ -3,14 +3,27 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ArrowRight, Calendar, ChevronDown, Clock, Loader } from "lucide-react";
 import { blogSummariesQuery, BLOG_CATEGORIES, formatDate } from "@/lib/blog";
-import { SITE_URL, SITE_NAME, canonicalUrl } from "@/lib/seo";
+import {
+  SITE_URL,
+  SITE_NAME,
+  EDGE_CACHE_CONTROL,
+  canonicalUrl,
+  collectionPageJsonLd,
+  jsonLdScript,
+} from "@/lib/seo";
 
 const BLOG_INDEX_TITLE = "Goa Travel & Luxury Villa Guides | The Plix Goa Blog";
 const BLOG_INDEX_DESCRIPTION =
   "Expert Goa travel guides, luxury stay recommendations, party venues, and insider tips from Plix Hospitality. Plan your North Goa getaway.";
 
 export const Route = createFileRoute("/blog/")({
-  head: () => ({
+  // loader precedes head/headers on purpose: TanStack infers loaderData for
+  // those from the options declared before them.
+  loader: async ({ context }) => {
+    const posts = await context.queryClient.ensureQueryData(blogSummariesQuery);
+    return { recent: posts.slice(0, 10).map((p) => ({ name: p.title, slug: p.slug })) };
+  },
+  head: ({ loaderData }) => ({
     meta: [
       { title: BLOG_INDEX_TITLE },
       { name: "description", content: BLOG_INDEX_DESCRIPTION },
@@ -26,6 +39,26 @@ export const Route = createFileRoute("/blog/")({
       { name: "twitter:image", content: `${SITE_URL}/og-home.jpg` },
     ],
     links: [{ rel: "canonical", href: canonicalUrl("/blog") }],
+    // Only emitted when there are posts to list — an empty ItemList is
+    // worse than no schema (a transient DB miss shouldn't advertise a blog
+    // with zero articles).
+    scripts:
+      loaderData && loaderData.recent.length > 0
+        ? [
+            {
+              type: "application/ld+json",
+              id: "blog-collection-jsonld",
+              children: jsonLdScript(
+                collectionPageJsonLd({
+                  name: BLOG_INDEX_TITLE,
+                  description: BLOG_INDEX_DESCRIPTION,
+                  url: `${SITE_URL}/blog`,
+                  items: loaderData.recent.map((p) => ({ name: p.name, url: `${SITE_URL}/blog/${p.slug}` })),
+                }),
+              ),
+            },
+          ]
+        : [],
   }),
   // The list itself changes at most a few times a day (new/edited posts);
   // it doesn't need to be recomputed on every single request. s-maxage
@@ -33,12 +66,11 @@ export const Route = createFileRoute("/blog/")({
   // a visitor during that window still gets an instant cached response
   // while a fresh one is fetched in the background for the next request,
   // rather than ever blocking on a slow origin render.
-  headers: () => ({
-    "Cache-Control": "s-maxage=3600, stale-while-revalidate=86400",
-  }),
-  loader: async ({ context }) => {
-    await context.queryClient.prefetchQuery(blogSummariesQuery);
-  },
+  // Not cached when the list came back empty (Neon's first query after
+  // idle can transiently return nothing) — otherwise that empty page would
+  // be what the edge serves for the next hour.
+  headers: ({ loaderData }) =>
+    loaderData && loaderData.recent.length > 0 ? { "Cache-Control": EDGE_CACHE_CONTROL } : undefined,
   component: BlogIndex,
 });
 

@@ -7,6 +7,7 @@ import type { Property } from "@/lib/plix";
 import {
   SITE_URL,
   SITE_NAME,
+  EDGE_CACHE_CONTROL,
   canonicalUrl,
   collectionPageJsonLd,
   breadcrumbJsonLd,
@@ -71,6 +72,9 @@ export const Route = createFileRoute("/stays/large-groups")({
       ],
     };
   },
+  // Cached at the edge only when real data loaded — never an empty/error page.
+  headers: ({ loaderData }) =>
+    loaderData && loaderData.items.length > 0 ? { "Cache-Control": EDGE_CACHE_CONTROL } : undefined,
   component: LargeGroupsHub,
 });
 

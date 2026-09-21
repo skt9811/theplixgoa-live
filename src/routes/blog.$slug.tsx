@@ -1,9 +1,9 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Calendar, Clock, Facebook, Hop as Home, Link2, MapPin, Twitter } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { blogQuery, blogsQuery, estimateReadingTime, formatDate } from "@/lib/blog";
+import { blogQuery, blogSummariesQuery, estimateReadingTime, formatDate, type BlogSummary } from "@/lib/blog";
 import { matchLocationForPost } from "@/lib/locations";
 import {
   SITE_URL,
@@ -18,6 +18,10 @@ export const Route = createFileRoute("/blog/$slug")({
   loader: async ({ params, context }) => {
     const post = await context.queryClient.ensureQueryData(blogQuery(params.slug));
     if (!post) throw notFound();
+    // Prefetched (not just read in the component) so the "Related Goa
+    // Guides" links are in the server-rendered HTML a crawler sees, not
+    // only added after hydration.
+    await context.queryClient.ensureQueryData(blogSummariesQuery);
     return { post };
   },
   head: ({ loaderData }) => {
@@ -91,14 +95,31 @@ function BlogPostNotFound() {
   );
 }
 
+const RELATED_COUNT = 3;
+
+// Each article links to the next RELATED_COUNT articles in publish order,
+// wrapping around at the end. Deterministic (safe for SSR/hydration — no
+// Math.random), and — unlike "the 3 newest" or "the same category" — it
+// gives every post in the archive exactly RELATED_COUNT incoming internal
+// links, so no article is left with only its /blog index link. Falls back to
+// the newest posts for a slug that isn't in the published list (e.g. a
+// scheduled post opened by direct URL).
+function relatedGuides(all: BlogSummary[], currentId: string): BlogSummary[] {
+  const others = all.filter((b) => b.id !== currentId);
+  if (others.length <= RELATED_COUNT) return others;
+  const index = all.findIndex((b) => b.id === currentId);
+  if (index === -1) return others.slice(0, RELATED_COUNT);
+  return Array.from({ length: RELATED_COUNT }, (_, i) => all[(index + 1 + i) % all.length]!);
+}
+
 function BlogPostPage() {
   const { slug } = Route.useParams();
   const { data: post } = useSuspenseQuery(blogQuery(slug));
-  const { data: allBlogs = [] } = useQuery(blogsQuery);
+  const { data: allBlogs } = useSuspenseQuery(blogSummariesQuery);
 
   if (!post) return <BlogPostNotFound />;
 
-  const related = allBlogs.filter((b) => b.id !== post.id).slice(0, 3);
+  const related = relatedGuides(allBlogs, post.id);
   const matchedHub = matchLocationForPost({ title: post.title, excerpt: post.excerpt });
   const shareUrl = `${SITE_URL}/blog/${post.slug}`;
 
@@ -197,7 +218,7 @@ function BlogPostPage() {
 
       {related.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 py-12 md:px-6">
-          <h2 className="text-xl font-semibold text-navy md:text-2xl">More from the Journal</h2>
+          <h2 className="text-xl font-semibold text-navy md:text-2xl">Related Goa Guides</h2>
           <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {related.map((r) => (
               <Link

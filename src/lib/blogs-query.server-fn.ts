@@ -84,9 +84,19 @@ export const fetchBlogSummariesServerFn = createServerFn({ method: "GET" }).hand
         FROM public.blogs ORDER BY published_at DESC
       `;
       return rows.map((row) => {
-        const { content, published_at, ...rest } = row;
+        const { content, published_at, cover_image, ...rest } = row;
         return {
           ...rest,
+          // 33 of 36 live posts store their cover as a base64 data: URI
+          // (the admin's "Upload from device" has no real storage backend),
+          // ~11MB in total — embedded here it made /blog an 11MB HTML
+          // document, over Vercel's cacheable-response size, so the edge
+          // cache could never engage. Cards get a real, separately cacheable
+          // image URL instead (GET /api/blog-cover/:slug in server.ts). This
+          // is the public-listing shape only: the admin editor reads posts
+          // through fetchAllBlogsAdmin, so saving never round-trips this URL
+          // back over the stored base64.
+          cover_image: cover_image.startsWith("data:") ? `/api/blog-cover/${row.slug}` : cover_image,
           published_at: published_at instanceof Date ? published_at.toISOString() : published_at,
           reading_time_minutes: estimateReadingTimeServer(content),
         };

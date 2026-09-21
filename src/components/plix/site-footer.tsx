@@ -12,6 +12,7 @@ const quickLinks = [
   { label: "Partner With Us", to: "/contact" as const },
   { label: "Terms & Conditions", to: "/terms" as const },
   { label: "Blogs", to: "/blog" as const },
+  { label: "FAQs", to: "/faq" as const },
   // Same reasoning: no standalone gallery page — /stays is the closest
   // real page (every property's full photo set) to what "Plix Gallery" means.
   { label: "Plix Gallery", to: "/stays" as const },

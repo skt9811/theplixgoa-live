@@ -11,7 +11,7 @@ import {
 
 export const Route = createFileRoute("/privacy")({
   head: () => {
-    const title = "Privacy Policy — The Plix Goa";
+    const title = "Privacy Policy | The Plix Hospitality Goa";
     const description =
       "How The Plix Goa collects, uses, and protects your personal data in compliance with the Information Technology Act, 2000 and GDPR principles for guests booking luxury villas in Goa.";
     return {

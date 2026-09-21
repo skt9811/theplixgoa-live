@@ -25,6 +25,14 @@ export const SITE_ADDRESS = {
 };
 export const PRICE_RANGE = "₹4500 - ₹22000";
 
+// Semi-static SSR pages (blog index, location/collection hubs, stays,
+// property pages) are served from Vercel's edge for an hour, then served
+// stale for up to a day while a fresh copy is fetched in the background —
+// instead of re-running the SSR + DB queries for every visitor and crawler.
+// Vercel rewrites this to max-age=0 in the header the browser sees, so the
+// browser itself always revalidates; only the edge holds the copy.
+export const EDGE_CACHE_CONTROL = "public, s-maxage=3600, stale-while-revalidate=86400";
+
 // Fallback-only budget: this list is tried in order and the first one that
 // fits wins, so the keyword-forward "[year]" format (closest to what ranks
 // best on CTR) is preferred whenever the property's own name is short enough
@@ -144,9 +152,10 @@ export function canonicalUrl(path: string): string {
 // every page. Schema.org's own type hierarchy is LodgingBusiness extends
 // LocalBusiness extends Organization, so three differently-typed blocks
 // describing the exact same real-world entity was genuine duplication, not
-// three distinct facts. LodgingBusiness is kept as the single type — the
-// most specific one, and the one Google's lodging rich results key off —
-// with the richer fields from the old Organization block (sameAs,
+// three distinct facts. It stays ONE entity: LodgingBusiness (the most
+// specific type, the one Google's lodging rich results key off) plus a
+// literal "Organization" in the same @type array — see the note on @type
+// below — with the richer fields from the old Organization block (sameAs,
 // aggregateRating, logo) folded in.
 //
 // Render this on the homepage ONLY, not globally in __root.tsx — every
@@ -159,9 +168,18 @@ export function canonicalUrl(path: string): string {
 export function brandJsonLd() {
   return {
     "@context": "https://schema.org",
-    "@type": "LodgingBusiness",
+    // Both types on the one entity (rather than a second, separate
+    // Organization block, which is what this function used to consolidate
+    // away): LodgingBusiness is already a subtype of Organization in
+    // schema.org, but validators/crawlers that look for a literal
+    // "Organization" type don't follow that hierarchy.
+    "@type": ["LodgingBusiness", "Organization"],
     "@id": `${SITE_URL}/#business`,
-    name: "Plix Hospitality",
+    // Legal entity name (matches the footer and public/entities.json);
+    // "Plix Hospitality" / "The Plix" stay as alternate names.
+    name: "Plix Hospitality Private Limited",
+    alternateName: ["Plix Hospitality", "The Plix", "The Plix Goa"],
+    legalName: "Plix Hospitality Private Limited",
     description:
       "Luxury private pool villas, boutique resorts, and sprawling bungalows in Anjuna, Vagator, Assagao, Morjim, and Candolim, North Goa. Book direct and skip commission.",
     url: SITE_URL,

@@ -46,3 +46,24 @@ export async function fetchPublishedBlogSlugsForSitemap(): Promise<SitemapBlogRo
     return [];
   }
 }
+
+// Serves GET /api/blog-cover/:slug (see server.ts) — the stored cover_image
+// for a currently-published post, only when it's a base64 data: URI (posts
+// with a normal https:// cover never go through this path). Returns null for
+// anything else, including scheduled posts, so a future post's image can't
+// be probed by guessing its slug.
+export async function fetchPublishedBlogCoverDataUri(slug: string): Promise<string | null> {
+  const sql = await getSql();
+  if (!sql) return null;
+  try {
+    const rows = await sql<{ cover_image: string }[]>`
+      SELECT cover_image FROM public.blogs
+      WHERE slug = ${slug} AND published_at <= now() AND cover_image LIKE 'data:%'
+      LIMIT 1
+    `;
+    return rows[0]?.cover_image ?? null;
+  } catch (err) {
+    console.error("[fetchPublishedBlogCoverDataUri]:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}

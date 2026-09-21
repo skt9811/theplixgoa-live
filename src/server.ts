@@ -6,6 +6,7 @@ import { handleRazorpayWebhook } from "./lib/razorpay-webhook.server";
 import { handleSubscribeRequest } from "./lib/subscribe-newsletter.server";
 import { handleContactEnquiryRequest } from "./lib/contact-enquiry.server";
 import { handleSitemapRequest } from "./lib/sitemap.server";
+import { handleBlogCoverRequest } from "./lib/blog-cover.server";
 import { handleSendWelcomeEmail } from "./lib/send-welcome-email.server";
 import { handlePasswordSignIn, handlePasswordSignUp, handleLogout } from "./lib/auth-routes.server";
 import { handleMobileGoogleAuth, handleMobileEmailSignIn, handleMobileEmailSignUp } from "./lib/mobile-auth.server";
@@ -377,6 +378,15 @@ export default {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });
+      }
+    }
+
+    if (url.pathname.startsWith("/api/blog-cover/") && request.method === "GET") {
+      try {
+        return await handleBlogCoverRequest(url.pathname.slice("/api/blog-cover/".length));
+      } catch (error) {
+        console.error("[blog-cover] unhandled error:", error);
+        return new Response("Not found", { status: 404 });
       }
     }
 

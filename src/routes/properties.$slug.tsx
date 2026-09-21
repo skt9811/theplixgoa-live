@@ -53,6 +53,7 @@ import { computeAvailableRooms, hasInsufficientRooms, type NightlyAvailability }
 import {
   SITE_URL,
   SITE_NAME,
+  EDGE_CACHE_CONTROL,
   SITE_PHONE_2,
   ENCLAVE_ENTITIES,
   LOCATION_POSTAL_CODES,
@@ -174,6 +175,11 @@ export const Route = createFileRoute("/properties/$slug")({
       scripts,
     };
   },
+  // Only a found property is cached at the edge — a 404 (unknown slug) or an
+  // error page must never be what the edge serves for the next hour. Live
+  // rates and blocked dates are fetched client-side, so a cached page only
+  // ever holds the static listing + base price.
+  headers: ({ loaderData }) => (loaderData ? { "Cache-Control": EDGE_CACHE_CONTROL } : undefined),
   errorComponent: () => <Fallback title="This stay didn't load" />,
   notFoundComponent: () => <Fallback title="We couldn't find that stay" />,
   component: PropertyDetail,

@@ -10,6 +10,7 @@ import { computeAvailableRooms, hasInsufficientRooms } from "@/lib/inventory";
 import {
   SITE_URL,
   SITE_NAME,
+  EDGE_CACHE_CONTROL,
   canonicalUrl,
 } from "@/lib/seo";
 
@@ -31,6 +32,10 @@ export const Route = createFileRoute("/stays")({
     guests: search["guests"] ? Number(search["guests"]) : undefined,
     rooms: search["rooms"] ? Number(search["rooms"]) : undefined,
   }),
+  // loader precedes head/headers on purpose: TanStack infers loaderData for
+  // headers from the options declared before it.
+  loader: ({ context, location }) =>
+    context.queryClient.ensureQueryData(propertiesQuery((location.search as StaySearch).checkIn)),
   head: ({ match }) => {
     // Validated against the real location list, not used raw — an
     // unrecognized value (a typo, or someone probing the URL) falls back
@@ -77,8 +82,9 @@ export const Route = createFileRoute("/stays")({
       // this page has no schema unique to it.
     };
   },
-  loader: ({ context, location }) =>
-    context.queryClient.ensureQueryData(propertiesQuery((location.search as StaySearch).checkIn)),
+  // Cached at the edge only when real data loaded — never an empty/error page.
+  headers: ({ loaderData }) =>
+    loaderData && loaderData.length > 0 ? { "Cache-Control": EDGE_CACHE_CONTROL } : undefined,
   component: Stays,
 });
 

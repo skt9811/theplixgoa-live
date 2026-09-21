@@ -25,6 +25,14 @@ export const SITE_ADDRESS = {
 };
 export const PRICE_RANGE = "₹4500 - ₹22000";
 
+// Fallback-only budget: this list is tried in order and the first one that
+// fits wins, so the keyword-forward "[year]" format (closest to what ranks
+// best on CTR) is preferred whenever the property's own name is short enough
+// to leave room for it, without ever emitting something over ~60 chars —
+// same reasoning as BLOG_TITLE_BUDGET above, and the last candidate in each
+// branch is guaranteed short regardless of name length.
+const PROPERTY_TITLE_BUDGET = 60;
+
 function basePropertyTitle(p: Property): string {
   if (p.seo_title) return p.seo_title;
   const beds =
@@ -35,17 +43,34 @@ function basePropertyTitle(p: Property): string {
     t.toLowerCase().includes("resort") || t.toLowerCase().includes("boutique"),
   );
   const isBeachfront = p.distance_to_beach?.includes("walk");
+  const year = new Date().getFullYear();
 
+  const candidates: string[] = [];
   if (isBeachfront && p.location === "Morjim") {
-    return `${p.name} | Beachfront Resort Steps from Morjim Beach`;
+    candidates.push(
+      `Beachfront Resort Steps from Morjim Beach | ${p.name} [${year}]`,
+      `${p.name} | Beachfront Resort Steps from Morjim Beach`,
+    );
+  } else if (isResort) {
+    candidates.push(
+      `Boutique Beach Resort in ${p.location} with Pool | ${p.name} [${year}]`,
+      `Boutique Beach Resort in ${p.location} | ${p.name}`,
+      `${p.name} | Premium Boutique Resort in ${p.location}, North Goa`,
+    );
+  } else if (p.bedrooms >= 8) {
+    candidates.push(
+      `${beds} Luxury Bungalow in ${p.location} with Pool | ${p.name} [${year}]`,
+      `${beds} Luxury Bungalow in ${p.location} | ${p.name}`,
+      `${p.name} | ${beds} Luxury Bungalow in ${p.location} with Pool`,
+    );
+  } else {
+    candidates.push(
+      `${beds} Luxury Villa in ${p.location} with Private Pool | ${p.name} [${year}]`,
+      `${beds} Luxury Villa in ${p.location} with Pool | ${p.name}`,
+      `${p.name} | ${beds} Luxury Private Pool Villa in ${p.location}, Goa`,
+    );
   }
-  if (isResort) {
-    return `${p.name} | Premium Boutique Resort in ${p.location}, North Goa`;
-  }
-  if (p.bedrooms >= 8) {
-    return `${p.name} | ${beds} Luxury Bungalow in ${p.location} with Pool`;
-  }
-  return `${p.name} | ${beds} Luxury Private Pool Villa in ${p.location}, Goa`;
+  return candidates.find((c) => c.length <= PROPERTY_TITLE_BUDGET) ?? candidates[candidates.length - 1]!;
 }
 
 // "The Plix Goa" (the fuller phrasing), not SITE_NAME ("The Plix", reserved
@@ -79,8 +104,15 @@ export function blogSeoTitle(rawTitle: string): string {
 function basePropertyDescription(p: Property): string {
   if (p.seo_description) return p.seo_description;
   const beds = p.bedrooms <= 6 ? `${p.bedrooms} BHK` : `${p.bedrooms} bedroom`;
-  const beach = p.distance_to_beach ? ` ${p.distance_to_beach}.` : "";
-  return `Book ${p.name}, a ${beds} luxury private pool ${p.bedrooms >= 8 ? "bungalow" : "villa"} in ${p.location}, North Goa from ₹${p.base_price.toLocaleString("en-IN")}/night.${beach} Direct booking, zero commission, best price guaranteed.`;
+  // "power backup" is only true for a subset of real properties (confirmed
+  // during the FAQ content audit) — checked against this property's own
+  // amenity_tags rather than stated unconditionally, so this fallback never
+  // asserts an amenity the property doesn't actually have.
+  const hasPowerBackup = p.amenity_tags.some((t) => t.toLowerCase().includes("power backup"));
+  const amenityLine = hasPowerBackup
+    ? "private pool, caretaker & power backup"
+    : "private pool & dedicated caretaker";
+  return `Book ${p.name} direct from ₹${p.base_price.toLocaleString("en-IN")}/night. ${p.bedrooms} rooms, ${amenityLine} in ${p.location}, North Goa. Zero OTA fees.`;
 }
 
 export function propertySeoDescription(p: Property): string {

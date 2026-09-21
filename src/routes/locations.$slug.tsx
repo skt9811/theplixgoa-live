@@ -4,7 +4,7 @@ import { CalendarDays, MapPin, MoonStar, BookOpen } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
 import { propertiesQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
 import { findLocationHub, propertiesInLocation, postMentionsLocation, LOCATION_HUBS } from "@/lib/locations";
-import { resolveImages } from "@/lib/plix";
+import { resolveImages, type Property } from "@/lib/plix";
 import { blogsQuery } from "@/lib/blog";
 import { SmartImage } from "@/components/plix/smart-image";
 import {
@@ -16,6 +16,20 @@ import {
   faqPageJsonLd,
   jsonLdScript,
 } from "@/lib/seo";
+
+// Editorial curation — hand-picked, not derived from the location filter —
+// for hubs where a specific property deserves a direct call-out beyond its
+// place in the regular grid below. Casa Marina and Casa Meadows are
+// data-model "Anjuna" properties (see Property.location in src/lib/plix.ts)
+// but both carry their own hand-set seo_title branding them "Vagator"
+// (e.g. "Casa Marina Vagator | ..."), so spotlighting them on the Vagator
+// hub matches the site's own established branding rather than the raw
+// location field.
+const SPOTLIGHT_SLUGS: Record<string, string[]> = {
+  candolim: ["vivenda-chico"],
+  vagator: ["casa-marina", "casa-meadows"],
+  assagao: ["the-plix-villa"],
+};
 
 export const Route = createFileRoute("/locations/$slug")({
   loader: async ({ context, params }) => {
@@ -130,6 +144,10 @@ function LocationHubPage() {
   const localProperties = propertiesInLocation(properties, hub.name);
   const heroImage = localProperties[0] ? resolveImages(localProperties[0].image_keys)[0] : undefined;
   const relatedPosts = blogPosts.filter((post) => postMentionsLocation(post, hub.name)).slice(0, 3);
+  const spotlightSlugs = SPOTLIGHT_SLUGS[hub.slug] ?? [];
+  const spotlightProperties = spotlightSlugs
+    .map((slug) => properties.find((p) => p.slug === slug))
+    .filter((p): p is Property => Boolean(p));
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 pb-24 md:px-6 md:pb-12">
@@ -166,6 +184,26 @@ function LocationHubPage() {
         </div>
         <p className="p-6 leading-relaxed text-navy-foreground/90 sm:p-10 sm:pt-6">{hub.overview}</p>
       </header>
+
+      {/* Editorial spotlight — hand-picked property call-outs, see
+          SPOTLIGHT_SLUGS above. */}
+      {spotlightProperties.length > 0 && (
+        <section aria-labelledby="spotlight-heading" className="mt-6 flex flex-wrap items-center gap-2">
+          <span id="spotlight-heading" className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+            Editorial Pick
+          </span>
+          {spotlightProperties.map((p) => (
+            <Link
+              key={p.slug}
+              to="/properties/$slug"
+              params={{ slug: p.slug }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-bronze/40 bg-bronze/10 px-4 py-1.5 text-sm font-medium text-navy transition-colors hover:bg-bronze/20"
+            >
+              {p.name}
+            </Link>
+          ))}
+        </section>
+      )}
 
       {/* High-density local facts block */}
       <section aria-labelledby="local-facts-heading" className="mt-8 rounded-2xl border border-border bg-card p-5 shadow-soft sm:p-6">

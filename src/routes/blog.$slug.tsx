@@ -29,10 +29,26 @@ export const Route = createFileRoute("/blog/$slug")({
     const { post } = loaderData;
     const url = `${SITE_URL}/blog/${post.slug}`;
     const seoTitle = blogSeoTitle(post.title);
+    // The admin editor's "Upload from device" option stores the raw file as
+    // a base64 data: URI instead of uploading it anywhere (this app has no
+    // image upload/storage pipeline yet) — confirmed present on several
+    // real posts. A data: URI is not a fetchable HTTPS URL, so WhatsApp/
+    // Twitter/iMessage link-preview crawlers (and Schema.org's `image`,
+    // which expects a URL) simply can't use it. Falls back to the site
+    // logo — the same real, already-hosted asset this app's own schema
+    // (blogPostingJsonLd's publisher.logo, entities.json, brandJsonLd)
+    // already uses as its brand-image fallback elsewhere — rather than a
+    // guessed filename like /og-cover.jpg, which doesn't actually exist in
+    // public/ (neither does /og-home.jpg, the homepage's own og:image —
+    // a separate, pre-existing gap worth a real hero photo asset later).
+    const resolvedOgImage =
+      post.cover_image && !post.cover_image.startsWith("data:")
+        ? post.cover_image
+        : `${SITE_URL}/Plix_Transparent_(1).png`;
     const schema = blogPostingJsonLd({
       title: post.title,
       excerpt: post.excerpt,
-      coverImage: post.cover_image,
+      coverImage: resolvedOgImage,
       author: post.author,
       publishedAt: post.published_at,
       url,
@@ -44,14 +60,14 @@ export const Route = createFileRoute("/blog/$slug")({
         { name: "robots", content: "index, follow" },
         { property: "og:title", content: post.title },
         { property: "og:description", content: post.excerpt },
-        { property: "og:image", content: post.cover_image },
+        { property: "og:image", content: resolvedOgImage },
         { property: "og:type", content: "article" },
         { property: "og:url", content: url },
         { property: "og:site_name", content: SITE_NAME },
         { name: "twitter:card", content: "summary_large_image" },
         { name: "twitter:title", content: post.title },
         { name: "twitter:description", content: post.excerpt },
-        { name: "twitter:image", content: post.cover_image },
+        { name: "twitter:image", content: resolvedOgImage },
       ],
       links: [{ rel: "canonical", href: canonicalUrl(`/blog/${post.slug}`) }],
       scripts: [{ type: "application/ld+json", id: "blog-post-jsonld", children: jsonLdScript(schema) }],

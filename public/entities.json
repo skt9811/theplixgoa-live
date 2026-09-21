@@ -23,43 +23,7 @@
       ],
       "containsPlace": [
         {
-          "@type": "LodgingBusiness",
-          "name": "Casa Marina",
-          "url": "https://theplixgoa.com/properties/casa-marina",
-          "address": {
-            "@type": "PostalAddress",
-            "addressLocality": "Anjuna",
-            "addressRegion": "Goa",
-            "postalCode": "403509",
-            "addressCountry": "IN"
-          },
-          "hasMap": "https://www.google.com/maps?cid=10368503730610958977"
-        },
-        {
-          "@type": "LodgingBusiness",
-          "name": "Casa Moana",
-          "url": "https://theplixgoa.com/properties/casa-moana",
-          "address": {
-            "@type": "PostalAddress",
-            "addressLocality": "Anjuna",
-            "addressRegion": "Goa",
-            "postalCode": "403509",
-            "addressCountry": "IN"
-          },
-          "hasMap": "https://www.google.com/maps?cid=10368503730610958977"
-        },
-        {
-          "@type": "LodgingBusiness",
-          "name": "Casa Meadows",
-          "url": "https://theplixgoa.com/properties/casa-meadows",
-          "address": {
-            "@type": "PostalAddress",
-            "addressLocality": "Anjuna",
-            "addressRegion": "Goa",
-            "postalCode": "403509",
-            "addressCountry": "IN"
-          },
-          "hasMap": "https://www.google.com/maps?cid=10368503730610958977"
+          "@id": "https://theplixgoa.com/#marina-villas"
         },
         {
           "@type": "LodgingBusiness",
@@ -151,6 +115,33 @@
             "addressCountry": "IN"
           },
           "hasMap": "https://www.google.com/maps?q=15.601282951795916,73.7467028747833"
+        }
+      ]
+    },
+    {
+      "@type": "LodgingBusiness",
+      "@id": "https://theplixgoa.com/#marina-villas",
+      "name": "Marina Villas by The Plix",
+      "hasMap": "https://www.google.com/maps?cid=10368503730610958977",
+      "sameAs": [
+        "https://www.google.com/maps?cid=10368503730610958977"
+      ],
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Vagator",
+        "addressRegion": "Goa",
+        "postalCode": "403509",
+        "addressCountry": "IN"
+      },
+      "containsPlace": [
+        {
+          "@id": "https://theplixgoa.com/properties/casa-marina#lodging"
+        },
+        {
+          "@id": "https://theplixgoa.com/properties/casa-moana#lodging"
+        },
+        {
+          "@id": "https://theplixgoa.com/properties/casa-meadows#lodging"
         }
       ]
     }

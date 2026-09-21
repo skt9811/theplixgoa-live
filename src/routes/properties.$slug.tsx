@@ -54,6 +54,7 @@ import {
   SITE_URL,
   SITE_NAME,
   SITE_PHONE_2,
+  ENCLAVE_ENTITIES,
   LOCATION_POSTAL_CODES,
   canonicalUrl,
   propertySeoTitle,
@@ -333,6 +334,8 @@ function PropertyDetail() {
 
   if (!property) return <Fallback title="We couldn't find that stay" />;
 
+  const enclaveEntity = property.enclave ? ENCLAVE_ENTITIES[property.enclave] : undefined;
+
   const input =
     "mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-ring/40 min-h-[44px]";
 
@@ -494,6 +497,11 @@ function PropertyDetail() {
 
           <section id="location" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">Where you'll be staying</h2>
+            {enclaveEntity && (
+              <p className="mt-1 text-sm text-foreground">
+                Located within <span className="font-medium">{property.enclave}</span>, {enclaveEntity.locality}
+              </p>
+            )}
             <p className="mt-1 text-sm text-muted-foreground">
               {property.location}, {property.region}
               {LOCATION_POSTAL_CODES[property.location] && ` ${LOCATION_POSTAL_CODES[property.location]}`} · Concierge:{" "}

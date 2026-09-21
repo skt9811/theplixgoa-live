@@ -213,6 +213,21 @@ export function websiteJsonLd() {
   };
 }
 
+// Shared compounds that contain more than one bookable property. The @id
+// matches the one declared in public/entities.json, and hasMap is the same
+// CID link Casa Marina, Casa Moana and Casa Meadows all carry as their own
+// google_maps_url (one shared Google Business Profile, see plix.ts).
+// `locality` is the neighborhood the compound is branded under — Vagator, per
+// those properties' own hand-set seo_titles — not the raw Property.location
+// ("Anjuna") they're recorded under.
+export const ENCLAVE_ENTITIES: Record<string, { id: string; hasMap: string; locality: string }> = {
+  "Marina Villas by The Plix": {
+    id: `${SITE_URL}/#marina-villas`,
+    hasMap: "https://www.google.com/maps?cid=10368503730610958977",
+    locality: "Vagator",
+  },
+};
+
 // Real, location-specific PIN codes — not one hardcoded code applied to
 // every property regardless of which of these five areas it's actually in
 // (a Candolim villa doesn't share a PIN with an Assagao one). Exported so
@@ -291,6 +306,21 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
   if (p.google_maps_url) {
     schema["hasMap"] = p.google_maps_url;
     schema["sameAs"] = [p.google_maps_url];
+  }
+
+  // Keyed lookup rather than a hardcoded slug check: Property.enclave is
+  // currently only ever "Marina Villas by The Plix" (Casa Marina, Casa Moana,
+  // Casa Meadows — one shared Google Business Profile, one compound), but an
+  // enclave name with no entry here simply gets no containedInPlace, rather
+  // than being stamped with the wrong compound's @id/map link.
+  const enclaveEntity = p.enclave ? ENCLAVE_ENTITIES[p.enclave] : undefined;
+  if (p.enclave && enclaveEntity) {
+    schema["containedInPlace"] = {
+      "@type": "LodgingBusiness",
+      "@id": enclaveEntity.id,
+      name: p.enclave,
+      hasMap: enclaveEntity.hasMap,
+    };
   }
 
   // Google's structured data policy prohibits fabricated ratings/reviews —

@@ -416,6 +416,34 @@ export function collectionPageJsonLd(input: {
   };
 }
 
+// schema.org "Blog" for the /blog index — the type validators and crawlers
+// look for on a blog's root page (CollectionPage alone doesn't satisfy
+// them). blogPost lists the most recent articles as lightweight stubs, so
+// the list of posts the old CollectionPage/ItemList block carried isn't lost.
+export function blogJsonLd(input: { posts: { name: string; url: string }[] }) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    name: "The Plix Goa Travel & Luxury Villa Guides",
+    description: "Expert travel guides, local Goa recommendations, and villa booking insights.",
+    url: `${SITE_URL}/blog`,
+    publisher: {
+      "@type": "Organization",
+      // Same @id as the homepage brand entity (brandJsonLd), so this
+      // publisher resolves to that one organization rather than a lookalike.
+      "@id": `${SITE_URL}/#business`,
+      name: "Plix Hospitality Private Limited",
+      url: SITE_URL,
+      logo: `${SITE_URL}/Plix_Transparent_(1).png`,
+    },
+    blogPost: input.posts.map((post) => ({
+      "@type": "BlogPosting",
+      headline: post.name,
+      url: post.url,
+    })),
+  };
+}
+
 export function faqPageJsonLd(faqs: { q: string; a: string }[]) {
   return {
     "@context": "https://schema.org",

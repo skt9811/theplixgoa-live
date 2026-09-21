@@ -8,7 +8,7 @@ import {
   SITE_NAME,
   EDGE_CACHE_CONTROL,
   canonicalUrl,
-  collectionPageJsonLd,
+  blogJsonLd,
   jsonLdScript,
 } from "@/lib/seo";
 
@@ -39,21 +39,17 @@ export const Route = createFileRoute("/blog/")({
       { name: "twitter:image", content: `${SITE_URL}/og-home.jpg` },
     ],
     links: [{ rel: "canonical", href: canonicalUrl("/blog") }],
-    // Only emitted when there are posts to list — an empty ItemList is
-    // worse than no schema (a transient DB miss shouldn't advertise a blog
-    // with zero articles).
+    // Only emitted when there are posts to list — a transient DB miss
+    // shouldn't advertise a blog with zero articles.
     scripts:
       loaderData && loaderData.recent.length > 0
         ? [
             {
               type: "application/ld+json",
-              id: "blog-collection-jsonld",
+              id: "blog-jsonld",
               children: jsonLdScript(
-                collectionPageJsonLd({
-                  name: BLOG_INDEX_TITLE,
-                  description: BLOG_INDEX_DESCRIPTION,
-                  url: `${SITE_URL}/blog`,
-                  items: loaderData.recent.map((p) => ({ name: p.name, url: `${SITE_URL}/blog/${p.slug}` })),
+                blogJsonLd({
+                  posts: loaderData.recent.map((p) => ({ name: p.name, url: `${SITE_URL}/blog/${p.slug}` })),
                 }),
               ),
             },

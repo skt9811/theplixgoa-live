@@ -16,9 +16,9 @@ import {
 
 export const Route = createFileRoute("/faq")({
   head: () => {
-    const title = "FAQs — The Plix Goa";
+    const title = "Frequently Asked Questions & Villa Policies | The Plix Goa";
     const description =
-      "Answers to common questions about booking luxury villas in Goa with The Plix Goa — payments, check-in, house rules, amenities, pets, extra guests and more.";
+      "Find answers to common questions about booking luxury villas, check-in policies, amenities, chef services, and cancellations at The Plix Goa.";
     const faqs = faqGroups.flatMap((g) => g.items);
     return {
       meta: [

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Car, Mail, MapPin, Phone, Plane } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ObfuscatedEmail } from "@/components/plix/obfuscated-email";
+import { ObfuscatedEmail, ObfuscatedEmailText } from "@/components/plix/obfuscated-email";
 import { SmartImage } from "@/components/plix/smart-image";
 import { heroImage, resolveImages } from "@/lib/plix";
 import {
@@ -131,7 +131,7 @@ function Contact() {
               <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                 <Mail className="size-4" aria-hidden />
               </span>
-              reservations@theplixgoa.com
+              <ObfuscatedEmailText />
             </ObfuscatedEmail>
           </div>
 

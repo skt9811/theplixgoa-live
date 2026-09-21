@@ -7,7 +7,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { PROPERTIES, formatINR, type Property } from "@/lib/plix";
 import { fetchPropertiesWithOverrides } from "@/lib/properties-data";
-import { SITE_PHONE_1, SITE_PHONE_2 } from "@/lib/seo";
+import { SITE_PHONE_1, SITE_PHONE_2, whatsappLink as buildWhatsappLink } from "@/lib/seo";
 
 export type ConciergeCardTab = { label: string; bullets: string[] };
 export type ConciergeCard = {
@@ -31,7 +31,7 @@ function isChatInput(data: unknown): data is { property_slug: string; message: s
 
 function whatsappLink(property: Property, message: string): string {
   const number = SITE_PHONE_1.replace(/\D/g, "");
-  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+  return buildWhatsappLink(number, message);
 }
 
 function petPolicyLine(property: Property): string {

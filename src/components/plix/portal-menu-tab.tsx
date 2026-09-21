@@ -48,7 +48,7 @@ export function PortalMenuTab({
     void navigate({ to: "/portal/login" });
   }
 
-  const whatsappHref = `https://wa.me/91${SUPPORT_PHONE.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(
+  const whatsappHref = `https://api.whatsapp.com/send?phone=91${SUPPORT_PHONE.replace(/\D/g, "").slice(-10)}&text=${encodeURIComponent(
     `Hi Plix Team, need assistance with ${propertyName}`,
   )}`;
 

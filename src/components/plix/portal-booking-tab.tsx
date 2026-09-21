@@ -8,7 +8,7 @@ import { portalFetch } from "@/lib/portal-native-session";
 import { PAYMENT_STATUS_OPTIONS, CHANNEL_OPTIONS } from "@/lib/booking-options";
 import { createBooking, type CreateBookingPayload } from "@/lib/create-booking-client";
 
-const SUPPORT_WHATSAPP = "https://wa.me/919009800809";
+const SUPPORT_WHATSAPP = "https://api.whatsapp.com/send?phone=919009800809";
 const CHECK_IN_TIME = "02:00 pm";
 const CHECK_OUT_TIME = "11:00 am";
 

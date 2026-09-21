@@ -9,6 +9,7 @@ import {
   SITE_URL,
   SITE_NAME,
   EDGE_CACHE_CONTROL_LONG,
+  absoluteUrl,
   canonicalUrl,
   blogSeoTitle,
   blogPostingJsonLd,
@@ -52,7 +53,7 @@ export const Route = createFileRoute("/blog/$slug")({
     // fallback.
     const resolvedOgImage =
       post.cover_image && !post.cover_image.startsWith("data:") && !post.cover_image.startsWith("/api/blog-cover/")
-        ? post.cover_image
+        ? absoluteUrl(post.cover_image)
         : `${SITE_URL}/og-home.jpg`;
     const schema = blogPostingJsonLd({
       title: post.title,

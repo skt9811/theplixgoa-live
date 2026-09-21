@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowUp, Facebook, Instagram, MessageCircle } from "lucide-react";
 import { ObfuscatedEmail } from "@/components/plix/obfuscated-email";
+import { whatsappLink } from "@/lib/seo";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 
 const quickLinks = [
@@ -49,8 +50,8 @@ export function SiteFooter() {
   const phone1 = config?.contact_phone1 || "+91-9009800809";
   const phone2 = config?.contact_phone2 || "+91-9009800895";
   const whatsapp = config?.whatsapp_number || "919009800809";
-  const facebook = config?.social_facebook || "https://facebook.com/theplixgoa";
-  const instagram = config?.social_instagram || "https://instagram.com/theplixgoa";
+  const facebook = config?.social_facebook || "https://www.facebook.com/theplixgoa";
+  const instagram = config?.social_instagram || "https://www.instagram.com/theplixgoa";
 
   return (
     <>
@@ -105,7 +106,7 @@ export function SiteFooter() {
                   <Instagram className="size-4" aria-hidden />
                 </a>
                 <a
-                  href={`https://wa.me/${whatsapp}`}
+                  href={whatsappLink(whatsapp)}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="WhatsApp"
@@ -139,8 +140,11 @@ export function SiteFooter() {
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-navy-foreground/60">
                 Address &amp; Contact
               </p>
-              <div className="mt-4 grid gap-3 text-sm">
-                <p className="text-navy-foreground/80">Morjim &amp; Vagator, North Goa, India</p>
+              {/* <address> is the semantic element for the organization's
+                  contact details (locality, phones, email). not-italic
+                  undoes the browser's default italic styling for it. */}
+              <address className="mt-4 grid gap-3 text-sm not-italic">
+                <span className="text-navy-foreground/80">Morjim &amp; Vagator, North Goa, India</span>
                 <a
                   href={`tel:${phone1}`}
                   className="w-fit text-navy-foreground/80 transition-colors hover:text-white"
@@ -154,7 +158,7 @@ export function SiteFooter() {
                   {phone2}
                 </a>
                 <ObfuscatedEmail className="w-fit text-navy-foreground/80 transition-colors hover:text-white" />
-              </div>
+              </address>
             </div>
           </div>
 
@@ -192,7 +196,7 @@ export function SiteFooter() {
           </button>
         )}
         <a
-          href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Hi The Plix Goa, I have an inquiry regarding a booking.")}`}
+          href={whatsappLink(whatsapp, "Hi The Plix Goa, I have an inquiry regarding a booking.")}
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Chat on WhatsApp"

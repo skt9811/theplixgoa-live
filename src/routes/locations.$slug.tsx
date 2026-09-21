@@ -11,6 +11,7 @@ import {
   SITE_URL,
   SITE_NAME,
   EDGE_CACHE_CONTROL_LONG,
+  absoluteUrl,
   canonicalUrl,
   collectionPageJsonLd,
   breadcrumbJsonLd,
@@ -71,12 +72,21 @@ export const Route = createFileRoute("/locations/$slug")({
     const title = `Luxury Villas & Boutique Stays in ${hub.name}, North Goa | The Plix`;
     const description = `${propertyCount} handpicked private-pool villas and boutique stays in ${hub.name}, North Goa. Best price guaranteed, book direct with The Plix.`;
     const url = `${SITE_URL}/locations/${hub.slug}`;
-    const ogImage = heroImage ?? `${SITE_URL}/og-home.jpg`;
+    // heroImage is a bundled asset path ("/assets/…"), which must be made
+    // absolute for og:image/twitter:image.
+    const ogImage = heroImage ? absoluteUrl(heroImage) : `${SITE_URL}/og-home.jpg`;
+    // No per-hub edit timestamp exists (hub copy is static, the property list
+    // is live), so dateModified is the render date — the day the cached page
+    // was last generated from current data.
+    const today = new Date().toISOString().split("T")[0]!;
     const schema = collectionPageJsonLd({
       name: title,
       description,
       url,
       items: localProperties.map((p) => ({ name: p.name, url: `${SITE_URL}/properties/${p.slug}` })),
+      datePublished: "2026-01-01",
+      dateModified: today,
+      withPublisher: true,
     });
     const breadcrumbs = breadcrumbJsonLd([
       { name: "Home", url: "/" },

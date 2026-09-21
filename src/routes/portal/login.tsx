@@ -228,7 +228,7 @@ function PortalLoginPage() {
             </a>{" "}
             /{" "}
             <a
-              href="https://wa.me/919009800809"
+              href="https://api.whatsapp.com/send?phone=919009800809"
               target="_blank"
               rel="noreferrer"
               className="font-medium underline underline-offset-2"

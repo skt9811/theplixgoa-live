@@ -25,6 +25,35 @@ export const SITE_ADDRESS = {
 };
 export const PRICE_RANGE = "₹4500 - ₹22000";
 
+// Open Graph / Twitter / schema image URLs must be absolute — a bundled
+// asset resolves to a root-relative path ("/assets/foo-abc123.jpg"), which
+// link-preview crawlers can't fetch (they report "Failed to parse URL").
+// Already-absolute URLs pass through untouched.
+export function absoluteUrl(pathOrUrl: string): string {
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  return `${SITE_URL}${pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`}`;
+}
+
+// Direct WhatsApp API link. wa.me/... answers with a 302 to this same
+// endpoint, which link checkers count as a redirect; this one resolves
+// straight to a 200. `phone` is digits only, country code included.
+export function whatsappLink(phone: string, text?: string): string {
+  const base = `https://api.whatsapp.com/send?phone=${phone.replace(/\D/g, "")}`;
+  return text ? `${base}&text=${encodeURIComponent(text)}` : base;
+}
+
+// The one publisher entity (Plix Hospitality Private Limited). Same @id as
+// the homepage brand entity (brandJsonLd) — that entity is typed
+// Organization and is the only one declared for this business — so every
+// page that names a publisher resolves to it instead of a lookalike.
+const PUBLISHER_ORGANIZATION = {
+  "@type": "Organization",
+  "@id": `${SITE_URL}/#business`,
+  name: "Plix Hospitality Private Limited",
+  url: SITE_URL,
+  logo: `${SITE_URL}/Plix_Transparent_(1).png`,
+};
+
 // Semi-static SSR pages (blog index, location/collection hubs, stays,
 // property pages) are served from Vercel's edge for an hour, then served
 // stale for up to a day while a fresh copy is fetched in the background —
@@ -148,7 +177,7 @@ export function propertySeoDescription(p: Property): string {
 // bundled and served) instead — resolveImages() always returns at least one
 // entry (it falls back to a generic hero shot), so this is never empty.
 export function propertyOgImage(p: Property): string {
-  return `${SITE_URL}${resolveImages(p.image_keys)[0]}`;
+  return absoluteUrl(resolveImages(p.image_keys)[0]!);
 }
 
 export function canonicalUrl(path: string): string {
@@ -210,10 +239,10 @@ export function brandJsonLd() {
       { "@type": "ContactPoint", telephone: SITE_PHONE_1, contactType: "customer service", areaServed: "IN" },
     ],
     sameAs: [
-      "https://facebook.com/theplixgoa",
-      "https://instagram.com/theplixgoa",
+      "https://www.facebook.com/theplixgoa",
+      "https://www.instagram.com/theplixgoa",
       "https://x.com/theplixgoa",
-      "https://wa.me/919009800809",
+      "https://api.whatsapp.com/send?phone=919009800809",
     ],
     aggregateRating: {
       "@type": "AggregateRating",
@@ -405,6 +434,9 @@ export function collectionPageJsonLd(input: {
   description: string;
   url: string;
   items: { name: string; url: string }[];
+  datePublished?: string;
+  dateModified?: string;
+  withPublisher?: boolean;
 }) {
   return {
     "@context": "https://schema.org",
@@ -412,6 +444,9 @@ export function collectionPageJsonLd(input: {
     name: input.name,
     description: input.description,
     url: input.url,
+    ...(input.datePublished ? { datePublished: input.datePublished } : {}),
+    ...(input.dateModified ? { dateModified: input.dateModified } : {}),
+    ...(input.withPublisher ? { publisher: PUBLISHER_ORGANIZATION } : {}),
     mainEntity: {
       "@type": "ItemList",
       itemListElement: input.items.map((item, i) => ({
@@ -435,15 +470,7 @@ export function blogJsonLd(input: { posts: { name: string; url: string }[] }) {
     name: "The Plix Goa Travel & Luxury Villa Guides",
     description: "Expert travel guides, local Goa recommendations, and villa booking insights.",
     url: `${SITE_URL}/blog`,
-    publisher: {
-      "@type": "Organization",
-      // Same @id as the homepage brand entity (brandJsonLd), so this
-      // publisher resolves to that one organization rather than a lookalike.
-      "@id": `${SITE_URL}/#business`,
-      name: "Plix Hospitality Private Limited",
-      url: SITE_URL,
-      logo: `${SITE_URL}/Plix_Transparent_(1).png`,
-    },
+    publisher: PUBLISHER_ORGANIZATION,
     blogPost: input.posts.map((post) => ({
       "@type": "BlogPosting",
       headline: post.name,

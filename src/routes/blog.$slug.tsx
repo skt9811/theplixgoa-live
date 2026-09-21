@@ -34,17 +34,14 @@ export const Route = createFileRoute("/blog/$slug")({
     // image upload/storage pipeline yet) — confirmed present on several
     // real posts. A data: URI is not a fetchable HTTPS URL, so WhatsApp/
     // Twitter/iMessage link-preview crawlers (and Schema.org's `image`,
-    // which expects a URL) simply can't use it. Falls back to the site
-    // logo — the same real, already-hosted asset this app's own schema
-    // (blogPostingJsonLd's publisher.logo, entities.json, brandJsonLd)
-    // already uses as its brand-image fallback elsewhere — rather than a
-    // guessed filename like /og-cover.jpg, which doesn't actually exist in
-    // public/ (neither does /og-home.jpg, the homepage's own og:image —
-    // a separate, pre-existing gap worth a real hero photo asset later).
+    // which expects a URL) simply can't use it. Falls back to the same
+    // real, static photographic cover the homepage's own og:image uses
+    // (public/og-home.jpg — a proper 1200x630 crop, not the bare logo this
+    // briefly fell back to before that file existed).
     const resolvedOgImage =
       post.cover_image && !post.cover_image.startsWith("data:")
         ? post.cover_image
-        : `${SITE_URL}/Plix_Transparent_(1).png`;
+        : `${SITE_URL}/og-home.jpg`;
     const schema = blogPostingJsonLd({
       title: post.title,
       excerpt: post.excerpt,

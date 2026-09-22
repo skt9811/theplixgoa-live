@@ -40,8 +40,11 @@ dist-ssr
 # template other envs are generated from.
 !.env.example
 
-# Runtime state for scripts/outreach/ — churns on every real send, not source.
+# Runtime state for scripts/outreach/ — churns on every real send, not
+# source. outreach-tracker.csv is a 1:1 derived view of outreach-db.json
+# (regenerate with `npm run outreach:export`), same reasoning.
 scripts/outreach/outreach-db.json
+scripts/outreach/outreach-tracker.csv
 
 # Android release signing credentials — never committed
 android/keystore.properties

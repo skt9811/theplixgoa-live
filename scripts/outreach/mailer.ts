@@ -18,7 +18,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import nodemailer from "nodemailer";
 import { contentFor } from "./templates.ts";
-import type { Category, OutreachDb, OutreachRecord, Status, Target, Touch } from "./mailer-types.ts";
+import { writeCsv } from "./csv.ts";
+import type { OutreachDb, OutreachRecord, Status, Target, Touch } from "./mailer-types.ts";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(DIR, "..", "..");
@@ -27,7 +28,10 @@ const DB_PATH = path.join(DIR, "outreach-db.json");
 
 const FOLLOWUP_1_AFTER_DAYS = 3;
 const FOLLOWUP_2_AFTER_DAYS = 4; // measured from the FOLLOWUP_1 send, i.e. day 7 overall
-const MAX_PER_RUN = 10;
+const DEFAULT_MAX_PER_RUN = 10;
+// Hard ceiling regardless of --limit: protects the Hostinger mailbox's
+// sending reputation from an oversized run, even a deliberately requested one.
+const HARD_MAX_PER_RUN = 15;
 const MIN_DELAY_MS = 15_000;
 const MAX_DELAY_MS = 25_000;
 
@@ -75,9 +79,9 @@ function daysSince(iso: string | null): number {
 
 /** Decides the next touch for a record, or null if nothing is due right now
  * (either the wait period hasn't elapsed, the sequence is complete, or the
- * domain replied and is permanently skipped). */
+ * domain replied/bounced and is permanently skipped). */
 function nextTouch(record: OutreachRecord): Touch | null {
-  if (record.status === "REPLIED") return null;
+  if (record.status === "REPLIED" || record.status === "BOUNCED") return null;
   if (record.status === "PENDING") return "initial";
   if (record.status === "SENT") return daysSince(record.lastSentAt) >= FOLLOWUP_1_AFTER_DAYS ? "followup1" : null;
   if (record.status === "FOLLOWUP_1") return daysSince(record.lastSentAt) >= FOLLOWUP_2_AFTER_DAYS ? "followup2" : null;
@@ -88,7 +92,11 @@ const NEXT_STATUS: Record<Touch, Status> = { initial: "SENT", followup1: "FOLLOW
 
 type QueueItem = { target: Target; record: OutreachRecord; touch: Touch };
 
-function buildQueue(targets: Target[], db: OutreachDb): { due: QueueItem[]; skippedUnverified: QueueItem[] } {
+function buildQueue(
+  targets: Target[],
+  db: OutreachDb,
+  limit: number,
+): { due: QueueItem[]; skippedUnverified: QueueItem[] } {
   const due: QueueItem[] = [];
   const skippedUnverified: QueueItem[] = [];
   for (const target of targets) {
@@ -99,7 +107,17 @@ function buildQueue(targets: Target[], db: OutreachDb): { due: QueueItem[]; skip
     if (target.verified) due.push(item);
     else skippedUnverified.push(item);
   }
-  return { due: due.slice(0, MAX_PER_RUN), skippedUnverified };
+  return { due: due.slice(0, limit), skippedUnverified };
+}
+
+/** Clamps a requested --limit to (1, HARD_MAX_PER_RUN]; falls back to
+ * DEFAULT_MAX_PER_RUN if no --limit was given or it doesn't parse. */
+function resolveLimit(args: string[]): number {
+  const arg = args.find((a) => a.startsWith("--limit="));
+  if (!arg) return DEFAULT_MAX_PER_RUN;
+  const n = Number(arg.slice("--limit=".length));
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_MAX_PER_RUN;
+  return Math.min(n, HARD_MAX_PER_RUN);
 }
 
 function sleep(ms: number): Promise<void> {
@@ -125,8 +143,8 @@ function buildTransport() {
   });
 }
 
-function printPreview(due: QueueItem[], skippedUnverified: QueueItem[]): void {
-  console.log(`Outreach preview — ${due.length} due (cap ${MAX_PER_RUN}/run), nothing sent, no state changed.\n`);
+function printPreview(due: QueueItem[], skippedUnverified: QueueItem[], limit: number): void {
+  console.log(`Outreach preview — ${due.length} due (cap ${limit}/run), nothing sent, no state changed.\n`);
   if (due.length === 0) console.log("(nothing due right now)");
   for (const [i, item] of due.entries()) {
     const { subject, text } = contentFor(item.touch, item.target);
@@ -139,7 +157,7 @@ function printPreview(due: QueueItem[], skippedUnverified: QueueItem[]): void {
   }
 }
 
-async function runSend(due: QueueItem[], db: OutreachDb): Promise<void> {
+async function runSend(due: QueueItem[], targets: Target[], db: OutreachDb): Promise<void> {
   if (due.length === 0) {
     console.log("Nothing due to send.");
     return;
@@ -149,19 +167,32 @@ async function runSend(due: QueueItem[], db: OutreachDb): Promise<void> {
   const fromAddress = requiredEnv("OUTREACH_SMTP_USER");
   for (const [i, item] of due.entries()) {
     const { subject, text } = contentFor(item.touch, item.target);
-    await transport.sendMail({
-      from: `"${fromName}" <${fromAddress}>`,
-      to: item.target.recipientEmail,
-      subject,
-      text,
-    });
     const record = recordFor(db, item.target);
-    record.status = NEXT_STATUS[item.touch];
-    record.lastSentAt = new Date().toISOString();
-    record.history.push({ touch: item.touch, sentAt: record.lastSentAt, subject });
+    const sentAt = new Date().toISOString();
+    try {
+      await transport.sendMail({
+        from: `"${fromName}" <${fromAddress}>`,
+        to: item.target.recipientEmail,
+        subject,
+        text,
+      });
+      record.status = NEXT_STATUS[item.touch];
+      record.lastSentAt = sentAt;
+      record.history.push({ touch: item.touch, sentAt, subject });
+      console.log(`sent [${item.touch}] -> ${item.target.domain} (${i + 1}/${due.length})`);
+    } catch (err) {
+      // The receiving server rejected the address (common with a guessed
+      // editorial@domain) — mark it BOUNCED and move on rather than
+      // aborting the whole run or silently retrying it forever.
+      const message = err instanceof Error ? err.message : String(err);
+      record.status = "BOUNCED";
+      record.lastSentAt = sentAt;
+      record.history.push({ touch: item.touch, sentAt, subject, bounceError: message });
+      console.log(`BOUNCED [${item.touch}] -> ${item.target.domain} (${i + 1}/${due.length}): ${message}`);
+    }
     db[item.target.domain] = record;
-    saveDb(db); // written after every send, not just at the end
-    console.log(`sent [${item.touch}] -> ${item.target.domain} (${i + 1}/${due.length})`);
+    saveDb(db); // written after every attempt, not just at the end
+    writeCsv(targets, db); // keep outreach-tracker.csv in sync with every status change
     if (i < due.length - 1) await sleep(randomDelay());
   }
 }
@@ -194,7 +225,8 @@ function markReplied(domain: string, targets: Target[], db: OutreachDb): void {
   record.status = "REPLIED";
   db[domain] = record;
   saveDb(db);
-  console.log(`${domain} marked REPLIED — will be skipped permanently.`);
+  writeCsv(targets, db);
+  console.log(`${domain} marked REPLIED in outreach-db.json and outreach-tracker.csv — will be skipped permanently.`);
 }
 
 async function main() {
@@ -219,15 +251,16 @@ async function main() {
     return;
   }
 
-  const { due, skippedUnverified } = buildQueue(targets, db);
+  const limit = resolveLimit(args);
+  const { due, skippedUnverified } = buildQueue(targets, db, limit);
 
   if (args.includes("--send")) {
-    await runSend(due, db);
+    await runSend(due, targets, db);
     return;
   }
 
   // --preview, or no flag: always the safe default.
-  printPreview(due, skippedUnverified);
+  printPreview(due, skippedUnverified, limit);
 }
 
 main().catch((err) => {

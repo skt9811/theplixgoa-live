@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "outreach:preview": "node scripts/outreach/mailer.ts --preview",
     "outreach:send": "node scripts/outreach/mailer.ts --send",
-    "outreach:reply": "node scripts/outreach/mailer.ts --reply"
+    "outreach:reply": "node scripts/outreach/mailer.ts --reply",
+    "outreach:export": "node scripts/outreach/export-csv.ts"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",

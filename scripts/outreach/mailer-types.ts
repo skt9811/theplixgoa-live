@@ -12,13 +12,17 @@ export type Target = {
   verified: boolean;
 };
 
-export type Status = "PENDING" | "SENT" | "FOLLOWUP_1" | "FOLLOWUP_2" | "REPLIED";
+export type Status = "PENDING" | "SENT" | "FOLLOWUP_1" | "FOLLOWUP_2" | "REPLIED" | "BOUNCED";
 export type Touch = "initial" | "followup1" | "followup2";
 
 export type HistoryEntry = {
   touch: Touch;
   sentAt: string;
   subject: string;
+  /** Set only when the send attempt for this touch failed (e.g. the
+   * receiving server rejected the address immediately). The touch is
+   * recorded either way so the CSV/history shows what was attempted. */
+  bounceError?: string;
 };
 
 export type OutreachRecord = {

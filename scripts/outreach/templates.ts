@@ -101,11 +101,31 @@ If there's a standard submission process or a form I should use instead of email
   };
 }
 
+// Distinct from initialLifestyle (the travel-press pitch): this one is for
+// design/architecture magazines, food and cocktail writers, and personal
+// lifestyle bloggers — an interiors/dining angle rather than a booking one.
+function initialDesignLifestyle(t: Target): EmailContent {
+  return {
+    subject: `Villa interiors + in-villa dining feature for ${t.domain}`,
+    text: `Hi ${t.recipientName},
+
+I'm reaching out from ${BRAND.name} (${BRAND.siteUrl}) — a small collection of private-pool villas across North Goa (Vagator, Anjuna, Assagao, Morjim, Candolim), a few in restored heritage bungalows.
+
+Thought this might interest ${t.domain}:
+- Interior and architecture photo assets — pools, gardens, heritage details — for a design-led feature.
+- The in-villa dining side: a private chef cooking Goan, North Indian and continental menus, set up poolside or in the garden.
+- A coastal-living angle if you cover North Goa as a destination more broadly.
+
+If none of that fits ${t.domain}'s coverage, no worries — just let me know and I'll leave it there. Happy to send a full photo set and more detail if it's useful.${sign()}${footer()}`,
+  };
+}
+
 const INITIAL: Record<Target["category"], (t: Target) => EmailContent> = {
-  lifestyle: initialLifestyle,
-  pet: initialPet,
-  wedding: initialWedding,
-  aggregator: initialAggregator,
+  "Luxury Travel": initialLifestyle,
+  "Pet-Friendly": initialPet,
+  Weddings: initialWedding,
+  "Homestay Directory": initialAggregator,
+  Lifestyle: initialDesignLifestyle,
 };
 
 export function initialPitch(t: Target): EmailContent {

@@ -1,4 +1,4 @@
-export type Category = "lifestyle" | "pet" | "wedding" | "aggregator";
+export type Category = "Luxury Travel" | "Homestay Directory" | "Weddings" | "Pet-Friendly" | "Lifestyle";
 
 export type Target = {
   domain: string;

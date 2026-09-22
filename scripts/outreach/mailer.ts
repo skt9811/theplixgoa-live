@@ -166,6 +166,27 @@ async function runSend(due: QueueItem[], db: OutreachDb): Promise<void> {
   }
 }
 
+/** A one-off test send to an explicit address, e.g.
+ * `npm run outreach:send -- --to=you@example.com --preview-test`
+ * This is deliberately a separate code path from the real queue: it never
+ * reads or writes outreach-db.json and never touches a real prospect from
+ * targets.json, so it can't accidentally consume one of that domain's
+ * scheduled touches or count against the 10-per-run cap. Use it to confirm
+ * the SMTP credentials actually work before ever running a real --send. */
+async function runTestSend(to: string): Promise<void> {
+  const transport = buildTransport();
+  const fromName = process.env["OUTREACH_FROM_NAME"] ?? "The Plix";
+  const fromAddress = requiredEnv("OUTREACH_SMTP_USER");
+  const stamp = new Date().toISOString();
+  await transport.sendMail({
+    from: `"${fromName}" <${fromAddress}>`,
+    to,
+    subject: `[TEST] Outreach pipeline SMTP check — ${stamp}`,
+    text: `This is a test send from scripts/outreach/mailer.ts (--to override), not part of the real prospect queue.\n\nIf you received this, SMTP host/port/auth are working correctly via ${fromAddress}.\n\nSent at: ${stamp}`,
+  });
+  console.log(`Test email sent to ${to} via ${fromAddress}. No prospect queue or outreach-db.json state was touched.`);
+}
+
 function markReplied(domain: string, targets: Target[], db: OutreachDb): void {
   const target = targets.find((t) => t.domain === domain);
   if (!target) throw new Error(`Unknown domain "${domain}" — not in targets.json`);
@@ -185,6 +206,16 @@ async function main() {
     const domainArg = args.find((a) => a.startsWith("--domain="));
     if (!domainArg) throw new Error("Usage: outreach:reply -- --domain=<domain>");
     markReplied(domainArg.slice("--domain=".length), targets, db);
+    return;
+  }
+
+  // --to=<address> always wins, regardless of --send/--preview: an explicit
+  // manual recipient is an unambiguous, deliberate override of the normal
+  // queue-driven flow, so it takes priority rather than being silently
+  // ignored the way an unrecognized flag would be.
+  const toArg = args.find((a) => a.startsWith("--to="));
+  if (toArg) {
+    await runTestSend(toArg.slice("--to=".length));
     return;
   }
 

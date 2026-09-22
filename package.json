@@ -9,7 +9,10 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "outreach:preview": "node scripts/outreach/mailer.ts --preview",
+    "outreach:send": "node scripts/outreach/mailer.ts --send",
+    "outreach:reply": "node scripts/outreach/mailer.ts --reply"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",
@@ -55,6 +58,7 @@
     "@tanstack/react-router": "1.170.18",
     "@tanstack/react-start": "1.168.32",
     "@tanstack/router-plugin": "1.168.23",
+    "@types/nodemailer": "^8.0.2",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "class-variance-authority": "^0.7.1",
@@ -65,6 +69,7 @@
     "input-otp": "^1.4.2",
     "jose": "^6.2.12",
     "lucide-react": "^0.575.0",
+    "nodemailer": "^8.0.11",
     "pdf-lib": "^1.17.1",
     "pg": "^8.23.0",
     "postgres": "^3.4.9",

@@ -1,0 +1,30 @@
+[
+  { "domain": "lbb.in", "category": "lifestyle", "recipientEmail": "editorial@lbb.in", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "wanderlog.com", "category": "lifestyle", "recipientEmail": "editorial@wanderlog.com", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "akbartravels.com", "category": "lifestyle", "recipientEmail": "editorial@akbartravels.com", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "idiva.com", "category": "lifestyle", "recipientEmail": "editorial@idiva.com", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "airial.travel", "category": "lifestyle", "recipientEmail": "editorial@airial.travel", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "luxebook.in", "category": "lifestyle", "recipientEmail": "editorial@luxebook.in", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "todaystraveller.net", "category": "lifestyle", "recipientEmail": "editorial@todaystraveller.net", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "theunstumbled.com", "category": "lifestyle", "recipientEmail": "editorial@theunstumbled.com", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "indiantravelplanner.com", "category": "lifestyle", "recipientEmail": "editorial@indiantravelplanner.com", "recipientName": "Editorial Team", "verified": false },
+  { "domain": "zeezest.com", "category": "lifestyle", "recipientEmail": "editorial@zeezest.com", "recipientName": "Editorial Team", "verified": false },
+
+  { "domain": "supertails.com", "category": "pet", "recipientEmail": "editorial@supertails.com", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "petfriendlyplaces.in", "category": "pet", "recipientEmail": "editorial@petfriendlyplaces.in", "recipientName": "Editorial Team", "verified": true },
+
+  { "domain": "wedmegood.com", "category": "wedding", "recipientEmail": "editorial@wedmegood.com", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "weddingvows.com", "category": "wedding", "recipientEmail": "editorial@weddingvows.com", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "urbanvenue.in", "category": "wedding", "recipientEmail": "editorial@urbanvenue.in", "recipientName": "Editorial Team", "verified": true },
+
+  { "domain": "justhomestay.in", "category": "aggregator", "recipientEmail": "editorial@justhomestay.in", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "stayscape.in", "category": "aggregator", "recipientEmail": "editorial@stayscape.in", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "bidyourstay.com", "category": "aggregator", "recipientEmail": "editorial@bidyourstay.com", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "modelsgoa.com", "category": "aggregator", "recipientEmail": "editorial@modelsgoa.com", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "thehoteltimes.in", "category": "aggregator", "recipientEmail": "editorial@thehoteltimes.in", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "timesofhospitality.com", "category": "aggregator", "recipientEmail": "editorial@timesofhospitality.com", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "myapartmentstay.com", "category": "aggregator", "recipientEmail": "editorial@myapartmentstay.com", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "outgoing.world", "category": "aggregator", "recipientEmail": "editorial@outgoing.world", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "daafi.in", "category": "aggregator", "recipientEmail": "editorial@daafi.in", "recipientName": "Editorial Team", "verified": true },
+  { "domain": "pinkbazaar.in", "category": "aggregator", "recipientEmail": "editorial@pinkbazaar.in", "recipientName": "Editorial Team", "verified": true }
+]

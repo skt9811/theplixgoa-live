@@ -34,6 +34,14 @@ dist-ssr
 .vercel
 .vite
 .env*
+.env.local
+.env.*.local
+# .env.example holds redacted placeholders only — safe to commit as the
+# template other envs are generated from.
+!.env.example
+
+# Runtime state for scripts/outreach/ — churns on every real send, not source.
+scripts/outreach/outreach-db.json
 
 # Android release signing credentials — never committed
 android/keystore.properties

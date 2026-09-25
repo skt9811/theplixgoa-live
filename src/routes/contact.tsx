@@ -214,7 +214,7 @@ function Contact() {
             <div className="mt-8 overflow-hidden rounded-2xl border border-border shadow-soft">
               <iframe
                 title="The Plix Goa location — North Goa"
-                src="https://www.google.com/maps?q=Anjuna,Vagator,Goa+403413&output=embed"
+                src={`https://www.google.com/maps?q=${encodeURIComponent(`${SITE_ADDRESS.street}, ${SITE_ADDRESS.city}, Goa ${SITE_ADDRESS.postalCode}`)}&output=embed`}
                 width="100%"
                 height="320"
                 loading="lazy"

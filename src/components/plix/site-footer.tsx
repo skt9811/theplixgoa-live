@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowUp, Facebook, Instagram, MessageCircle } from "lucide-react";
 import { ObfuscatedEmail } from "@/components/plix/obfuscated-email";
-import { whatsappLink } from "@/lib/seo";
+import { whatsappLink, SITE_ADDRESS } from "@/lib/seo";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 
 const quickLinks = [
@@ -144,7 +144,9 @@ export function SiteFooter() {
                   contact details (locality, phones, email). not-italic
                   undoes the browser's default italic styling for it. */}
               <address className="mt-4 grid gap-3 text-sm not-italic">
-                <span className="text-navy-foreground/80">Morjim &amp; Vagator, North Goa, India</span>
+                <span className="text-navy-foreground/80">
+                  {SITE_ADDRESS.street}, {SITE_ADDRESS.city}, {SITE_ADDRESS.region} {SITE_ADDRESS.postalCode}
+                </span>
                 <a
                   href={`tel:${phone1}`}
                   className="w-fit text-navy-foreground/80 transition-colors hover:text-white"

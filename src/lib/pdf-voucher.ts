@@ -355,7 +355,7 @@ function drawFooter(page: PDFPage, fonts: Fonts): void {
 
   page.drawText("Plix Hospitality Private Limited", { x: MARGIN, y: y - 14, size: 9, font: fonts.bold, color: NAVY });
   page.drawText(
-    "Pequen, Chivar, 1561/3A, Anjuna, Vagator, Goa 403413",
+    "House No. 786, Pintos Vaddo, Candolim, Goa 403515",
     { x: MARGIN, y: y - 25, size: 7.5, font: fonts.regular, color: GRAY_TEXT },
   );
   page.drawText(

@@ -17,9 +17,9 @@ export const SITE_PHONE_1 = "+91-9009800809";
 export const SITE_PHONE_2 = "+91-9009800895";
 export const SITE_EMAIL = "reservations@theplixgoa.com";
 export const SITE_ADDRESS = {
-  street: "Pequen, Chivar, 1561/3A, Anjuna, Vagator",
-  city: "Goa",
-  postalCode: "403413",
+  street: "House No. 786, Pintos Vaddo",
+  city: "Candolim",
+  postalCode: "403515",
   region: "Goa",
   country: "IN",
 };
@@ -228,7 +228,7 @@ export function brandJsonLd() {
     address: {
       "@type": "PostalAddress",
       streetAddress: SITE_ADDRESS.street,
-      addressLocality: "Anjuna, Vagator",
+      addressLocality: SITE_ADDRESS.city,
       addressRegion: SITE_ADDRESS.region,
       postalCode: SITE_ADDRESS.postalCode,
       addressCountry: SITE_ADDRESS.country,

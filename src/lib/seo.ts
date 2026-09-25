@@ -297,6 +297,20 @@ export const LOCATION_POSTAL_CODES: Record<string, string> = {
   Candolim: "403515",
 };
 
+// Exact brand-stacked <h1> text for the Marina Villas enclave pages — hand-set
+// per property (each villa's own descriptor line), not a derived formula, so
+// a lookup rather than a template. Every other property falls back to its
+// plain name; this only changes the visible H1, not property.name itself
+// (still used for booking, cards, the admin panel, etc. everywhere else).
+const BRAND_STACKED_H1: Record<string, string> = {
+  "casa-marina": "Casa Marina by The Plix — 3 BHK Luxury Private Pool Villa",
+  "casa-moana": "Casa Moana by The Plix — 4 BHK Boutique Private Pool Villa",
+  "casa-meadows": "Casa Meadows by The Plix — 5 BHK Grand Private Pool Villa",
+};
+export function propertyDisplayH1(p: Property): string {
+  return BRAND_STACKED_H1[p.slug] ?? p.name;
+}
+
 export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
   const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -315,6 +329,16 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
     // ground an answer in, not one image standing in for the property.
     image: resolveImages(p.image_keys).map((src) => `${SITE_URL}${src}`),
     telephone: SITE_PHONE_2,
+    email: SITE_EMAIL,
+    // The brand entity every property belongs to — same @id as brandJsonLd's
+    // own entity (rendered once, homepage-only), so this points back to that
+    // one Organization instead of asserting a second, unlinked one.
+    parentOrganization: {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#business`,
+      name: "The Plix Goa",
+      url: SITE_URL,
+    },
     // A real range, not an open-ended "+": there's no max_price field in
     // the data model (no property has ever had one), so the upper bound is
     // derived the same way the website's own seasonal peak pricing tends to
@@ -370,12 +394,26 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
   // than being stamped with the wrong compound's @id/map link.
   const enclaveEntity = p.enclave ? ENCLAVE_ENTITIES[p.enclave] : undefined;
   if (p.enclave && enclaveEntity) {
+    // Brand-stacked name ("Casa Marina by The Plix") for exact-match entity
+    // discovery — only for enclave members; every other property keeps its
+    // plain p.name. "Resort" (a real schema.org LodgingBusiness subtype) is
+    // more specific than the compound's own entities.json self-declaration
+    // (LodgingBusiness) — deliberately not changed there to match, since
+    // Google's rich-results check keys off a literal "LodgingBusiness"
+    // string (see the @type comment above) and entities.json isn't linked
+    // from any page anyway.
+    schema["name"] = `${p.name} by The Plix`;
     schema["containedInPlace"] = {
-      "@type": "LodgingBusiness",
+      "@type": "Resort",
       "@id": enclaveEntity.id,
       name: p.enclave,
       hasMap: enclaveEntity.hasMap,
     };
+    // SITE_PHONE_1 here only, not sitewide: this task scoped the change to
+    // these 3 enclave pages specifically. The other 7 properties keep
+    // SITE_PHONE_2, which is the "reservations" line in brandJsonLd's own
+    // contactPoint array — both are real numbers, just different roles.
+    schema["telephone"] = SITE_PHONE_1;
   }
 
   // Google's structured data policy prohibits fabricated ratings/reviews —

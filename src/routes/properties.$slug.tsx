@@ -60,6 +60,7 @@ import {
   canonicalUrl,
   propertySeoTitle,
   propertySeoDescription,
+  propertyDisplayH1,
   propertyOgImage,
   vacationRentalJsonLd,
   breadcrumbJsonLd,
@@ -376,7 +377,7 @@ function PropertyDetail() {
       </nav>
 
       <header className="mt-4">
-        <h1 className="text-3xl font-semibold text-navy md:text-4xl">{property.name}</h1>
+        <h1 className="text-3xl font-semibold text-navy md:text-4xl">{propertyDisplayH1(property)}</h1>
         <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <MapPin className="size-4 text-primary" aria-hidden />

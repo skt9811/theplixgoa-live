@@ -233,12 +233,29 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
 
         {/* Right top tile — hidden on mobile, where the single main image
             above is the entire hero and this photo only lives in the
-            lightbox gallery. */}
-        <button
-          type="button"
+            lightbox gallery. A plain div, not a <button>: this tile
+            contains its own real <button> children (share, wishlist) below,
+            and a <button> can never legally contain another <button> — that
+            invalid nesting was silently reparented by the browser's HTML
+            parser on SSR, causing a client/server hydration mismatch (React
+            error #418) that made React discard and fully re-render the
+            document, duplicating every head script including the property's
+            own JSON-LD. role="button" + onKeyDown reproduces the same
+            keyboard-activation behavior a real <button> would have, matching
+            the identical pattern already used for the "View Video"/"View
+            Photos" pills on the main tile above. */}
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => openGallery()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              openGallery();
+            }
+          }}
           aria-label="View property photos"
-          className="group relative hidden aspect-[4/3] min-h-0 overflow-hidden text-left md:aspect-auto md:block"
+          className="group relative hidden aspect-[4/3] min-h-0 cursor-pointer overflow-hidden text-left md:aspect-auto md:block"
         >
           <SmartImage
             src={secondary}
@@ -267,7 +284,7 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
               <Heart className={`size-3.5 ${wishlisted ? "fill-red-500 text-red-500" : ""}`} aria-hidden />
             </button>
           </div>
-        </button>
+        </div>
 
         {/* Right bottom tile — "+N More" overlay, hidden on mobile */}
         <button

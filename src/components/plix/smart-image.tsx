@@ -4,6 +4,7 @@ type SmartImageProps = {
   src: string;
   alt: string;
   loading?: "lazy" | "eager";
+  fetchPriority?: "high" | "low" | "auto";
   width?: number;
   height?: number;
   className?: string;
@@ -25,7 +26,7 @@ type SmartImageProps = {
 // an already-failed element does NOT make the browser retry, only a fresh
 // element does. The error state, and the retry count, both reset whenever
 // `src` itself changes, so a new image always gets its own clean attempt.
-export function SmartImage({ src, alt, loading = "lazy", width, height, className, style, fallbackSrc }: SmartImageProps) {
+export function SmartImage({ src, alt, loading = "lazy", fetchPriority, width, height, className, style, fallbackSrc }: SmartImageProps) {
   const [errored, setErrored] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [usedFallback, setUsedFallback] = useState(false);
@@ -87,6 +88,7 @@ export function SmartImage({ src, alt, loading = "lazy", width, height, classNam
       src={currentSrc}
       alt={alt}
       loading={loading}
+      fetchPriority={fetchPriority}
       width={width}
       height={height}
       className={`block ${className ?? ""}`}

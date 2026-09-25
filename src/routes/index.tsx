@@ -9,6 +9,7 @@ import { HeroCarousel } from "@/components/plix/hero-carousel";
 import { NewsletterModal } from "@/components/plix/newsletter-modal";
 import { propertiesQuery, reviewsQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
 import { chicoHeroImage } from "@/lib/plix";
+import { locationSlug } from "@/lib/locations";
 import { getHomepageReviews } from "@/lib/property-reviews-data";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 import {
@@ -453,8 +454,8 @@ function Home() {
             return (
               <Link
                 key={l.name}
-                to="/stays"
-                search={{ location: l.query }}
+                to="/locations/$slug"
+                params={{ slug: locationSlug(l.query) }}
                 className="flex flex-col items-center justify-center rounded-3xl border border-amber-100/50 bg-white p-8 text-center shadow-[0_20px_50px_rgba(0,0,0,0.06)] transition-transform duration-300 hover:-translate-y-1"
               >
                 <Illustration className="mx-auto mb-6 h-28 w-28" />

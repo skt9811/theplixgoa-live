@@ -13,7 +13,7 @@ export const Route = createFileRoute("/terms")({
   head: () => {
     const title = "Terms & Conditions — The Plix Goa";
     const description =
-      "The terms and conditions governing bookings and stays at The Plix Goa luxury villas in North Goa, including guest obligations, property damage liability, and occupancy limits.";
+      "Read the booking terms and stay policies for The Plix Goa luxury private villas, including guest liability, occupancy limits, and property guidelines.";
     return {
       meta: [
         { title },

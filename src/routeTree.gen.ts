@@ -29,8 +29,8 @@ import { Route as PortalIndexRouteImport } from './routes/portal/index'
 import { Route as PortalDashboardRouteImport } from './routes/portal/dashboard'
 import { Route as PortalLoginRouteImport } from './routes/portal/login'
 import { Route as PropertiesSlugRouteImport } from './routes/properties.$slug'
-import { Route as StaysLargeGroupsRouteImport } from './routes/stays.large-groups'
-import { Route as StaysPrivatePoolVillasRouteImport } from './routes/stays.private-pool-villas'
+import { Route as StaysLargeGroupsRouteImport } from './routes/stays_.large-groups'
+import { Route as StaysPrivatePoolVillasRouteImport } from './routes/stays_.private-pool-villas'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -133,14 +133,14 @@ const PropertiesSlugRoute = PropertiesSlugRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const StaysLargeGroupsRoute = StaysLargeGroupsRouteImport.update({
-  id: '/large-groups',
-  path: '/large-groups',
-  getParentRoute: () => StaysRoute,
+  id: '/stays_/large-groups',
+  path: '/stays/large-groups',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const StaysPrivatePoolVillasRoute = StaysPrivatePoolVillasRouteImport.update({
-  id: '/private-pool-villas',
-  path: '/private-pool-villas',
-  getParentRoute: () => StaysRoute,
+  id: '/stays_/private-pool-villas',
+  path: '/stays/private-pool-villas',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -154,7 +154,7 @@ export interface FileRoutesByFullPath {
   '/faq': typeof FaqRoute
   '/portal': typeof PortalRouteWithChildren
   '/privacy': typeof PrivacyRoute
-  '/stays': typeof StaysRouteWithChildren
+  '/stays': typeof StaysRoute
   '/terms': typeof TermsRoute
   '/admin/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -177,7 +177,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/privacy': typeof PrivacyRoute
-  '/stays': typeof StaysRouteWithChildren
+  '/stays': typeof StaysRoute
   '/terms': typeof TermsRoute
   '/admin/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -202,7 +202,7 @@ export interface FileRoutesById {
   '/faq': typeof FaqRoute
   '/portal': typeof PortalRouteWithChildren
   '/privacy': typeof PrivacyRoute
-  '/stays': typeof StaysRouteWithChildren
+  '/stays': typeof StaysRoute
   '/terms': typeof TermsRoute
   '/admin_/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -210,8 +210,8 @@ export interface FileRoutesById {
   '/portal/dashboard': typeof PortalDashboardRoute
   '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
-  '/stays/large-groups': typeof StaysLargeGroupsRoute
-  '/stays/private-pool-villas': typeof StaysPrivatePoolVillasRoute
+  '/stays_/large-groups': typeof StaysLargeGroupsRoute
+  '/stays_/private-pool-villas': typeof StaysPrivatePoolVillasRoute
   '/blog/': typeof BlogIndexRoute
   '/portal/': typeof PortalIndexRoute
 }
@@ -283,8 +283,8 @@ export interface FileRouteTypes {
     | '/portal/dashboard'
     | '/portal/login'
     | '/properties/$slug'
-    | '/stays/large-groups'
-    | '/stays/private-pool-villas'
+    | '/stays_/large-groups'
+    | '/stays_/private-pool-villas'
     | '/blog/'
     | '/portal/'
   fileRoutesById: FileRoutesById
@@ -300,12 +300,14 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   PortalRoute: typeof PortalRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
-  StaysRoute: typeof StaysRouteWithChildren
+  StaysRoute: typeof StaysRoute
   TermsRoute: typeof TermsRoute
   AdminBookingsRoute: typeof AdminBookingsRoute
   BlogSlugRoute: typeof BlogSlugRoute
   LocationsSlugRoute: typeof LocationsSlugRoute
   PropertiesSlugRoute: typeof PropertiesSlugRoute
+  StaysLargeGroupsRoute: typeof StaysLargeGroupsRoute
+  StaysPrivatePoolVillasRoute: typeof StaysPrivatePoolVillasRoute
   BlogIndexRoute: typeof BlogIndexRoute
 }
 
@@ -451,19 +453,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PropertiesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/stays/large-groups': {
-      id: '/stays/large-groups'
-      path: '/large-groups'
+    '/stays_/large-groups': {
+      id: '/stays_/large-groups'
+      path: '/stays/large-groups'
       fullPath: '/stays/large-groups'
       preLoaderRoute: typeof StaysLargeGroupsRouteImport
-      parentRoute: typeof StaysRoute
+      parentRoute: typeof rootRouteImport
     }
-    '/stays/private-pool-villas': {
-      id: '/stays/private-pool-villas'
-      path: '/private-pool-villas'
+    '/stays_/private-pool-villas': {
+      id: '/stays_/private-pool-villas'
+      path: '/stays/private-pool-villas'
       fullPath: '/stays/private-pool-villas'
       preLoaderRoute: typeof StaysPrivatePoolVillasRouteImport
-      parentRoute: typeof StaysRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -483,18 +485,6 @@ const PortalRouteChildren: PortalRouteChildren = {
 const PortalRouteWithChildren =
   PortalRoute._addFileChildren(PortalRouteChildren)
 
-interface StaysRouteChildren {
-  StaysLargeGroupsRoute: typeof StaysLargeGroupsRoute
-  StaysPrivatePoolVillasRoute: typeof StaysPrivatePoolVillasRoute
-}
-
-const StaysRouteChildren: StaysRouteChildren = {
-  StaysLargeGroupsRoute: StaysLargeGroupsRoute,
-  StaysPrivatePoolVillasRoute: StaysPrivatePoolVillasRoute,
-}
-
-const StaysRouteWithChildren = StaysRoute._addFileChildren(StaysRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -506,12 +496,14 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   PortalRoute: PortalRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
-  StaysRoute: StaysRouteWithChildren,
+  StaysRoute: StaysRoute,
   TermsRoute: TermsRoute,
   AdminBookingsRoute: AdminBookingsRoute,
   BlogSlugRoute: BlogSlugRoute,
   LocationsSlugRoute: LocationsSlugRoute,
   PropertiesSlugRoute: PropertiesSlugRoute,
+  StaysLargeGroupsRoute: StaysLargeGroupsRoute,
+  StaysPrivatePoolVillasRoute: StaysPrivatePoolVillasRoute,
   BlogIndexRoute: BlogIndexRoute,
 }
 export const routeTree = rootRouteImport

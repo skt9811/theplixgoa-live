@@ -69,7 +69,7 @@ export const Route = createFileRoute("/locations/$slug")({
     }
     const { hub, localProperties, heroImage } = loaderData;
     const propertyCount = localProperties.length;
-    const title = `Luxury Villas & Boutique Stays in ${hub.name}, North Goa | The Plix`;
+    const title = `Luxury Villas & Boutique Stays in ${hub.name} | The Plix`;
     const description = `${propertyCount} handpicked private-pool villas and boutique stays in ${hub.name}, North Goa. Best price guaranteed, book direct with The Plix.`;
     const url = `${SITE_URL}/locations/${hub.slug}`;
     // heroImage is a bundled asset path ("/assets/…"), which must be made

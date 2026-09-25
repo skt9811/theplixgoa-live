@@ -14,7 +14,7 @@ export const Route = createFileRoute("/cancellation")({
   head: () => {
     const title = "Cancellation & Refund Policy — The Plix Goa";
     const description =
-      "The Plix Goa's cancellation and refund policy for luxury villa bookings in Goa, including full and partial refund windows, non-refundable periods, and monsoon/force majeure conditions.";
+      "Review The Plix Goa's cancellation and refund policy for luxury villas, covering standard refund windows, non-refundable timelines, and force majeure terms.";
     return {
       meta: [
         { title },

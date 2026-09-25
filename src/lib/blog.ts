@@ -79,7 +79,7 @@ const SEED_POSTS: BlogPost[] = [
     title: "Why Booking Direct Saves You Up to 15% on Goa Luxury Villas",
     slug: "why-booking-direct-saves-15-percent-goa-luxury-villas",
     excerpt:
-      "OTA commissions, service fees, and hidden charges can inflate your villa holiday by 15% or more. Here's exactly how booking direct with Plix Goa puts that money back in your pocket.",
+      "OTA commissions and service fees inflate villa holidays by 15% or more. Discover how booking direct with The Plix Goa puts that money back in your pocket.",
     content: `<p>When you book a luxury villa through an Online Travel Agency (OTA), you're paying more than you need to. Here's why booking direct with The Plix Goa is the smarter choice.</p>
 
 <h2>The Hidden Cost of OTAs</h2>

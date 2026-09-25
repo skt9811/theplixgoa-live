@@ -168,6 +168,7 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
             src={main}
             alt={`${propertyName} — main exterior and pool view`}
             loading="eager"
+            fetchPriority="high"
             width={1200}
             height={800}
             className="block h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
@@ -260,7 +261,7 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
           <SmartImage
             src={secondary}
             alt={`${propertyName} — pool and lounge area`}
-            loading="eager"
+            loading="lazy"
             width={800}
             height={600}
             className="block h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
@@ -296,7 +297,7 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
           <SmartImage
             src={third}
             alt={`${propertyName} — additional photo`}
-            loading="eager"
+            loading="lazy"
             width={800}
             height={600}
             className="block h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"

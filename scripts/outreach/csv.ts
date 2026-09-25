@@ -16,6 +16,7 @@ const HEADERS = [
   "Domain",
   "Category",
   "Recipient Email",
+  "Verified",
   "Current Status",
   "Initial Pitch Sent Date",
   "Follow-up 1 Due / Sent Date",
@@ -60,6 +61,11 @@ function notesCell(record: OutreachRecord): string {
   return "";
 }
 
+function displayStatus(target: Target, record: OutreachRecord): string {
+  const terminal = record.status === "REPLIED" || record.status === "BOUNCED";
+  return !target.verified && !terminal ? "SKIPPED_UNVERIFIED" : record.status;
+}
+
 function rowFor(target: Target, record: OutreachRecord | undefined): string[] {
   const r = record ?? { domain: target.domain, recipientEmail: target.recipientEmail, status: "PENDING" as const, lastSentAt: null, history: [] };
   const initial = historyFor(r, "initial");
@@ -68,7 +74,8 @@ function rowFor(target: Target, record: OutreachRecord | undefined): string[] {
     target.domain,
     target.category,
     target.recipientEmail,
-    r.status,
+    String(target.verified),
+    displayStatus(target, r),
     initial ? initial.sentAt : "",
     followupCell(r, "followup1"),
     followupCell(r, "followup2"),

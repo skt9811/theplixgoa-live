@@ -5,14 +5,13 @@ export type Target = {
   category: Category;
   recipientEmail: string;
   recipientName: string;
-  /** false = domain failed a basic reachability check when the target list
-   * was built (bad DNS, or resolves to a non-routable address). The mailer
-   * skips these in --send until someone manually confirms the domain is
-   * real and flips this to true. */
+  /** true only when recipientEmail is a real, publicly listed inbox someone
+   * has confirmed. Guessed/pattern addresses (e.g. "editorial@<domain>") are
+   * never verified; the mailer will not send to an unverified target. */
   verified: boolean;
 };
 
-export type Status = "PENDING" | "SENT" | "FOLLOWUP_1" | "FOLLOWUP_2" | "REPLIED" | "BOUNCED";
+export type Status = "PENDING" | "SENT" | "FOLLOWUP_1" | "FOLLOWUP_2" | "REPLIED" | "BOUNCED" | "SKIPPED_UNVERIFIED";
 export type Touch = "initial" | "followup1" | "followup2";
 
 export type HistoryEntry = {

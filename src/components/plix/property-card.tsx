@@ -15,7 +15,15 @@ function propertyCardSubtitle(p: Property): string {
   return parts.join(" • ");
 }
 
-export function PropertyCard({ property }: { property: Property }) {
+type PropertyCardProps = {
+  property: Property;
+  // Optional exact-brand anchor text (e.g. "Casa Marina by The Plix") for
+  // contexts like the "Explore More Properties" carousel that need a real
+  // <a> link carrying that specific string, not just the plain card title.
+  titleOverride?: string;
+};
+
+export function PropertyCard({ property, titleOverride }: PropertyCardProps) {
   const images = resolveImages(property.image_keys);
   const [index, setIndex] = useState(0);
   const go = (dir: number) => setIndex((i) => (i + dir + images.length) % images.length);
@@ -67,7 +75,15 @@ export function PropertyCard({ property }: { property: Property }) {
       </div>
 
       <div className="p-5">
-        <h3 className="text-xl font-semibold text-navy">{property.name}</h3>
+        <h3 className="text-xl font-semibold text-navy">
+          {titleOverride ? (
+            <Link to="/properties/$slug" params={{ slug: property.slug }} className="hover:underline">
+              {titleOverride}
+            </Link>
+          ) : (
+            property.name
+          )}
+        </h3>
         <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
           <MapPin className="size-3.5 text-primary" aria-hidden />
           {property.location}, {property.region}

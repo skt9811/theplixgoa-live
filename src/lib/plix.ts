@@ -1216,7 +1216,7 @@ export const PROPERTIES: Property[] = [
     tagline: "VAGATOR, NORTH GOA • BOUTIQUE RESORT NEAR BEACH & NIGHTLIFE",
     description:
       "A charming sanctuary in the heart of Vagator. Nestled close to Vagator Beach, Harbor Court combines classic Goan warmth with boutique comfort, featuring a swimming pool, lush garden spaces, and a full-service on-site restaurant. Situated less than 1 km from Vagator Beach and close to famous nightlife spots like Chapora Fort, it provides an ideal retreat for couples, families, and solo travelers seeking effortless coastal living.",
-    seo_title: "Harbor Court Vagator | Boutique Resort with Pool Goa",
+    seo_title: "Harbor Court Vagator | Boutique Resort with Pool by The Plix",
     seo_description:
       "Boutique luxury resort in Vagator featuring private balconies, central pool, and lush gardens. 5 mins from Ozran Beach. Book direct & save.",
     seo_keywords: ["3 Star Hotel Vagator", "Resort near Vagator Beach", "Hotel near Chapora Fort", "Boutique Resort North Goa", "AC Rooms Vagator"],
@@ -1482,7 +1482,7 @@ export const PROPERTIES: Property[] = [
     tagline: "CANDOLIM, NORTH GOA • BOUTIQUE RESORT • BOOK BY ROOM OR THE WHOLE BUNGALOW",
     description:
       "A heritage estate that books your way. Vivenda Chico is now a boutique resort with 8 individually bookable rooms (up to 3 guests each) sharing a private pool, dining halls, and sprawling lawns — book just the rooms you need, or reserve the entire bungalow (up to 24 guests) for weddings, reunions, and large group celebrations in North Goa.",
-    seo_title: "Vivenda Chico Candolim | 8 BHK Heritage Bungalow Pool",
+    seo_title: "Vivenda Chico Candolim | 8 BHK Heritage Bungalow by The Plix",
     seo_description:
       "Boutique 8-room heritage resort in Candolim near a private pool — book individual rooms or the entire bungalow for up to 24 guests. Sprawling lawns and dining halls for weddings & reunions.",
     seo_keywords: ["8 BHK Villa Candolim", "Heritage Bungalow Goa", "Wedding Venue Candolim", "Large Group Villa North Goa", "Villa with Pool Candolim"],

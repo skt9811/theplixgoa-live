@@ -306,9 +306,26 @@ const BRAND_STACKED_H1: Record<string, string> = {
   "casa-marina": "Casa Marina by The Plix — 3 BHK Luxury Private Pool Villa",
   "casa-moana": "Casa Moana by The Plix — 4 BHK Boutique Private Pool Villa",
   "casa-meadows": "Casa Meadows by The Plix — 5 BHK Grand Private Pool Villa",
+  "harbor-court": "Harbor Court Vagator by The Plix — Boutique Resort with Pool",
+  "vivenda-chico": "Vivenda Chico Candolim by The Plix — 8 BHK Heritage Bungalow",
 };
 export function propertyDisplayH1(p: Property): string {
   return BRAND_STACKED_H1[p.slug] ?? p.name;
+}
+
+// Short anchor-text form of the same brand lock, for cross-links (e.g. the
+// "Explore More Properties" carousel) where the full H1 descriptor would be
+// too long. Falls back to the plain property name for the 7 properties not
+// covered by this entity-lock task.
+const SISTER_BRAND_NAMES: Record<string, string> = {
+  "casa-marina": "Casa Marina by The Plix",
+  "casa-moana": "Casa Moana by The Plix",
+  "casa-meadows": "Casa Meadows by The Plix",
+  "harbor-court": "Harbor Court Vagator by The Plix",
+  "vivenda-chico": "Vivenda Chico Candolim by The Plix",
+};
+export function sisterBrandName(p: Property): string {
+  return SISTER_BRAND_NAMES[p.slug] ?? p.name;
 }
 
 export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
@@ -368,9 +385,10 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
             longitude: p.longitude,
           }
         : undefined,
-    // Plain string, not an @id-linked object — avoids giving any parser a
-    // second entity/URL to potentially conflate with this one.
-    brand: "Plix Hospitality",
+    // A Brand sub-entity, not Organization — schema.org keeps these types
+    // distinct, so this carries no @id/url and can't be conflated with the
+    // parentOrganization entity above.
+    brand: { "@type": "Brand", name: "The Plix" },
   };
 
   // hasMap/sameAs only when a real Google Maps URL exists for this specific

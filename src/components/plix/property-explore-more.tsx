@@ -2,6 +2,7 @@ import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
 import { PROPERTIES } from "@/lib/plix";
+import { sisterBrandName } from "@/lib/seo";
 
 type Props = {
   currentSlug: string;
@@ -46,7 +47,7 @@ export function PropertyExploreMore({ currentSlug }: Props) {
         <div className="flex touch-pan-y gap-5">
           {others.map((p) => (
             <div key={p.id} className="min-w-0 shrink-0 grow-0 basis-[85%] sm:basis-[55%] lg:basis-[31%]">
-              <PropertyCard property={p} />
+              <PropertyCard property={p} titleOverride={sisterBrandName(p)} />
             </div>
           ))}
         </div>

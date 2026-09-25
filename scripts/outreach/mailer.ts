@@ -181,6 +181,17 @@ async function preflightProblem(target: Target): Promise<string | null> {
   return null;
 }
 
+/** Errors about the sending account or connection itself (suspended/disabled
+ * mailbox, bad login, rate limiting, network), as opposed to a recipient
+ * rejection. These must stop the run and never be blamed on the prospect. */
+function isSenderLevelFailure(err: unknown): boolean {
+  const e = err as { code?: string; responseCode?: number; message?: string };
+  if (["EAUTH", "ECONNECTION", "ESOCKET", "ETIMEDOUT", "EDNS"].includes(e.code ?? "")) return true;
+  const msg = e.message ?? "";
+  if (e.responseCode === 421 || e.responseCode === 535 || e.responseCode === 454) return true;
+  return /outbound sending is disabled|account.*(suspend|disabled|blocked)|sending limit|too many (messages|emails)|rate limit|quota/i.test(msg);
+}
+
 function assertSender(address: string): void {
   if (/^reservations?@/i.test(address.trim())) {
     throw new Error("Refusing to send: outreach must never use the reservations@ mailbox. Set OUTREACH_SMTP_USER to partnerships@theplixgoa.com.");
@@ -263,6 +274,11 @@ async function runSend(due: QueueItem[], skippedUnverified: QueueItem[], targets
       // editorial@domain) — mark it BOUNCED and move on rather than
       // aborting the whole run or silently retrying it forever.
       const message = err instanceof Error ? err.message : String(err);
+      if (isSenderLevelFailure(err)) {
+        console.log(`ABORT: sender account/connection problem, not a bad recipient. ${item.target.domain} left untouched. ${message}`);
+        process.exitCode = 1;
+        return;
+      }
       record.status = "BOUNCED";
       record.lastSentAt = sentAt;
       record.history.push({ touch: item.touch, sentAt, subject, bounceError: message });

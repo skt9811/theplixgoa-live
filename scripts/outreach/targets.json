@@ -79,9 +79,9 @@
   {
     "domain": "petfriendlyplaces.in",
     "category": "Pet-Friendly",
-    "recipientEmail": "",
+    "recipientEmail": "hello@petfriendlyplaces.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "wedmegood.com",
@@ -100,23 +100,23 @@
   {
     "domain": "urbanvenue.in",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@urbanvenue.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "justhomestay.in",
     "category": "Homestay Directory",
-    "recipientEmail": "",
+    "recipientEmail": "info@justhomestay.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "stayscape.in",
     "category": "Homestay Directory",
-    "recipientEmail": "",
+    "recipientEmail": "info@stayscape.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "bidyourstay.com",
@@ -142,9 +142,9 @@
   {
     "domain": "timesofhospitality.com",
     "category": "Homestay Directory",
-    "recipientEmail": "",
+    "recipientEmail": "timesofhospitalitytoh@gmail.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "myapartmentstay.com",
@@ -296,16 +296,16 @@
   {
     "domain": "travelturtle.world",
     "category": "Luxury Travel",
-    "recipientEmail": "",
+    "recipientEmail": "info@travelturtle.world",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "travelmail.in",
     "category": "Luxury Travel",
-    "recipientEmail": "",
+    "recipientEmail": "editor@travelmail.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "wanderlustmagazine.com",
@@ -338,9 +338,9 @@
   {
     "domain": "travelmag.com",
     "category": "Luxury Travel",
-    "recipientEmail": "",
+    "recipientEmail": "contact@travelmag.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "tablethotels.com",
@@ -359,16 +359,16 @@
   {
     "domain": "i-escape.com",
     "category": "Luxury Travel",
-    "recipientEmail": "",
+    "recipientEmail": "info@i-escape.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "hireavilla.in",
     "category": "Homestay Directory",
-    "recipientEmail": "",
+    "recipientEmail": "info@hireavilla.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "saffronstays.com",
@@ -380,9 +380,9 @@
   {
     "domain": "fursat.fun",
     "category": "Homestay Directory",
-    "recipientEmail": "",
+    "recipientEmail": "hi@fursat.fun",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "99roomz.com",
@@ -394,9 +394,9 @@
   {
     "domain": "thehomestay.co.in",
     "category": "Homestay Directory",
-    "recipientEmail": "",
+    "recipientEmail": "info@thehomestay.co.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "homestaysofindia.com",
@@ -408,16 +408,16 @@
   {
     "domain": "findmyhomestay.in",
     "category": "Homestay Directory",
-    "recipientEmail": "",
+    "recipientEmail": "hello@findmyhomestay.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "homestayindia.in",
     "category": "Homestay Directory",
-    "recipientEmail": "",
+    "recipientEmail": "contact@homestayindia.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "homestay.com",
@@ -443,9 +443,9 @@
   {
     "domain": "southasianbridemagazine.com",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@southasianbridemagazine.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "secretweddingblog.com",
@@ -457,9 +457,9 @@
   {
     "domain": "weddingplz.com",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@weddingplz.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "weddingsonline.in",
@@ -478,16 +478,16 @@
   {
     "domain": "wishnwed.com",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "hello@wishnwed.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "marrymeweddings.in",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@marrymeweddings.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "keralaweddingtrends.com",
@@ -499,9 +499,9 @@
   {
     "domain": "bookeventz.com",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@bookeventz.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "wedamor.com",
@@ -534,9 +534,9 @@
   {
     "domain": "weddingdocumentary.com",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@weddingdocumentary.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "shotmemories.com",
@@ -562,9 +562,9 @@
   {
     "domain": "theweddingfocus.com",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "hello@theweddingfocus.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "oakswedding.com",
@@ -597,16 +597,16 @@
   {
     "domain": "thefountainevents.com",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@thefountainevents.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "maangalbazaar.com",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@maangalbazaar.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "royalpepper.in",
@@ -660,16 +660,16 @@
   {
     "domain": "khushmag.com",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@khushmag.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "asiana.tv",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@asiana.tv",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "suhaag.com",
@@ -695,9 +695,9 @@
   {
     "domain": "maharaniweddings.com",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@maharaniweddings.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "shaadibaraati.com",
@@ -709,16 +709,16 @@
   {
     "domain": "shaadiyari.com",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@shaadiyari.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "jaspira.in",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@jaspira.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "tamarindglobalweddings.com",
@@ -730,16 +730,16 @@
   {
     "domain": "itsmy.wedding",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@itsmy.wedding",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "indianweddingplanners.in",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@indianweddingplanners.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "paradiseweddings.com",
@@ -765,9 +765,9 @@
   {
     "domain": "plannerslounge.com",
     "category": "Weddings",
-    "recipientEmail": "",
+    "recipientEmail": "info@plannerslounge.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "unbridely.com",
@@ -786,16 +786,16 @@
   {
     "domain": "lanapaws.com",
     "category": "Pet-Friendly",
-    "recipientEmail": "",
+    "recipientEmail": "hello@lanapaws.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "creature-companions.in",
     "category": "Pet-Friendly",
-    "recipientEmail": "",
+    "recipientEmail": "info@creature-companions.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "vosd.in",
@@ -807,9 +807,9 @@
   {
     "domain": "dccpets.in",
     "category": "Pet-Friendly",
-    "recipientEmail": "",
+    "recipientEmail": "info@dccpets.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "vetic.in",
@@ -835,9 +835,9 @@
   {
     "domain": "headsupfortails.com",
     "category": "Pet-Friendly",
-    "recipientEmail": "",
+    "recipientEmail": "hello@headsupfortails.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "petofy.com",
@@ -849,9 +849,9 @@
   {
     "domain": "happypet.care",
     "category": "Pet-Friendly",
-    "recipientEmail": "",
+    "recipientEmail": "hello@happypet.care",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "petyaari.com",
@@ -912,9 +912,9 @@
   {
     "domain": "petindiaonline.com",
     "category": "Pet-Friendly",
-    "recipientEmail": "",
+    "recipientEmail": "info@petindiaonline.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "barfindia.com",
@@ -926,16 +926,16 @@
   {
     "domain": "orangepet.in",
     "category": "Pet-Friendly",
-    "recipientEmail": "",
+    "recipientEmail": "info@orangepet.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "petfather.in",
     "category": "Pet-Friendly",
-    "recipientEmail": "",
+    "recipientEmail": "contact@petfather.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "petsofparadise.store",
@@ -954,16 +954,16 @@
   {
     "domain": "goelvetpharma.com",
     "category": "Pet-Friendly",
-    "recipientEmail": "",
+    "recipientEmail": "info@goelvetpharma.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "ektekglobal.com",
     "category": "Pet-Friendly",
-    "recipientEmail": "",
+    "recipientEmail": "info@ektekglobal.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "chullbull.com",
@@ -989,9 +989,9 @@
   {
     "domain": "canineindia.in",
     "category": "Pet-Friendly",
-    "recipientEmail": "",
+    "recipientEmail": "hello@canineindia.in",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "taiyogroup.in",
@@ -1059,9 +1059,9 @@
   {
     "domain": "designessentiamagazine.com",
     "category": "Lifestyle",
-    "recipientEmail": "",
+    "recipientEmail": "info@designessentiamagazine.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "homesindiamagazine.com",
@@ -1129,9 +1129,9 @@
   {
     "domain": "thesimplelifeco.com",
     "category": "Lifestyle",
-    "recipientEmail": "",
+    "recipientEmail": "thesimplelifeco.com@gmail.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "magalic.com",
@@ -1262,9 +1262,9 @@
   {
     "domain": "caughtinacuff.com",
     "category": "Lifestyle",
-    "recipientEmail": "",
+    "recipientEmail": "caughtinacuff@gmail.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "nikkistalk.co.in",
@@ -1325,9 +1325,9 @@
   {
     "domain": "writtenbyshweta.com",
     "category": "Lifestyle",
-    "recipientEmail": "",
+    "recipientEmail": "thewbsblog@gmail.com",
     "recipientName": "Editorial Team",
-    "verified": false
+    "verified": true
   },
   {
     "domain": "mysoultalks.com",

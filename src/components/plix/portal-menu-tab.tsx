@@ -45,6 +45,7 @@ export function PortalMenuTab({
     } catch {
       // native storage unavailable — the cookie clear above already ends the session
     }
+    toast.success("Logged out successfully");
     void navigate({ to: "/portal/login" });
   }
 
@@ -109,7 +110,7 @@ export function PortalMenuTab({
       <button
         type="button"
         onClick={handleLogout}
-        className="mt-6 mb-4 flex w-full items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-6 py-3.5 text-sm font-semibold text-red-600 hover:bg-red-100"
+        className="mt-6 mb-4 flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
       >
         <LogOut className="size-4" aria-hidden /> Log Out
       </button>

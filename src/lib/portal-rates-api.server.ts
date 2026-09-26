@@ -46,6 +46,10 @@ export async function handleGetPortalRates(request: Request): Promise<Response> 
 export async function handleSavePortalRate(request: Request): Promise<Response> {
   const session = await getPortalSessionFromRequest(request);
   if (!session) return jsonResponse({ error: "Not authenticated" }, 401);
+  // Rate overrides are admin-only, matching the web app (its rate server
+  // functions already require an admin session) and the portal UI, which
+  // tells owners "Rates are set by Plix admin".
+  if (session.role !== "admin") return jsonResponse({ error: "Admin only" }, 403);
   const propertySlug = resolveEffectivePropertySlug(request, session);
 
   let body: unknown;

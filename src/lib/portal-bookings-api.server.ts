@@ -54,7 +54,7 @@ export type PortalBooking = {
    * the online-checkout lifecycle (always null for manual bookings); this
    * one is manually entered and always "paid" for an online booking, since
    * a completed Razorpay payment has no partial/balance concept. */
-  admin_payment_status: "paid" | "partial" | "pending" | null;
+  admin_payment_status: "paid" | "partial" | "pending" | "pay_at_checkin" | null;
   /** Only meaningful alongside admin_payment_status === "partial" — null for online bookings and for manual ones that didn't record it. */
   advance_amount: number | null;
   /** Platform commission rate applied to this booking. Defaults to 0 for
@@ -122,7 +122,7 @@ type ManualRow = {
   status: PortalBookingStatus;
   created_at: string | Date;
   rooms_count: number | null;
-  payment_status: "paid" | "partial" | "pending";
+  payment_status: "paid" | "partial" | "pending" | "pay_at_checkin";
   advance_amount: string | number | null;
   commission_pct: string | number;
   commission_amount: string | number;

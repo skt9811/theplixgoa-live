@@ -225,7 +225,7 @@ export function PortalInventoryTab({
         onClick={() => setBlockSheetOpen(true)}
         className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
       >
-        Block a Date Range
+        {role === "admin" ? "Bulk Edit Dates (Price / Open / Block)" : "Block a Date Range"}
       </button>
 
       {selectedDate && (
@@ -245,7 +245,7 @@ export function PortalInventoryTab({
       )}
 
       {blockSheetOpen && (
-        <BlockRangeSheet propertySlug={propertySlug} onClose={() => setBlockSheetOpen(false)} onBlocked={() => void loadMonth()} />
+        <BlockRangeSheet propertySlug={propertySlug} role={role} onClose={() => setBlockSheetOpen(false)} onBlocked={() => void loadMonth()} />
       )}
     </>
   );
@@ -397,17 +397,22 @@ function DateDetailSheet({
 
 function BlockRangeSheet({
   propertySlug,
+  role,
   onClose,
   onBlocked,
 }: {
   propertySlug: string;
+  role: "owner" | "admin";
   onClose: () => void;
   onBlocked: () => void;
 }) {
   const [checkIn, setCheckIn] = useState(todayISO());
   const [checkOut, setCheckOut] = useState(todayISO(1));
   const [reason, setReason] = useState<"Owner Stay" | "Maintenance">("Owner Stay");
+  const [action, setAction] = useState<"block" | "open">("block");
+  const [price, setPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const isAdmin = role === "admin";
 
   const nights = checkIn && checkOut ? Math.max(0, differenceInCalendarDays(new Date(checkOut), new Date(checkIn))) : 0;
 
@@ -428,6 +433,52 @@ function BlockRangeSheet({
       nightsList.push(`${y}-${m}-${d}`);
       cursor.setDate(cursor.getDate() + 1);
     }
+    const priceValue = price.trim() === "" ? null : Number(price);
+    if (isAdmin && priceValue !== null && (!Number.isFinite(priceValue) || priceValue <= 0)) {
+      toast.error("Enter a valid nightly price");
+      setSubmitting(false);
+      return;
+    }
+    if (isAdmin && priceValue !== null) {
+      const saved = await saveRateOverrides(
+        propertySlug,
+        nightsList.map((date) => ({ property_id: propertySlug, date, rate: priceValue })),
+      );
+      if (saved.error) {
+        toast.error(saved.error);
+        setSubmitting(false);
+        return;
+      }
+    }
+    if (isAdmin && action === "open") {
+      // Only hard blocks (maintenance / owner stay) are opened. Nights held
+      // by a real reservation are never released from here.
+      const existing = await fetchBlockedDatesWithReason(propertySlug, checkIn, checkOut);
+      const openable = [...existing.entries()]
+        .filter(([date, why]) => nightsList.includes(date) && why !== "Booked" && !why?.startsWith("Manual booking "))
+        .map(([date]) => date);
+      for (const date of openable) {
+        const result = await toggleBlockedDate(propertySlug, date, true);
+        if (result.error) {
+          toast.error(result.error);
+          setSubmitting(false);
+          return;
+        }
+      }
+      setSubmitting(false);
+      if (openable.length === 0 && priceValue === null) {
+        toast.info("Nothing to open in that range");
+      } else {
+        toast.success(
+          priceValue !== null
+            ? `Rates updated${openable.length ? `, ${openable.length} night${openable.length === 1 ? "" : "s"} opened` : ""}`
+            : `Opened ${openable.length} night${openable.length === 1 ? "" : "s"}`,
+        );
+      }
+      onBlocked();
+      onClose();
+      return;
+    }
     for (const night of nightsList) {
       const result = await toggleBlockedDate(propertySlug, night, false, reason);
       if (result.error) {
@@ -437,7 +488,11 @@ function BlockRangeSheet({
       }
     }
     setSubmitting(false);
-    toast.success(`Blocked ${nightsList.length} night${nightsList.length === 1 ? "" : "s"}`);
+    toast.success(
+      isAdmin && priceValue !== null
+        ? `Rates updated and ${nightsList.length} night${nightsList.length === 1 ? "" : "s"} blocked`
+        : `Blocked ${nightsList.length} night${nightsList.length === 1 ? "" : "s"}`,
+    );
     onBlocked();
     onClose();
   }
@@ -446,7 +501,7 @@ function BlockRangeSheet({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
       <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-slate-900" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Block Dates</h2>
+          <h2 className="text-lg font-semibold">{isAdmin ? "Bulk Edit Dates" : "Block Dates"}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600">
             <X className="size-5" aria-hidden />
           </button>
@@ -472,7 +527,39 @@ function BlockRangeSheet({
               />
             </label>
           </div>
-          <div>
+          {isAdmin && (
+            <>
+              <label className="grid gap-1.5 text-sm">
+                <span className="text-slate-500">Override nightly price (₹, optional)</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="Leave empty to keep current rates"
+                  className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-bronze/50"
+                />
+              </label>
+              <div>
+                <p className="text-sm text-slate-500">Status for range</p>
+                <div className="mt-1.5 flex gap-1 rounded-full border border-slate-200 p-1">
+                  {(["block", "open"] as const).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setAction(option)}
+                      className={`flex-1 rounded-full px-3 py-2 text-xs font-semibold transition-colors ${
+                        action === option ? "bg-bronze text-bronze-foreground" : "text-slate-500 hover:bg-slate-50"
+                      }`}
+                    >
+                      {option === "block" ? "Blocked" : "Open (Available)"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+          <div className={isAdmin && action === "open" ? "hidden" : ""}>
             <p className="text-sm text-slate-500">Reason</p>
             <div className="mt-1.5 flex gap-1 rounded-full border border-slate-200 p-1">
               {(["Owner Stay", "Maintenance"] as const).map((option) => (
@@ -495,7 +582,7 @@ function BlockRangeSheet({
             className="mt-1 flex items-center justify-center gap-2 rounded-full bg-bronze px-6 py-3 text-sm font-semibold text-bronze-foreground disabled:opacity-60"
           >
             {submitting && <Loader2 className="size-4 animate-spin" aria-hidden />}
-            Block {nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "dates"}
+            {isAdmin ? "Apply to" : "Block"} {nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "dates"}
           </button>
         </form>
       </div>

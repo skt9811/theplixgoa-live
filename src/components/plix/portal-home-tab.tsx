@@ -28,6 +28,7 @@ function todayISO(): string {
 
 function balanceLine(b: PortalBooking): string {
   if (b.admin_payment_status === "pending") return "Payment Pending";
+  if (b.admin_payment_status === "pay_at_checkin") return "Pay at Check-in";
   if (b.admin_payment_status === "partial") {
     const due = b.booking_amount - (b.advance_amount ?? 0);
     return `Balance Due: ${formatINR(Math.max(0, due))}`;

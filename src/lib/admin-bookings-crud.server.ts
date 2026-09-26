@@ -9,6 +9,7 @@
 import postgres from "postgres";
 import { differenceInCalendarDays } from "date-fns";
 import { requireAdminSession } from "@/lib/portal-session.server";
+import { findStayConflict, syncManualBlocks } from "@/lib/manual-booking-guard.server";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
 
@@ -67,12 +68,22 @@ export async function handleAdminUpdateBooking(request: Request, id: string): Pr
 
   try {
     if (source === "manual") {
+      const [existing] = await sql<{ property_id: string; rooms_count: number | null; status: string }[]>`
+        SELECT property_id, rooms_count, status FROM public.portal_bookings WHERE id = ${id}
+      `;
+      if (!existing) return jsonResponse({ error: "Booking not found" }, 404);
+      const conflict =
+        existing.status === "cancelled"
+          ? null
+          : await findStayConflict(sql, existing.property_id, checkIn, checkOut, Math.max(1, existing.rooms_count ?? 1), id);
+      if (conflict) return jsonResponse({ error: conflict }, 409);
       await sql`
         UPDATE public.portal_bookings
         SET guest_name = ${guestName}, guest_phone = ${guestPhone}, check_in = ${checkIn},
             check_out = ${checkOut}, nights = ${nights}, booking_amount = ${bookingAmount}
         WHERE id = ${id}
       `;
+      await syncManualBlocks(sql, existing.property_id, id, checkIn, checkOut, existing.status !== "cancelled");
     } else {
       await sql`
         UPDATE public.bookings
@@ -113,7 +124,11 @@ export async function handleAdminDeleteBooking(request: Request, id: string): Pr
     // admin's history) but status='cancelled' excludes it from every active
     // query — including the portal's own — and frees its dates immediately.
     if (source === "manual") {
-      await sql`UPDATE public.portal_bookings SET status = 'cancelled' WHERE id = ${id}`;
+      const [cancelled] = await sql<{ property_id: string; check_in: string; check_out: string }[]>`
+        UPDATE public.portal_bookings SET status = 'cancelled' WHERE id = ${id}
+        RETURNING property_id, check_in::text AS check_in, check_out::text AS check_out
+      `;
+      if (cancelled) await syncManualBlocks(sql, cancelled.property_id, id, cancelled.check_in, cancelled.check_out, false);
     } else {
       await sql`UPDATE public.bookings SET payment_status = 'cancelled' WHERE id = ${id}`;
     }

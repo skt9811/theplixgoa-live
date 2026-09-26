@@ -54,6 +54,7 @@ function paymentStatusLabel(b: PortalBooking): string {
   if (b.source === "online") return b.payment_status === "pending" ? "Tentative" : "Paid";
   if (b.admin_payment_status === "partial") return `Partial (Adv. ${b.advance_amount ?? 0})`;
   if (b.admin_payment_status === "pending") return "Pending";
+  if (b.admin_payment_status === "pay_at_checkin") return "Pay at Check-in";
   return "Paid";
 }
 

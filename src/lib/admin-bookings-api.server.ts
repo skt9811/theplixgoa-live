@@ -9,6 +9,7 @@ import { differenceInCalendarDays } from "date-fns";
 import { notifyNewBooking } from "@/lib/push-notifications.server";
 import { requireAdminSession } from "@/lib/portal-session.server";
 import { PROPERTIES } from "@/lib/plix";
+import { findStayConflict, syncManualBlocks } from "@/lib/manual-booking-guard.server";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
 
@@ -29,8 +30,8 @@ function jsonResponse(body: unknown, status: number): Response {
 }
 
 const ALLOWED_STATUSES = new Set(["confirmed", "checked_in", "completed", "blocked"]);
-const ALLOWED_PAYMENT_STATUSES = new Set(["paid", "partial", "pending"]);
-const ALLOWED_CHANNELS = new Set(["direct", "offline_phone", "airbnb", "booking_com", "walk_in"]);
+const ALLOWED_PAYMENT_STATUSES = new Set(["paid", "partial", "pending", "pay_at_checkin"]);
+const ALLOWED_CHANNELS = new Set(["direct", "offline_phone", "airbnb", "booking_com", "walk_in", "agoda", "repeat_guest", "owner_booking"]);
 
 export async function handleAdminCreateBooking(request: Request): Promise<Response> {
   if (!(await requireAdminSession(request))) {
@@ -86,11 +87,17 @@ export async function handleAdminCreateBooking(request: Request): Promise<Respon
   if (!propertySlug || !guestName || !checkIn || !checkOut || nights <= 0) {
     return jsonResponse({ error: "Missing or invalid fields" }, 400);
   }
+  if (!PROPERTIES.some((p) => p.slug === propertySlug)) {
+    return jsonResponse({ error: "Unknown property" }, 400);
+  }
 
   const sql = getSql();
   if (!sql) return jsonResponse({ error: "Database not configured" }, 500);
 
   try {
+    const conflict = await findStayConflict(sql, propertySlug, checkIn, checkOut, roomsCount);
+    if (conflict) return jsonResponse({ error: conflict }, 409);
+
     const [row] = await sql<{ id: string }[]>`
       INSERT INTO public.portal_bookings
         (property_id, guest_name, guest_phone, guest_email, check_in, check_out, nights, guests_count,
@@ -102,12 +109,23 @@ export async function handleAdminCreateBooking(request: Request): Promise<Respon
          ${commissionPct}, ${commissionAmount})
       RETURNING id
     `;
+    // Stop the public website selling these nights. A failure here must not
+    // hide the saved booking, so it is reported alongside the success.
+    let warning: string | undefined;
+    if (row?.id) {
+      try {
+        await syncManualBlocks(sql, propertySlug, row.id, checkIn, checkOut, true);
+      } catch (blockErr) {
+        console.error("[handleAdminCreateBooking] syncManualBlocks:", blockErr instanceof Error ? blockErr.message : blockErr);
+        warning = "Saved, but the website calendar could not be updated. Block these dates manually.";
+      }
+    }
     if (status !== "blocked") {
       const property = PROPERTIES.find((p) => p.slug === propertySlug);
       void notifyNewBooking(propertySlug, property?.name ?? propertySlug, guestName, bookingAmount, checkIn, nights);
     }
 
-    return jsonResponse({ success: true, id: row?.id, nights }, 200);
+    return jsonResponse({ success: true, id: row?.id, nights, ...(warning ? { warning } : {}) }, 200);
   } catch (err) {
     console.error("[handleAdminCreateBooking]:", err instanceof Error ? err.message : err);
     return jsonResponse({ error: "Internal error" }, 500);

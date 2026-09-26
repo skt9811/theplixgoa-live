@@ -7,6 +7,15 @@ import type { PortalBooking } from "@/lib/portal-bookings-client";
 import { portalFetch } from "@/lib/portal-native-session";
 import { PAYMENT_STATUS_OPTIONS, CHANNEL_OPTIONS } from "@/lib/booking-options";
 import { createBooking, type CreateBookingPayload } from "@/lib/create-booking-client";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  eachNight,
+  fetchBlockedDatesWithReason,
+  fetchRateOverrides,
+  isMultiRoomProperty,
+  maxRoomsForProperty,
+  scalesPriceByRooms,
+} from "@/lib/rates";
 
 const SUPPORT_WHATSAPP = "https://api.whatsapp.com/send?phone=919009800809";
 const CHECK_IN_TIME = "02:00 pm";
@@ -27,6 +36,10 @@ function shortBookingId(id: string): string {
   const hex = id.replace(/-/g, "").slice(0, 8);
   const n = parseInt(hex, 16) % 10_000_000;
   return String(n).padStart(7, "0");
+}
+
+function localISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function formatDate(dateStr: string): string {
@@ -189,7 +202,7 @@ export function PortalBookingTab({
             onClick={() => setCreating(true)}
             className="flex items-center gap-1 rounded-full bg-bronze px-3.5 py-2 text-xs font-semibold text-bronze-foreground"
           >
-            <Plus className="size-3.5" aria-hidden /> New
+            <Plus className="size-3.5" aria-hidden /> Create Reservation
           </button>
         )}
       </div>
@@ -387,26 +400,124 @@ function CreateBookingSheet({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const [selectedSlug, setSelectedSlug] = useState(propertySlug);
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [checkIn, setCheckIn] = useState(todayISO());
   const [checkOut, setCheckOut] = useState(todayISO(1));
+  const [pickingEnd, setPickingEnd] = useState(false);
   const [adultsCount, setAdultsCount] = useState(2);
   const [childrenCount, setChildrenCount] = useState(0);
   const [roomsCount, setRoomsCount] = useState(1);
-  const [bookingAmount, setBookingAmount] = useState(0);
+  const [rateEdit, setRateEdit] = useState("");
+  const [autoRate, setAutoRate] = useState(0);
+  const [totalOverride, setTotalOverride] = useState("");
   const [advanceAmount, setAdvanceAmount] = useState(0);
   const [commissionPct, setCommissionPct] = useState(22);
   const [paymentStatus, setPaymentStatus] = useState<CreateBookingPayload["paymentStatus"]>("paid");
   const [channel, setChannel] = useState<CreateBookingPayload["channel"]>("direct");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [occupied, setOccupied] = useState<Set<string> | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
 
+  const property = PROPERTIES.find((p) => p.slug === selectedSlug);
+  const multiRoom = isMultiRoomProperty(selectedSlug);
   const nights = checkIn && checkOut ? Math.max(0, differenceInCalendarDays(new Date(checkOut), new Date(checkIn))) : 0;
+
+  // Default nightly rate = the property's real rate for the chosen nights
+  // (per-date override if one exists, otherwise its base rate), averaged.
+  useEffect(() => {
+    if (!property) return;
+    if (nights <= 0) {
+      setAutoRate(property.base_price);
+      return;
+    }
+    let cancelled = false;
+    void fetchRateOverrides(selectedSlug, checkIn, checkOut).then((overrides) => {
+      if (cancelled) return;
+      const list = eachNight(checkIn, checkOut).map((n) => overrides[n] ?? property.base_price);
+      setAutoRate(Math.round(list.reduce((a, b) => a + b, 0) / list.length));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSlug, checkIn, checkOut, nights, property]);
+
+  // Nights that already can't be sold for a whole-villa property: real
+  // bookings plus hard blocks. Multi-room properties are governed by room
+  // counts instead, which the server checks on save.
+  useEffect(() => {
+    if (multiRoom) {
+      setOccupied(new Set());
+      return;
+    }
+    let cancelled = false;
+    setOccupied(null);
+    void Promise.all([
+      portalFetch(`/api/portal/bookings?property=${selectedSlug}`).then((res) => (res.ok ? res.json() : { bookings: [] })),
+      fetchBlockedDatesWithReason(selectedSlug, todayISO(-60), todayISO(540)),
+    ])
+      .then(([data, blocked]: [{ bookings?: PortalBooking[] }, Map<string, string | null>]) => {
+        if (cancelled) return;
+        const set = new Set<string>();
+        for (const b of data.bookings ?? []) {
+          if (b.source === "online" && b.payment_status === "pending") continue;
+          for (const n of eachNight(b.check_in, b.check_out)) set.add(n);
+        }
+        for (const [date, reason] of blocked) {
+          if (reason === "Booked" || reason?.startsWith("Manual booking ")) continue;
+          set.add(date);
+        }
+        setOccupied(set);
+      })
+      .catch(() => {
+        if (!cancelled) setOccupied(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSlug, multiRoom]);
+
+  const nightlyRate = rateEdit !== "" ? Math.max(0, Number(rateEdit) || 0) : autoRate;
+  const roomFactor = scalesPriceByRooms(selectedSlug) ? roomsCount : 1;
+  const calculatedTotal = nightlyRate * nights * roomFactor;
+  const bookingAmount = totalOverride !== "" ? Math.max(0, Number(totalOverride) || 0) : calculatedTotal;
   // Display-only — the server always recomputes and persists the real
   // figure from commissionPct, never trusting this client-side number.
   const commissionAmount = bookingAmount * (commissionPct / 100);
+
+  const conflictNight =
+    !multiRoom && occupied && nights > 0 ? eachNight(checkIn, checkOut).find((n) => occupied.has(n)) : undefined;
+
+  // While picking a check-out, only dates up to the next reserved night are
+  // selectable (a stay may end on the day the next one begins).
+  const latestCheckOut = useMemo(() => {
+    if (!pickingEnd || !occupied) return null;
+    let first: string | null = null;
+    for (const n of occupied) if (n >= checkIn && (first === null || n < first)) first = n;
+    return first;
+  }, [pickingEnd, occupied, checkIn]);
+
+  function isDayDisabled(d: Date): boolean {
+    const iso = localISO(d);
+    if (pickingEnd) return iso <= checkIn || (latestCheckOut !== null && iso > latestCheckOut);
+    return occupied?.has(iso) ?? false;
+  }
+
+  function handleDayClick(day: Date) {
+    const iso = localISO(day);
+    setServerError(null);
+    if (!pickingEnd) {
+      setCheckIn(iso);
+      setCheckOut("");
+      setPickingEnd(true);
+      return;
+    }
+    setCheckOut(iso);
+    setPickingEnd(false);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -422,9 +533,14 @@ function CreateBookingSheet({
       toast.error("Check-out must be after check-in");
       return;
     }
+    if (conflictNight) {
+      toast.error(`${conflictNight} is already reserved or blocked`);
+      return;
+    }
     setSaving(true);
+    setServerError(null);
     const error = await createBooking({
-      propertySlug,
+      propertySlug: selectedSlug,
       guestName: guestName.trim(),
       guestPhone: guestPhone.trim(),
       guestEmail: guestEmail.trim(),
@@ -442,10 +558,11 @@ function CreateBookingSheet({
     });
     setSaving(false);
     if (error) {
+      setServerError(error);
       toast.error(error);
       return;
     }
-    toast.success("Booking created");
+    toast.success("Reservation Created Successfully");
     onCreated();
   }
 
@@ -458,13 +575,34 @@ function CreateBookingSheet({
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200" />
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Create Booking</h2>
+          <h2 className="text-lg font-semibold">Create Reservation</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600">
             <X className="size-5" aria-hidden />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 grid gap-3">
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-slate-500">Property</span>
+            <select
+              value={selectedSlug}
+              onChange={(e) => {
+                setSelectedSlug(e.target.value);
+                setRoomsCount(1);
+                setRateEdit("");
+                setTotalOverride("");
+                setServerError(null);
+              }}
+              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+            >
+              {PROPERTIES.map((p) => (
+                <option key={p.slug} value={p.slug}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-1.5 text-sm">
               <span className="text-slate-500">Guest Name</span>
@@ -499,29 +637,42 @@ function CreateBookingSheet({
             />
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1.5 text-sm">
-              <span className="text-slate-500">Check-in</span>
-              <input
-                type="date"
-                value={checkIn}
-                onChange={(e) => setCheckIn(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+          <div className="grid gap-1.5 text-sm">
+            <span className="text-slate-500">
+              {pickingEnd ? "Now pick the check-out date" : "Pick the check-in date"}
+              {occupied === null && !multiRoom ? " (loading availability...)" : ""}
+            </span>
+            <div className="flex justify-center rounded-xl border border-slate-200">
+              <Calendar
+                mode="range"
+                selected={{ from: checkIn ? new Date(`${checkIn}T00:00:00`) : undefined, to: checkOut ? new Date(`${checkOut}T00:00:00`) : undefined }}
+                onSelect={() => undefined}
+                onDayClick={handleDayClick}
+                disabled={isDayDisabled}
+                defaultMonth={checkIn ? new Date(`${checkIn}T00:00:00`) : new Date()}
               />
-            </label>
-            <label className="grid gap-1.5 text-sm">
-              <span className="text-slate-500">Check-out</span>
-              <input
-                type="date"
-                value={checkOut}
-                onChange={(e) => setCheckOut(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
-              />
-            </label>
+            </div>
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>
+                {checkIn ? formatDate(checkIn) : "—"} → {checkOut ? formatDate(checkOut) : "—"}
+                {nights > 0 ? ` · ${nights} night${nights === 1 ? "" : "s"}` : ""}
+              </span>
+              {pickingEnd && (
+                <button type="button" onClick={() => setPickingEnd(false)} className="font-semibold text-bronze">
+                  Change check-in
+                </button>
+              )}
+            </div>
+            {multiRoom && (
+              <p className="text-xs text-slate-400">Room availability for this property is checked when you save.</p>
+            )}
+            {conflictNight && (
+              <p className="text-xs font-semibold text-red-600">
+                {formatDate(conflictNight)} is already reserved or blocked. Choose different dates.
+              </p>
+            )}
+            {serverError && <p className="text-xs font-semibold text-red-600">{serverError}</p>}
           </div>
-          <p className="-mt-2 text-xs text-slate-400">
-            {nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "Select valid dates"}
-          </p>
 
           <div className="grid grid-cols-3 gap-3">
             <label className="grid gap-1.5 text-sm">
@@ -549,8 +700,9 @@ function CreateBookingSheet({
               <input
                 type="number"
                 min={1}
+                max={maxRoomsForProperty(selectedSlug)}
                 value={roomsCount}
-                onChange={(e) => setRoomsCount(Math.max(1, Number(e.target.value)))}
+                onChange={(e) => setRoomsCount(Math.min(maxRoomsForProperty(selectedSlug), Math.max(1, Number(e.target.value))))}
                 className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
               />
             </label>
@@ -558,27 +710,41 @@ function CreateBookingSheet({
 
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-1.5 text-sm">
-              <span className="text-slate-500">Total Stay Amount (₹)</span>
+              <span className="text-slate-500">Base Nightly Rate (₹)</span>
               <input
                 type="number"
                 min={0}
-                value={bookingAmount}
-                onChange={(e) => setBookingAmount(Math.max(0, Number(e.target.value)))}
+                value={rateEdit !== "" ? rateEdit : autoRate}
+                onChange={(e) => setRateEdit(e.target.value)}
                 className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
               />
             </label>
             <label className="grid gap-1.5 text-sm">
-              <span className="text-slate-500">Advance Paid (₹)</span>
+              <span className="text-slate-500">Total Amount Override (₹)</span>
               <input
                 type="number"
                 min={0}
-                value={advanceAmount}
-                onChange={(e) => setAdvanceAmount(Math.max(0, Number(e.target.value)))}
-                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+                value={totalOverride}
+                placeholder={String(calculatedTotal)}
+                onChange={(e) => setTotalOverride(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-bronze/50"
               />
             </label>
           </div>
-          {bookingAmount > 0 && <p className="-mt-2 text-xs text-slate-400">{formatINR(bookingAmount)}</p>}
+          <p className="-mt-2 text-xs text-slate-400">
+            Total {formatINR(bookingAmount)}
+            {totalOverride === "" ? ` = ${nights} night${nights === 1 ? "" : "s"} × ${formatINR(nightlyRate)}${roomFactor > 1 ? ` × ${roomFactor} rooms` : ""}` : " (manual override)"}
+          </p>
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-slate-500">Amount Collected / Advance Received (₹)</span>
+            <input
+              type="number"
+              min={0}
+              value={advanceAmount}
+              onChange={(e) => setAdvanceAmount(Math.max(0, Number(e.target.value)))}
+              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-bronze/50"
+            />
+          </label>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-1.5 text-sm">
@@ -645,11 +811,11 @@ function CreateBookingSheet({
 
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || Boolean(conflictNight)}
             className="mt-1 flex items-center justify-center gap-2 rounded-full bg-bronze px-6 py-3 text-sm font-semibold text-bronze-foreground disabled:opacity-60"
           >
             {saving && <Loader2 className="size-4 animate-spin" aria-hidden />}
-            Create Booking
+            Create Reservation
           </button>
         </form>
       </div>

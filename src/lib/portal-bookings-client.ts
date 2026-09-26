@@ -27,7 +27,7 @@ export type PortalBooking = {
   /** The admin "+ Create Booking" flow's own payment tracking — distinct
    * from `payment_status` above (the online-checkout lifecycle, always
    * null for manual bookings). Always "paid" for an online booking. */
-  admin_payment_status: "paid" | "partial" | "pending" | null;
+  admin_payment_status: "paid" | "partial" | "pending" | "pay_at_checkin" | null;
   advance_amount: number | null;
   /** Platform commission rate applied to this booking — 0 for anything that predates commission tracking. */
   commission_pct: number;

@@ -27,6 +27,7 @@ import {
 } from "./lib/portal-rates-api.server";
 import { portalPreflight, withPortalCors } from "./lib/portal-cors.server";
 import { handleAdminCreateBooking } from "./lib/admin-bookings-api.server";
+import { handlePmsApi } from "./lib/pms-api.server";
 import { handleAdminUpdateBooking, handleAdminDeleteBooking } from "./lib/admin-bookings-crud.server";
 import { handleAdminListPortalOwners, handleAdminUpdatePortalOwner } from "./lib/admin-portal-owners-api.server";
 import { getAuthConfig } from "./lib/auth.server";
@@ -282,6 +283,15 @@ export default {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });
+      }
+    }
+    // Plix PMS (standalone admin app, /pms). Same-origin only, its own session.
+    if (url.pathname.startsWith("/api/pms/")) {
+      try {
+        return await handlePmsApi(request);
+      } catch (error) {
+        console.error("[pms] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), { status: 500, headers: { "Content-Type": "application/json" } });
       }
     }
     // Hotelier partner portal — PIN login (sets its own session cookie,

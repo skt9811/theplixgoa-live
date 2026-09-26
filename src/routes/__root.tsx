@@ -244,7 +244,10 @@ function RootComponent() {
   // public marketing header/search widget, footer, or floating WhatsApp
   // button (which lives inside SiteFooter). Checked here, not per-route,
   // since SiteHeader/SiteFooter are otherwise unconditional for every page.
-  const isPortalRoute = useRouterState({ select: (s) => s.location.pathname.startsWith("/portal") });
+  // /pms (the standalone Plix PMS) is likewise its own app with its own shell.
+  const isPortalRoute = useRouterState({
+    select: (s) => s.location.pathname.startsWith("/portal") || s.location.pathname.startsWith("/pms"),
+  });
 
   useEffect(() => {
     if (document.readyState === "complete") {

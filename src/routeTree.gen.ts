@@ -17,6 +17,7 @@ import { Route as BookingSuccessRouteImport } from './routes/booking-success'
 import { Route as CancellationRouteImport } from './routes/cancellation'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as FaqRouteImport } from './routes/faq'
+import { Route as PmsRouteImport } from './routes/pms'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as StaysRouteImport } from './routes/stays'
@@ -25,6 +26,13 @@ import { Route as AdminBookingsRouteImport } from './routes/admin_.bookings'
 import { Route as BlogIndexRouteImport } from './routes/blog/index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as LocationsSlugRouteImport } from './routes/locations.$slug'
+import { Route as PmsIndexRouteImport } from './routes/pms.index'
+import { Route as PmsBookingsRouteImport } from './routes/pms.bookings'
+import { Route as PmsExpensesRouteImport } from './routes/pms.expenses'
+import { Route as PmsInventoryRouteImport } from './routes/pms.inventory'
+import { Route as PmsInvoicesRouteImport } from './routes/pms.invoices'
+import { Route as PmsSystemRouteImport } from './routes/pms.system'
+import { Route as PmsLoginRouteImport } from './routes/pms_.login'
 import { Route as PortalIndexRouteImport } from './routes/portal/index'
 import { Route as PortalDashboardRouteImport } from './routes/portal/dashboard'
 import { Route as PortalLoginRouteImport } from './routes/portal/login'
@@ -72,6 +80,11 @@ const FaqRoute = FaqRouteImport.update({
   path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PmsRoute = PmsRouteImport.update({
+  id: '/pms',
+  path: '/pms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PortalRoute = PortalRouteImport.update({
   id: '/portal',
   path: '/portal',
@@ -110,6 +123,41 @@ const BlogSlugRoute = BlogSlugRouteImport.update({
 const LocationsSlugRoute = LocationsSlugRouteImport.update({
   id: '/locations/$slug',
   path: '/locations/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PmsIndexRoute = PmsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PmsRoute,
+} as any)
+const PmsBookingsRoute = PmsBookingsRouteImport.update({
+  id: '/bookings',
+  path: '/bookings',
+  getParentRoute: () => PmsRoute,
+} as any)
+const PmsExpensesRoute = PmsExpensesRouteImport.update({
+  id: '/expenses',
+  path: '/expenses',
+  getParentRoute: () => PmsRoute,
+} as any)
+const PmsInventoryRoute = PmsInventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => PmsRoute,
+} as any)
+const PmsInvoicesRoute = PmsInvoicesRouteImport.update({
+  id: '/invoices',
+  path: '/invoices',
+  getParentRoute: () => PmsRoute,
+} as any)
+const PmsSystemRoute = PmsSystemRouteImport.update({
+  id: '/system',
+  path: '/system',
+  getParentRoute: () => PmsRoute,
+} as any)
+const PmsLoginRoute = PmsLoginRouteImport.update({
+  id: '/pms_/login',
+  path: '/pms/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PortalIndexRoute = PortalIndexRouteImport.update({
@@ -152,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/cancellation': typeof CancellationRoute
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
+  '/pms': typeof PmsRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/stays': typeof StaysRoute
@@ -159,12 +208,19 @@ export interface FileRoutesByFullPath {
   '/admin/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/locations/$slug': typeof LocationsSlugRoute
+  '/pms/bookings': typeof PmsBookingsRoute
+  '/pms/expenses': typeof PmsExpensesRoute
+  '/pms/inventory': typeof PmsInventoryRoute
+  '/pms/invoices': typeof PmsInvoicesRoute
+  '/pms/system': typeof PmsSystemRoute
+  '/pms/login': typeof PmsLoginRoute
   '/portal/dashboard': typeof PortalDashboardRoute
   '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
   '/stays/large-groups': typeof StaysLargeGroupsRoute
   '/stays/private-pool-villas': typeof StaysPrivatePoolVillasRoute
   '/blog/': typeof BlogIndexRoute
+  '/pms/': typeof PmsIndexRoute
   '/portal/': typeof PortalIndexRoute
 }
 export interface FileRoutesByTo {
@@ -182,12 +238,19 @@ export interface FileRoutesByTo {
   '/admin/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/locations/$slug': typeof LocationsSlugRoute
+  '/pms/bookings': typeof PmsBookingsRoute
+  '/pms/expenses': typeof PmsExpensesRoute
+  '/pms/inventory': typeof PmsInventoryRoute
+  '/pms/invoices': typeof PmsInvoicesRoute
+  '/pms/system': typeof PmsSystemRoute
+  '/pms/login': typeof PmsLoginRoute
   '/portal/dashboard': typeof PortalDashboardRoute
   '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
   '/stays/large-groups': typeof StaysLargeGroupsRoute
   '/stays/private-pool-villas': typeof StaysPrivatePoolVillasRoute
   '/blog': typeof BlogIndexRoute
+  '/pms': typeof PmsIndexRoute
   '/portal': typeof PortalIndexRoute
 }
 export interface FileRoutesById {
@@ -200,6 +263,7 @@ export interface FileRoutesById {
   '/cancellation': typeof CancellationRoute
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
+  '/pms': typeof PmsRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/stays': typeof StaysRoute
@@ -207,12 +271,19 @@ export interface FileRoutesById {
   '/admin_/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/locations/$slug': typeof LocationsSlugRoute
+  '/pms/bookings': typeof PmsBookingsRoute
+  '/pms/expenses': typeof PmsExpensesRoute
+  '/pms/inventory': typeof PmsInventoryRoute
+  '/pms/invoices': typeof PmsInvoicesRoute
+  '/pms/system': typeof PmsSystemRoute
+  '/pms_/login': typeof PmsLoginRoute
   '/portal/dashboard': typeof PortalDashboardRoute
   '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
   '/stays_/large-groups': typeof StaysLargeGroupsRoute
   '/stays_/private-pool-villas': typeof StaysPrivatePoolVillasRoute
   '/blog/': typeof BlogIndexRoute
+  '/pms/': typeof PmsIndexRoute
   '/portal/': typeof PortalIndexRoute
 }
 export interface FileRouteTypes {
@@ -226,6 +297,7 @@ export interface FileRouteTypes {
     | '/cancellation'
     | '/contact'
     | '/faq'
+    | '/pms'
     | '/portal'
     | '/privacy'
     | '/stays'
@@ -233,12 +305,19 @@ export interface FileRouteTypes {
     | '/admin/bookings'
     | '/blog/$slug'
     | '/locations/$slug'
+    | '/pms/bookings'
+    | '/pms/expenses'
+    | '/pms/inventory'
+    | '/pms/invoices'
+    | '/pms/system'
+    | '/pms/login'
     | '/portal/dashboard'
     | '/portal/login'
     | '/properties/$slug'
     | '/stays/large-groups'
     | '/stays/private-pool-villas'
     | '/blog/'
+    | '/pms/'
     | '/portal/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -256,12 +335,19 @@ export interface FileRouteTypes {
     | '/admin/bookings'
     | '/blog/$slug'
     | '/locations/$slug'
+    | '/pms/bookings'
+    | '/pms/expenses'
+    | '/pms/inventory'
+    | '/pms/invoices'
+    | '/pms/system'
+    | '/pms/login'
     | '/portal/dashboard'
     | '/portal/login'
     | '/properties/$slug'
     | '/stays/large-groups'
     | '/stays/private-pool-villas'
     | '/blog'
+    | '/pms'
     | '/portal'
   id:
     | '__root__'
@@ -273,6 +359,7 @@ export interface FileRouteTypes {
     | '/cancellation'
     | '/contact'
     | '/faq'
+    | '/pms'
     | '/portal'
     | '/privacy'
     | '/stays'
@@ -280,12 +367,19 @@ export interface FileRouteTypes {
     | '/admin_/bookings'
     | '/blog/$slug'
     | '/locations/$slug'
+    | '/pms/bookings'
+    | '/pms/expenses'
+    | '/pms/inventory'
+    | '/pms/invoices'
+    | '/pms/system'
+    | '/pms_/login'
     | '/portal/dashboard'
     | '/portal/login'
     | '/properties/$slug'
     | '/stays_/large-groups'
     | '/stays_/private-pool-villas'
     | '/blog/'
+    | '/pms/'
     | '/portal/'
   fileRoutesById: FileRoutesById
 }
@@ -298,6 +392,7 @@ export interface RootRouteChildren {
   CancellationRoute: typeof CancellationRoute
   ContactRoute: typeof ContactRoute
   FaqRoute: typeof FaqRoute
+  PmsRoute: typeof PmsRouteWithChildren
   PortalRoute: typeof PortalRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
   StaysRoute: typeof StaysRoute
@@ -305,6 +400,7 @@ export interface RootRouteChildren {
   AdminBookingsRoute: typeof AdminBookingsRoute
   BlogSlugRoute: typeof BlogSlugRoute
   LocationsSlugRoute: typeof LocationsSlugRoute
+  PmsLoginRoute: typeof PmsLoginRoute
   PropertiesSlugRoute: typeof PropertiesSlugRoute
   StaysLargeGroupsRoute: typeof StaysLargeGroupsRoute
   StaysPrivatePoolVillasRoute: typeof StaysPrivatePoolVillasRoute
@@ -369,6 +465,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pms': {
+      id: '/pms'
+      path: '/pms'
+      fullPath: '/pms'
+      preLoaderRoute: typeof PmsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/portal': {
       id: '/portal'
       path: '/portal'
@@ -425,6 +528,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LocationsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pms/': {
+      id: '/pms/'
+      path: '/'
+      fullPath: '/pms/'
+      preLoaderRoute: typeof PmsIndexRouteImport
+      parentRoute: typeof PmsRoute
+    }
+    '/pms/bookings': {
+      id: '/pms/bookings'
+      path: '/bookings'
+      fullPath: '/pms/bookings'
+      preLoaderRoute: typeof PmsBookingsRouteImport
+      parentRoute: typeof PmsRoute
+    }
+    '/pms/expenses': {
+      id: '/pms/expenses'
+      path: '/expenses'
+      fullPath: '/pms/expenses'
+      preLoaderRoute: typeof PmsExpensesRouteImport
+      parentRoute: typeof PmsRoute
+    }
+    '/pms/inventory': {
+      id: '/pms/inventory'
+      path: '/inventory'
+      fullPath: '/pms/inventory'
+      preLoaderRoute: typeof PmsInventoryRouteImport
+      parentRoute: typeof PmsRoute
+    }
+    '/pms/invoices': {
+      id: '/pms/invoices'
+      path: '/invoices'
+      fullPath: '/pms/invoices'
+      preLoaderRoute: typeof PmsInvoicesRouteImport
+      parentRoute: typeof PmsRoute
+    }
+    '/pms/system': {
+      id: '/pms/system'
+      path: '/system'
+      fullPath: '/pms/system'
+      preLoaderRoute: typeof PmsSystemRouteImport
+      parentRoute: typeof PmsRoute
+    }
+    '/pms_/login': {
+      id: '/pms_/login'
+      path: '/pms/login'
+      fullPath: '/pms/login'
+      preLoaderRoute: typeof PmsLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/portal/': {
       id: '/portal/'
       path: '/'
@@ -470,6 +622,26 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface PmsRouteChildren {
+  PmsBookingsRoute: typeof PmsBookingsRoute
+  PmsExpensesRoute: typeof PmsExpensesRoute
+  PmsInventoryRoute: typeof PmsInventoryRoute
+  PmsInvoicesRoute: typeof PmsInvoicesRoute
+  PmsSystemRoute: typeof PmsSystemRoute
+  PmsIndexRoute: typeof PmsIndexRoute
+}
+
+const PmsRouteChildren: PmsRouteChildren = {
+  PmsBookingsRoute: PmsBookingsRoute,
+  PmsExpensesRoute: PmsExpensesRoute,
+  PmsInventoryRoute: PmsInventoryRoute,
+  PmsInvoicesRoute: PmsInvoicesRoute,
+  PmsSystemRoute: PmsSystemRoute,
+  PmsIndexRoute: PmsIndexRoute,
+}
+
+const PmsRouteWithChildren = PmsRoute._addFileChildren(PmsRouteChildren)
+
 interface PortalRouteChildren {
   PortalDashboardRoute: typeof PortalDashboardRoute
   PortalLoginRoute: typeof PortalLoginRoute
@@ -494,6 +666,7 @@ const rootRouteChildren: RootRouteChildren = {
   CancellationRoute: CancellationRoute,
   ContactRoute: ContactRoute,
   FaqRoute: FaqRoute,
+  PmsRoute: PmsRouteWithChildren,
   PortalRoute: PortalRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
   StaysRoute: StaysRoute,
@@ -501,6 +674,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminBookingsRoute: AdminBookingsRoute,
   BlogSlugRoute: BlogSlugRoute,
   LocationsSlugRoute: LocationsSlugRoute,
+  PmsLoginRoute: PmsLoginRoute,
   PropertiesSlugRoute: PropertiesSlugRoute,
   StaysLargeGroupsRoute: StaysLargeGroupsRoute,
   StaysPrivatePoolVillasRoute: StaysPrivatePoolVillasRoute,

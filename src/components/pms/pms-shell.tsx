@@ -10,7 +10,7 @@ const NAV = [
   { to: "/pms", label: "Dashboard", icon: LayoutDashboard, exact: true, tab: "dashboard" },
   { to: "/pms/bookings", label: "Bookings", icon: BedDouble, exact: false, tab: "bookings" },
   { to: "/pms/inventory", label: "Rates & Inventory", icon: CalendarRange, exact: false, tab: "bookings" },
-  { to: "/pms/pos", label: "Restaurant POS", icon: UtensilsCrossed, exact: false, tab: "bookings" },
+  { to: "/pms/pos", label: "Restaurant POS", icon: UtensilsCrossed, exact: false, tab: "pos" },
   { to: "/pms/expenses", label: "Expenses", icon: Receipt, exact: false, tab: "expenses" },
   { to: "/pms/invoices", label: "Invoices", icon: FileText, exact: false, tab: "invoices" },
   { to: "/pms/vouchers", label: "Vouchers", icon: Ticket, exact: false, tab: "vouchers" },

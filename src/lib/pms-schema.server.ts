@@ -217,6 +217,8 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
         )`;
       await sql`CREATE INDEX IF NOT EXISTS pms_audit_logs_created_idx ON pms_audit_logs (created_at DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS pms_audit_logs_user_idx ON pms_audit_logs (user_id)`;
+      // Admins always have every module, including the Restaurant POS tab.
+      await sql`UPDATE pms_users SET allowed_tabs = array_append(allowed_tabs, 'pos') WHERE role = 'admin' AND NOT ('pos' = ANY(allowed_tabs))`;
     })().catch((err) => {
       accessReady = null;
       throw err;

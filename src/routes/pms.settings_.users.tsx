@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { X } from "lucide-react";
+import { UtensilsCrossed, X } from "lucide-react";
 import { PROPERTIES } from "@/lib/plix";
 import { pms, ROLE_LABELS, TAB_LABELS, type PmsTab } from "@/lib/pms-client";
 import { propertyLabel } from "@/lib/pms-format";
@@ -18,7 +18,7 @@ type Log = { id: string; user_name: string; action: string; entity_type: string;
 const TABS = Object.keys(TAB_LABELS) as PmsTab[];
 const ROLE_PRESETS: Record<string, PmsTab[]> = {
   admin: TABS,
-  manager: ["dashboard", "bookings", "expenses", "invoices", "vouchers"],
+  manager: ["dashboard", "bookings", "expenses", "invoices", "vouchers", "pos"],
   receptionist: ["dashboard", "bookings", "vouchers"],
   caretaker: ["dashboard", "bookings"],
 };
@@ -112,9 +112,18 @@ function AdminView() {
             <p className="mt-2 text-xs text-slate-500">
               <b className="text-slate-700">Properties:</b> {u.assigned_properties.includes("all") ? "All properties" : u.assigned_properties.map(propertyLabel).join(", ")}
             </p>
-            <p className="mt-0.5 text-xs text-slate-500">
-              <b className="text-slate-700">Tabs:</b> {u.allowed_tabs.map((t) => TAB_LABELS[t as PmsTab] ?? t).join(", ")}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+              <b className="text-slate-700">Tabs:</b>
+              {u.allowed_tabs.map((t) =>
+                t === "pos" ? (
+                  <span key={t} className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                    <UtensilsCrossed className="size-3" aria-hidden /> {TAB_LABELS.pos}
+                  </span>
+                ) : (
+                  <span key={t} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{TAB_LABELS[t as PmsTab] ?? t}</span>
+                ),
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -233,10 +242,14 @@ function UserModal({ user, onClose, onSaved }: { user: User | null; onClose: () 
 
         <fieldset className="mt-4">
           <legend className="text-xs font-medium text-slate-500">Tabs they can open</legend>
+          <label className="mt-1.5 flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <input type="checkbox" checked={TABS.every((t) => tabs.includes(t))} onChange={(e) => setTabs(e.target.checked ? [...TABS] : [])} /> Select all
+          </label>
           <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {TABS.map((t) => (
               <label key={t} className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" checked={tabs.includes(t)} onChange={() => setTabs(toggle(tabs, t))} /> {TAB_LABELS[t]}
+                <input type="checkbox" checked={tabs.includes(t)} onChange={() => setTabs(toggle(tabs, t))} />
+                {t === "pos" && <UtensilsCrossed className="size-3.5 text-slate-500" aria-hidden />} {TAB_LABELS[t]}
               </label>
             ))}
           </div>

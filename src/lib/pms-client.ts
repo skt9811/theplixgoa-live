@@ -46,13 +46,14 @@ export type PmsBooking = {
 
 export type PmsUser = { id: string | null; name: string; role: string; props: string[]; tabs: string[]; isOwner: boolean };
 
-export type PmsTab = "dashboard" | "bookings" | "expenses" | "invoices" | "vouchers" | "settings";
+export type PmsTab = "dashboard" | "bookings" | "expenses" | "invoices" | "vouchers" | "pos" | "settings";
 export const TAB_LABELS: Record<PmsTab, string> = {
   dashboard: "Dashboard",
   bookings: "Bookings",
   expenses: "Expenses",
   invoices: "Invoices",
   vouchers: "Vouchers",
+  pos: "Restaurant POS",
   settings: "Settings",
 };
 export const ROLE_LABELS: Record<string, string> = { admin: "Admin", manager: "Manager", receptionist: "Receptionist", caretaker: "Caretaker" };
@@ -62,7 +63,8 @@ export const ROLE_LABELS: Record<string, string> = { admin: "Admin", manager: "M
 export function tabForPath(pathname: string): PmsTab | null {
   const p = pathname.replace(/\/+$/, "") || "/";
   if (p === "/pms") return "dashboard";
-  if (p.startsWith("/pms/bookings") || p.startsWith("/pms/inventory") || p.startsWith("/pms/pos")) return "bookings";
+  if (p.startsWith("/pms/bookings") || p.startsWith("/pms/inventory")) return "bookings";
+  if (p.startsWith("/pms/pos")) return "pos";
   if (p.startsWith("/pms/expenses")) return "expenses";
   if (p.startsWith("/pms/invoices")) return "invoices";
   if (p.startsWith("/pms/vouchers")) return "vouchers";
@@ -76,6 +78,7 @@ export const TAB_HOME: Record<PmsTab, string> = {
   expenses: "/pms/expenses",
   invoices: "/pms/invoices",
   vouchers: "/pms/vouchers",
+  pos: "/pms/pos",
   settings: "/pms/settings",
 };
 

@@ -1244,6 +1244,7 @@ async function usersApi(request: Request, url: URL, actor: Actor): Promise<Respo
   if ((isCreate || pin) && !PIN_RE.test(pin)) return json({ error: "PIN must be 4 to 6 digits" }, 400);
   const access = parseAccess(body);
   if ("error" in access) return json({ error: access.error }, 400);
+  if (role === "admin" && !access.tabs.includes("pos")) access.tabs.push("pos");
   const active = body["isActive"] === false ? false : true;
 
   if (!isCreate && id === actor.id && (!active || role !== actor.role || !access.tabs.includes("settings"))) {
@@ -1305,7 +1306,7 @@ async function auditApi(url: URL): Promise<Response> {
 function requiredTabs(path: string, method: string): Tab[] | "admin" | "any" | null {
   // The restaurant POS is part of daily front-of-house operations, so it
   // follows the Bookings privilege rather than adding another permission tab.
-  if (path.startsWith("pos/")) return ["bookings"];
+  if (path.startsWith("pos/")) return ["pos"];
   switch (path) {
     case "settings":
       return "any";
@@ -1315,7 +1316,7 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "any" | n
     case "audit":
       return "admin";
     case "bookings":
-      return method === "GET" ? ["dashboard", "bookings", "vouchers", "invoices"] : ["bookings"];
+      return method === "GET" ? ["dashboard", "bookings", "vouchers", "invoices", "pos"] : ["bookings"];
     case "availability":
     case "inventory":
       return method === "GET" ? ["bookings", "vouchers"] : ["bookings"];

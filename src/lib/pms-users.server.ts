@@ -6,7 +6,7 @@ import { getPmsDb } from "@/lib/pms-db.server";
 import { ensureAccessSchema } from "@/lib/pms-schema.server";
 import { getPmsSession } from "@/lib/pms-session.server";
 
-export const TABS = ["dashboard", "bookings", "expenses", "invoices", "vouchers", "settings"] as const;
+export const TABS = ["dashboard", "bookings", "expenses", "invoices", "vouchers", "pos", "settings"] as const;
 export type Tab = (typeof TABS)[number];
 export const ROLES = ["admin", "manager", "receptionist", "caretaker"] as const;
 
@@ -63,7 +63,7 @@ type UserRow = {
   pin_hash: string;
 };
 
-const toActor = (u: UserRow): Actor => ({ id: u.id, name: u.name, role: u.role, props: u.assigned_properties ?? [], tabs: u.allowed_tabs ?? [], isOwner: false });
+const toActor = (u: UserRow): Actor => ({ id: u.id, name: u.name, role: u.role, props: u.assigned_properties ?? [], tabs: u.role === "admin" && !(u.allowed_tabs ?? []).includes("pos") ? [...(u.allowed_tabs ?? []), "pos"] : (u.allowed_tabs ?? []), isOwner: false });
 
 /** Checks the identifier (name, email or phone) and PIN. Locks the account after repeated failures. */
 export async function loginWithPin(identifier: string, pin: string): Promise<{ actor: Actor } | { error: string; status: number }> {

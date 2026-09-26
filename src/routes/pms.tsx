@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { PROPERTIES } from "@/lib/plix";
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { PmsShell } from "@/components/pms/pms-shell";
@@ -87,6 +88,12 @@ function PmsLayout() {
   }, [navigate]);
 
   const needTab = tabForPath(pathname);
+  const posDenied = user !== null && needTab === "pos" && !user.tabs.includes("pos");
+  useEffect(() => {
+    if (!posDenied) return;
+    toast.error("Access restricted: your account does not include the Restaurant POS.");
+    void navigate({ to: "/pms" });
+  }, [posDenied, navigate]);
 
   if (!user) {
     return (
@@ -112,7 +119,7 @@ function PmsLayout() {
     >
       <PmsBackButton />
       <PmsShell onLogout={() => void logout()}>
-        {needTab && !user.tabs.includes(needTab) ? <NoAccess tab={needTab} tabs={user.tabs as PmsTab[]} /> : <Outlet />}
+        {posDenied ? null : needTab && !user.tabs.includes(needTab) ? <NoAccess tab={needTab} tabs={user.tabs as PmsTab[]} /> : <Outlet />}
       </PmsShell>
       {creating && (
         <CreateReservationModal
@@ -129,7 +136,7 @@ function PmsLayout() {
 }
 
 function NoAccess({ tab, tabs }: { tab: PmsTab; tabs: PmsTab[] }) {
-  const first = (["dashboard", "bookings", "vouchers", "invoices", "expenses", "settings"] as PmsTab[]).find((t) => tabs.includes(t));
+  const first = (["dashboard", "bookings", "vouchers", "invoices", "expenses", "pos", "settings"] as PmsTab[]).find((t) => tabs.includes(t));
   return (
     <div className="mx-auto max-w-lg py-16 text-center">
       <h1 className="text-xl font-bold">No access</h1>

@@ -36,6 +36,8 @@ export type PmsBooking = {
   balance: number;
   notes: string | null;
   created_at: string;
+  subtotal: number | null;
+  taxes: number | null;
 };
 
 export const CHANNELS = [
@@ -113,3 +115,30 @@ export type PmsExpense = {
 };
 
 export const HQ_LABEL = "Company Overhead (HQ)";
+
+export type PmsInvoice = {
+  id: string;
+  booking_id: string;
+  invoice_number: string;
+  property_id: string;
+  guest_name: string;
+  guest_phone: string | null;
+  guest_email: string | null;
+  guest_gstin: string | null;
+  company_name: string | null;
+  state_code: string | null;
+  base_amount: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+  total_tax: number;
+  total_amount: number;
+  sac_code: string;
+  invoice_date: string;
+  created_at: string;
+  billing_address: string | null;
+  gst_rate: number | null;
+  check_in: string | null;
+  check_out: string | null;
+  nights: number | null;
+};

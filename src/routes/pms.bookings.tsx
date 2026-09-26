@@ -1,9 +1,13 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Phone, MessageCircle, Search } from "lucide-react";
+import { FileText, Phone, MessageCircle, Receipt, Search } from "lucide-react";
+import { toast } from "sonner";
 import { PROPERTIES, formatINR } from "@/lib/plix";
-import { CHANNELS, channelLabel, fmtDate, paymentLabel, waLink, type PmsBooking } from "@/lib/pms-client";
+import { CHANNELS, channelLabel, fmtDate, paymentLabel, pms, waLink, type PmsBooking, type PmsInvoice } from "@/lib/pms-client";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
+import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
+import { GenerateInvoiceModal } from "@/components/pms/generate-invoice-modal";
+import { TaxInvoiceModal } from "@/components/pms/tax-invoice-modal";
 
 export const Route = createFileRoute("/pms/bookings")({
   validateSearch: (search: Record<string, unknown>): { property?: string | undefined } => ({
@@ -33,6 +37,32 @@ function PmsBookings() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [source, setSource] = useState("all");
   const [search, setSearch] = useState("");
+  const [voucherFor, setVoucherFor] = useState<PmsBooking | null>(null);
+  const [invoiceFor, setInvoiceFor] = useState<PmsBooking | null>(null);
+  const [viewInvoice, setViewInvoice] = useState<PmsInvoice | null>(null);
+  const [invoiceNumbers, setInvoiceNumbers] = useState<Record<string, string>>({});
+
+  const loadInvoiceNumbers = useCallback(async () => {
+    try {
+      const res = await pms<{ invoices: Record<string, string> }>("invoices?mode=ids");
+      setInvoiceNumbers(res.invoices);
+    } catch {
+      // Invoice badges are a convenience; the list itself must still render.
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadInvoiceNumbers();
+  }, [loadInvoiceNumbers, bookings]);
+
+  async function openInvoice(bookingId: string) {
+    try {
+      const res = await pms<{ invoice: PmsInvoice }>(`invoices?bookingId=${bookingId}`);
+      setViewInvoice(res.invoice);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load the invoice");
+    }
+  }
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -168,10 +198,53 @@ function PmsBookings() {
                 )}
               </div>
               {b.notes && <p className="mt-2 text-xs text-slate-500">Note: {b.notes}</p>}
+              {b.status !== "cancelled" && (
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setVoucherFor(b)}
+                    className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <FileText className="size-3" aria-hidden /> Stay Voucher
+                  </button>
+                  {invoiceNumbers[b.id] ? (
+                    <button
+                      type="button"
+                      onClick={() => void openInvoice(b.id)}
+                      className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                    >
+                      <Receipt className="size-3" aria-hidden /> View Invoice {invoiceNumbers[b.id]}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceFor(b)}
+                      className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      <Receipt className="size-3" aria-hidden /> Generate GST Invoice
+                    </button>
+                  )}
+                </div>
+              )}
             </article>
           );
         })}
       </div>
+
+      {voucherFor && <StayVoucherModal booking={voucherFor} onClose={() => setVoucherFor(null)} />}
+      {invoiceFor && (
+        <GenerateInvoiceModal
+          booking={invoiceFor}
+          onClose={() => setInvoiceFor(null)}
+          onCreated={(bookingId) => {
+            setInvoiceFor(null);
+            toast.success("Invoice generated");
+            void loadInvoiceNumbers();
+            void openInvoice(bookingId);
+          }}
+        />
+      )}
+      {viewInvoice && <TaxInvoiceModal invoice={viewInvoice} onClose={() => setViewInvoice(null)} />}
     </div>
   );
 }

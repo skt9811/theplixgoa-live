@@ -14,7 +14,9 @@ import { eachNight, isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates
 import { findStayConflict, syncManualBlocks } from "@/lib/manual-booking-guard.server";
 import { notifyNewBooking } from "@/lib/push-notifications.server";
 import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
-import { ensureExpensesSchema, EXPENSE_CATEGORIES, PAYMENT_MODES } from "@/lib/pms-schema.server";
+import { ensureExpensesSchema, ensureInvoicesSchema, EXPENSE_CATEGORIES, PAYMENT_MODES } from "@/lib/pms-schema.server";
+import { computeGst, financialYearLabel, GOA_STATE_CODE, GST_RATE_OPTIONS, GSTIN_RE, STATE_NAMES } from "@/lib/pms-gst";
+import { PMS_COMPANY } from "@/lib/pms-company";
 import {
   buildPmsSessionCookie,
   clearPmsSessionCookie,
@@ -57,6 +59,9 @@ export type PmsBooking = {
   balance: number;
   notes: string | null;
   created_at: string;
+  /** Online (website) bookings only: the pre-tax subtotal and GST actually charged at checkout. */
+  subtotal: number | null;
+  taxes: number | null;
 };
 
 function safeEqual(a: string, b: string): boolean {
@@ -108,12 +113,14 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
         guests: number;
         rooms: number | null;
         total_amount: string;
+        subtotal: string | null;
+        taxes: string | null;
         payment_status: string;
         created_at: Date;
       }[]
     >`
       SELECT id, property_id, guest_name, guest_mobile, guest_email, check_in::text AS check_in, check_out::text AS check_out,
-             nights, guests, rooms, total_amount, payment_status, created_at
+             nights, guests, rooms, total_amount, subtotal, taxes, payment_status, created_at
       FROM public.bookings
       WHERE payment_status IN ('paid', 'simulated', 'pending', 'cancelled')
     `,
@@ -175,6 +182,8 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       balance: Math.max(0, total - advance),
       notes: null,
       created_at: r.created_at.toISOString(),
+      subtotal: r.subtotal === null ? null : Number(r.subtotal),
+      taxes: r.taxes === null ? null : Number(r.taxes),
     });
   }
   for (const r of manual) {
@@ -203,6 +212,8 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       balance: Math.max(0, total - advance),
       notes: r.notes,
       created_at: r.created_at.toISOString(),
+      subtotal: null,
+      taxes: null,
     });
   }
   return rows.sort((a, b) => a.check_in.localeCompare(b.check_in));
@@ -482,6 +493,154 @@ async function deleteExpense(url: URL): Promise<Response> {
   return deleted.length ? json({ success: true }) : json({ error: "Expense not found" }, 404);
 }
 
+type InvoiceRow = {
+  id: string;
+  booking_id: string;
+  invoice_number: string;
+  property_id: string;
+  guest_name: string;
+  guest_phone: string | null;
+  guest_email: string | null;
+  guest_gstin: string | null;
+  company_name: string | null;
+  state_code: string | null;
+  base_amount: string;
+  cgst_amount: string;
+  sgst_amount: string;
+  igst_amount: string;
+  total_tax: string;
+  total_amount: string;
+  sac_code: string;
+  invoice_date: string;
+  created_at: Date;
+  billing_address: string | null;
+  gst_rate: string | null;
+  check_in: string | null;
+  check_out: string | null;
+  nights: number | null;
+};
+
+function shapeInvoice(r: InvoiceRow) {
+  return {
+    ...r,
+    base_amount: Number(r.base_amount),
+    cgst_amount: Number(r.cgst_amount),
+    sgst_amount: Number(r.sgst_amount),
+    igst_amount: Number(r.igst_amount),
+    total_tax: Number(r.total_tax),
+    total_amount: Number(r.total_amount),
+    gst_rate: r.gst_rate === null ? null : Number(r.gst_rate),
+    created_at: r.created_at.toISOString(),
+  };
+}
+
+const INVOICE_COLUMNS = `id, booking_id, invoice_number, property_id, guest_name, guest_phone, guest_email, guest_gstin, company_name, state_code,
+  base_amount, cgst_amount, sgst_amount, igst_amount, total_tax, total_amount, sac_code, invoice_date::text AS invoice_date, created_at,
+  billing_address, gst_rate, check_in::text AS check_in, check_out::text AS check_out, nights`;
+
+async function listInvoices(url: URL): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  await ensureInvoicesSchema(pmsDb);
+  const mode = url.searchParams.get("mode");
+  if (mode === "ids") {
+    const rows = await pmsDb<{ booking_id: string; invoice_number: string }[]>`SELECT booking_id, invoice_number FROM gst_invoices`;
+    return json({ invoices: Object.fromEntries(rows.map((r) => [r.booking_id, r.invoice_number])) });
+  }
+  const bookingId = url.searchParams.get("bookingId");
+  if (bookingId) {
+    const rows = await pmsDb<InvoiceRow[]>`SELECT ${pmsDb.unsafe(INVOICE_COLUMNS)} FROM gst_invoices WHERE booking_id = ${bookingId}`;
+    return rows[0] ? json({ invoice: shapeInvoice(rows[0]) }) : json({ error: "No invoice for this booking" }, 404);
+  }
+  const start = url.searchParams.get("start") ?? "";
+  const end = url.searchParams.get("end") ?? "";
+  if (!ISO_DATE.test(start) || !ISO_DATE.test(end) || end < start) return json({ error: "Invalid range" }, 400);
+  const rows = await pmsDb<InvoiceRow[]>`
+    SELECT ${pmsDb.unsafe(INVOICE_COLUMNS)} FROM gst_invoices
+    WHERE invoice_date >= ${start}::date AND invoice_date <= ${end}::date
+    ORDER BY invoice_date DESC, created_at DESC LIMIT 5000`;
+  return json({ invoices: rows.map(shapeInvoice) });
+}
+
+function istTodayISO(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+}
+
+async function nextInvoiceNumber(pmsDb: NonNullable<ReturnType<typeof getPmsDb>>, invoiceDate: string): Promise<string> {
+  const prefix = `PLIX/${financialYearLabel(invoiceDate)}/`;
+  const rows = await pmsDb<{ invoice_number: string }[]>`SELECT invoice_number FROM gst_invoices WHERE invoice_number LIKE ${prefix + "%"}`;
+  let max = 0;
+  for (const r of rows) {
+    const n = Number(r.invoice_number.slice(prefix.length));
+    if (Number.isInteger(n) && n > max) max = n;
+  }
+  return `${prefix}${String(max + 1).padStart(4, "0")}`;
+}
+
+async function createInvoice(request: Request): Promise<Response> {
+  const pmsDb = getPmsDb();
+  const webDb = getWebDb();
+  if (!pmsDb || !webDb) return json({ error: "Database not configured" }, 503);
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const bookingId = str(body["bookingId"]);
+  const booking = (await listBookings(webDb)).find((b) => b.id === bookingId);
+  if (!booking) return json({ error: "Booking not found" }, 404);
+  if (booking.status === "cancelled") return json({ error: "A cancelled booking cannot be invoiced" }, 409);
+
+  const guestName = (str(body["guestName"]) || booking.guest_name).slice(0, 150);
+  const guestPhone = (str(body["guestPhone"]) || booking.guest_phone || "").slice(0, 50) || null;
+  const guestEmail = (str(body["guestEmail"]) || booking.guest_email || "").slice(0, 150) || null;
+  const companyName = str(body["companyName"]).slice(0, 200) || null;
+  const billingAddress = str(body["billingAddress"]).slice(0, 1000) || null;
+  const gstin = str(body["gstin"]).toUpperCase();
+  if (gstin && !GSTIN_RE.test(gstin)) return json({ error: "Enter a valid 15-character GSTIN" }, 400);
+  // A GSTIN's first two digits are its state, so it decides the place of supply.
+  const stateCode = gstin ? gstin.slice(0, 2) : str(body["stateCode"]) || GOA_STATE_CODE;
+  if (!STATE_NAMES[stateCode]) return json({ error: "Unknown state code" }, 400);
+  const base = num(body["baseAmount"], NaN);
+  const rate = num(body["gstRate"], NaN);
+  if (!Number.isFinite(base) || base <= 0 || base > 99_999_999) return json({ error: "Enter a valid taxable amount" }, 400);
+  if (!(GST_RATE_OPTIONS as readonly number[]).includes(rate)) return json({ error: "Select a valid GST rate" }, 400);
+  const invoiceDate = ISO_DATE.test(str(body["invoiceDate"])) ? str(body["invoiceDate"]) : istTodayISO();
+  const custom = str(body["invoiceNumber"]);
+  if (custom && !/^[A-Za-z0-9][A-Za-z0-9/-]{0,49}$/.test(custom)) return json({ error: "Invoice number may contain letters, digits, / and - only" }, 400);
+
+  const tax = computeGst({ base, rate, stateCode });
+  await ensureInvoicesSchema(pmsDb);
+
+  const existing = await pmsDb<{ invoice_number: string }[]>`SELECT invoice_number FROM gst_invoices WHERE booking_id = ${bookingId}`;
+  if (existing[0]) return json({ error: `An invoice already exists for this booking (${existing[0].invoice_number})` }, 409);
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const number = custom || (await nextInvoiceNumber(pmsDb, invoiceDate));
+    try {
+      const [row] = await pmsDb<{ id: string }[]>`
+        INSERT INTO gst_invoices
+          (booking_id, invoice_number, property_id, guest_name, guest_phone, guest_email, guest_gstin, company_name, state_code,
+           base_amount, cgst_amount, sgst_amount, igst_amount, total_tax, total_amount, sac_code, invoice_date,
+           billing_address, gst_rate, check_in, check_out, nights)
+        VALUES
+          (${bookingId}, ${number}, ${booking.property_id}, ${guestName}, ${guestPhone}, ${guestEmail}, ${gstin || null}, ${companyName}, ${stateCode},
+           ${tax.base}, ${tax.cgst}, ${tax.sgst}, ${tax.igst}, ${tax.totalTax}, ${tax.total}, ${PMS_COMPANY.sacCode}, ${invoiceDate},
+           ${billingAddress}, ${rate}, ${booking.check_in}, ${booking.check_out}, ${booking.nights})
+        RETURNING id`;
+      return json({ success: true, id: row?.id, invoiceNumber: number });
+    } catch (err) {
+      const e = err as { code?: string; constraint_name?: string };
+      if (e.code !== "23505") throw err;
+      if (e.constraint_name === "gst_invoices_booking_id_key") return json({ error: "An invoice already exists for this booking" }, 409);
+      if (custom) return json({ error: `Invoice number ${custom} is already used` }, 409);
+      // Auto number collided with a concurrent request: pick the next one.
+    }
+  }
+  return json({ error: "Could not allocate an invoice number, try again" }, 500);
+}
+
 export async function handlePmsApi(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname.replace(/^\/api\/pms\/?/, "");
@@ -500,6 +659,8 @@ export async function handlePmsApi(request: Request): Promise<Response> {
       const [web, pms] = await Promise.all([pingDb(sql), pingDb(getPmsDb())]);
       return json({ web, pms });
     }
+    if (path === "invoices" && request.method === "GET") return await listInvoices(url);
+    if (path === "invoices" && request.method === "POST") return await createInvoice(request);
     if (path === "expenses" && request.method === "GET") return await listExpenses(url);
     if (path === "expenses" && request.method === "POST") return await createExpense(request);
     if (path === "expenses" && request.method === "DELETE") return await deleteExpense(url);

@@ -46,3 +46,47 @@ export function ensureExpensesSchema(sql: Sql): Promise<void> {
   }
   return ready;
 }
+
+let invoicesReady: Promise<void> | null = null;
+
+export function ensureInvoicesSchema(sql: Sql): Promise<void> {
+  if (!invoicesReady) {
+    invoicesReady = (async () => {
+      await sql`
+        CREATE TABLE IF NOT EXISTS gst_invoices (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          booking_id varchar(100) NOT NULL,
+          invoice_number varchar(50) UNIQUE NOT NULL,
+          property_id varchar(100) NOT NULL,
+          guest_name varchar(150) NOT NULL,
+          guest_phone varchar(50),
+          guest_email varchar(150),
+          guest_gstin varchar(20),
+          company_name varchar(200),
+          state_code varchar(10) DEFAULT '30',
+          base_amount numeric(10, 2) NOT NULL,
+          cgst_amount numeric(10, 2) DEFAULT 0.00,
+          sgst_amount numeric(10, 2) DEFAULT 0.00,
+          igst_amount numeric(10, 2) DEFAULT 0.00,
+          total_tax numeric(10, 2) NOT NULL,
+          total_amount numeric(10, 2) NOT NULL,
+          sac_code varchar(20) DEFAULT '996311',
+          invoice_date date NOT NULL DEFAULT CURRENT_DATE,
+          created_at timestamptz DEFAULT now(),
+          billing_address text,
+          gst_rate numeric(5, 2),
+          check_in date,
+          check_out date,
+          nights integer
+        )`;
+      // Unique, not just indexed: one invoice per booking, so a double click
+      // or a retry can never issue a second tax invoice for the same stay.
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS gst_invoices_booking_id_key ON gst_invoices (booking_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS gst_invoices_invoice_number_idx ON gst_invoices (invoice_number)`;
+    })().catch((err) => {
+      invoicesReady = null;
+      throw err;
+    });
+  }
+  return invoicesReady;
+}

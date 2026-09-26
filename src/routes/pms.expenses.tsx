@@ -40,8 +40,17 @@ function csvCell(value: string | number): string {
 }
 
 function PmsExpenses() {
-  const { refreshKey } = usePms();
-  const [property, setProperty] = useState("all");
+  const { refreshKey, property: globalProperty, setProperty: setGlobalProperty } = usePms();
+  // Company Overhead only exists on this page, so it is a local override on
+  // top of the global property; picking any property (here or in the header)
+  // clears it.
+  const [hqOverride, setHqOverride] = useState(false);
+  const property = hqOverride ? "hq" : globalProperty;
+  const setProperty = (value: string) => {
+    setHqOverride(value === "hq");
+    if (value !== "hq") setGlobalProperty(value);
+  };
+  useEffect(() => setHqOverride(false), [globalProperty]);
   const [preset, setPreset] = useState<Preset>("this");
   const [custom, setCustom] = useState({ start: monthRange(0).start, end: istToday() });
   const [data, setData] = useState<{ expenses: PmsExpense[]; revenue: number | null } | null>(null);

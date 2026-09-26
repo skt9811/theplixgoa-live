@@ -4,11 +4,13 @@ import { X } from "lucide-react";
 import { PROPERTIES, formatINR } from "@/lib/plix";
 import { eachNight, maxRoomsForProperty, scalesPriceByRooms } from "@/lib/rates";
 import { addDays, CHANNELS, istToday, PAYMENTS, pms } from "@/lib/pms-client";
+import { usePms } from "@/components/pms/pms-context";
 
 type Availability = { multiRoom: boolean; capacity: number; used: Record<string, number>; hardBlocked: string[] };
 
 export function CreateReservationModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [property, setProperty] = useState("");
+  const { property: activeProperty } = usePms();
+  const [property, setProperty] = useState(activeProperty === "all" ? "" : activeProperty);
   const [guestName, setGuestName] = useState("");
   const [phone, setPhone] = useState("+91 ");
   const [email, setEmail] = useState("");

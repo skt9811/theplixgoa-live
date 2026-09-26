@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { BedDouble, CalendarRange, FileText, HeartPulse, LayoutDashboard, LogOut, Menu, Plus, Receipt, X } from "lucide-react";
 import { usePms } from "@/components/pms/pms-context";
+import { PropertySelector } from "@/components/pms/property-selector";
 
 const NAV = [
   { to: "/pms", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -60,13 +61,18 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
           <button type="button" onClick={() => setDrawer(true)} aria-label="Open menu" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 md:hidden">
             <Menu className="size-5" aria-hidden />
           </button>
-          <p className="font-bold text-emerald-700 md:hidden">Plix PMS</p>
+          <div className="min-w-0 flex-1">
+            <PropertySelector />
+          </div>
           <button
             type="button"
             onClick={openCreate}
-            className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+            aria-label="Create Reservation"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 sm:px-4"
           >
-            <Plus className="size-4" aria-hidden /> Create Reservation
+            <Plus className="size-4" aria-hidden />
+            <span className="hidden sm:inline">Create Reservation</span>
+            <span className="sm:hidden">New</span>
           </button>
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>

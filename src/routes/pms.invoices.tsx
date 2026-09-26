@@ -35,7 +35,7 @@ function csvCell(value: string | number): string {
 }
 
 function PmsInvoices() {
-  const { refreshKey } = usePms();
+  const { refreshKey, property } = usePms();
   const [preset, setPreset] = useState<Preset>("this");
   const [custom, setCustom] = useState({ start: monthRange(0).start, end: istToday() });
   const [invoices, setInvoices] = useState<PmsInvoice[] | null>(null);
@@ -76,14 +76,15 @@ function PmsInvoices() {
     const q = search.trim().toLowerCase();
     return (invoices ?? []).filter(
       (i) =>
-        !q ||
+        (property === "all" || i.property_id === property) &&
+        (!q ||
         i.invoice_number.toLowerCase().includes(q) ||
         i.guest_name.toLowerCase().includes(q) ||
         (i.company_name ?? "").toLowerCase().includes(q) ||
         (i.guest_gstin ?? "").toLowerCase().includes(q) ||
-        propertyLabel(i.property_id).toLowerCase().includes(q),
+        propertyLabel(i.property_id).toLowerCase().includes(q)),
     );
-  }, [invoices, search]);
+  }, [invoices, search, property]);
 
   const totals = visible.reduce(
     (t, i) => ({ base: t.base + i.base_amount, cgst: t.cgst + i.cgst_amount, sgst: t.sgst + i.sgst_amount, igst: t.igst + i.igst_amount, total: t.total + i.total_amount }),

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { PROPERTIES } from "@/lib/plix";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { PmsShell } from "@/components/pms/pms-shell";
 import { PmsContext } from "@/components/pms/pms-context";
@@ -13,12 +14,41 @@ export const Route = createFileRoute("/pms")({
   component: PmsLayout,
 });
 
+const PROPERTY_KEY = "plix_pms_property";
+
+function isKnownProperty(value: string | null): value is string {
+  return value === "all" || (value !== null && PROPERTIES.some((p) => p.slug === value));
+}
+
 function PmsLayout() {
   usePmsBrandedHead();
   const navigate = useNavigate();
   const [authed, setAuthed] = useState(false);
   const [creating, setCreating] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [property, setPropertyState] = useState("all");
+
+  // The active property survives tab changes and reloads: a ?property= link
+  // wins when present, otherwise the last choice saved on this device.
+  useEffect(() => {
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get("property");
+      const saved = fromUrl ?? window.localStorage.getItem(PROPERTY_KEY);
+      if (isKnownProperty(saved)) setPropertyState(saved);
+    } catch {
+      // storage unavailable: keep the in-memory default
+    }
+  }, []);
+
+  const setProperty = useCallback((next: string) => {
+    if (!isKnownProperty(next)) return;
+    setPropertyState(next);
+    try {
+      window.localStorage.setItem(PROPERTY_KEY, next);
+    } catch {
+      // ignore: the choice still applies for this session
+    }
+  }, []);
 
   useEffect(() => {
     pms("session")
@@ -36,7 +66,7 @@ function PmsLayout() {
   }
 
   return (
-    <PmsContext.Provider value={{ openCreate: () => setCreating(true), refreshKey }}>
+    <PmsContext.Provider value={{ openCreate: () => setCreating(true), refreshKey, property, setProperty }}>
       <PmsShell onLogout={() => void logout()}>
         <Outlet />
       </PmsShell>

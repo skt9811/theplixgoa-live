@@ -21,8 +21,15 @@ type Grid = {
 
 function PmsInventory() {
   const { property: initialProperty } = Route.useSearch();
-  const { refreshKey } = usePms();
-  const [property, setProperty] = useState(initialProperty && PROPERTIES.some((p) => p.slug === initialProperty) ? initialProperty : PROPERTIES[0]!.slug);
+  const { refreshKey, property: globalProperty, setProperty: setGlobalProperty } = usePms();
+  // Inventory needs one concrete property: the global selection when a
+  // property is chosen, otherwise a local pick (portfolio view has no single grid).
+  const [localProperty, setLocalProperty] = useState(initialProperty && PROPERTIES.some((p) => p.slug === initialProperty) ? initialProperty : PROPERTIES[0]!.slug);
+  const property = globalProperty === "all" ? localProperty : globalProperty;
+  const setProperty = (value: string) => {
+    setLocalProperty(value);
+    setGlobalProperty(value);
+  };
   const [start, setStart] = useState(istToday());
   const [end, setEnd] = useState(addDays(istToday(), 29));
   const [grid, setGrid] = useState<Grid | null>(null);

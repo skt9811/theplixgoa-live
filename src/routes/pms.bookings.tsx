@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { PROPERTIES, formatINR } from "@/lib/plix";
 import { CHANNELS, channelLabel, fmtDate, paymentLabel, pms, waLink, type PmsBooking, type PmsInvoice } from "@/lib/pms-client";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
+import { usePms } from "@/components/pms/pms-context";
 import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
 import { GenerateInvoiceModal } from "@/components/pms/generate-invoice-modal";
 import { TaxInvoiceModal } from "@/components/pms/tax-invoice-modal";
@@ -33,7 +34,13 @@ const STATUS_STYLE: Record<PmsBooking["status"], string> = {
 function PmsBookings() {
   const { property: initialProperty } = Route.useSearch();
   const { bookings, error } = usePmsBookings();
-  const [property, setProperty] = useState(initialProperty ?? "all");
+  const { property, setProperty } = usePms();
+
+  // A /pms/bookings?property=... link (e.g. from a property card) selects that
+  // property globally, so the choice carries to the other tabs too.
+  useEffect(() => {
+    if (initialProperty && PROPERTIES.some((p) => p.slug === initialProperty)) setProperty(initialProperty);
+  }, [initialProperty, setProperty]);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [source, setSource] = useState("all");
   const [search, setSearch] = useState("");

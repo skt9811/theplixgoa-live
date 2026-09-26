@@ -87,32 +87,24 @@ export function waLink(phone: string): string {
   return `https://wa.me/${digits.length === 10 ? `91${digits}` : digits}`;
 }
 
-export const EXPENSE_CATEGORIES = [
-  "Staff Salary",
-  "Maintenance & Repairs",
-  "Pool Chemicals",
-  "Linen & Laundry",
-  "Utilities",
-  "Guest Supplies",
-  "Property Lease",
-  "Marketing",
-  "Miscellaneous",
-] as const;
-
-export const PAYMENT_MODES = ["UPI", "Cash / Petty Cash", "Bank Transfer", "Credit Card"] as const;
-
-export type PmsExpense = {
+export type PmsTransaction = {
   id: string;
+  type: "expense" | "income" | "transfer";
   property_id: string | null;
   category: string;
   amount: number;
-  payment_mode: string;
+  payment_mode: "Bank Account" | "Cash" | "UPI";
+  transfer_to: string | null;
   vendor_name: string | null;
   expense_date: string;
+  time: string;
   receipt_url: string | null;
   notes: string | null;
+  tags: string[];
   created_at: string;
 };
+
+export type PmsCategory = { id: string; name: string; type: "expense" | "income"; icon: string; color: string; is_default: boolean };
 
 export const HQ_LABEL = "Company Overhead (HQ)";
 

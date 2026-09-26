@@ -14,7 +14,8 @@ import { eachNight, isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates
 import { findStayConflict, syncManualBlocks } from "@/lib/manual-booking-guard.server";
 import { notifyNewBooking } from "@/lib/push-notifications.server";
 import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
-import { ensureExpensesSchema, ensureInvoicesSchema, EXPENSE_CATEGORIES, PAYMENT_MODES } from "@/lib/pms-schema.server";
+import { ensureExpensesSchema, ensureInvoicesSchema } from "@/lib/pms-schema.server";
+import { COLOR_PALETTE, HEX_COLOR, ICON_KEYS, PAYMENT_MODES, TX_TYPES, normalizePaymentMode } from "@/lib/pms-categories";
 import { computeGst, financialYearLabel, GOA_STATE_CODE, GST_RATE_OPTIONS, GSTIN_RE, STATE_NAMES } from "@/lib/pms-gst";
 import { PMS_COMPANY } from "@/lib/pms-company";
 import {
@@ -386,71 +387,62 @@ async function applyInventory(request: Request, sql: Sql): Promise<Response> {
   return json({ success: true, nights: nights.length, priced: price !== null, blocked, opened });
 }
 
-export type PmsExpense = {
+const TX_COLUMNS = `id, type, property_id, category, amount, payment_mode, transfer_to, vendor_name, expense_date::text AS expense_date,
+  to_char("time", 'HH24:MI') AS time, receipt_url, notes, tags, created_at`;
+
+type TxRow = {
   id: string;
+  type: string;
   property_id: string | null;
   category: string;
-  amount: number;
+  amount: string;
   payment_mode: string;
+  transfer_to: string | null;
   vendor_name: string | null;
   expense_date: string;
+  time: string;
   receipt_url: string | null;
   notes: string | null;
-  created_at: string;
+  tags: string[];
+  created_at: Date;
 };
 
-// "all" = every property plus HQ; "hq" = company overhead (property_id NULL).
-function expenseScope(property: string): { ok: boolean; slug: string | null } {
-  if (property === "all") return { ok: true, slug: null };
-  if (property === "hq") return { ok: true, slug: null };
-  return { ok: PROPERTIES.some((p) => p.slug === property), slug: property };
+function shapeTx(r: TxRow) {
+  return { ...r, amount: Number(r.amount), payment_mode: normalizePaymentMode(r.payment_mode), created_at: r.created_at.toISOString() };
 }
 
-async function listExpenses(url: URL): Promise<Response> {
+// "all" = every property plus company overhead; a slug = that property only.
+async function listTransactions(url: URL): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   const property = url.searchParams.get("property") ?? "all";
   const start = url.searchParams.get("start") ?? "";
   const end = url.searchParams.get("end") ?? "";
-  const scope = expenseScope(property);
-  if (!scope.ok || !ISO_DATE.test(start) || !ISO_DATE.test(end) || end < start) return json({ error: "Invalid filter" }, 400);
-
-  await ensureExpensesSchema(pmsDb);
-  const rows = await pmsDb<
-    { id: string; property_id: string | null; category: string; amount: string; payment_mode: string; vendor_name: string | null; expense_date: string; receipt_url: string | null; notes: string | null; created_at: Date }[]
-  >`
-    SELECT id, property_id, category, amount, payment_mode, vendor_name, expense_date::text AS expense_date, receipt_url, notes, created_at
-    FROM expenses
-    WHERE expense_date >= ${start}::date AND expense_date <= ${end}::date
-      ${property === "all" ? pmsDb`` : property === "hq" ? pmsDb`AND property_id IS NULL` : pmsDb`AND property_id = ${scope.slug}`}
-    ORDER BY expense_date DESC, created_at DESC
-    LIMIT 5000
-  `;
-  const expenses: PmsExpense[] = rows.map((r) => ({ ...r, amount: Number(r.amount), created_at: r.created_at.toISOString() }));
-
-  // Revenue lives in the web database, so it is computed here in memory
-  // rather than joined: reservations that start inside the range, excluding
-  // cancelled ones. Company overhead has no revenue by definition.
-  let revenue: number | null = 0;
-  if (property !== "hq") {
-    const webDb = getWebDb();
-    if (!webDb) revenue = null;
-    else {
-      try {
-        const all = await listBookings(webDb);
-        revenue = all
-          .filter((b) => b.status !== "cancelled" && b.check_in >= start && b.check_in <= end && (property === "all" || b.property_id === property))
-          .reduce((sum, b) => sum + b.total, 0);
-      } catch (err) {
-        console.error("[pms] expense revenue:", err instanceof Error ? err.message : err);
-        revenue = null;
-      }
-    }
+  if ((property !== "all" && property !== "hq" && !PROPERTIES.some((p) => p.slug === property)) || !ISO_DATE.test(start) || !ISO_DATE.test(end) || end < start) {
+    return json({ error: "Invalid filter" }, 400);
   }
-  return json({ expenses, revenue });
+  await ensureExpensesSchema(pmsDb);
+  const rows = await pmsDb<TxRow[]>`
+    SELECT ${pmsDb.unsafe(TX_COLUMNS)} FROM expenses
+    WHERE expense_date >= ${start}::date AND expense_date <= ${end}::date
+      ${property === "all" ? pmsDb`` : property === "hq" ? pmsDb`AND property_id IS NULL` : pmsDb`AND property_id = ${property}`}
+    ORDER BY expense_date DESC, "time" DESC, created_at DESC
+    LIMIT 5000`;
+  return json({ transactions: rows.map(shapeTx) });
 }
 
-async function createExpense(request: Request): Promise<Response> {
+function cleanTags(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  const out: string[] = [];
+  for (const t of input) {
+    const tag = typeof t === "string" ? t.replace(/^#+/, "").trim().toLowerCase().slice(0, 30) : "";
+    if (tag && !out.includes(tag)) out.push(tag);
+    if (out.length >= 10) break;
+  }
+  return out;
+}
+
+async function createTransaction(request: Request): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   let body: Record<string, unknown>;
@@ -459,38 +451,127 @@ async function createExpense(request: Request): Promise<Response> {
   } catch {
     return json({ error: "Invalid request" }, 400);
   }
+  const type = str(body["type"]) || "expense";
   const property = str(body["property"]);
-  const category = str(body["category"]);
   const paymentMode = str(body["paymentMode"]);
+  const transferTo = str(body["transferTo"]);
   const amount = num(body["amount"], NaN);
-  const vendor = str(body["vendor"]).slice(0, 150) || null;
-  const expenseDate = str(body["expenseDate"]);
+  const note = str(body["note"]).slice(0, 150) || null;
+  const date = str(body["date"]);
+  const time = /^([01]\d|2[0-3]):[0-5]\d$/.test(str(body["time"])) ? str(body["time"]) : null;
   const receipt = str(body["receipt"]).slice(0, 500) || null;
-  const notes = str(body["notes"]).slice(0, 2000) || null;
+  const tags = cleanTags(body["tags"]);
+  let category = str(body["category"]);
 
+  if (!(TX_TYPES as readonly string[]).includes(type)) return json({ error: "Invalid type" }, 400);
   if (property !== "hq" && !PROPERTIES.some((p) => p.slug === property)) return json({ error: "Select a property or Company Overhead" }, 400);
-  if (!(EXPENSE_CATEGORIES as readonly string[]).includes(category)) return json({ error: "Select a category" }, 400);
   if (!(PAYMENT_MODES as readonly string[]).includes(paymentMode)) return json({ error: "Select a payment mode" }, 400);
   if (!Number.isFinite(amount) || amount <= 0 || amount > 99_999_999.99) return json({ error: "Enter a valid amount" }, 400);
-  if (!ISO_DATE.test(expenseDate)) return json({ error: "Enter a valid date" }, 400);
+  if (!ISO_DATE.test(date)) return json({ error: "Enter a valid date" }, 400);
 
   await ensureExpensesSchema(pmsDb);
+  if (type === "transfer") {
+    if (!(PAYMENT_MODES as readonly string[]).includes(transferTo) || transferTo === paymentMode) return json({ error: "Choose two different accounts for a transfer" }, 400);
+    category = "Transfer";
+  } else {
+    const found = await pmsDb`SELECT 1 FROM pms_categories WHERE type = ${type} AND lower(name) = lower(${category})`;
+    if (found.length === 0) return json({ error: "Select a category" }, 400);
+  }
+
   const [row] = await pmsDb<{ id: string }[]>`
-    INSERT INTO expenses (property_id, category, amount, payment_mode, vendor_name, expense_date, receipt_url, notes)
-    VALUES (${property === "hq" ? null : property}, ${category}, ${Math.round(amount * 100) / 100}, ${paymentMode}, ${vendor}, ${expenseDate}, ${receipt}, ${notes})
-    RETURNING id
-  `;
+    INSERT INTO expenses (type, property_id, category, amount, payment_mode, transfer_to, vendor_name, expense_date, "time", receipt_url, tags)
+    VALUES (${type}, ${property === "hq" ? null : property}, ${category}, ${Math.round(amount * 100) / 100}, ${paymentMode},
+            ${type === "transfer" ? transferTo : null}, ${note}, ${date}, COALESCE(${time}::time, CURRENT_TIME), ${receipt}, ${tags})
+    RETURNING id`;
   return json({ success: true, id: row?.id });
 }
 
-async function deleteExpense(url: URL): Promise<Response> {
+async function deleteTransaction(url: URL): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   const id = url.searchParams.get("id") ?? "";
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
   await ensureExpensesSchema(pmsDb);
   const deleted = await pmsDb`DELETE FROM expenses WHERE id = ${id}::uuid RETURNING id`;
-  return deleted.length ? json({ success: true }) : json({ error: "Expense not found" }, 404);
+  return deleted.length ? json({ success: true }) : json({ error: "Transaction not found" }, 404);
+}
+
+async function listCategories(): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  await ensureExpensesSchema(pmsDb);
+  const rows = await pmsDb`SELECT id, name, type, icon, color, is_default FROM pms_categories ORDER BY type, is_default DESC, created_at, name`;
+  return json({ categories: rows });
+}
+
+async function createCategory(request: Request): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const name = str(body["name"]).slice(0, 100);
+  const type = str(body["type"]);
+  const icon = str(body["icon"]) || "receipt";
+  const color = str(body["color"]) || COLOR_PALETTE[0];
+  if (!name) return json({ error: "Enter a category name" }, 400);
+  if (type !== "expense" && type !== "income") return json({ error: "Choose expense or income" }, 400);
+  if (!(ICON_KEYS as readonly string[]).includes(icon)) return json({ error: "Choose an icon" }, 400);
+  if (!HEX_COLOR.test(color)) return json({ error: "Choose a colour" }, 400);
+  await ensureExpensesSchema(pmsDb);
+  const [row] = await pmsDb<{ id: string }[]>`
+    INSERT INTO pms_categories (name, type, icon, color, is_default) VALUES (${name}, ${type}, ${icon}, ${color}, false)
+    ON CONFLICT DO NOTHING RETURNING id`;
+  if (!row) return json({ error: `"${name}" already exists in ${type} categories` }, 409);
+  return json({ success: true, id: row.id });
+}
+
+async function deleteCategory(url: URL): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  const id = url.searchParams.get("id") ?? "";
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
+  await ensureExpensesSchema(pmsDb);
+  // Defaults are protected; entries already logged keep the category name.
+  const deleted = await pmsDb`DELETE FROM pms_categories WHERE id = ${id}::uuid AND is_default = false RETURNING id`;
+  return deleted.length ? json({ success: true }) : json({ error: "Only custom categories can be deleted" }, 400);
+}
+
+async function listBudgets(): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  await ensureExpensesSchema(pmsDb);
+  const rows = await pmsDb<{ property_id: string; period: string; amount: string }[]>`SELECT property_id, period, amount FROM pms_budgets`;
+  return json({ budgets: rows.map((r) => ({ property: r.property_id, period: r.period, amount: Number(r.amount) })) });
+}
+
+async function saveBudget(request: Request): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const property = str(body["property"]) || "all";
+  const period = str(body["period"]);
+  const amount = num(body["amount"], NaN);
+  if (property !== "all" && !PROPERTIES.some((p) => p.slug === property)) return json({ error: "Unknown property" }, 400);
+  if (period !== "monthly" && period !== "annual") return json({ error: "Invalid period" }, 400);
+  if (!Number.isFinite(amount) || amount < 0 || amount > 9_999_999_999) return json({ error: "Enter a valid budget" }, 400);
+  await ensureExpensesSchema(pmsDb);
+  if (amount === 0) {
+    await pmsDb`DELETE FROM pms_budgets WHERE property_id = ${property} AND period = ${period}`;
+  } else {
+    await pmsDb`
+      INSERT INTO pms_budgets (property_id, period, amount) VALUES (${property}, ${period}, ${amount})
+      ON CONFLICT (property_id, period) DO UPDATE SET amount = EXCLUDED.amount, updated_at = now()`;
+  }
+  return json({ success: true });
 }
 
 type InvoiceRow = {
@@ -661,9 +742,14 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     }
     if (path === "invoices" && request.method === "GET") return await listInvoices(url);
     if (path === "invoices" && request.method === "POST") return await createInvoice(request);
-    if (path === "expenses" && request.method === "GET") return await listExpenses(url);
-    if (path === "expenses" && request.method === "POST") return await createExpense(request);
-    if (path === "expenses" && request.method === "DELETE") return await deleteExpense(url);
+    if (path === "expenses" && request.method === "GET") return await listTransactions(url);
+    if (path === "expenses" && request.method === "POST") return await createTransaction(request);
+    if (path === "expenses" && request.method === "DELETE") return await deleteTransaction(url);
+    if (path === "categories" && request.method === "GET") return await listCategories();
+    if (path === "categories" && request.method === "POST") return await createCategory(request);
+    if (path === "categories" && request.method === "DELETE") return await deleteCategory(url);
+    if (path === "budgets" && request.method === "GET") return await listBudgets();
+    if (path === "budgets" && request.method === "POST") return await saveBudget(request);
     if (!sql) return json({ error: "Database not configured" }, 500);
     if (path === "bookings" && request.method === "GET") return json({ bookings: await listBookings(sql) });
     if (path === "bookings" && request.method === "POST") return await createBooking(request, sql);

@@ -2,22 +2,9 @@
 // Never run against DATABASE_URL: expense data must not land in the website
 // database. Idempotent, so it is safe to call before any expense query.
 import type postgres from "postgres";
+import { DEFAULT_CATEGORIES } from "@/lib/pms-categories";
 
 type Sql = ReturnType<typeof postgres>;
-
-export const EXPENSE_CATEGORIES = [
-  "Staff Salary",
-  "Maintenance & Repairs",
-  "Pool Chemicals",
-  "Linen & Laundry",
-  "Utilities",
-  "Guest Supplies",
-  "Property Lease",
-  "Marketing",
-  "Miscellaneous",
-] as const;
-
-export const PAYMENT_MODES = ["UPI", "Cash / Petty Cash", "Bank Transfer", "Credit Card"] as const;
 
 let ready: Promise<void> | null = null;
 
@@ -39,6 +26,44 @@ export function ensureExpensesSchema(sql: Sql): Promise<void> {
         )`;
       await sql`CREATE INDEX IF NOT EXISTS expenses_property_date_idx ON expenses (property_id, expense_date)`;
       await sql`CREATE INDEX IF NOT EXISTS expenses_category_idx ON expenses (category)`;
+
+      // Additive expansion: income/transfer entries, tags, time of day.
+      await sql`ALTER TABLE expenses ALTER COLUMN category TYPE varchar(100)`;
+      await sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS type varchar(20) NOT NULL DEFAULT 'expense'`;
+      await sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS tags text[] NOT NULL DEFAULT '{}'`;
+      await sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS "time" time NOT NULL DEFAULT CURRENT_TIME`;
+      await sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS transfer_to varchar(30)`;
+      await sql`CREATE INDEX IF NOT EXISTS expenses_type_idx ON expenses (type)`;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_categories (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          name varchar(100) NOT NULL,
+          type varchar(20) NOT NULL DEFAULT 'expense',
+          icon varchar(50) DEFAULT 'receipt',
+          color varchar(30) DEFAULT '#3B82F6',
+          is_default boolean DEFAULT false,
+          created_at timestamptz DEFAULT now()
+        )`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_categories_type_name_key ON pms_categories (type, lower(name))`;
+      const [countRow] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM pms_categories`;
+      if ((countRow?.n ?? 0) === 0) {
+        for (const c of DEFAULT_CATEGORIES) {
+          await sql`
+            INSERT INTO pms_categories (name, type, icon, color, is_default) VALUES (${c.name}, ${c.type}, ${c.icon}, ${c.color}, true)
+            ON CONFLICT DO NOTHING`;
+        }
+      }
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_budgets (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          property_id varchar(100) NOT NULL,
+          period varchar(10) NOT NULL,
+          amount numeric(12, 2) NOT NULL,
+          updated_at timestamptz DEFAULT now(),
+          UNIQUE (property_id, period)
+        )`;
     })().catch((err) => {
       ready = null; // retry on the next request instead of caching a failure
       throw err;

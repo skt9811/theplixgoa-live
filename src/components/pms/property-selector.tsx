@@ -13,7 +13,7 @@ export function propertyDisplayName(slug: string): string {
 
 // Desktop: dropdown under the trigger. Mobile: bottom sheet that slides up
 // and closes as soon as a property is picked. Same list either way.
-export function PropertySelector() {
+export function PropertySelector({ dark = false }: { dark?: boolean }) {
   const { property, setProperty } = usePms();
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState(false);
@@ -66,8 +66,8 @@ export function PropertySelector() {
             <button
               type="button"
               onClick={() => choose(o.slug)}
-              className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-slate-50 md:py-2.5 ${
-                active ? "font-semibold text-emerald-700" : "text-slate-700"
+              className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-colors md:py-2.5 ${dark ? "hover:bg-white/5" : "hover:bg-slate-50"} ${
+                active ? (dark ? "font-semibold text-emerald-300" : "font-semibold text-emerald-700") : dark ? "text-slate-300" : "text-slate-700"
               }`}
             >
               <span>{o.label}</span>
@@ -87,7 +87,7 @@ export function PropertySelector() {
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={`Property: ${propertyDisplayName(property)}`}
-        className="flex max-w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50"
+        className={`flex max-w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold shadow-sm transition-colors ${dark ? "border-white/10 bg-white/[0.05] text-slate-100 hover:bg-white/10" : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"}`}
       >
         <Building2 className="size-4 shrink-0 text-emerald-600" aria-hidden />
         <span className="truncate">{propertyDisplayName(property)}</span>
@@ -98,7 +98,7 @@ export function PropertySelector() {
         <>
           {/* Desktop dropdown */}
           <div
-            className={`absolute left-0 top-full z-30 mt-2 hidden w-80 rounded-xl border border-slate-200 bg-white shadow-xl transition-all duration-150 md:block ${
+            className={`absolute left-0 top-full z-30 mt-2 hidden w-80 rounded-xl border shadow-xl transition-all duration-150 md:block ${dark ? "border-white/10 bg-[#181D26]" : "border-slate-200 bg-white"} ${
               shown ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"
             }`}
           >
@@ -108,7 +108,7 @@ export function PropertySelector() {
           <div className="fixed inset-0 z-[65] md:hidden" onClick={close}>
             <div className={`absolute inset-0 bg-black/40 transition-opacity duration-200 ${shown ? "opacity-100" : "opacity-0"}`} />
             <div
-              className={`absolute inset-x-0 bottom-0 rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl transition-transform duration-200 ease-out ${
+              className={`absolute inset-x-0 bottom-0 rounded-t-2xl pb-[env(safe-area-inset-bottom)] shadow-2xl transition-transform duration-200 ease-out ${dark ? "bg-[#181D26] text-slate-100" : "bg-white"} ${
                 shown ? "translate-y-0" : "translate-y-full"
               }`}
               onClick={(e) => e.stopPropagation()}

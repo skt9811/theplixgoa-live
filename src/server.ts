@@ -27,6 +27,7 @@ import {
 } from "./lib/portal-rates-api.server";
 import { portalPreflight, withPortalCors } from "./lib/portal-cors.server";
 import { handleAdminCreateBooking } from "./lib/admin-bookings-api.server";
+import { handlePmsHealth } from "./lib/pms-health-api.server";
 import { handleAdminUpdateBooking, handleAdminDeleteBooking } from "./lib/admin-bookings-crud.server";
 import { handleAdminListPortalOwners, handleAdminUpdatePortalOwner } from "./lib/admin-portal-owners-api.server";
 import { getAuthConfig } from "./lib/auth.server";
@@ -301,6 +302,7 @@ export default {
         if (url.pathname === "/api/portal/logout") return withPortalCors(handlePortalLogout(request));
         if (url.pathname === "/api/portal/bookings") return withPortalCors(await handleGetPortalBookings(request));
         if (url.pathname === "/api/portal/me") return withPortalCors(await handleGetPortalMe(request));
+        if (url.pathname === "/api/portal/pms-health") return withPortalCors(await handlePmsHealth(request));
         if (url.pathname === "/api/portal/change-pin") return withPortalCors(await handleChangePortalPin(request));
         if (url.pathname === "/api/portal/register-push-token") return withPortalCors(await handleRegisterPushToken(request));
         if (url.pathname === "/api/portal/rates" && request.method === "GET") return withPortalCors(await handleGetPortalRates(request));

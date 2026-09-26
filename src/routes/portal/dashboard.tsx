@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, Lock, RotateCw, TriangleAlert, X } from "lucide-react";
+import { ChevronDown, Lock, Plus, RotateCw, TriangleAlert, X } from "lucide-react";
 import type { PortalBooking } from "@/lib/portal-bookings-client";
 import { portalFetch } from "@/lib/portal-native-session";
 import { useOnlineStatusToast } from "@/lib/use-online-status";
@@ -10,7 +10,8 @@ import { PortalBottomNav, type PortalTab } from "@/components/plix/portal-bottom
 import { PortalNotificationBell, type PortalAlert } from "@/components/plix/portal-notification-bell";
 import { PortalHomeTab } from "@/components/plix/portal-home-tab";
 import { PortalInventoryTab } from "@/components/plix/portal-inventory-tab";
-import { PortalBookingTab } from "@/components/plix/portal-booking-tab";
+import { PortalBookingTab, CreateBookingSheet } from "@/components/plix/portal-booking-tab";
+import { PortalLedgerTab } from "@/components/plix/portal-ledger-tab";
 import { PortalAnalyticsTab } from "@/components/plix/portal-analytics-tab";
 import { PortalMenuTab } from "@/components/plix/portal-menu-tab";
 import { PortalPullToRefresh } from "@/components/plix/portal-pull-to-refresh";
@@ -66,6 +67,7 @@ function PortalDashboardPage() {
   const [propertyName, setPropertyName] = useState<string>("Your Property");
   const [role, setRole] = useState<"owner" | "admin" | null>(null);
   const [tab, setTab] = useState<PortalTab>("home");
+  const [creatingBooking, setCreatingBooking] = useState(false);
   const [recentAlerts, setRecentAlerts] = useState<PortalAlert[]>([]);
   const [bannerAlert, setBannerAlert] = useState<PortalAlert | null>(null);
   const [focusBookingId, setFocusBookingId] = useState<string | null>(null);
@@ -321,7 +323,6 @@ function PortalDashboardPage() {
                 propertySlug={propertySlug}
                 bookings={bookings}
                 role={role ?? "owner"}
-                onCreated={() => load(role === "admin" ? propertySlug : undefined)}
                 focusBookingId={focusBookingId}
                 onFocusHandled={() => setFocusBookingId(null)}
               />
@@ -335,13 +336,36 @@ function PortalDashboardPage() {
               onFocusBooking={setFocusBookingId}
             />
           )}
+          {tab === "ledger" && role === "admin" && <PortalLedgerTab />}
           {tab === "menu" && (
             <PortalMenuTab propertySlug={propertySlug} propertyName={propertyName} role={role ?? "owner"} bookings={bookings} />
           )}
         </div>
       </div>
 
-      <PortalBottomNav active={tab} onChange={setTab} />
+      {role === "admin" && tab !== "menu" && (
+        <button
+          type="button"
+          onClick={() => setCreatingBooking(true)}
+          className="fixed right-4 z-40 flex items-center gap-1.5 rounded-full bg-bronze px-4 py-3 text-sm font-semibold text-bronze-foreground shadow-lg"
+          style={{ bottom: "calc(4.75rem + env(safe-area-inset-bottom))" }}
+        >
+          <Plus className="size-4" aria-hidden /> New Booking
+        </button>
+      )}
+
+      {role === "admin" && creatingBooking && (
+        <CreateBookingSheet
+          propertySlug={propertySlug}
+          onClose={() => setCreatingBooking(false)}
+          onCreated={() => {
+            setCreatingBooking(false);
+            void load(propertySlug);
+          }}
+        />
+      )}
+
+      <PortalBottomNav active={tab} onChange={setTab} role={role ?? "owner"} />
     </div>
   );
 }

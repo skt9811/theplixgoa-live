@@ -5,8 +5,10 @@ import { COLOR_PALETTE, ICON_KEYS } from "@/lib/pms-categories";
 import { pms } from "@/lib/pms-client";
 import { CategoryBadge, iconFor } from "@/lib/pms-icons";
 import { DARK } from "@/components/pms/expenses/tokens";
+import { useBackDismiss } from "@/lib/pms-back-stack";
 
 export function CategoryModal({ defaultType, onClose, onSaved }: { defaultType: "expense" | "income"; onClose: () => void; onSaved: () => void }) {
+  useBackDismiss(true, onClose);
   const [name, setName] = useState("");
   const [type, setType] = useState<"expense" | "income">(defaultType);
   const [icon, setIcon] = useState<string>(ICON_KEYS[0]);

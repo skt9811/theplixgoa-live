@@ -2,6 +2,7 @@ import { ArrowLeftRight, Trash2 } from "lucide-react";
 import { fmtDate, type PmsCategory, type PmsTransaction } from "@/lib/pms-client";
 import { CategoryBadge } from "@/lib/pms-icons";
 import { DARK, GREEN, money } from "@/components/pms/expenses/tokens";
+import { useBackDismiss } from "@/lib/pms-back-stack";
 
 export function TransactionCard({ tx, category, onDelete }: { tx: PmsTransaction; category: PmsCategory | undefined; onDelete: () => void }) {
   const transfer = tx.type === "transfer";
@@ -35,6 +36,7 @@ export function TransactionCard({ tx, category, onDelete }: { tx: PmsTransaction
 }
 
 export function DeleteDialog({ tx, busy, onCancel, onConfirm }: { tx: PmsTransaction; busy: boolean; onCancel: () => void; onConfirm: () => void }) {
+  useBackDismiss(true, () => !busy && onCancel());
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4" onClick={() => !busy && onCancel()}>
       <div className={`${DARK.card} ${DARK.border} w-full max-w-sm rounded-3xl p-5 text-slate-100`} onClick={(e) => e.stopPropagation()}>
@@ -47,7 +49,7 @@ export function DeleteDialog({ tx, busy, onCancel, onConfirm }: { tx: PmsTransac
           <button type="button" disabled={busy} onClick={onCancel} className="rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/5">
             Cancel
           </button>
-          <button type="button" disabled={busy} onClick={onConfirm} className="rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+          <button type="button" disabled={busy} onClick={onConfirm} className="rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-[#fff] disabled:opacity-60">
             {busy ? "Deleting..." : "Delete"}
           </button>
         </div>

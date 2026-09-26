@@ -5,10 +5,12 @@ import { PROPERTIES, formatINR } from "@/lib/plix";
 import { eachNight, maxRoomsForProperty, scalesPriceByRooms } from "@/lib/rates";
 import { addDays, CHANNELS, istToday, PAYMENTS, pms } from "@/lib/pms-client";
 import { usePms } from "@/components/pms/pms-context";
+import { useBackDismiss } from "@/lib/pms-back-stack";
 
 type Availability = { multiRoom: boolean; capacity: number; used: Record<string, number>; hardBlocked: string[] };
 
 export function CreateReservationModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  useBackDismiss(true, onClose);
   const { property: activeProperty } = usePms();
   const [property, setProperty] = useState(activeProperty === "all" ? "" : activeProperty);
   const [guestName, setGuestName] = useState("");

@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { PROPERTIES } from "@/lib/plix";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { PmsShell } from "@/components/pms/pms-shell";
+import { PmsBackButton } from "@/components/pms/pms-back-button";
 import { PmsContext } from "@/components/pms/pms-context";
 import { CreateReservationModal } from "@/components/pms/create-reservation-modal";
 import { pms } from "@/lib/pms-client";
+import { PmsThemeProvider, type ThemePreference } from "@/components/pms/pms-theme";
 import { pmsHead, usePmsBrandedHead } from "@/components/pms/pms-head";
 
 // Standalone Plix PMS shell for every /pms/* route except /pms/login (which
@@ -27,6 +29,7 @@ function PmsLayout() {
   const [creating, setCreating] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [property, setPropertyState] = useState("all");
+  const [serverTheme, setServerTheme] = useState<ThemePreference | null>(null);
 
   // The active property survives tab changes and reloads: a ?property= link
   // wins when present, otherwise the last choice saved on this device.
@@ -52,9 +55,21 @@ function PmsLayout() {
 
   useEffect(() => {
     pms("session")
-      .then(() => setAuthed(true))
+      .then(() => {
+        setAuthed(true);
+        pms<{ settings: { theme?: string } }>("settings")
+          .then((r) => {
+            const t = r.settings.theme;
+            if (t === "system" || t === "dark" || t === "light") setServerTheme(t);
+          })
+          .catch(() => undefined);
+      })
       .catch(() => void navigate({ to: "/pms/login" }));
   }, [navigate]);
+
+  const saveTheme = useCallback((theme: ThemePreference) => {
+    void pms("settings", { method: "POST", body: JSON.stringify({ key: "theme", value: theme }) }).catch(() => undefined);
+  }, []);
 
   const logout = useCallback(async () => {
     await pms("logout", { method: "POST" }).catch(() => undefined);
@@ -62,11 +77,17 @@ function PmsLayout() {
   }, [navigate]);
 
   if (!authed) {
-    return <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-50 text-sm text-slate-400">Loading...</div>;
+    return (
+      <PmsThemeProvider>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-50 text-sm text-slate-400">Loading...</div>
+      </PmsThemeProvider>
+    );
   }
 
   return (
+    <PmsThemeProvider initialFromServer={serverTheme} onChange={saveTheme}>
     <PmsContext.Provider value={{ openCreate: () => setCreating(true), refreshKey, property, setProperty }}>
+      <PmsBackButton />
       <PmsShell onLogout={() => void logout()}>
         <Outlet />
       </PmsShell>
@@ -80,5 +101,6 @@ function PmsLayout() {
         />
       )}
     </PmsContext.Provider>
+    </PmsThemeProvider>
   );
 }

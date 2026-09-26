@@ -12,7 +12,7 @@ let pmsClient: Sql | null = null;
 let webClient: Sql | null = null;
 
 function open(url: string | undefined): Sql | null {
-  return url ? postgres(url, { ssl: "require", max: 3, idle_timeout: 20, connect_timeout: 10 }) : null;
+  return url ? postgres(url, { ssl: "require", max: 3, idle_timeout: 20, connect_timeout: 20 }) : null;
 }
 
 export function getPmsDb(): Sql | null {

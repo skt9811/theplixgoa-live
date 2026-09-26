@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Printer, X } from "lucide-react";
+import { useBackDismiss } from "@/lib/pms-back-stack";
 
 // The sheet is portalled straight into <body> so the print rules below can
 // hide every other body child (the whole PMS app, toasts, scripts' output)
@@ -12,7 +13,8 @@ const PRINT_CSS = `
   .pms-print-card { max-width: none !important; box-shadow: none !important; border-radius: 0 !important; }
   .pms-no-print { display: none !important; }
   .pms-print-area { padding: 0 !important; }
-  .pms-avoid-break { break-inside: avoid; }
+  .pms-avoid-break, tr { break-inside: avoid; page-break-inside: avoid; }
+  thead { display: table-header-group; }
   html, body { background: #fff !important; }
   @page { size: A4; margin: 12mm; }
 }`;
@@ -30,6 +32,7 @@ export function PrintSheet({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  useBackDismiss(true, onClose);
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -70,7 +73,7 @@ export function PrintSheet({
             </button>
           </div>
         </div>
-        <div className="pms-print-area p-5 sm:p-8">{children}</div>
+        <div className="pms-print-area pms-paper p-5 sm:p-8">{children}</div>
       </div>
     </div>,
     document.body,

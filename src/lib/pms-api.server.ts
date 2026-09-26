@@ -16,8 +16,9 @@ import { notifyNewBooking } from "@/lib/push-notifications.server";
 import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
 import { ensureExpensesSchema, ensureInvoicesSchema } from "@/lib/pms-schema.server";
 import { COLOR_PALETTE, HEX_COLOR, ICON_KEYS, PAYMENT_MODES, TX_TYPES, normalizePaymentMode } from "@/lib/pms-categories";
-import { computeGst, financialYearLabel, GOA_STATE_CODE, GST_RATE_OPTIONS, GSTIN_RE, STATE_NAMES } from "@/lib/pms-gst";
-import { PMS_COMPANY } from "@/lib/pms-company";
+import { GOA_STATE_CODE, GST_RATE_OPTIONS, GSTIN_RE, STATE_NAMES } from "@/lib/pms-gst";
+import { BOOKING_SOURCES, computeInvoice, lineAmount, PAYMENT_METHODS, type ItemInput } from "@/lib/pms-invoice-calc";
+import { PMS_PROPERTIES_CONFIG } from "@/lib/pms-properties-config";
 import {
   buildPmsSessionCookie,
   clearPmsSessionCookie,
@@ -99,6 +100,11 @@ function num(v: unknown, fallback = 0): number {
 
 type Sql = NonNullable<ReturnType<typeof getWebDb>>;
 
+// Same active-reservation filter as the Partner App (portal-bookings-api.server.ts):
+// deleting a booking from /admin soft-cancels it (bookings.payment_status or
+// portal_bookings.status = 'cancelled'), so those rows must not surface here.
+// Every read goes to the database directly on each request; API responses
+// already carry Cache-Control: no-store.
 async function listBookings(sql: Sql): Promise<PmsBooking[]> {
   const [online, manual] = await Promise.all([
     sql<
@@ -123,7 +129,7 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       SELECT id, property_id, guest_name, guest_mobile, guest_email, check_in::text AS check_in, check_out::text AS check_out,
              nights, guests, rooms, total_amount, subtotal, taxes, payment_status, created_at
       FROM public.bookings
-      WHERE payment_status IN ('paid', 'simulated', 'pending', 'cancelled')
+      WHERE payment_status IN ('paid', 'simulated', 'pending')
     `,
     sql<
       {
@@ -152,7 +158,7 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
              nights, guests_count, adults_count, children_count, rooms_count, booking_amount, advance_amount,
              payment_status, channel, status, notes, created_at
       FROM public.portal_bookings
-      WHERE status <> 'blocked'
+      WHERE status NOT IN ('blocked', 'cancelled')
     `,
   ]);
 
@@ -574,50 +580,44 @@ async function saveBudget(request: Request): Promise<Response> {
   return json({ success: true });
 }
 
-type InvoiceRow = {
-  id: string;
-  booking_id: string;
-  invoice_number: string;
-  property_id: string;
-  guest_name: string;
-  guest_phone: string | null;
-  guest_email: string | null;
-  guest_gstin: string | null;
-  company_name: string | null;
-  state_code: string | null;
-  base_amount: string;
-  cgst_amount: string;
-  sgst_amount: string;
-  igst_amount: string;
-  total_tax: string;
-  total_amount: string;
-  sac_code: string;
-  invoice_date: string;
-  created_at: Date;
-  billing_address: string | null;
-  gst_rate: string | null;
-  check_in: string | null;
-  check_out: string | null;
-  nights: number | null;
-};
+type InvoiceRow = Record<string, unknown> & { id: string; created_at: Date };
+type ItemRow = { id: string; date: string | null; item_type: string; room_name: string | null; description: string; quantity: string; rate: string; amount: string };
+
+const NUMERIC_FIELDS = [
+  "room_charges", "food_charges", "extra_charges", "discount_value", "discount_amount", "gst_rate", "taxable_amount", "cgst_amount",
+  "sgst_amount", "igst_amount", "total_tax", "grand_total", "advance_paid", "balance_due", "security_deposit",
+] as const;
 
 function shapeInvoice(r: InvoiceRow) {
-  return {
-    ...r,
-    base_amount: Number(r.base_amount),
-    cgst_amount: Number(r.cgst_amount),
-    sgst_amount: Number(r.sgst_amount),
-    igst_amount: Number(r.igst_amount),
-    total_tax: Number(r.total_tax),
-    total_amount: Number(r.total_amount),
-    gst_rate: r.gst_rate === null ? null : Number(r.gst_rate),
-    created_at: r.created_at.toISOString(),
-  };
+  const out: Record<string, unknown> = { ...r, created_at: r.created_at.toISOString() };
+  for (const f of NUMERIC_FIELDS) out[f] = Number(r[f] ?? 0);
+  return out;
 }
 
-const INVOICE_COLUMNS = `id, booking_id, invoice_number, property_id, guest_name, guest_phone, guest_email, guest_gstin, company_name, state_code,
-  base_amount, cgst_amount, sgst_amount, igst_amount, total_tax, total_amount, sac_code, invoice_date::text AS invoice_date, created_at,
-  billing_address, gst_rate, check_in::text AS check_in, check_out::text AS check_out, nights`;
+function shapeItem(r: ItemRow) {
+  return { ...r, quantity: Number(r.quantity), rate: Number(r.rate), amount: Number(r.amount) };
+}
+
+const INVOICE_COLUMNS = `id, invoice_number, invoice_date::text AS invoice_date, booking_id, property_id, property_name, room_villa_names, booking_source,
+  guest_name, guest_phone, guest_email, guest_gstin, guest_address, check_in::text AS check_in, check_out::text AS check_out, total_nights,
+  total_guests, total_rooms, room_charges, food_charges, extra_charges, discount_type, discount_value, discount_amount, discount_reason,
+  is_gst_enabled, gst_rate, taxable_amount, cgst_amount, sgst_amount, igst_amount, total_tax, grand_total, advance_paid, balance_due,
+  payment_method, payment_status, security_deposit, deposit_refunded, notes, is_finalized, created_at, state_code,
+  payment_date::text AS payment_date, deposit_refund_date::text AS deposit_refund_date`;
+
+type PmsSql = NonNullable<ReturnType<typeof getPmsDb>>;
+
+async function loadInvoice(pmsDb: PmsSql, where: { id?: string; bookingId?: string }) {
+  const rows = where.id
+    ? await pmsDb<InvoiceRow[]>`SELECT ${pmsDb.unsafe(INVOICE_COLUMNS)} FROM pms_invoices WHERE id = ${where.id}::uuid`
+    : await pmsDb<InvoiceRow[]>`SELECT ${pmsDb.unsafe(INVOICE_COLUMNS)} FROM pms_invoices WHERE booking_id = ${where.bookingId ?? ""}`;
+  const row = rows[0];
+  if (!row) return null;
+  const items = await pmsDb<ItemRow[]>`
+    SELECT id, date::text AS date, item_type, room_name, description, quantity, rate, amount FROM pms_invoice_items
+    WHERE invoice_id = ${row.id}::uuid ORDER BY date NULLS LAST, item_type, id`;
+  return { ...shapeInvoice(row), items: items.map(shapeItem) };
+}
 
 async function listInvoices(url: URL): Promise<Response> {
   const pmsDb = getPmsDb();
@@ -625,19 +625,22 @@ async function listInvoices(url: URL): Promise<Response> {
   await ensureInvoicesSchema(pmsDb);
   const mode = url.searchParams.get("mode");
   if (mode === "ids") {
-    const rows = await pmsDb<{ booking_id: string; invoice_number: string }[]>`SELECT booking_id, invoice_number FROM gst_invoices`;
-    return json({ invoices: Object.fromEntries(rows.map((r) => [r.booking_id, r.invoice_number])) });
+    const rows = await pmsDb<{ id: string; booking_id: string; invoice_number: string; is_finalized: boolean }[]>`
+      SELECT id, booking_id, invoice_number, is_finalized FROM pms_invoices WHERE booking_id IS NOT NULL`;
+    return json({ invoices: Object.fromEntries(rows.map((r) => [r.booking_id, { id: r.id, number: r.invoice_number, finalized: r.is_finalized }])) });
   }
+  const id = url.searchParams.get("id");
   const bookingId = url.searchParams.get("bookingId");
-  if (bookingId) {
-    const rows = await pmsDb<InvoiceRow[]>`SELECT ${pmsDb.unsafe(INVOICE_COLUMNS)} FROM gst_invoices WHERE booking_id = ${bookingId}`;
-    return rows[0] ? json({ invoice: shapeInvoice(rows[0]) }) : json({ error: "No invoice for this booking" }, 404);
+  if (id || bookingId) {
+    if (id && !/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
+    const invoice = await loadInvoice(pmsDb, id ? { id } : { bookingId: bookingId! });
+    return invoice ? json({ invoice }) : json({ error: "Invoice not found" }, 404);
   }
   const start = url.searchParams.get("start") ?? "";
   const end = url.searchParams.get("end") ?? "";
   if (!ISO_DATE.test(start) || !ISO_DATE.test(end) || end < start) return json({ error: "Invalid range" }, 400);
   const rows = await pmsDb<InvoiceRow[]>`
-    SELECT ${pmsDb.unsafe(INVOICE_COLUMNS)} FROM gst_invoices
+    SELECT ${pmsDb.unsafe(INVOICE_COLUMNS)} FROM pms_invoices
     WHERE invoice_date >= ${start}::date AND invoice_date <= ${end}::date
     ORDER BY invoice_date DESC, created_at DESC LIMIT 5000`;
   return json({ invoices: rows.map(shapeInvoice) });
@@ -647,9 +650,9 @@ function istTodayISO(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 }
 
-async function nextInvoiceNumber(pmsDb: NonNullable<ReturnType<typeof getPmsDb>>, invoiceDate: string): Promise<string> {
-  const prefix = `PLIX/${financialYearLabel(invoiceDate)}/`;
-  const rows = await pmsDb<{ invoice_number: string }[]>`SELECT invoice_number FROM gst_invoices WHERE invoice_number LIKE ${prefix + "%"}`;
+async function nextInvoiceNumber(pmsDb: PmsSql, invoiceDate: string): Promise<string> {
+  const prefix = `PLIX/${invoiceDate.slice(0, 4)}/`;
+  const rows = await pmsDb<{ invoice_number: string }[]>`SELECT invoice_number FROM pms_invoices WHERE invoice_number LIKE ${prefix + "%"}`;
   let max = 0;
   for (const r of rows) {
     const n = Number(r.invoice_number.slice(prefix.length));
@@ -658,68 +661,298 @@ async function nextInvoiceNumber(pmsDb: NonNullable<ReturnType<typeof getPmsDb>>
   return `${prefix}${String(max + 1).padStart(4, "0")}`;
 }
 
-async function createInvoice(request: Request): Promise<Response> {
+type ParsedInvoice =
+  | { error: string }
+  | {
+      fields: Record<string, unknown>;
+      items: { date: string | null; item_type: string; room_name: string | null; description: string; quantity: number; rate: number; amount: number }[];
+      finalize: boolean;
+      bookingId: string | null;
+      invoiceDate: string;
+    };
+
+async function parseInvoice(body: Record<string, unknown>): Promise<ParsedInvoice> {
+  const finalize = body["finalize"] === true;
+  const bookingId = str(body["bookingId"]) || null;
+  let propertyId = str(body["propertyId"]);
+  let guestName = str(body["guestName"]).slice(0, 150);
+  let guestPhone = str(body["guestPhone"]).slice(0, 50) || null;
+  let guestEmail = str(body["guestEmail"]).slice(0, 150) || null;
+  let checkIn = str(body["checkIn"]);
+  let checkOut = str(body["checkOut"]);
+
+  if (bookingId) {
+    const webDb = getWebDb();
+    if (!webDb) return { error: "Database not configured" };
+    const booking = (await listBookings(webDb)).find((b) => b.id === bookingId);
+    if (!booking) return { error: "Reservation not found" };
+    if (booking.status === "cancelled") return { error: "A cancelled reservation cannot be invoiced" };
+    propertyId = booking.property_id;
+    checkIn = checkIn || booking.check_in;
+    checkOut = checkOut || booking.check_out;
+    guestName = guestName || booking.guest_name;
+    guestPhone = guestPhone ?? booking.guest_phone;
+    guestEmail = guestEmail ?? booking.guest_email;
+  }
+  const property = PROPERTIES.find((p) => p.slug === propertyId);
+  if (!property) return { error: "Select a property" };
+  if (!guestName) return { error: "Guest name is required" };
+  if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut)) return { error: "Enter valid check-in and check-out dates" };
+  const nights = differenceInCalendarDays(new Date(checkOut), new Date(checkIn));
+  if (nights <= 0) return { error: "Check-out must be after check-in" };
+
+  const rawItems = Array.isArray(body["items"]) ? (body["items"] as Record<string, unknown>[]) : [];
+  if (rawItems.length === 0 || rawItems.length > 300) return { error: "Add at least one charge (up to 300 lines)" };
+  const items: Extract<ParsedInvoice, { items: unknown }>["items"] = [];
+  for (const it of rawItems) {
+    const type = str(it["item_type"]);
+    const description = str(it["description"]).slice(0, 255);
+    const quantity = num(it["quantity"], NaN);
+    const rate = num(it["rate"], NaN);
+    const date = str(it["date"]);
+    if (!["room", "food", "extra"].includes(type)) return { error: "Invalid charge type" };
+    if (!description) return { error: "Every charge needs a description" };
+    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 9999) return { error: `Invalid quantity for "${description}"` };
+    if (!Number.isFinite(rate) || rate < 0 || rate > 9_999_999) return { error: `Invalid rate for "${description}"` };
+    if (date && !ISO_DATE.test(date)) return { error: `Invalid date for "${description}"` };
+    items.push({ date: date || null, item_type: type, room_name: str(it["room_name"]).slice(0, 100) || null, description, quantity: Math.round(quantity * 100) / 100, rate: Math.round(rate * 100) / 100, amount: lineAmount(quantity, rate) });
+  }
+
+  const discountType = str(body["discountType"]) === "percentage" ? "percentage" : str(body["discountType"]) === "fixed" ? "fixed" : null;
+  const discountValue = Math.max(0, num(body["discountValue"]));
+  if (discountType === "percentage" && discountValue > 100) return { error: "Discount cannot exceed 100%" };
+  const gstEnabled = body["gstEnabled"] === true;
+  const gstRate = num(body["gstRate"]);
+  if (gstEnabled && !(GST_RATE_OPTIONS as readonly number[]).includes(gstRate)) return { error: "Select a GST slab (5%, 12% or 18%)" };
+  const gstin = str(body["guestGstin"]).toUpperCase();
+  if (gstin && !GSTIN_RE.test(gstin)) return { error: "Enter a valid 15-character GSTIN" };
+  const stateCode = gstin ? gstin.slice(0, 2) : str(body["stateCode"]) || GOA_STATE_CODE;
+  if (!STATE_NAMES[stateCode]) return { error: "Unknown state code" };
+  const advance = Math.max(0, num(body["advancePaid"]));
+  const paymentMethod = str(body["paymentMethod"]);
+  if (paymentMethod && !(PAYMENT_METHODS as readonly string[]).includes(paymentMethod)) return { error: "Invalid payment method" };
+  const source = str(body["bookingSource"]) || "Direct";
+  if (!(BOOKING_SOURCES as readonly string[]).includes(source)) return { error: "Invalid booking source" };
+  const invoiceDate = ISO_DATE.test(str(body["invoiceDate"])) ? str(body["invoiceDate"]) : istTodayISO();
+  const paymentDate = str(body["paymentDate"]);
+  const refundDate = str(body["depositRefundDate"]);
+  if ((paymentDate && !ISO_DATE.test(paymentDate)) || (refundDate && !ISO_DATE.test(refundDate))) return { error: "Invalid payment or refund date" };
+
+  const t = computeInvoice({ items: items as ItemInput[], discountType, discountValue, gstEnabled, gstRate, stateCode, advancePaid: advance });
+  if (t.grandTotal <= 0 || t.grandTotal > 99_999_999) return { error: "The invoice total must be greater than zero" };
+
+  return {
+    finalize,
+    bookingId,
+    invoiceDate,
+    items,
+    fields: {
+      property_id: propertyId,
+      property_name: PMS_PROPERTIES_CONFIG[propertyId]?.name ?? property.name.split(" - ")[0],
+      room_villa_names: str(body["roomVillaNames"]).slice(0, 500) || null,
+      booking_source: source,
+      guest_name: guestName,
+      guest_phone: guestPhone,
+      guest_email: guestEmail,
+      guest_gstin: gstin || null,
+      guest_address: str(body["guestAddress"]).slice(0, 1000) || null,
+      check_in: checkIn,
+      check_out: checkOut,
+      total_nights: nights,
+      total_guests: Math.max(1, Math.floor(num(body["totalGuests"], 1))),
+      total_rooms: Math.max(1, Math.floor(num(body["totalRooms"], 1))),
+      room_charges: t.roomCharges,
+      food_charges: t.foodCharges,
+      extra_charges: t.extraCharges,
+      discount_type: discountType,
+      discount_value: discountType ? discountValue : 0,
+      discount_amount: t.discountAmount,
+      discount_reason: str(body["discountReason"]).slice(0, 500) || null,
+      is_gst_enabled: gstEnabled,
+      gst_rate: gstEnabled ? gstRate : 0,
+      taxable_amount: t.taxable,
+      cgst_amount: t.cgst,
+      sgst_amount: t.sgst,
+      igst_amount: t.igst,
+      total_tax: t.totalTax,
+      grand_total: t.grandTotal,
+      advance_paid: advance,
+      balance_due: t.balanceDue,
+      payment_method: paymentMethod || null,
+      payment_status: t.paymentStatus,
+      security_deposit: Math.max(0, num(body["securityDeposit"])),
+      deposit_refunded: body["depositRefunded"] === true,
+      notes: str(body["notes"]).slice(0, 2000) || null,
+      state_code: stateCode,
+      payment_date: paymentDate || null,
+      deposit_refund_date: refundDate || null,
+    },
+  };
+}
+
+const FIELD_ORDER = [
+  "property_id", "property_name", "room_villa_names", "booking_source", "guest_name", "guest_phone", "guest_email", "guest_gstin", "guest_address",
+  "check_in", "check_out", "total_nights", "total_guests", "total_rooms", "room_charges", "food_charges", "extra_charges", "discount_type",
+  "discount_value", "discount_amount", "discount_reason", "is_gst_enabled", "gst_rate", "taxable_amount", "cgst_amount", "sgst_amount", "igst_amount",
+  "total_tax", "grand_total", "advance_paid", "balance_due", "payment_method", "payment_status", "security_deposit", "deposit_refunded", "notes",
+  "state_code", "payment_date", "deposit_refund_date",
+] as const;
+
+async function saveInvoice(request: Request, url: URL): Promise<Response> {
   const pmsDb = getPmsDb();
-  const webDb = getWebDb();
-  if (!pmsDb || !webDb) return json({ error: "Database not configured" }, 503);
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
     return json({ error: "Invalid request" }, 400);
   }
-  const bookingId = str(body["bookingId"]);
-  const booking = (await listBookings(webDb)).find((b) => b.id === bookingId);
-  if (!booking) return json({ error: "Booking not found" }, 404);
-  if (booking.status === "cancelled") return json({ error: "A cancelled booking cannot be invoiced" }, 409);
-
-  const guestName = (str(body["guestName"]) || booking.guest_name).slice(0, 150);
-  const guestPhone = (str(body["guestPhone"]) || booking.guest_phone || "").slice(0, 50) || null;
-  const guestEmail = (str(body["guestEmail"]) || booking.guest_email || "").slice(0, 150) || null;
-  const companyName = str(body["companyName"]).slice(0, 200) || null;
-  const billingAddress = str(body["billingAddress"]).slice(0, 1000) || null;
-  const gstin = str(body["gstin"]).toUpperCase();
-  if (gstin && !GSTIN_RE.test(gstin)) return json({ error: "Enter a valid 15-character GSTIN" }, 400);
-  // A GSTIN's first two digits are its state, so it decides the place of supply.
-  const stateCode = gstin ? gstin.slice(0, 2) : str(body["stateCode"]) || GOA_STATE_CODE;
-  if (!STATE_NAMES[stateCode]) return json({ error: "Unknown state code" }, 400);
-  const base = num(body["baseAmount"], NaN);
-  const rate = num(body["gstRate"], NaN);
-  if (!Number.isFinite(base) || base <= 0 || base > 99_999_999) return json({ error: "Enter a valid taxable amount" }, 400);
-  if (!(GST_RATE_OPTIONS as readonly number[]).includes(rate)) return json({ error: "Select a valid GST rate" }, 400);
-  const invoiceDate = ISO_DATE.test(str(body["invoiceDate"])) ? str(body["invoiceDate"]) : istTodayISO();
-  const custom = str(body["invoiceNumber"]);
-  if (custom && !/^[A-Za-z0-9][A-Za-z0-9/-]{0,49}$/.test(custom)) return json({ error: "Invoice number may contain letters, digits, / and - only" }, 400);
-
-  const tax = computeGst({ base, rate, stateCode });
+  const parsed = await parseInvoice(body);
+  if ("error" in parsed) return json({ error: parsed.error }, 400);
   await ensureInvoicesSchema(pmsDb);
 
-  const existing = await pmsDb<{ invoice_number: string }[]>`SELECT invoice_number FROM gst_invoices WHERE booking_id = ${bookingId}`;
-  if (existing[0]) return json({ error: `An invoice already exists for this booking (${existing[0].invoice_number})` }, 409);
+  const editId = url.searchParams.get("id");
+  if (editId && !/^[0-9a-f-]{36}$/i.test(editId)) return json({ error: "Invalid id" }, 400);
 
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const number = custom || (await nextInvoiceNumber(pmsDb, invoiceDate));
-    try {
-      const [row] = await pmsDb<{ id: string }[]>`
-        INSERT INTO gst_invoices
-          (booking_id, invoice_number, property_id, guest_name, guest_phone, guest_email, guest_gstin, company_name, state_code,
-           base_amount, cgst_amount, sgst_amount, igst_amount, total_tax, total_amount, sac_code, invoice_date,
-           billing_address, gst_rate, check_in, check_out, nights)
-        VALUES
-          (${bookingId}, ${number}, ${booking.property_id}, ${guestName}, ${guestPhone}, ${guestEmail}, ${gstin || null}, ${companyName}, ${stateCode},
-           ${tax.base}, ${tax.cgst}, ${tax.sgst}, ${tax.igst}, ${tax.totalTax}, ${tax.total}, ${PMS_COMPANY.sacCode}, ${invoiceDate},
-           ${billingAddress}, ${rate}, ${booking.check_in}, ${booking.check_out}, ${booking.nights})
-        RETURNING id`;
-      return json({ success: true, id: row?.id, invoiceNumber: number });
-    } catch (err) {
-      const e = err as { code?: string; constraint_name?: string };
-      if (e.code !== "23505") throw err;
-      if (e.constraint_name === "gst_invoices_booking_id_key") return json({ error: "An invoice already exists for this booking" }, 409);
-      if (custom) return json({ error: `Invoice number ${custom} is already used` }, 409);
-      // Auto number collided with a concurrent request: pick the next one.
-    }
+  if (parsed.bookingId) {
+    const dup = await pmsDb<{ id: string; invoice_number: string }[]>`SELECT id, invoice_number FROM pms_invoices WHERE booking_id = ${parsed.bookingId}`;
+    if (dup[0] && dup[0].id !== editId) return json({ error: `An invoice already exists for this reservation (${dup[0].invoice_number})` }, 409);
   }
-  return json({ error: "Could not allocate an invoice number, try again" }, 500);
+
+  const row = { ...parsed.fields, invoice_date: parsed.invoiceDate, booking_id: parsed.bookingId, is_finalized: parsed.finalize } as unknown as Record<string, never>;
+  const columns = [...FIELD_ORDER, "invoice_date", "booking_id", "is_finalized"] as string[];
+  try {
+    const result = await pmsDb.begin(async (tx) => {
+      let id = editId;
+      let number: string;
+      if (editId) {
+        const [current] = await tx<{ is_finalized: boolean; invoice_number: string }[]>`SELECT is_finalized, invoice_number FROM pms_invoices WHERE id = ${editId}::uuid FOR UPDATE`;
+        if (!current) return { status: 404 as const, error: "Invoice not found" };
+        if (current.is_finalized) return { status: 409 as const, error: "This invoice is finalized and locked" };
+        number = current.invoice_number;
+        await tx`UPDATE pms_invoices SET ${tx(row, ...columns)} WHERE id = ${editId}::uuid`;
+        await tx`DELETE FROM pms_invoice_items WHERE invoice_id = ${editId}::uuid`;
+      } else {
+        number = await nextInvoiceNumber(tx as unknown as PmsSql, parsed.invoiceDate);
+        const [created] = await tx<{ id: string }[]>`INSERT INTO pms_invoices ${tx({ ...row, invoice_number: number } as unknown as Record<string, never>)} RETURNING id`;
+        id = created!.id;
+      }
+      for (const it of parsed.items) {
+        await tx`
+          INSERT INTO pms_invoice_items (invoice_id, date, item_type, room_name, description, quantity, rate, amount)
+          VALUES (${id!}::uuid, ${it.date}, ${it.item_type}, ${it.room_name}, ${it.description}, ${it.quantity}, ${it.rate}, ${it.amount})`;
+      }
+      return { status: 200 as const, id: id!, number };
+    });
+    if (result.status !== 200) return json({ error: result.error }, result.status);
+    return json({ success: true, id: result.id, invoiceNumber: result.number, finalized: parsed.finalize });
+  } catch (err) {
+    const e = err as { code?: string };
+    if (e.code === "23505") return json({ error: "An invoice with this number or reservation already exists. Try again." }, 409);
+    throw err;
+  }
+}
+
+async function deleteInvoice(url: URL): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  const id = url.searchParams.get("id") ?? "";
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
+  await ensureInvoicesSchema(pmsDb);
+  const deleted = await pmsDb`DELETE FROM pms_invoices WHERE id = ${id}::uuid AND is_finalized = false RETURNING id`;
+  return deleted.length ? json({ success: true }) : json({ error: "Only draft invoices can be deleted" }, 409);
+}
+
+async function getSettings(): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ settings: {} });
+  await ensureInvoicesSchema(pmsDb);
+  const rows = await pmsDb<{ key: string; value: string }[]>`SELECT key, value FROM pms_settings`;
+  return json({ settings: Object.fromEntries(rows.map((r) => [r.key, r.value])) });
+}
+
+async function saveSetting(request: Request): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const key = str(body["key"]);
+  const value = str(body["value"]);
+  if (key !== "theme" || !["system", "dark", "light"].includes(value)) return json({ error: "Unsupported setting" }, 400);
+  await ensureInvoicesSchema(pmsDb);
+  await pmsDb`INSERT INTO pms_settings (key, value) VALUES (${key}, ${value}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`;
+  return json({ success: true });
+}
+
+// Offline / walk-in voucher: one atomic write to the web database. The
+// reservation (portal_bookings) and its nights (blocked_dates) commit together
+// or not at all, so the website can never see a booking without its lock.
+async function createVoucher(request: Request): Promise<Response> {
+  const webDb = getWebDb();
+  if (!webDb) return json({ error: "Database not configured" }, 503);
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const propertySlug = str(body["propertyId"]);
+  const guestName = str(body["guestName"]).slice(0, 150);
+  const mobile = str(body["mobile"]).slice(0, 50);
+  const email = str(body["email"]).slice(0, 150) || null;
+  const checkIn = str(body["checkIn"]);
+  const checkOut = str(body["checkOut"]);
+  const guests = Math.max(1, Math.floor(num(body["totalGuests"], 1)));
+  const roomName = str(body["roomName"]).slice(0, 100);
+  const tariff = num(body["totalTariff"], NaN);
+  const advance = Math.max(0, num(body["advance"]));
+  const mode = str(body["paymentMode"]);
+  const rooms = Math.min(maxRoomsForProperty(propertySlug), Math.max(1, Math.floor(num(body["rooms"], 1))));
+
+  if (!PROPERTIES.some((p) => p.slug === propertySlug)) return json({ error: "Select a property" }, 400);
+  if (!guestName) return json({ error: "Guest name is required" }, 400);
+  if (!mobile) return json({ error: "Mobile number is required" }, 400);
+  if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut)) return json({ error: "Enter valid dates" }, 400);
+  const nights = differenceInCalendarDays(new Date(checkOut), new Date(checkIn));
+  if (nights <= 0) return json({ error: "Check-out must be after check-in" }, 400);
+  if (!Number.isFinite(tariff) || tariff < 0 || tariff > 99_999_999) return json({ error: "Enter the total tariff" }, 400);
+  if (advance > tariff) return json({ error: "Advance cannot exceed the total tariff" }, 400);
+  if (mode && !(PAYMENT_METHODS as readonly string[]).includes(mode)) return json({ error: "Invalid payment mode" }, 400);
+
+  const paymentStatus = advance <= 0 ? "pending" : advance >= tariff ? "paid" : "partial";
+  const notes = ["Offline voucher", roomName ? `Room/Villa: ${roomName}` : "", mode ? `Payment mode: ${mode}` : ""].filter(Boolean).join(" · ");
+
+  const outcome = await webDb.begin(async (tx) => {
+    const conflict = await findStayConflict(tx as unknown as typeof webDb, propertySlug, checkIn, checkOut, rooms);
+    if (conflict) return { conflict } as const;
+    const [row] = await tx<{ id: string }[]>`
+      INSERT INTO public.portal_bookings
+        (property_id, guest_name, guest_phone, guest_email, check_in, check_out, nights, guests_count, adults_count, children_count, rooms_count,
+         booking_amount, advance_amount, payment_status, channel, notes, status, commission_pct, commission_amount)
+      VALUES
+        (${propertySlug}, ${guestName}, ${mobile}, ${email}, ${checkIn}, ${checkOut}, ${nights}, ${guests}, ${guests}, 0, ${rooms},
+         ${tariff}, ${advance}, ${paymentStatus}, 'walk_in', ${notes}, 'confirmed', 0, 0)
+      RETURNING id`;
+    await syncManualBlocks(tx as unknown as typeof webDb, propertySlug, row!.id, checkIn, checkOut, true);
+    return { id: row!.id } as const;
+  });
+  if ("conflict" in outcome) return json({ error: outcome.conflict }, 409);
+
+  const property = PROPERTIES.find((p) => p.slug === propertySlug);
+  void notifyNewBooking(propertySlug, property?.name ?? propertySlug, guestName, tariff, checkIn, nights);
+  // The reservation is already committed at this point; a failed re-read must
+  // not turn a successful save into an error (a retry would only hit a conflict).
+  let booking: PmsBooking | null = null;
+  try {
+    booking = (await listBookings(webDb)).find((b) => b.id === outcome.id) ?? null;
+  } catch (err) {
+    console.error("[pms] voucher re-read:", err instanceof Error ? err.message : err);
+  }
+  return json({ success: true, id: outcome.id, booking });
 }
 
 export async function handlePmsApi(request: Request): Promise<Response> {
@@ -741,7 +974,11 @@ export async function handlePmsApi(request: Request): Promise<Response> {
       return json({ web, pms });
     }
     if (path === "invoices" && request.method === "GET") return await listInvoices(url);
-    if (path === "invoices" && request.method === "POST") return await createInvoice(request);
+    if (path === "invoices" && (request.method === "POST" || request.method === "PUT")) return await saveInvoice(request, url);
+    if (path === "invoices" && request.method === "DELETE") return await deleteInvoice(url);
+    if (path === "vouchers" && request.method === "POST") return await createVoucher(request);
+    if (path === "settings" && request.method === "GET") return await getSettings();
+    if (path === "settings" && request.method === "POST") return await saveSetting(request);
     if (path === "expenses" && request.method === "GET") return await listTransactions(url);
     if (path === "expenses" && request.method === "POST") return await createTransaction(request);
     if (path === "expenses" && request.method === "DELETE") return await deleteTransaction(url);

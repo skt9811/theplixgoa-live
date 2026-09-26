@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { FileText, Phone, MessageCircle, Receipt, Search } from "lucide-react";
 import { toast } from "sonner";
 import { PROPERTIES, formatINR } from "@/lib/plix";
@@ -7,7 +7,6 @@ import { CHANNELS, channelLabel, fmtDate, paymentLabel, pms, waLink, type PmsBoo
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
 import { usePms } from "@/components/pms/pms-context";
 import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
-import { GenerateInvoiceModal } from "@/components/pms/generate-invoice-modal";
 import { TaxInvoiceModal } from "@/components/pms/tax-invoice-modal";
 
 export const Route = createFileRoute("/pms/bookings")({
@@ -45,13 +44,12 @@ function PmsBookings() {
   const [source, setSource] = useState("all");
   const [search, setSearch] = useState("");
   const [voucherFor, setVoucherFor] = useState<PmsBooking | null>(null);
-  const [invoiceFor, setInvoiceFor] = useState<PmsBooking | null>(null);
   const [viewInvoice, setViewInvoice] = useState<PmsInvoice | null>(null);
-  const [invoiceNumbers, setInvoiceNumbers] = useState<Record<string, string>>({});
+  const [invoiceNumbers, setInvoiceNumbers] = useState<Record<string, { id: string; number: string; finalized: boolean }>>({});
 
   const loadInvoiceNumbers = useCallback(async () => {
     try {
-      const res = await pms<{ invoices: Record<string, string> }>("invoices?mode=ids");
+      const res = await pms<{ invoices: Record<string, { id: string; number: string; finalized: boolean }> }>("invoices?mode=ids");
       setInvoiceNumbers(res.invoices);
     } catch {
       // Invoice badges are a convenience; the list itself must still render.
@@ -220,16 +218,16 @@ function PmsBookings() {
                       onClick={() => void openInvoice(b.id)}
                       className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
                     >
-                      <Receipt className="size-3" aria-hidden /> View Invoice {invoiceNumbers[b.id]}
+                      <Receipt className="size-3" aria-hidden /> {invoiceNumbers[b.id]!.finalized ? "View Invoice" : "Draft"} {invoiceNumbers[b.id]!.number}
                     </button>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => setInvoiceFor(b)}
+                    <Link
+                      to="/pms/invoices/new"
+                      search={{ booking: b.id }}
                       className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                     >
-                      <Receipt className="size-3" aria-hidden /> Generate GST Invoice
-                    </button>
+                      <Receipt className="size-3" aria-hidden /> Create Invoice
+                    </Link>
                   )}
                 </div>
               )}
@@ -239,18 +237,6 @@ function PmsBookings() {
       </div>
 
       {voucherFor && <StayVoucherModal booking={voucherFor} onClose={() => setVoucherFor(null)} />}
-      {invoiceFor && (
-        <GenerateInvoiceModal
-          booking={invoiceFor}
-          onClose={() => setInvoiceFor(null)}
-          onCreated={(bookingId) => {
-            setInvoiceFor(null);
-            toast.success("Invoice generated");
-            void loadInvoiceNumbers();
-            void openInvoice(bookingId);
-          }}
-        />
-      )}
       {viewInvoice && <TaxInvoiceModal invoice={viewInvoice} onClose={() => setViewInvoice(null)} />}
     </div>
   );

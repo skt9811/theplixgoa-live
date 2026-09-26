@@ -44,7 +44,7 @@ function PmsExpenses() {
   };
 
   return (
-    <div className="-m-4 min-h-[calc(100dvh-57px)] bg-[#0B0F12] p-4 pb-32 text-slate-100 md:-m-6 md:p-6 md:pb-32">
+    <div className="pms-ledger -m-4 min-h-[calc(100dvh-57px)] bg-[var(--pms-bg)] p-4 pb-32 text-slate-100 md:-m-6 md:p-6 md:pb-32">
       <div className="mx-auto max-w-xl">
         <div className="mb-4">
           <h1 className="text-xl font-bold">Expenses</h1>
@@ -63,7 +63,7 @@ function PmsExpenses() {
       </div>
 
       {/* Bottom tab bar with the central floating add button */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.07] bg-[#11161B]/95 backdrop-blur md:left-64" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.07] bg-[var(--pms-chrome)] backdrop-blur md:left-64" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="relative mx-auto flex max-w-xl items-stretch">
           {tabButton(tabs[0]!)}
           {tabButton(tabs[1]!)}

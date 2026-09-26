@@ -31,7 +31,9 @@ import { Route as PmsBookingsRouteImport } from './routes/pms.bookings'
 import { Route as PmsExpensesRouteImport } from './routes/pms.expenses'
 import { Route as PmsInventoryRouteImport } from './routes/pms.inventory'
 import { Route as PmsInvoicesRouteImport } from './routes/pms.invoices'
+import { Route as PmsSettingsRouteImport } from './routes/pms.settings'
 import { Route as PmsSystemRouteImport } from './routes/pms.system'
+import { Route as PmsVouchersRouteImport } from './routes/pms.vouchers'
 import { Route as PmsLoginRouteImport } from './routes/pms_.login'
 import { Route as PortalIndexRouteImport } from './routes/portal/index'
 import { Route as PortalDashboardRouteImport } from './routes/portal/dashboard'
@@ -39,6 +41,7 @@ import { Route as PortalLoginRouteImport } from './routes/portal/login'
 import { Route as PropertiesSlugRouteImport } from './routes/properties.$slug'
 import { Route as StaysLargeGroupsRouteImport } from './routes/stays_.large-groups'
 import { Route as StaysPrivatePoolVillasRouteImport } from './routes/stays_.private-pool-villas'
+import { Route as PmsInvoicesNewRouteImport } from './routes/pms.invoices_.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -150,9 +153,19 @@ const PmsInvoicesRoute = PmsInvoicesRouteImport.update({
   path: '/invoices',
   getParentRoute: () => PmsRoute,
 } as any)
+const PmsSettingsRoute = PmsSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => PmsRoute,
+} as any)
 const PmsSystemRoute = PmsSystemRouteImport.update({
   id: '/system',
   path: '/system',
+  getParentRoute: () => PmsRoute,
+} as any)
+const PmsVouchersRoute = PmsVouchersRouteImport.update({
+  id: '/vouchers',
+  path: '/vouchers',
   getParentRoute: () => PmsRoute,
 } as any)
 const PmsLoginRoute = PmsLoginRouteImport.update({
@@ -190,6 +203,11 @@ const StaysPrivatePoolVillasRoute = StaysPrivatePoolVillasRouteImport.update({
   path: '/stays/private-pool-villas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PmsInvoicesNewRoute = PmsInvoicesNewRouteImport.update({
+  id: '/invoices_/new',
+  path: '/invoices/new',
+  getParentRoute: () => PmsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -212,7 +230,9 @@ export interface FileRoutesByFullPath {
   '/pms/expenses': typeof PmsExpensesRoute
   '/pms/inventory': typeof PmsInventoryRoute
   '/pms/invoices': typeof PmsInvoicesRoute
+  '/pms/settings': typeof PmsSettingsRoute
   '/pms/system': typeof PmsSystemRoute
+  '/pms/vouchers': typeof PmsVouchersRoute
   '/pms/login': typeof PmsLoginRoute
   '/portal/dashboard': typeof PortalDashboardRoute
   '/portal/login': typeof PortalLoginRoute
@@ -222,6 +242,7 @@ export interface FileRoutesByFullPath {
   '/blog/': typeof BlogIndexRoute
   '/pms/': typeof PmsIndexRoute
   '/portal/': typeof PortalIndexRoute
+  '/pms/invoices/new': typeof PmsInvoicesNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -242,7 +263,9 @@ export interface FileRoutesByTo {
   '/pms/expenses': typeof PmsExpensesRoute
   '/pms/inventory': typeof PmsInventoryRoute
   '/pms/invoices': typeof PmsInvoicesRoute
+  '/pms/settings': typeof PmsSettingsRoute
   '/pms/system': typeof PmsSystemRoute
+  '/pms/vouchers': typeof PmsVouchersRoute
   '/pms/login': typeof PmsLoginRoute
   '/portal/dashboard': typeof PortalDashboardRoute
   '/portal/login': typeof PortalLoginRoute
@@ -252,6 +275,7 @@ export interface FileRoutesByTo {
   '/blog': typeof BlogIndexRoute
   '/pms': typeof PmsIndexRoute
   '/portal': typeof PortalIndexRoute
+  '/pms/invoices/new': typeof PmsInvoicesNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -275,7 +299,9 @@ export interface FileRoutesById {
   '/pms/expenses': typeof PmsExpensesRoute
   '/pms/inventory': typeof PmsInventoryRoute
   '/pms/invoices': typeof PmsInvoicesRoute
+  '/pms/settings': typeof PmsSettingsRoute
   '/pms/system': typeof PmsSystemRoute
+  '/pms/vouchers': typeof PmsVouchersRoute
   '/pms_/login': typeof PmsLoginRoute
   '/portal/dashboard': typeof PortalDashboardRoute
   '/portal/login': typeof PortalLoginRoute
@@ -285,6 +311,7 @@ export interface FileRoutesById {
   '/blog/': typeof BlogIndexRoute
   '/pms/': typeof PmsIndexRoute
   '/portal/': typeof PortalIndexRoute
+  '/pms/invoices_/new': typeof PmsInvoicesNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -309,7 +336,9 @@ export interface FileRouteTypes {
     | '/pms/expenses'
     | '/pms/inventory'
     | '/pms/invoices'
+    | '/pms/settings'
     | '/pms/system'
+    | '/pms/vouchers'
     | '/pms/login'
     | '/portal/dashboard'
     | '/portal/login'
@@ -319,6 +348,7 @@ export interface FileRouteTypes {
     | '/blog/'
     | '/pms/'
     | '/portal/'
+    | '/pms/invoices/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -339,7 +369,9 @@ export interface FileRouteTypes {
     | '/pms/expenses'
     | '/pms/inventory'
     | '/pms/invoices'
+    | '/pms/settings'
     | '/pms/system'
+    | '/pms/vouchers'
     | '/pms/login'
     | '/portal/dashboard'
     | '/portal/login'
@@ -349,6 +381,7 @@ export interface FileRouteTypes {
     | '/blog'
     | '/pms'
     | '/portal'
+    | '/pms/invoices/new'
   id:
     | '__root__'
     | '/'
@@ -371,7 +404,9 @@ export interface FileRouteTypes {
     | '/pms/expenses'
     | '/pms/inventory'
     | '/pms/invoices'
+    | '/pms/settings'
     | '/pms/system'
+    | '/pms/vouchers'
     | '/pms_/login'
     | '/portal/dashboard'
     | '/portal/login'
@@ -381,6 +416,7 @@ export interface FileRouteTypes {
     | '/blog/'
     | '/pms/'
     | '/portal/'
+    | '/pms/invoices_/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -563,11 +599,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PmsInvoicesRouteImport
       parentRoute: typeof PmsRoute
     }
+    '/pms/settings': {
+      id: '/pms/settings'
+      path: '/settings'
+      fullPath: '/pms/settings'
+      preLoaderRoute: typeof PmsSettingsRouteImport
+      parentRoute: typeof PmsRoute
+    }
     '/pms/system': {
       id: '/pms/system'
       path: '/system'
       fullPath: '/pms/system'
       preLoaderRoute: typeof PmsSystemRouteImport
+      parentRoute: typeof PmsRoute
+    }
+    '/pms/vouchers': {
+      id: '/pms/vouchers'
+      path: '/vouchers'
+      fullPath: '/pms/vouchers'
+      preLoaderRoute: typeof PmsVouchersRouteImport
       parentRoute: typeof PmsRoute
     }
     '/pms_/login': {
@@ -619,6 +669,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaysPrivatePoolVillasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pms/invoices_/new': {
+      id: '/pms/invoices_/new'
+      path: '/invoices/new'
+      fullPath: '/pms/invoices/new'
+      preLoaderRoute: typeof PmsInvoicesNewRouteImport
+      parentRoute: typeof PmsRoute
+    }
   }
 }
 
@@ -627,8 +684,11 @@ interface PmsRouteChildren {
   PmsExpensesRoute: typeof PmsExpensesRoute
   PmsInventoryRoute: typeof PmsInventoryRoute
   PmsInvoicesRoute: typeof PmsInvoicesRoute
+  PmsSettingsRoute: typeof PmsSettingsRoute
   PmsSystemRoute: typeof PmsSystemRoute
+  PmsVouchersRoute: typeof PmsVouchersRoute
   PmsIndexRoute: typeof PmsIndexRoute
+  PmsInvoicesNewRoute: typeof PmsInvoicesNewRoute
 }
 
 const PmsRouteChildren: PmsRouteChildren = {
@@ -636,8 +696,11 @@ const PmsRouteChildren: PmsRouteChildren = {
   PmsExpensesRoute: PmsExpensesRoute,
   PmsInventoryRoute: PmsInventoryRoute,
   PmsInvoicesRoute: PmsInvoicesRoute,
+  PmsSettingsRoute: PmsSettingsRoute,
   PmsSystemRoute: PmsSystemRoute,
+  PmsVouchersRoute: PmsVouchersRoute,
   PmsIndexRoute: PmsIndexRoute,
+  PmsInvoicesNewRoute: PmsInvoicesNewRoute,
 }
 
 const PmsRouteWithChildren = PmsRoute._addFileChildren(PmsRouteChildren)

@@ -7,6 +7,7 @@ import { HQ_LABEL, istToday, pms, type PmsCategory } from "@/lib/pms-client";
 import { CategoryBadge } from "@/lib/pms-icons";
 import { PMS_PROPERTIES_CONFIG } from "@/lib/pms-properties-config";
 import { DARK, GREEN, istNowTime } from "@/components/pms/expenses/tokens";
+import { useBackDismiss } from "@/lib/pms-back-stack";
 
 type Kind = "expense" | "income" | "transfer";
 
@@ -38,6 +39,8 @@ export function AddTransactionSheet({
   const [property, setProperty] = useState(defaultProperty === "all" ? "" : defaultProperty);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  useBackDismiss(true, onClose);
+  useBackDismiss(pickingCategory, () => setPickingCategory(false));
 
   const options = useMemo(() => categories.filter((c) => c.type === kind), [categories, kind]);
   const selected = options.find((c) => c.name === category);
@@ -76,7 +79,7 @@ export function AddTransactionSheet({
     `rounded-full px-4 py-2 text-sm font-semibold transition-colors ${active ? "bg-white/15 text-white" : "text-slate-400 hover:text-slate-200"}`;
 
   return (
-    <div className="fixed inset-0 z-[75] flex flex-col overflow-hidden bg-[#0B0F12] text-slate-100">
+    <div className="fixed inset-0 z-[75] flex flex-col overflow-hidden bg-[var(--pms-bg)] text-slate-100">
       <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-3">
         <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-2 text-slate-400 hover:bg-white/10">
           <X className="size-5" aria-hidden />
@@ -248,7 +251,7 @@ export function AddTransactionSheet({
         </div>
       </div>
 
-      <div className="absolute inset-x-0 bottom-0 border-t border-white/[0.07] bg-[#0B0F12]/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
+      <div className="absolute inset-x-0 bottom-0 border-t border-white/[0.07] bg-[var(--pms-bg)] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
         <button
           type="button"
           onClick={() => void save()}

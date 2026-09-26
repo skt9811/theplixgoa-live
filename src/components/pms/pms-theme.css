@@ -1,0 +1,111 @@
+/* Plix PMS theme engine. Tailwind v4 utilities read their colours from CSS
+   variables (bg-white -> var(--color-white), text-slate-500 -> var(--color-slate-500)),
+   so redefining those variables under [data-pms-theme] re-themes every PMS
+   screen without touching each component. Nothing here applies outside a page
+   that sets the attribute (the PMS layout), and nothing applies when printing. */
+@media screen {
+  /* ---- Dark: the whole PMS uses an inverted neutral scale ---- */
+  [data-pms-theme="dark"] {
+    color-scheme: dark;
+    --color-slate-50: #0b0f12;
+    --color-slate-100: #1f2632;
+    --color-slate-200: #2a3240;
+    --color-slate-300: #3a4454;
+    --color-slate-400: #7f8ca0;
+    --color-slate-500: #97a3b5;
+    --color-slate-600: #b4becc;
+    --color-slate-700: #cbd3de;
+    --color-slate-800: #e1e7ef;
+    --color-slate-900: #f1f5f9;
+    --color-emerald-50: #0e231d;
+    --color-emerald-100: #123a2c;
+    --color-emerald-200: #1c5a44;
+    --color-emerald-700: #6ee7b7;
+    --color-emerald-800: #a7f3d0;
+    --color-amber-100: #3a2e10;
+    --color-amber-600: #fbbf24;
+    --color-amber-700: #fcd34d;
+    --color-amber-800: #fde68a;
+    --color-sky-100: #0e2f45;
+    --color-sky-700: #7dd3fc;
+    --color-red-50: #3b1518;
+    --color-red-100: #4a1d22;
+    --color-red-600: #f87171;
+    --color-red-700: #fca5a5;
+    --pms-bg: #0b0f12;
+    --pms-card: #181d26;
+    --pms-chrome: #11161b;
+  }
+  /* text-white must stay white on coloured buttons and badges, so only the
+     white surfaces (cards, inputs, modals) are re-coloured, not the variable. */
+  [data-pms-theme="dark"] .bg-white { background-color: var(--pms-card); }
+  /* Buttons keep solid greens; their hover shade must not use the light-text 700. */
+  [data-pms-theme="dark"] .hover\:bg-emerald-700:hover { background-color: #047857; }
+  [data-pms-theme="dark"] .bg-slate-900 { background-color: #2a3240; }
+
+  /* ---- Light ---- */
+  [data-pms-theme="light"] {
+    color-scheme: light;
+    --pms-bg: #f8fafc;
+    --pms-card: #ffffff;
+    --pms-chrome: #ffffff;
+  }
+
+  /* ---- Expenses ledger: authored dark, so it flips the other way ---- */
+  [data-pms-theme="dark"] .pms-ledger {
+    --color-slate-50: #f8fafc;
+    --color-slate-100: #f1f5f9;
+    --color-slate-200: #e2e8f0;
+    --color-slate-300: #cbd5e1;
+    --color-slate-400: #94a3b8;
+    --color-slate-500: #64748b;
+    --color-slate-600: #475569;
+    --color-emerald-700: #047857;
+  }
+  [data-pms-theme="light"] .pms-ledger {
+    --color-white: #0f172a;
+    --color-slate-100: #0f172a;
+    --color-slate-200: #1e293b;
+    --color-slate-300: #334155;
+    --color-slate-400: #64748b;
+    --color-slate-500: #64748b;
+    --color-slate-600: #94a3b8;
+    --color-emerald-300: #047857;
+    --color-emerald-400: #059669;
+    --color-blue-400: #2563eb;
+    --color-red-400: #dc2626;
+    --color-amber-400: #b45309;
+  }
+
+  /* ---- Paper: vouchers and invoices stay white in every theme ---- */
+  [data-pms-theme] .pms-paper .bg-white { background-color: #ffffff; }
+  [data-pms-theme] .pms-paper {
+    --color-slate-50: #f8fafc;
+    --color-slate-100: #f1f5f9;
+    --color-slate-200: #e2e8f0;
+    --color-slate-300: #cbd5e1;
+    --color-slate-400: #94a3b8;
+    --color-slate-500: #64748b;
+    --color-slate-600: #475569;
+    --color-slate-700: #334155;
+    --color-slate-800: #1e293b;
+    --color-slate-900: #0f172a;
+    --color-emerald-50: #ecfdf5;
+    --color-emerald-100: #d1fae5;
+    --color-emerald-200: #a7f3d0;
+    --color-emerald-700: #047857;
+    --color-emerald-800: #065f46;
+    --color-amber-100: #fef3c7;
+    --color-amber-600: #d97706;
+    --color-amber-700: #b45309;
+    --color-amber-800: #92400e;
+    --color-sky-100: #e0f2fe;
+    --color-sky-700: #0369a1;
+    --color-red-50: #fef2f2;
+    --color-red-100: #fee2e2;
+    --color-red-600: #dc2626;
+    --color-red-700: #b91c1c;
+    color: #0f172a;
+    background: #ffffff;
+  }
+}

@@ -38,8 +38,8 @@ export function TrendChart({ points }: { points: DayPoint[] }) {
       <svg viewBox={`0 0 ${W} ${H}`} className="mt-1 w-full" role="img" aria-label="Revenue and occupancy trend" onMouseLeave={() => setHover(null)}>
         {[0, 0.25, 0.5, 0.75, 1].map((t) => (
           <g key={t}>
-            <line x1={PAD.left} x2={W - PAD.right} y1={PAD.top + innerH * (1 - t)} y2={PAD.top + innerH * (1 - t)} stroke="#e2e8f0" strokeWidth="1" />
-            <text x={PAD.left - 6} y={PAD.top + innerH * (1 - t) + 3} textAnchor="end" fontSize="11" fill="#94a3b8">
+            <line x1={PAD.left} x2={W - PAD.right} y1={PAD.top + innerH * (1 - t)} y2={PAD.top + innerH * (1 - t)} style={{ stroke: "var(--color-slate-200)" }} strokeWidth="1" />
+            <text x={PAD.left - 6} y={PAD.top + innerH * (1 - t) + 3} textAnchor="end" fontSize="11" style={{ fill: "var(--color-slate-400)" }}>
               {niceMax * t >= 1000 ? `${Math.round((niceMax * t) / 1000)}k` : Math.round(niceMax * t)}
             </text>
             <text x={W - PAD.right + 6} y={PAD.top + innerH * (1 - t) + 3} fontSize="11" fill="#d97706">
@@ -52,7 +52,7 @@ export function TrendChart({ points }: { points: DayPoint[] }) {
             <rect x={x(i) - step / 2} y={PAD.top} width={step} height={innerH} fill="transparent" />
             <rect x={x(i) - barW / 2} y={yRev(p.revenue)} width={barW} height={PAD.top + innerH - yRev(p.revenue)} rx="1.5" fill={hover === i ? "#059669" : "#34d399"} />
             {i % labelEvery === 0 && (
-              <text x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fill="#94a3b8">
+              <text x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" style={{ fill: "var(--color-slate-400)" }}>
                 {new Date(`${p.date}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
               </text>
             )}

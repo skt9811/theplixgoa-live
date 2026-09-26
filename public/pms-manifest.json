@@ -1,0 +1,16 @@
+{
+  "name": "Plix PMS — Operations Hub",
+  "short_name": "Plix PMS",
+  "description": "Estate PMS, reservations and financial ledger for Plix Hospitality.",
+  "start_url": "/pms",
+  "scope": "/pms",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0E231D",
+  "theme_color": "#0E231D",
+  "icons": [
+    { "src": "/pms-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/pms-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/pms-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

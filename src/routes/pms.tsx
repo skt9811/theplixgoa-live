@@ -4,15 +4,17 @@ import { PmsShell } from "@/components/pms/pms-shell";
 import { PmsContext } from "@/components/pms/pms-context";
 import { CreateReservationModal } from "@/components/pms/create-reservation-modal";
 import { pms } from "@/lib/pms-client";
+import { pmsHead, usePmsBrandedHead } from "@/components/pms/pms-head";
 
 // Standalone Plix PMS shell for every /pms/* route except /pms/login (which
 // opts out of this layout via the pms_ prefix). Gated by its own PMS session.
 export const Route = createFileRoute("/pms")({
-  head: () => ({ meta: [{ title: "Plix PMS" }, { name: "robots", content: "noindex, nofollow" }] }),
+  head: () => pmsHead,
   component: PmsLayout,
 });
 
 function PmsLayout() {
+  usePmsBrandedHead();
   const navigate = useNavigate();
   const [authed, setAuthed] = useState(false);
   const [creating, setCreating] = useState(false);

@@ -1,6 +1,7 @@
-import { MapPin, MessageCircle } from "lucide-react";
+import { MapPin, MessageCircle, Phone } from "lucide-react";
 import { PROPERTIES } from "@/lib/plix";
 import { PMS_COMPANY } from "@/lib/pms-company";
+import { getPropertyPmsConfig } from "@/lib/pms-properties-config";
 import { fmtDate, waLink, type PmsBooking } from "@/lib/pms-client";
 import { PrintSheet } from "@/components/pms/print-sheet";
 
@@ -13,11 +14,21 @@ const HOUSE_RULES = [
 
 export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; onClose: () => void }) {
   const property = PROPERTIES.find((p) => p.slug === booking.property_id);
-  const propertyName = property?.name.split(" - ")[0] ?? booking.property_id;
-  const location = property ? `${property.location}, ${property.region}, Goa` : "Goa";
-  const mapUrl = property?.google_maps_url ?? null;
-  const contact = PMS_COMPANY.phones[0];
+  const config = getPropertyPmsConfig(booking.property_id, property?.name.split(" - ")[0]);
+  const propertyName = config.name;
+  const address = config.address.trim() || (property ? `${property.location}, ${property.region}` : "Goa");
+  const mapUrl = config.mapsUrl.trim() || property?.google_maps_url || null;
   const confirmed = booking.status === "confirmed";
+
+  // A caretaker is only shown once a real phone number is filled in the
+  // config; until then guests get the central concierge numbers instead.
+  const caretakerPhone = config.caretakerPhone.trim();
+  const hasCaretaker = caretakerPhone.replace(/\D/g, "").length >= 10;
+  const caretakerName = config.caretakerName.trim();
+  const showCaretakerName = caretakerName !== "" && !/\(tbd\)/i.test(caretakerName);
+  const contactLine = hasCaretaker
+    ? `${showCaretakerName ? `${caretakerName}: ` : "Caretaker: "}${caretakerPhone}`
+    : `Concierge: ${PMS_COMPANY.phones.join(" / ")}`;
 
   const message = [
     `Hello ${booking.guest_name}, greetings from ${PMS_COMPANY.brand}!`,
@@ -27,8 +38,10 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
     `Check-out: ${fmtDate(booking.check_out)} (by 11:00 AM)`,
     `Guests: ${booking.adults} adult${booking.adults === 1 ? "" : "s"}${booking.children ? `, ${booking.children} child${booking.children === 1 ? "" : "ren"}` : ""}`,
     "",
-    `Location: ${mapUrl ?? location}`,
-    `Contact: ${contact}`,
+    `Address: ${address}`,
+    ...(mapUrl ? [`Location: ${mapUrl}`] : []),
+    contactLine,
+    ...(hasCaretaker ? [`Concierge: ${PMS_COMPANY.phones[0]}`] : []),
     "",
     "We look forward to hosting you!",
   ].join("\n");
@@ -94,11 +107,25 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
         <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Property</h3>
         <p className="mt-1 text-base font-semibold">{propertyName}</p>
         <p className="flex items-center gap-1.5 text-sm text-slate-600">
-          <MapPin className="size-3.5" aria-hidden /> {location}
+          <MapPin className="size-3.5" aria-hidden /> {address}
         </p>
-        <p className="mt-1 text-sm">
-          <span className="font-semibold">Caretaker / concierge:</span> {PMS_COMPANY.phones.join(" / ")}
-        </p>
+        {hasCaretaker ? (
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
+            <span>
+              <span className="font-semibold">Caretaker{showCaretakerName ? `: ${caretakerName}` : ""}</span> · {caretakerPhone}
+            </span>
+            <a
+              href={`tel:${caretakerPhone.replace(/[^\d+]/g, "")}`}
+              className="pms-no-print flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+            >
+              <Phone className="size-3" aria-hidden /> Call Caretaker
+            </a>
+          </div>
+        ) : (
+          <p className="mt-1 text-sm">
+            <span className="font-semibold">Concierge:</span> {PMS_COMPANY.phones.join(" / ")}
+          </p>
+        )}
         {mapUrl && (
           <p className="mt-1 text-sm">
             <a href={mapUrl} target="_blank" rel="noreferrer" className="font-semibold text-emerald-700 underline">

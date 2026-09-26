@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Plix PMS</string>
+    <string name="title_activity_main">Plix PMS</string>
+    <string name="package_name">com.plix.pms</string>
+    <string name="custom_url_scheme">com.plix.pms</string>
+</resources>

@@ -1,0 +1,23 @@
+{
+  "name": "plix-pms-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone Android shell for Plix PMS (com.plix.pms). Independent of the Plix Partner app.",
+  "scripts": {
+    "sync": "cap sync android",
+    "open": "cap open android",
+    "build:aab": "cap sync android && cd android && ./gradlew bundleRelease",
+    "build:apk": "cap sync android && cd android && ./gradlew assembleRelease",
+    "icons": "node scripts/generate-android-assets.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.3"
+  }
+}

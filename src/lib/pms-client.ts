@@ -84,3 +84,32 @@ export function waLink(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   return `https://wa.me/${digits.length === 10 ? `91${digits}` : digits}`;
 }
+
+export const EXPENSE_CATEGORIES = [
+  "Staff Salary",
+  "Maintenance & Repairs",
+  "Pool Chemicals",
+  "Linen & Laundry",
+  "Utilities",
+  "Guest Supplies",
+  "Property Lease",
+  "Marketing",
+  "Miscellaneous",
+] as const;
+
+export const PAYMENT_MODES = ["UPI", "Cash / Petty Cash", "Bank Transfer", "Credit Card"] as const;
+
+export type PmsExpense = {
+  id: string;
+  property_id: string | null;
+  category: string;
+  amount: number;
+  payment_mode: string;
+  vendor_name: string | null;
+  expense_date: string;
+  receipt_url: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+export const HQ_LABEL = "Company Overhead (HQ)";

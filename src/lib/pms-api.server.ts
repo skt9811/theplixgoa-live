@@ -6,7 +6,7 @@
 // property_rates; writes portal_bookings, blocked_dates and property_rates,
 // through the same tables and conflict rules the admin punch-in uses, so
 // the website sees every change immediately. PMS DB (NEON_PMS_DATABASE_URL)
-// is only health-checked for now.
+// holds the operations data (expenses); nothing there is ever written to the web DB.
 import { timingSafeEqual } from "node:crypto";
 import { differenceInCalendarDays } from "date-fns";
 import { PROPERTIES } from "@/lib/plix";
@@ -14,6 +14,7 @@ import { eachNight, isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates
 import { findStayConflict, syncManualBlocks } from "@/lib/manual-booking-guard.server";
 import { notifyNewBooking } from "@/lib/push-notifications.server";
 import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
+import { ensureExpensesSchema, EXPENSE_CATEGORIES, PAYMENT_MODES } from "@/lib/pms-schema.server";
 import {
   buildPmsSessionCookie,
   clearPmsSessionCookie,
@@ -374,6 +375,113 @@ async function applyInventory(request: Request, sql: Sql): Promise<Response> {
   return json({ success: true, nights: nights.length, priced: price !== null, blocked, opened });
 }
 
+export type PmsExpense = {
+  id: string;
+  property_id: string | null;
+  category: string;
+  amount: number;
+  payment_mode: string;
+  vendor_name: string | null;
+  expense_date: string;
+  receipt_url: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+// "all" = every property plus HQ; "hq" = company overhead (property_id NULL).
+function expenseScope(property: string): { ok: boolean; slug: string | null } {
+  if (property === "all") return { ok: true, slug: null };
+  if (property === "hq") return { ok: true, slug: null };
+  return { ok: PROPERTIES.some((p) => p.slug === property), slug: property };
+}
+
+async function listExpenses(url: URL): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  const property = url.searchParams.get("property") ?? "all";
+  const start = url.searchParams.get("start") ?? "";
+  const end = url.searchParams.get("end") ?? "";
+  const scope = expenseScope(property);
+  if (!scope.ok || !ISO_DATE.test(start) || !ISO_DATE.test(end) || end < start) return json({ error: "Invalid filter" }, 400);
+
+  await ensureExpensesSchema(pmsDb);
+  const rows = await pmsDb<
+    { id: string; property_id: string | null; category: string; amount: string; payment_mode: string; vendor_name: string | null; expense_date: string; receipt_url: string | null; notes: string | null; created_at: Date }[]
+  >`
+    SELECT id, property_id, category, amount, payment_mode, vendor_name, expense_date::text AS expense_date, receipt_url, notes, created_at
+    FROM expenses
+    WHERE expense_date >= ${start}::date AND expense_date <= ${end}::date
+      ${property === "all" ? pmsDb`` : property === "hq" ? pmsDb`AND property_id IS NULL` : pmsDb`AND property_id = ${scope.slug}`}
+    ORDER BY expense_date DESC, created_at DESC
+    LIMIT 5000
+  `;
+  const expenses: PmsExpense[] = rows.map((r) => ({ ...r, amount: Number(r.amount), created_at: r.created_at.toISOString() }));
+
+  // Revenue lives in the web database, so it is computed here in memory
+  // rather than joined: reservations that start inside the range, excluding
+  // cancelled ones. Company overhead has no revenue by definition.
+  let revenue: number | null = 0;
+  if (property !== "hq") {
+    const webDb = getWebDb();
+    if (!webDb) revenue = null;
+    else {
+      try {
+        const all = await listBookings(webDb);
+        revenue = all
+          .filter((b) => b.status !== "cancelled" && b.check_in >= start && b.check_in <= end && (property === "all" || b.property_id === property))
+          .reduce((sum, b) => sum + b.total, 0);
+      } catch (err) {
+        console.error("[pms] expense revenue:", err instanceof Error ? err.message : err);
+        revenue = null;
+      }
+    }
+  }
+  return json({ expenses, revenue });
+}
+
+async function createExpense(request: Request): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const property = str(body["property"]);
+  const category = str(body["category"]);
+  const paymentMode = str(body["paymentMode"]);
+  const amount = num(body["amount"], NaN);
+  const vendor = str(body["vendor"]).slice(0, 150) || null;
+  const expenseDate = str(body["expenseDate"]);
+  const receipt = str(body["receipt"]).slice(0, 500) || null;
+  const notes = str(body["notes"]).slice(0, 2000) || null;
+
+  if (property !== "hq" && !PROPERTIES.some((p) => p.slug === property)) return json({ error: "Select a property or Company Overhead" }, 400);
+  if (!(EXPENSE_CATEGORIES as readonly string[]).includes(category)) return json({ error: "Select a category" }, 400);
+  if (!(PAYMENT_MODES as readonly string[]).includes(paymentMode)) return json({ error: "Select a payment mode" }, 400);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 99_999_999.99) return json({ error: "Enter a valid amount" }, 400);
+  if (!ISO_DATE.test(expenseDate)) return json({ error: "Enter a valid date" }, 400);
+
+  await ensureExpensesSchema(pmsDb);
+  const [row] = await pmsDb<{ id: string }[]>`
+    INSERT INTO expenses (property_id, category, amount, payment_mode, vendor_name, expense_date, receipt_url, notes)
+    VALUES (${property === "hq" ? null : property}, ${category}, ${Math.round(amount * 100) / 100}, ${paymentMode}, ${vendor}, ${expenseDate}, ${receipt}, ${notes})
+    RETURNING id
+  `;
+  return json({ success: true, id: row?.id });
+}
+
+async function deleteExpense(url: URL): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  const id = url.searchParams.get("id") ?? "";
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
+  await ensureExpensesSchema(pmsDb);
+  const deleted = await pmsDb`DELETE FROM expenses WHERE id = ${id}::uuid RETURNING id`;
+  return deleted.length ? json({ success: true }) : json({ error: "Expense not found" }, 404);
+}
+
 export async function handlePmsApi(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname.replace(/^\/api\/pms\/?/, "");
@@ -392,6 +500,9 @@ export async function handlePmsApi(request: Request): Promise<Response> {
       const [web, pms] = await Promise.all([pingDb(sql), pingDb(getPmsDb())]);
       return json({ web, pms });
     }
+    if (path === "expenses" && request.method === "GET") return await listExpenses(url);
+    if (path === "expenses" && request.method === "POST") return await createExpense(request);
+    if (path === "expenses" && request.method === "DELETE") return await deleteExpense(url);
     if (!sql) return json({ error: "Database not configured" }, 500);
     if (path === "bookings" && request.method === "GET") return json({ bookings: await listBookings(sql) });
     if (path === "bookings" && request.method === "POST") return await createBooking(request, sql);

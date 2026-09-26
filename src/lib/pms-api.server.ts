@@ -19,9 +19,30 @@ import { COLOR_PALETTE, HEX_COLOR, ICON_KEYS, PAYMENT_MODES, TX_TYPES, normalize
 import { GOA_STATE_CODE, GST_RATE_OPTIONS, GSTIN_RE, STATE_NAMES } from "@/lib/pms-gst";
 import { BOOKING_SOURCES, computeInvoice, lineAmount, PAYMENT_METHODS, type ItemInput } from "@/lib/pms-invoice-calc";
 import { PMS_PROPERTIES_CONFIG } from "@/lib/pms-properties-config";
+import { handlePosApi } from "@/lib/pms-pos-api.server";
 import { buildStayVoucherPdf } from "@/lib/pms-voucher-pdf.server";
 import { voucherDetails } from "@/lib/pms-voucher-content";
 import { PMS_COMPANY } from "@/lib/pms-company";
+import { audit } from "@/lib/pms-audit.server";
+import {
+  allowedSlugs,
+  canAnyTab,
+  canProperty,
+  hashPin,
+  invalidateUserCache,
+  isAdmin,
+  isAllProps,
+  listUsers,
+  loginWithPin,
+  OWNER,
+  PIN_RE,
+  resolveActor,
+  ROLES,
+  TABS,
+  type Actor,
+  type Tab,
+} from "@/lib/pms-users.server";
+import { ensureAccessSchema } from "@/lib/pms-schema.server";
 import {
   buildPmsSessionCookie,
   clearPmsSessionCookie,
@@ -38,7 +59,16 @@ function json(body: unknown, status = 200, headers?: Record<string, string>): Re
   });
 }
 
-const CHANNELS = new Set(["direct", "offline_phone", "airbnb", "booking_com", "walk_in", "agoda", "repeat_guest", "owner_booking"]);
+// Voucher form sources -> portal_bookings.channel values.
+const VOUCHER_SOURCES: Record<string, string> = {
+  Direct: "direct",
+  Airbnb: "airbnb",
+  "Booking.com": "booking_com",
+  "Offline / Walk-in": "walk_in",
+  "Travel Agent / OTA": "travel_agent",
+};
+const COMMISSION_SOURCES = new Set(["Airbnb", "Booking.com", "Travel Agent / OTA"]);
+const CHANNELS = new Set(["direct", "offline_phone", "airbnb", "booking_com", "walk_in", "agoda", "repeat_guest", "owner_booking", "travel_agent"]);
 const PAYMENTS = new Set(["paid", "partial", "pending", "pay_at_checkin"]);
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -67,6 +97,10 @@ export type PmsBooking = {
   /** Online (website) bookings only: the pre-tax subtotal and GST actually charged at checkout. */
   subtotal: number | null;
   taxes: number | null;
+  /** Internal: commission paid to an OTA or agent. Never shown on guest documents. */
+  commission_pct: number;
+  commission_amount: number;
+  agent_name: string | null;
 };
 
 function safeEqual(a: string, b: string): boolean {
@@ -76,22 +110,43 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 async function handleLogin(request: Request): Promise<Response> {
-  const expected = pmsPassword();
-  if (!expected) return json({ error: "PMS access is not configured" }, 503);
   if (!loginAllowed(request)) return json({ error: "Too many attempts. Try again later." }, 429);
-  let body: unknown;
+  let body: Record<string, unknown>;
   try {
-    body = await request.json();
+    body = (await request.json()) as Record<string, unknown>;
   } catch {
     return json({ error: "Invalid request" }, 400);
   }
-  const password = typeof (body as { password?: unknown })?.password === "string" ? (body as { password: string }).password : "";
+  const password = typeof body["password"] === "string" ? (body["password"] as string) : "";
+  const identifier = typeof body["identifier"] === "string" ? (body["identifier"] as string).trim() : "";
+  const pin = typeof body["pin"] === "string" ? (body["pin"] as string) : "";
+
+  // Staff sign in with their name, phone or email and a 4 to 6 digit PIN.
+  if (identifier || pin) {
+    if (!identifier || !PIN_RE.test(pin)) {
+      recordLoginAttempt(request, false);
+      return json({ error: "Enter your name, phone or email and your PIN" }, 400);
+    }
+    const result = await loginWithPin(identifier, pin);
+    if ("error" in result) {
+      recordLoginAttempt(request, false);
+      return json({ error: result.error }, result.status);
+    }
+    recordLoginAttempt(request, true);
+    await audit(result.actor, "LOGIN", "setting", "session", { via: "pin" });
+    return json({ success: true }, 200, { "Set-Cookie": await buildPmsSessionCookie(request, result.actor.id) });
+  }
+
+  // The owner password (PMS_ADMIN_PASSWORD, or the site's ADMIN_PIN) always works.
+  const expected = pmsPassword();
+  if (!expected) return json({ error: "PMS access is not configured" }, 503);
   if (!safeEqual(password, expected)) {
     recordLoginAttempt(request, false);
     return json({ error: "Incorrect password" }, 401);
   }
   recordLoginAttempt(request, true);
-  return json({ success: true }, 200, { "Set-Cookie": await buildPmsSessionCookie(request) });
+  await audit(OWNER, "LOGIN", "setting", "session", { via: "owner password" });
+  return json({ success: true }, 200, { "Set-Cookie": await buildPmsSessionCookie(request, null) });
 }
 
 function str(v: unknown): string {
@@ -131,12 +186,14 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
         total_amount: string;
         subtotal: string | null;
         taxes: string | null;
+        commission_pct: string | null;
+        commission_amount: string | null;
         payment_status: string;
         created_at: Date;
       }[]
     >`
       SELECT id, property_id, guest_name, guest_mobile, guest_email, check_in::text AS check_in, check_out::text AS check_out,
-             nights, guests, rooms, total_amount, subtotal, taxes, payment_status, created_at
+             nights, guests, rooms, total_amount, subtotal, taxes, commission_pct, commission_amount, payment_status, created_at
       FROM public.bookings
       WHERE payment_status IN ('paid', 'simulated', 'pending')
     `,
@@ -160,12 +217,14 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
         channel: string;
         status: string;
         notes: string | null;
+        commission_pct: string | null;
+        commission_amount: string | null;
         created_at: Date;
       }[]
     >`
       SELECT id, property_id, guest_name, guest_phone, guest_email, check_in::text AS check_in, check_out::text AS check_out,
              nights, guests_count, adults_count, children_count, rooms_count, booking_amount, advance_amount,
-             payment_status, channel, status, notes, created_at
+             payment_status, channel, status, notes, commission_pct, commission_amount, created_at
       FROM public.portal_bookings
       WHERE status NOT IN ('blocked', 'cancelled')
     `,
@@ -200,6 +259,9 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       created_at: r.created_at.toISOString(),
       subtotal: r.subtotal === null ? null : Number(r.subtotal),
       taxes: r.taxes === null ? null : Number(r.taxes),
+      commission_pct: Number(r.commission_pct ?? 0),
+      commission_amount: Number(r.commission_amount ?? 0),
+      agent_name: null,
     });
   }
   for (const r of manual) {
@@ -230,12 +292,15 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       created_at: r.created_at.toISOString(),
       subtotal: null,
       taxes: null,
+      commission_pct: Number(r.commission_pct ?? 0),
+      commission_amount: Number(r.commission_amount ?? 0),
+      agent_name: /Agent: ([^·]+?)(?: ·|$)/.exec(r.notes ?? "")?.[1]?.trim() ?? null,
     });
   }
   return rows.sort((a, b) => a.check_in.localeCompare(b.check_in));
 }
 
-async function createBooking(request: Request, sql: Sql): Promise<Response> {
+async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<Response> {
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -258,6 +323,7 @@ async function createBooking(request: Request, sql: Sql): Promise<Response> {
   const advance = Math.max(0, num(body["advanceAmount"]));
 
   if (!PROPERTIES.some((p) => p.slug === propertySlug)) return json({ error: "Select a property" }, 400);
+  if (!canProperty(actor, propertySlug)) return json({ error: "You do not have access to this property" }, 403);
   if (!guestName) return json({ error: "Guest name is required" }, 400);
   if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut)) return json({ error: "Enter valid dates" }, 400);
   const nights = differenceInCalendarDays(new Date(checkOut), new Date(checkIn));
@@ -288,12 +354,14 @@ async function createBooking(request: Request, sql: Sql): Promise<Response> {
   }
   const property = PROPERTIES.find((p) => p.slug === propertySlug);
   void notifyNewBooking(propertySlug, property?.name ?? propertySlug, guestName, total, checkIn, nights);
+  await audit(actor, "CREATE", "booking", row?.id ?? "unknown", { property: propertySlug, guest: guestName, checkIn, checkOut, nights, total, channel });
   return json({ success: true, id: row?.id, nights, ...(warning ? { warning } : {}) });
 }
 
-async function availability(url: URL, sql: Sql): Promise<Response> {
+async function availability(url: URL, sql: Sql, actor: Actor): Promise<Response> {
   const property = url.searchParams.get("property") ?? "";
   if (!PROPERTIES.some((p) => p.slug === property)) return json({ error: "Unknown property" }, 400);
+  if (!canProperty(actor, property)) return json({ error: "You do not have access to this property" }, 403);
   const multiRoom = isMultiRoomProperty(property);
   const bookings = (await listBookings(sql)).filter((b) => b.property_id === property && b.status !== "cancelled");
   const used: Record<string, number> = {};
@@ -312,12 +380,13 @@ function addDaysISO(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-async function getInventory(url: URL, sql: Sql): Promise<Response> {
+async function getInventory(url: URL, sql: Sql, actor: Actor): Promise<Response> {
   const property = url.searchParams.get("property") ?? "";
   const start = url.searchParams.get("start") ?? "";
   const end = url.searchParams.get("end") ?? "";
   const p = PROPERTIES.find((x) => x.slug === property);
   if (!p || !ISO_DATE.test(start) || !ISO_DATE.test(end) || end < start) return json({ error: "Invalid property or range" }, 400);
+  if (!canProperty(actor, property)) return json({ error: "You do not have access to this property" }, 403);
   if (differenceInCalendarDays(new Date(end), new Date(start)) > 120) return json({ error: "Range too long (max 120 days)" }, 400);
 
   const [rates, blocks, bookings] = await Promise.all([
@@ -340,7 +409,7 @@ async function getInventory(url: URL, sql: Sql): Promise<Response> {
   });
 }
 
-async function applyInventory(request: Request, sql: Sql): Promise<Response> {
+async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise<Response> {
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -357,6 +426,7 @@ async function applyInventory(request: Request, sql: Sql): Promise<Response> {
   if (!PROPERTIES.some((p) => p.slug === property) || !ISO_DATE.test(start) || !ISO_DATE.test(end) || end < start) {
     return json({ error: "Invalid property or range" }, 400);
   }
+  if (!canProperty(actor, property)) return json({ error: "You do not have access to this property" }, 403);
   if (!["block", "open", "none"].includes(action)) return json({ error: "Invalid action" }, 400);
   if (price !== null && (!Number.isFinite(price) || price <= 0)) return json({ error: "Enter a valid nightly price" }, 400);
   if (price === null && action === "none") return json({ error: "Nothing to apply" }, 400);
@@ -399,6 +469,7 @@ async function applyInventory(request: Request, sql: Sql): Promise<Response> {
       RETURNING date`;
     opened = deleted.length;
   }
+  await audit(actor, "UPDATE", "inventory", property, { start, end, price, action, reason: action === "block" ? reason : undefined, blocked, opened });
   return json({ success: true, nights: nights.length, priced: price !== null, blocked, opened });
 }
 
@@ -427,7 +498,7 @@ function shapeTx(r: TxRow) {
 }
 
 // "all" = every property plus company overhead; a slug = that property only.
-async function listTransactions(url: URL): Promise<Response> {
+async function listTransactions(url: URL, actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   const property = url.searchParams.get("property") ?? "all";
@@ -436,11 +507,14 @@ async function listTransactions(url: URL): Promise<Response> {
   if ((property !== "all" && property !== "hq" && !PROPERTIES.some((p) => p.slug === property)) || !ISO_DATE.test(start) || !ISO_DATE.test(end) || end < start) {
     return json({ error: "Invalid filter" }, 400);
   }
+  if (property === "hq" && !isAllProps(actor)) return json({ error: "Company overhead is restricted" }, 403);
+  if (property !== "all" && property !== "hq" && !canProperty(actor, property)) return json({ error: "You do not have access to this property" }, 403);
   await ensureExpensesSchema(pmsDb);
+  const slugs = allowedSlugs(actor);
   const rows = await pmsDb<TxRow[]>`
     SELECT ${pmsDb.unsafe(TX_COLUMNS)} FROM expenses
     WHERE expense_date >= ${start}::date AND expense_date <= ${end}::date
-      ${property === "all" ? pmsDb`` : property === "hq" ? pmsDb`AND property_id IS NULL` : pmsDb`AND property_id = ${property}`}
+      ${property === "all" ? (isAllProps(actor) ? pmsDb`` : pmsDb`AND property_id = ANY(${slugs})`) : property === "hq" ? pmsDb`AND property_id IS NULL` : pmsDb`AND property_id = ${property}`}
     ORDER BY expense_date DESC, "time" DESC, created_at DESC
     LIMIT 5000`;
   return json({ transactions: rows.map(shapeTx) });
@@ -457,7 +531,7 @@ function cleanTags(input: unknown): string[] {
   return out;
 }
 
-async function createTransaction(request: Request): Promise<Response> {
+async function createTransaction(request: Request, actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   let body: Record<string, unknown>;
@@ -480,6 +554,7 @@ async function createTransaction(request: Request): Promise<Response> {
 
   if (!(TX_TYPES as readonly string[]).includes(type)) return json({ error: "Invalid type" }, 400);
   if (property !== "hq" && !PROPERTIES.some((p) => p.slug === property)) return json({ error: "Select a property or Company Overhead" }, 400);
+  if (property === "hq" ? !isAllProps(actor) : !canProperty(actor, property)) return json({ error: "You do not have access to this property" }, 403);
   if (!(PAYMENT_MODES as readonly string[]).includes(paymentMode)) return json({ error: "Select a payment mode" }, 400);
   if (!Number.isFinite(amount) || amount <= 0 || amount > 99_999_999.99) return json({ error: "Enter a valid amount" }, 400);
   if (!ISO_DATE.test(date)) return json({ error: "Enter a valid date" }, 400);
@@ -498,17 +573,22 @@ async function createTransaction(request: Request): Promise<Response> {
     VALUES (${type}, ${property === "hq" ? null : property}, ${category}, ${Math.round(amount * 100) / 100}, ${paymentMode},
             ${type === "transfer" ? transferTo : null}, ${note}, ${date}, COALESCE(${time}::time, CURRENT_TIME), ${receipt}, ${tags})
     RETURNING id`;
+  await audit(actor, "CREATE", "expense", row?.id ?? "unknown", { type, property, category, amount, paymentMode, note });
   return json({ success: true, id: row?.id });
 }
 
-async function deleteTransaction(url: URL): Promise<Response> {
+async function deleteTransaction(url: URL, actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   const id = url.searchParams.get("id") ?? "";
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
   await ensureExpensesSchema(pmsDb);
-  const deleted = await pmsDb`DELETE FROM expenses WHERE id = ${id}::uuid RETURNING id`;
-  return deleted.length ? json({ success: true }) : json({ error: "Transaction not found" }, 404);
+  const [existing] = await pmsDb<{ property_id: string | null; category: string; amount: string; type: string }[]>`SELECT property_id, category, amount, type FROM expenses WHERE id = ${id}::uuid`;
+  if (!existing) return json({ error: "Transaction not found" }, 404);
+  if (existing.property_id === null ? !isAllProps(actor) : !canProperty(actor, existing.property_id)) return json({ error: "You do not have access to this transaction" }, 403);
+  await pmsDb`DELETE FROM expenses WHERE id = ${id}::uuid`;
+  await audit(actor, "DELETE", "expense", id, { property: existing.property_id ?? "hq", category: existing.category, amount: Number(existing.amount), type: existing.type });
+  return json({ success: true });
 }
 
 async function listCategories(): Promise<Response> {
@@ -519,7 +599,7 @@ async function listCategories(): Promise<Response> {
   return json({ categories: rows });
 }
 
-async function createCategory(request: Request): Promise<Response> {
+async function createCategory(request: Request, actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   let body: Record<string, unknown>;
@@ -541,29 +621,33 @@ async function createCategory(request: Request): Promise<Response> {
     INSERT INTO pms_categories (name, type, icon, color, is_default) VALUES (${name}, ${type}, ${icon}, ${color}, false)
     ON CONFLICT DO NOTHING RETURNING id`;
   if (!row) return json({ error: `"${name}" already exists in ${type} categories` }, 409);
+  await audit(actor, "CREATE", "category", row.id, { name, type, icon, color });
   return json({ success: true, id: row.id });
 }
 
-async function deleteCategory(url: URL): Promise<Response> {
+async function deleteCategory(url: URL, actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   const id = url.searchParams.get("id") ?? "";
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
   await ensureExpensesSchema(pmsDb);
   // Defaults are protected; entries already logged keep the category name.
-  const deleted = await pmsDb`DELETE FROM pms_categories WHERE id = ${id}::uuid AND is_default = false RETURNING id`;
-  return deleted.length ? json({ success: true }) : json({ error: "Only custom categories can be deleted" }, 400);
+  const deleted = await pmsDb<{ name: string; type: string }[]>`DELETE FROM pms_categories WHERE id = ${id}::uuid AND is_default = false RETURNING name, type`;
+  if (!deleted.length) return json({ error: "Only custom categories can be deleted" }, 400);
+  await audit(actor, "DELETE", "category", id, { name: deleted[0]!.name, type: deleted[0]!.type });
+  return json({ success: true });
 }
 
-async function listBudgets(): Promise<Response> {
+async function listBudgets(actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   await ensureExpensesSchema(pmsDb);
   const rows = await pmsDb<{ property_id: string; period: string; amount: string }[]>`SELECT property_id, period, amount FROM pms_budgets`;
-  return json({ budgets: rows.map((r) => ({ property: r.property_id, period: r.period, amount: Number(r.amount) })) });
+  const visible = rows.filter((r) => (r.property_id === "all" ? isAllProps(actor) : canProperty(actor, r.property_id)));
+  return json({ budgets: visible.map((r) => ({ property: r.property_id, period: r.period, amount: Number(r.amount) })) });
 }
 
-async function saveBudget(request: Request): Promise<Response> {
+async function saveBudget(request: Request, actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   let body: Record<string, unknown>;
@@ -577,6 +661,7 @@ async function saveBudget(request: Request): Promise<Response> {
   const amount = num(body["amount"], NaN);
   if (property !== "all" && !PROPERTIES.some((p) => p.slug === property)) return json({ error: "Unknown property" }, 400);
   if (period !== "monthly" && period !== "annual") return json({ error: "Invalid period" }, 400);
+  if (property === "all" ? !isAllProps(actor) : !canProperty(actor, property)) return json({ error: "You do not have access to this budget" }, 403);
   if (!Number.isFinite(amount) || amount < 0 || amount > 9_999_999_999) return json({ error: "Enter a valid budget" }, 400);
   await ensureExpensesSchema(pmsDb);
   if (amount === 0) {
@@ -586,6 +671,7 @@ async function saveBudget(request: Request): Promise<Response> {
       INSERT INTO pms_budgets (property_id, period, amount) VALUES (${property}, ${period}, ${amount})
       ON CONFLICT (property_id, period) DO UPDATE SET amount = EXCLUDED.amount, updated_at = now()`;
   }
+  await audit(actor, "UPDATE", "budget", `${property}:${period}`, { property, period, amount });
   return json({ success: true });
 }
 
@@ -595,6 +681,7 @@ type ItemRow = { id: string; date: string | null; item_type: string; room_name: 
 const NUMERIC_FIELDS = [
   "room_charges", "food_charges", "extra_charges", "discount_value", "discount_amount", "gst_rate", "taxable_amount", "cgst_amount",
   "sgst_amount", "igst_amount", "total_tax", "grand_total", "advance_paid", "balance_due", "security_deposit",
+  "commission_value", "commission_amount", "net_payout",
 ] as const;
 
 function shapeInvoice(r: InvoiceRow) {
@@ -612,45 +699,51 @@ const INVOICE_COLUMNS = `id, invoice_number, invoice_date::text AS invoice_date,
   total_guests, total_rooms, room_charges, food_charges, extra_charges, discount_type, discount_value, discount_amount, discount_reason,
   is_gst_enabled, gst_rate, taxable_amount, cgst_amount, sgst_amount, igst_amount, total_tax, grand_total, advance_paid, balance_due,
   payment_method, payment_status, security_deposit, deposit_refunded, notes, is_finalized, created_at, state_code,
-  payment_date::text AS payment_date, deposit_refund_date::text AS deposit_refund_date`;
+  payment_date::text AS payment_date, deposit_refund_date::text AS deposit_refund_date,
+  agent_name, commission_type, commission_value, commission_amount, net_payout`;
 
 type PmsSql = NonNullable<ReturnType<typeof getPmsDb>>;
 
-async function loadInvoice(pmsDb: PmsSql, where: { id?: string; bookingId?: string }) {
+async function loadInvoice(pmsDb: PmsSql, where: { id?: string; bookingId?: string }, actor: Actor) {
   const rows = where.id
     ? await pmsDb<InvoiceRow[]>`SELECT ${pmsDb.unsafe(INVOICE_COLUMNS)} FROM pms_invoices WHERE id = ${where.id}::uuid`
     : await pmsDb<InvoiceRow[]>`SELECT ${pmsDb.unsafe(INVOICE_COLUMNS)} FROM pms_invoices WHERE booking_id = ${where.bookingId ?? ""}`;
   const row = rows[0];
-  if (!row) return null;
+  if (!row || !canProperty(actor, String(row["property_id"]))) return null;
   const items = await pmsDb<ItemRow[]>`
     SELECT id, date::text AS date, item_type, room_name, description, quantity, rate, amount FROM pms_invoice_items
     WHERE invoice_id = ${row.id}::uuid ORDER BY date NULLS LAST, item_type, id`;
   return { ...shapeInvoice(row), items: items.map(shapeItem) };
 }
 
-async function listInvoices(url: URL): Promise<Response> {
+async function listInvoices(url: URL, actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   await ensureInvoicesSchema(pmsDb);
   const mode = url.searchParams.get("mode");
   if (mode === "ids") {
     const rows = await pmsDb<{ id: string; booking_id: string; invoice_number: string; is_finalized: boolean }[]>`
-      SELECT id, booking_id, invoice_number, is_finalized FROM pms_invoices WHERE booking_id IS NOT NULL`;
+      SELECT id, booking_id, invoice_number, is_finalized FROM pms_invoices WHERE booking_id IS NOT NULL
+        ${isAllProps(actor) ? pmsDb`` : pmsDb`AND property_id = ANY(${allowedSlugs(actor)})`}`;
     return json({ invoices: Object.fromEntries(rows.map((r) => [r.booking_id, { id: r.id, number: r.invoice_number, finalized: r.is_finalized }])) });
   }
   const id = url.searchParams.get("id");
   const bookingId = url.searchParams.get("bookingId");
   if (id || bookingId) {
     if (id && !/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
-    const invoice = await loadInvoice(pmsDb, id ? { id } : { bookingId: bookingId! });
+    const invoice = await loadInvoice(pmsDb, id ? { id } : { bookingId: bookingId! }, actor);
     return invoice ? json({ invoice }) : json({ error: "Invoice not found" }, 404);
   }
+  // The bookings screen may look up one reservation's invoice, but browsing
+  // the register is for people with the Invoices tab.
+  if (!canAnyTab(actor, ["invoices"])) return json({ error: "You do not have permission to do this" }, 403);
   const start = url.searchParams.get("start") ?? "";
   const end = url.searchParams.get("end") ?? "";
   if (!ISO_DATE.test(start) || !ISO_DATE.test(end) || end < start) return json({ error: "Invalid range" }, 400);
   const rows = await pmsDb<InvoiceRow[]>`
     SELECT ${pmsDb.unsafe(INVOICE_COLUMNS)} FROM pms_invoices
     WHERE invoice_date >= ${start}::date AND invoice_date <= ${end}::date
+      ${isAllProps(actor) ? pmsDb`` : pmsDb`AND property_id = ANY(${allowedSlugs(actor)})`}
     ORDER BY invoice_date DESC, created_at DESC LIMIT 5000`;
   return json({ invoices: rows.map(shapeInvoice) });
 }
@@ -747,8 +840,12 @@ async function parseInvoice(body: Record<string, unknown>): Promise<ParsedInvoic
   const refundDate = str(body["depositRefundDate"]);
   if ((paymentDate && !ISO_DATE.test(paymentDate)) || (refundDate && !ISO_DATE.test(refundDate))) return { error: "Invalid payment or refund date" };
 
+  const commissionType = str(body["commissionType"]) === "fixed" ? "fixed" : str(body["commissionType"]) === "percentage" ? "percentage" : null;
+  const commissionValue = Math.max(0, num(body["commissionValue"]));
+  if (commissionType === "percentage" && commissionValue > 100) return { error: "Commission cannot exceed 100%" };
   const t = computeInvoice({ items: items as ItemInput[], discountType, discountValue, gstEnabled, gstRate, stateCode, advancePaid: advance });
   if (t.grandTotal <= 0 || t.grandTotal > 99_999_999) return { error: "The invoice total must be greater than zero" };
+  const commissionAmount = commissionType === "percentage" ? Math.round(t.taxable * commissionValue) / 100 : commissionType === "fixed" ? Math.min(commissionValue, t.taxable) : 0;
 
   return {
     finalize,
@@ -795,6 +892,11 @@ async function parseInvoice(body: Record<string, unknown>): Promise<ParsedInvoic
       state_code: stateCode,
       payment_date: paymentDate || null,
       deposit_refund_date: refundDate || null,
+      agent_name: str(body["agentName"]).slice(0, 150) || null,
+      commission_type: commissionType,
+      commission_value: commissionType ? commissionValue : 0,
+      commission_amount: commissionAmount,
+      net_payout: Math.round((t.taxable - commissionAmount) * 100) / 100,
     },
   };
 }
@@ -804,10 +906,10 @@ const FIELD_ORDER = [
   "check_in", "check_out", "total_nights", "total_guests", "total_rooms", "room_charges", "food_charges", "extra_charges", "discount_type",
   "discount_value", "discount_amount", "discount_reason", "is_gst_enabled", "gst_rate", "taxable_amount", "cgst_amount", "sgst_amount", "igst_amount",
   "total_tax", "grand_total", "advance_paid", "balance_due", "payment_method", "payment_status", "security_deposit", "deposit_refunded", "notes",
-  "state_code", "payment_date", "deposit_refund_date",
+  "state_code", "payment_date", "deposit_refund_date", "agent_name", "commission_type", "commission_value", "commission_amount", "net_payout",
 ] as const;
 
-async function saveInvoice(request: Request, url: URL): Promise<Response> {
+async function saveInvoice(request: Request, url: URL, actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   let body: Record<string, unknown>;
@@ -818,10 +920,15 @@ async function saveInvoice(request: Request, url: URL): Promise<Response> {
   }
   const parsed = await parseInvoice(body);
   if ("error" in parsed) return json({ error: parsed.error }, 400);
+  if (!canProperty(actor, String(parsed.fields["property_id"]))) return json({ error: "You do not have access to this property" }, 403);
   await ensureInvoicesSchema(pmsDb);
 
   const editId = url.searchParams.get("id");
   if (editId && !/^[0-9a-f-]{36}$/i.test(editId)) return json({ error: "Invalid id" }, 400);
+  if (editId) {
+    const [existing] = await pmsDb<{ property_id: string }[]>`SELECT property_id FROM pms_invoices WHERE id = ${editId}::uuid`;
+    if (existing && !canProperty(actor, existing.property_id)) return json({ error: "You do not have access to this invoice" }, 403);
+  }
 
   if (parsed.bookingId) {
     const dup = await pmsDb<{ id: string; invoice_number: string }[]>`SELECT id, invoice_number FROM pms_invoices WHERE booking_id = ${parsed.bookingId}`;
@@ -854,6 +961,16 @@ async function saveInvoice(request: Request, url: URL): Promise<Response> {
       return { status: 200 as const, id: id!, number };
     });
     if (result.status !== 200) return json({ error: result.error }, result.status);
+    await audit(actor, parsed.finalize ? "FINALIZE" : editId ? "UPDATE" : "CREATE", "invoice", result.id, {
+      number: result.number,
+      property: parsed.fields["property_id"],
+      guest: parsed.fields["guest_name"],
+      grandTotal: parsed.fields["grand_total"],
+      gst: parsed.fields["is_gst_enabled"] ? parsed.fields["gst_rate"] : 0,
+      discount: parsed.fields["discount_amount"],
+      commission: parsed.fields["commission_amount"],
+      lines: parsed.items.length,
+    });
     return json({ success: true, id: result.id, invoiceNumber: result.number, finalized: parsed.finalize });
   } catch (err) {
     const e = err as { code?: string };
@@ -862,14 +979,18 @@ async function saveInvoice(request: Request, url: URL): Promise<Response> {
   }
 }
 
-async function deleteInvoice(url: URL): Promise<Response> {
+async function deleteInvoice(url: URL, actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   const id = url.searchParams.get("id") ?? "";
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
   await ensureInvoicesSchema(pmsDb);
+  const [existing] = await pmsDb<{ property_id: string; invoice_number: string }[]>`SELECT property_id, invoice_number FROM pms_invoices WHERE id = ${id}::uuid`;
+  if (existing && !canProperty(actor, existing.property_id)) return json({ error: "You do not have access to this invoice" }, 403);
   const deleted = await pmsDb`DELETE FROM pms_invoices WHERE id = ${id}::uuid AND is_finalized = false RETURNING id`;
-  return deleted.length ? json({ success: true }) : json({ error: "Only draft invoices can be deleted" }, 409);
+  if (!deleted.length) return json({ error: "Only draft invoices can be deleted" }, 409);
+  await audit(actor, "DELETE", "invoice", id, { number: existing?.invoice_number, property: existing?.property_id });
+  return json({ success: true });
 }
 
 async function getSettings(): Promise<Response> {
@@ -880,7 +1001,7 @@ async function getSettings(): Promise<Response> {
   return json({ settings: Object.fromEntries(rows.map((r) => [r.key, r.value])) });
 }
 
-async function saveSetting(request: Request): Promise<Response> {
+async function saveSetting(request: Request, actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   let body: Record<string, unknown>;
@@ -894,13 +1015,14 @@ async function saveSetting(request: Request): Promise<Response> {
   if (key !== "theme" || !["system", "dark", "light"].includes(value)) return json({ error: "Unsupported setting" }, 400);
   await ensureInvoicesSchema(pmsDb);
   await pmsDb`INSERT INTO pms_settings (key, value) VALUES (${key}, ${value}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`;
+  await audit(actor, "UPDATE", "setting", key, { value });
   return json({ success: true });
 }
 
 // Offline / walk-in voucher: one atomic write to the web database. The
 // reservation (portal_bookings) and its nights (blocked_dates) commit together
 // or not at all, so the website can never see a booking without its lock.
-async function createVoucher(request: Request): Promise<Response> {
+async function createVoucher(request: Request, actor: Actor): Promise<Response> {
   const webDb = getWebDb();
   if (!webDb) return json({ error: "Database not configured" }, 503);
   let body: Record<string, unknown>;
@@ -921,8 +1043,15 @@ async function createVoucher(request: Request): Promise<Response> {
   const advance = Math.max(0, num(body["advance"]));
   const mode = str(body["paymentMode"]);
   const rooms = Math.min(maxRoomsForProperty(propertySlug), Math.max(1, Math.floor(num(body["rooms"], 1))));
+  const source = str(body["source"]) || "Offline / Walk-in";
+  const channel = VOUCHER_SOURCES[source];
+  const agentName = str(body["agentName"]).slice(0, 150);
+  const commissionType = str(body["commissionType"]) === "fixed" ? "fixed" : "percentage";
+  const commissionValue = Math.max(0, num(body["commissionValue"]));
 
   if (!PROPERTIES.some((p) => p.slug === propertySlug)) return json({ error: "Select a property" }, 400);
+  if (!canProperty(actor, propertySlug)) return json({ error: "You do not have access to this property" }, 403);
+  if (!channel) return json({ error: "Invalid booking source" }, 400);
   if (!guestName) return json({ error: "Guest name is required" }, 400);
   if (!mobile) return json({ error: "Mobile number is required" }, 400);
   if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut)) return json({ error: "Enter valid dates" }, 400);
@@ -933,7 +1062,24 @@ async function createVoucher(request: Request): Promise<Response> {
   if (mode && !(PAYMENT_METHODS as readonly string[]).includes(mode)) return json({ error: "Invalid payment mode" }, 400);
 
   const paymentStatus = advance <= 0 ? "pending" : advance >= tariff ? "paid" : "partial";
-  const notes = ["Offline voucher", roomName ? `Room/Villa: ${roomName}` : "", mode ? `Payment mode: ${mode}` : ""].filter(Boolean).join(" · ");
+  // Commission only applies to agent / OTA sources. A percentage is stored as
+  // is; a fixed amount is stored as its equivalent percentage so the partner
+  // portal, which reads commission_pct, shows the same payout.
+  const hasCommission = COMMISSION_SOURCES.has(source) && commissionValue > 0;
+  if (hasCommission && commissionType === "percentage" && commissionValue > 100) return json({ error: "Commission cannot exceed 100%" }, 400);
+  if (hasCommission && commissionType === "fixed" && commissionValue > tariff) return json({ error: "Commission cannot exceed the total tariff" }, 400);
+  const commissionAmount = !hasCommission ? 0 : commissionType === "percentage" ? Math.round(tariff * commissionValue) / 100 : commissionValue;
+  const commissionPct = !hasCommission || tariff <= 0 ? 0 : commissionType === "percentage" ? commissionValue : Math.round((commissionValue / tariff) * 10000) / 100;
+  const notes = [
+    "Offline voucher",
+    roomName ? `Room/Villa: ${roomName}` : "",
+    mode ? `Payment mode: ${mode}` : "",
+    `Source: ${source}`,
+    hasCommission && agentName ? `Agent: ${agentName}` : "",
+    hasCommission ? `Commission: ${commissionType === "percentage" ? `${commissionValue}%` : `Rs ${commissionValue}`} (Rs ${commissionAmount})` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const outcome = await webDb.begin(async (tx) => {
     const conflict = await findStayConflict(tx as unknown as typeof webDb, propertySlug, checkIn, checkOut, rooms);
@@ -944,7 +1090,7 @@ async function createVoucher(request: Request): Promise<Response> {
          booking_amount, advance_amount, payment_status, channel, notes, status, commission_pct, commission_amount)
       VALUES
         (${propertySlug}, ${guestName}, ${mobile}, ${email}, ${checkIn}, ${checkOut}, ${nights}, ${guests}, ${guests}, 0, ${rooms},
-         ${tariff}, ${advance}, ${paymentStatus}, 'walk_in', ${notes}, 'confirmed', 0, 0)
+         ${tariff}, ${advance}, ${paymentStatus}, ${channel}, ${notes}, 'confirmed', ${commissionPct}, ${commissionAmount})
       RETURNING id`;
     await syncManualBlocks(tx as unknown as typeof webDb, propertySlug, row!.id, checkIn, checkOut, true);
     return { id: row!.id } as const;
@@ -953,6 +1099,17 @@ async function createVoucher(request: Request): Promise<Response> {
 
   const property = PROPERTIES.find((p) => p.slug === propertySlug);
   void notifyNewBooking(propertySlug, property?.name ?? propertySlug, guestName, tariff, checkIn, nights);
+  await audit(actor, "CREATE", "voucher", outcome.id, {
+    property: propertySlug,
+    guest: guestName,
+    checkIn,
+    checkOut,
+    guests,
+    tariff,
+    advance,
+    source,
+    ...(hasCommission ? { agent: agentName || null, commissionType, commissionValue, commissionAmount, netPayout: Math.round((tariff - commissionAmount) * 100) / 100 } : {}),
+  });
   // The reservation is already committed at this point; a failed re-read must
   // not turn a successful save into an error (a retry would only hit a conflict).
   let booking: PmsBooking | null = null;
@@ -970,9 +1127,9 @@ async function findBooking(id: string): Promise<PmsBooking | null> {
   return (await listBookings(webDb)).find((b) => b.id === id) ?? null;
 }
 
-async function voucherPdf(url: URL): Promise<Response> {
+async function voucherPdf(url: URL, actor: Actor): Promise<Response> {
   const booking = await findBooking(url.searchParams.get("booking") ?? "");
-  if (!booking) return json({ error: "Booking not found" }, 404);
+  if (!booking || !canProperty(actor, booking.property_id)) return json({ error: "Booking not found" }, 404);
   const bytes = await buildStayVoucherPdf(booking);
   return new Response(Buffer.from(bytes), {
     status: 200,
@@ -989,7 +1146,7 @@ const esc = (v: string) => v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 // Emails the guest their Stay Voucher as a PDF attachment, through the same
 // Resend account and sender the booking confirmations already use.
-async function emailVoucher(request: Request): Promise<Response> {
+async function emailVoucher(request: Request, actor: Actor): Promise<Response> {
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -997,7 +1154,7 @@ async function emailVoucher(request: Request): Promise<Response> {
     return json({ error: "Invalid request" }, 400);
   }
   const booking = await findBooking(str(body["bookingId"]));
-  if (!booking) return json({ error: "Booking not found" }, 404);
+  if (!booking || !canProperty(actor, booking.property_id)) return json({ error: "Booking not found" }, 404);
   const to = str(body["to"]) || booking.guest_email || "";
   if (!EMAIL_RE.test(to)) return json({ error: "Enter a valid email address" }, 400);
   const apiKey = process.env["RESEND_API_KEY"] ?? "";
@@ -1031,7 +1188,155 @@ async function emailVoucher(request: Request): Promise<Response> {
     console.error("[pms] voucher email failed:", res.status, await res.text().catch(() => ""));
     return json({ error: "The email service rejected the message. Check the address and try again." }, 502);
   }
+  await audit(actor, "UPDATE", "voucher", booking.id, { emailedTo: to });
   return json({ success: true, to });
+}
+
+// ---- User management and the activity log (admins only) ----
+
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function parseAccess(body: Record<string, unknown>): { props: string[]; tabs: string[] } | { error: string } {
+  const rawProps = Array.isArray(body["assignedProperties"]) ? (body["assignedProperties"] as unknown[]).map((x) => str(x)) : [];
+  const rawTabs = Array.isArray(body["allowedTabs"]) ? (body["allowedTabs"] as unknown[]).map((x) => str(x)) : [];
+  const props = rawProps.includes("all") ? ["all"] : [...new Set(rawProps.filter((sl) => PROPERTIES.some((p) => p.slug === sl)))];
+  const tabs = [...new Set(rawTabs.filter((t) => (TABS as readonly string[]).includes(t)))];
+  if (props.length === 0) return { error: "Choose at least one property, or All Properties" };
+  if (tabs.length === 0) return { error: "Choose at least one tab" };
+  return { props, tabs };
+}
+
+async function usersApi(request: Request, url: URL, actor: Actor): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  await ensureAccessSchema(pmsDb);
+  if (request.method === "GET") return json({ users: await listUsers() });
+
+  const id = url.searchParams.get("id") ?? "";
+  if (request.method === "DELETE") {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
+    if (id === actor.id) return json({ error: "You cannot delete your own account" }, 400);
+    const [gone] = await pmsDb<{ name: string }[]>`DELETE FROM pms_users WHERE id = ${id}::uuid RETURNING name`;
+    if (!gone) return json({ error: "User not found" }, 404);
+    invalidateUserCache(id);
+    await audit(actor, "DELETE", "user", id, { name: gone.name });
+    return json({ success: true });
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const isCreate = request.method === "POST";
+  if (!isCreate && !/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
+
+  const name = str(body["name"]).slice(0, 100);
+  const email = str(body["email"]).slice(0, 150) || null;
+  const phone = str(body["phone"]).slice(0, 30) || null;
+  const role = str(body["role"]) || "receptionist";
+  const pin = str(body["pin"]);
+  if (!name) return json({ error: "Name is required" }, 400);
+  if (email && !EMAIL_SHAPE.test(email)) return json({ error: "Enter a valid email address" }, 400);
+  if (phone && phone.replace(/\D/g, "").length < 10) return json({ error: "Enter a valid mobile number" }, 400);
+  if (!(ROLES as readonly string[]).includes(role)) return json({ error: "Invalid role" }, 400);
+  if ((isCreate || pin) && !PIN_RE.test(pin)) return json({ error: "PIN must be 4 to 6 digits" }, 400);
+  const access = parseAccess(body);
+  if ("error" in access) return json({ error: access.error }, 400);
+  const active = body["isActive"] === false ? false : true;
+
+  if (!isCreate && id === actor.id && (!active || role !== actor.role || !access.tabs.includes("settings"))) {
+    return json({ error: "You cannot deactivate or reduce your own access" }, 400);
+  }
+
+  try {
+    if (isCreate) {
+      const [row] = await pmsDb<{ id: string }[]>`
+        INSERT INTO pms_users (name, email, phone, pin_hash, role, assigned_properties, allowed_tabs, is_active)
+        VALUES (${name}, ${email}, ${phone}, ${hashPin(pin)}, ${role}, ${access.props}, ${access.tabs}, ${active})
+        RETURNING id`;
+      await audit(actor, "CREATE", "user", row!.id, { name, role, properties: access.props, tabs: access.tabs });
+      return json({ success: true, id: row!.id });
+    }
+    const [before] = await pmsDb<{ name: string; role: string; assigned_properties: string[]; allowed_tabs: string[]; is_active: boolean }[]>`
+      SELECT name, role, assigned_properties, allowed_tabs, is_active FROM pms_users WHERE id = ${id}::uuid`;
+    if (!before) return json({ error: "User not found" }, 404);
+    await pmsDb`
+      UPDATE pms_users SET name = ${name}, email = ${email}, phone = ${phone}, role = ${role}, assigned_properties = ${access.props},
+        allowed_tabs = ${access.tabs}, is_active = ${active}${pin ? pmsDb`, pin_hash = ${hashPin(pin)}, failed_attempts = 0, locked_until = NULL` : pmsDb``}
+      WHERE id = ${id}::uuid`;
+    invalidateUserCache(id);
+    await audit(actor, "UPDATE", "user", id, {
+      before: { name: before.name, role: before.role, properties: before.assigned_properties, tabs: before.allowed_tabs, active: before.is_active },
+      after: { name, role, properties: access.props, tabs: access.tabs, active },
+      pinReset: Boolean(pin),
+    });
+    return json({ success: true });
+  } catch (err) {
+    if ((err as { code?: string }).code === "23505") return json({ error: "A user with this name, email or phone already exists" }, 409);
+    throw err;
+  }
+}
+
+async function auditApi(url: URL): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  await ensureAccessSchema(pmsDb);
+  const limit = Math.min(200, Math.max(1, Math.floor(num(Number(url.searchParams.get("limit")), 50))));
+  const offset = Math.max(0, Math.floor(num(Number(url.searchParams.get("offset")), 0)));
+  const userName = url.searchParams.get("user") ?? "";
+  const action = url.searchParams.get("action") ?? "";
+  const entity = url.searchParams.get("entity") ?? "";
+  const where = pmsDb`
+    WHERE true
+      ${userName ? pmsDb`AND user_name = ${userName}` : pmsDb``}
+      ${action ? pmsDb`AND action = ${action}` : pmsDb``}
+      ${entity ? pmsDb`AND entity_type = ${entity}` : pmsDb``}`;
+  const [count] = await pmsDb<{ n: number }[]>`SELECT count(*)::int AS n FROM pms_audit_logs ${where}`;
+  const rows = await pmsDb<{ id: string; user_id: string | null; user_name: string; action: string; entity_type: string; entity_id: string; details: unknown; created_at: Date }[]>`
+    SELECT id, user_id, user_name, action, entity_type, entity_id, details, created_at FROM pms_audit_logs ${where}
+    ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+  const names = await pmsDb<{ user_name: string }[]>`SELECT DISTINCT user_name FROM pms_audit_logs ORDER BY user_name`;
+  return json({ logs: rows.map((r) => ({ ...r, created_at: r.created_at.toISOString() })), total: count?.n ?? 0, users: names.map((n) => n.user_name) });
+}
+
+// Which tab(s) a route needs. Any one of the listed tabs is enough.
+function requiredTabs(path: string, method: string): Tab[] | "admin" | "any" | null {
+  // The restaurant POS is part of daily front-of-house operations, so it
+  // follows the Bookings privilege rather than adding another permission tab.
+  if (path.startsWith("pos/")) return ["bookings"];
+  switch (path) {
+    case "settings":
+      return "any";
+    case "system":
+      return ["settings"];
+    case "users":
+    case "audit":
+      return "admin";
+    case "bookings":
+      return method === "GET" ? ["dashboard", "bookings", "vouchers", "invoices"] : ["bookings"];
+    case "availability":
+    case "inventory":
+      return method === "GET" ? ["bookings", "vouchers"] : ["bookings"];
+    case "expenses":
+    case "categories":
+    case "budgets":
+      return ["expenses"];
+    case "invoices":
+      return method === "GET" ? ["invoices", "bookings"] : ["invoices"];
+    case "vouchers":
+      return ["vouchers"];
+    case "vouchers/pdf":
+    case "vouchers/email":
+      return ["vouchers", "bookings"];
+    default:
+      return null;
+  }
+}
+
+function sessionInfo(actor: Actor) {
+  return { id: actor.id, name: actor.name, role: actor.role, props: actor.props, tabs: actor.tabs, isOwner: actor.isOwner };
 }
 
 export async function handlePmsApi(request: Request): Promise<Response> {
@@ -1042,38 +1347,55 @@ export async function handlePmsApi(request: Request): Promise<Response> {
   if (path === "logout" && request.method === "POST") {
     return json({ success: true }, 200, { "Set-Cookie": clearPmsSessionCookie(request) });
   }
-  const authed = await hasPmsSession(request);
-  if (path === "session") return authed ? json({ ok: true }) : json({ error: "Not authenticated" }, 401);
-  if (!authed) return json({ error: "Not authenticated" }, 401);
+  let actor: Actor | null;
+  try {
+    actor = await resolveActor(request);
+  } catch (err) {
+    console.error("[pms] session:", err instanceof Error ? err.message : err);
+    actor = null;
+  }
+  if (path === "session") return actor ? json({ ok: true, user: sessionInfo(actor) }) : json({ error: "Not authenticated" }, 401);
+  if (!actor) return json({ error: "Not authenticated" }, 401);
+
+  const need = requiredTabs(path, request.method);
+  if (need === null) return json({ error: "Not found" }, 404);
+  if (need === "admin" ? !isAdmin(actor) : need !== "any" && !canAnyTab(actor, need)) return json({ error: "You do not have permission to do this" }, 403);
 
   const sql = getWebDb();
   try {
+    if (path === "users") return await usersApi(request, url, actor);
+    if (path === "audit") return await auditApi(url);
     if (path === "system" && request.method === "GET") {
       const [web, pms] = await Promise.all([pingDb(sql), pingDb(getPmsDb())]);
       return json({ web, pms });
     }
-    if (path === "invoices" && request.method === "GET") return await listInvoices(url);
-    if (path === "invoices" && (request.method === "POST" || request.method === "PUT")) return await saveInvoice(request, url);
-    if (path === "invoices" && request.method === "DELETE") return await deleteInvoice(url);
-    if (path === "vouchers/pdf" && request.method === "GET") return await voucherPdf(url);
-    if (path === "vouchers/email" && request.method === "POST") return await emailVoucher(request);
-    if (path === "vouchers" && request.method === "POST") return await createVoucher(request);
+    if (path.startsWith("pos/")) return await handlePosApi(path.slice(4), request, url, actor);
+    if (path === "invoices" && request.method === "GET") return await listInvoices(url, actor);
+    if (path === "invoices" && (request.method === "POST" || request.method === "PUT")) return await saveInvoice(request, url, actor);
+    if (path === "invoices" && request.method === "DELETE") return await deleteInvoice(url, actor);
+    if (path === "vouchers/pdf" && request.method === "GET") return await voucherPdf(url, actor);
+    if (path === "vouchers/email" && request.method === "POST") return await emailVoucher(request, actor);
+    if (path === "vouchers" && request.method === "POST") return await createVoucher(request, actor);
     if (path === "settings" && request.method === "GET") return await getSettings();
-    if (path === "settings" && request.method === "POST") return await saveSetting(request);
-    if (path === "expenses" && request.method === "GET") return await listTransactions(url);
-    if (path === "expenses" && request.method === "POST") return await createTransaction(request);
-    if (path === "expenses" && request.method === "DELETE") return await deleteTransaction(url);
+    if (path === "settings" && request.method === "POST") return await saveSetting(request, actor);
+    if (path === "expenses" && request.method === "GET") return await listTransactions(url, actor);
+    if (path === "expenses" && request.method === "POST") return await createTransaction(request, actor);
+    if (path === "expenses" && request.method === "DELETE") return await deleteTransaction(url, actor);
     if (path === "categories" && request.method === "GET") return await listCategories();
-    if (path === "categories" && request.method === "POST") return await createCategory(request);
-    if (path === "categories" && request.method === "DELETE") return await deleteCategory(url);
-    if (path === "budgets" && request.method === "GET") return await listBudgets();
-    if (path === "budgets" && request.method === "POST") return await saveBudget(request);
+    if (path === "categories" && request.method === "POST") return await createCategory(request, actor);
+    if (path === "categories" && request.method === "DELETE") return await deleteCategory(url, actor);
+    if (path === "budgets" && request.method === "GET") return await listBudgets(actor);
+    if (path === "budgets" && request.method === "POST") return await saveBudget(request, actor);
     if (!sql) return json({ error: "Database not configured" }, 500);
-    if (path === "bookings" && request.method === "GET") return json({ bookings: await listBookings(sql) });
-    if (path === "bookings" && request.method === "POST") return await createBooking(request, sql);
-    if (path === "availability" && request.method === "GET") return await availability(url, sql);
-    if (path === "inventory" && request.method === "GET") return await getInventory(url, sql);
-    if (path === "inventory" && request.method === "POST") return await applyInventory(request, sql);
+    if (path === "bookings" && request.method === "GET") {
+      const all = await listBookings(sql);
+      const slugs = new Set(allowedSlugs(actor));
+      return json({ bookings: isAllProps(actor) ? all : all.filter((b) => slugs.has(b.property_id)) });
+    }
+    if (path === "bookings" && request.method === "POST") return await createBooking(request, sql, actor);
+    if (path === "availability" && request.method === "GET") return await availability(url, sql, actor);
+    if (path === "inventory" && request.method === "GET") return await getInventory(url, sql, actor);
+    if (path === "inventory" && request.method === "POST") return await applyInventory(request, sql, actor);
     return json({ error: "Not found" }, 404);
   } catch (err) {
     console.error("[pms]", path, err instanceof Error ? err.message : err);

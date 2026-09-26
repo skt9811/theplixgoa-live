@@ -39,6 +39,44 @@ export type PmsBooking = {
   created_at: string;
   subtotal: number | null;
   taxes: number | null;
+  commission_pct: number;
+  commission_amount: number;
+  agent_name: string | null;
+};
+
+export type PmsUser = { id: string | null; name: string; role: string; props: string[]; tabs: string[]; isOwner: boolean };
+
+export type PmsTab = "dashboard" | "bookings" | "expenses" | "invoices" | "vouchers" | "settings";
+export const TAB_LABELS: Record<PmsTab, string> = {
+  dashboard: "Dashboard",
+  bookings: "Bookings",
+  expenses: "Expenses",
+  invoices: "Invoices",
+  vouchers: "Vouchers",
+  settings: "Settings",
+};
+export const ROLE_LABELS: Record<string, string> = { admin: "Admin", manager: "Manager", receptionist: "Receptionist", caretaker: "Caretaker" };
+
+// Which tab privilege a page needs. Rates & Inventory falls under Bookings,
+// System Health under Settings.
+export function tabForPath(pathname: string): PmsTab | null {
+  const p = pathname.replace(/\/+$/, "") || "/";
+  if (p === "/pms") return "dashboard";
+  if (p.startsWith("/pms/bookings") || p.startsWith("/pms/inventory") || p.startsWith("/pms/pos")) return "bookings";
+  if (p.startsWith("/pms/expenses")) return "expenses";
+  if (p.startsWith("/pms/invoices")) return "invoices";
+  if (p.startsWith("/pms/vouchers")) return "vouchers";
+  if (p.startsWith("/pms/settings") || p.startsWith("/pms/system")) return "settings";
+  return null;
+}
+
+export const TAB_HOME: Record<PmsTab, string> = {
+  dashboard: "/pms",
+  bookings: "/pms/bookings",
+  expenses: "/pms/expenses",
+  invoices: "/pms/invoices",
+  vouchers: "/pms/vouchers",
+  settings: "/pms/settings",
 };
 
 export const CHANNELS = [
@@ -49,6 +87,7 @@ export const CHANNELS = [
   { value: "agoda", label: "Agoda" },
   { value: "repeat_guest", label: "Repeat Guest" },
   { value: "owner_booking", label: "Owner Booking" },
+  { value: "travel_agent", label: "Travel Agent / OTA" },
 ] as const;
 
 export const PAYMENTS = [
@@ -166,5 +205,10 @@ export type PmsInvoice = {
   state_code: string | null;
   payment_date: string | null;
   deposit_refund_date: string | null;
+  agent_name: string | null;
+  commission_type: "percentage" | "fixed" | null;
+  commission_value: number;
+  commission_amount: number;
+  net_payout: number;
   items?: PmsInvoiceItem[];
 };

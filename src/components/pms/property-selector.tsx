@@ -6,6 +6,7 @@ import { usePms } from "@/components/pms/pms-context";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
 export const PORTFOLIO_LABEL = "All Properties (Portfolio)";
+export const MY_PROPERTIES_LABEL = "All My Properties";
 
 export function propertyDisplayName(slug: string): string {
   if (slug === "all") return PORTFOLIO_LABEL;
@@ -15,7 +16,7 @@ export function propertyDisplayName(slug: string): string {
 // Desktop: dropdown under the trigger. Mobile: bottom sheet that slides up
 // and closes as soon as a property is picked. Same list either way.
 export function PropertySelector() {
-  const { property, setProperty } = usePms();
+  const { property, setProperty, allowedProperties, allProperties } = usePms();
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -58,7 +59,11 @@ export function PropertySelector() {
     close();
   }
 
-  const options = [{ slug: "all", label: "All Properties (Aggregated Portfolio View)" }, ...PROPERTIES.map((p) => ({ slug: p.slug, label: propertyDisplayName(p.slug) }))];
+  // Users limited to some properties only ever see (and can pick) their own.
+  const options = [
+    ...(allProperties ? [{ slug: "all", label: "All Properties (Aggregated Portfolio View)" }] : allowedProperties.length > 1 ? [{ slug: "all", label: MY_PROPERTIES_LABEL }] : []),
+    ...PROPERTIES.filter((p) => allowedProperties.includes(p.slug)).map((p) => ({ slug: p.slug, label: propertyDisplayName(p.slug) })),
+  ];
 
   const list = (
     <ul role="listbox" aria-label="Property" className="max-h-[60vh] overflow-y-auto py-1 md:max-h-96">
@@ -93,7 +98,7 @@ export function PropertySelector() {
         className={`flex max-w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold shadow-sm transition-colors border-slate-200 bg-white text-slate-800 hover:bg-slate-50`}
       >
         <Building2 className="size-4 shrink-0 text-emerald-600" aria-hidden />
-        <span className="truncate">{propertyDisplayName(property)}</span>
+        <span className="truncate">{property === "all" && !allProperties ? MY_PROPERTIES_LABEL : propertyDisplayName(property)}</span>
         <ChevronDown className={`size-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>
 

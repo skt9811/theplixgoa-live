@@ -13,6 +13,8 @@ export const Route = createFileRoute("/pms_/login")({
 function PmsLogin() {
   usePmsBrandedHead();
   const navigate = useNavigate();
+  const [ownerMode, setOwnerMode] = useState(false);
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -28,7 +30,7 @@ function PmsLogin() {
     setBusy(true);
     setError(null);
     try {
-      await pms("login", { method: "POST", body: JSON.stringify({ password }) });
+      await pms("login", { method: "POST", body: JSON.stringify(ownerMode ? { password } : { identifier, pin: password }) });
       void navigate({ to: "/pms" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -67,13 +69,28 @@ function PmsLogin() {
           <p className="mt-1 text-center text-sm text-white/55">Operations Hub · Administrator access</p>
           <p className="mt-2 text-center text-xs text-[#D4AF37]/80 lg:hidden">Estate PMS, Reservations &amp; Ledger</p>
 
-          <label className="mt-7 grid gap-2 text-sm">
-            <span className="text-white/70">Passkey / PIN</span>
+          {!ownerMode && (
+            <label className="mt-7 grid gap-2 text-sm">
+              <span className="text-white/70">Name, phone or email</span>
+              <input
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                autoFocus
+                autoComplete="username"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3.5 text-base text-white outline-none transition-shadow placeholder:text-white/30 focus:border-[#D4AF37] focus:shadow-[0_0_0_3px_rgba(212,175,55,0.25),0_0_24px_rgba(212,175,55,0.2)]"
+              />
+            </label>
+          )}
+          <label className={`${ownerMode ? "mt-7" : "mt-4"} grid gap-2 text-sm`}>
+            <span className="text-white/70">{ownerMode ? "Owner password" : "PIN"}</span>
             <input
               type="password"
+              inputMode={ownerMode ? "text" : "numeric"}
+              maxLength={ownerMode ? undefined : 6}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoFocus
+              onChange={(e) => setPassword(ownerMode ? e.target.value : e.target.value.replace(/\D/g, ""))}
+              autoFocus={ownerMode}
               autoComplete="current-password"
               className="rounded-xl border border-white/15 bg-white/5 px-4 py-3.5 text-base text-white outline-none transition-shadow placeholder:text-white/30 focus:border-[#D4AF37] focus:shadow-[0_0_0_3px_rgba(212,175,55,0.25),0_0_24px_rgba(212,175,55,0.2)]"
             />
@@ -81,7 +98,7 @@ function PmsLogin() {
           {error && <p className="mt-3 text-sm font-medium text-red-400">{error}</p>}
           <button
             type="submit"
-            disabled={busy || !password}
+            disabled={busy || !password || (!ownerMode && !identifier.trim())}
             className="mt-6 w-full rounded-xl bg-gradient-to-r from-[#B8922B] via-[#D4AF37] to-[#E8CE7C] px-4 py-3.5 text-base font-semibold text-[#0E231D] shadow-[0_8px_24px_rgba(212,175,55,0.25)] transition-transform active:scale-[0.99] disabled:opacity-50"
           >
             {busy ? (
@@ -92,6 +109,17 @@ function PmsLogin() {
                 <span className="hidden lg:inline">Access Management Hub</span>
               </>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setOwnerMode((v) => !v);
+              setPassword("");
+              setError(null);
+            }}
+            className="mt-4 w-full text-center text-xs text-white/50 hover:text-[#D4AF37]"
+          >
+            {ownerMode ? "Sign in with name and PIN" : "Sign in with owner password"}
           </button>
           <p className="mt-6 text-center text-[11px] text-white/35">Plix Hospitality Private Limited · Authorised staff only</p>
         </form>

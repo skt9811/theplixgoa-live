@@ -26,12 +26,13 @@ function readCookie(req: Request, name: string): string | undefined {
   return undefined;
 }
 
-export async function buildPmsSessionCookie(req: Request): Promise<string> {
+// uid is the PMS user's id, or null for the owner password login.
+export async function buildPmsSessionCookie(req: Request, uid: string | null = null): Promise<string> {
   const secret = process.env["AUTH_SECRET"];
   if (!secret) throw new Error("AUTH_SECRET not configured on the server.");
   const secure = isSecureRequest(req);
   const name = cookieName(secure);
-  const token = await encodeJwt({ token: { sub: "pms-admin", pms: true }, secret, salt: name, maxAge: MAX_AGE_SECONDS });
+  const token = await encodeJwt({ token: { sub: uid ?? "pms-owner", pms: true, uid }, secret, salt: name, maxAge: MAX_AGE_SECONDS });
   const parts = [`${name}=${token}`, "Path=/", `Max-Age=${MAX_AGE_SECONDS}`, "HttpOnly", "SameSite=Strict"];
   if (secure) parts.push("Secure");
   return parts.join("; ");
@@ -44,18 +45,25 @@ export function clearPmsSessionCookie(req: Request): string {
   return parts.join("; ");
 }
 
-export async function hasPmsSession(req: Request): Promise<boolean> {
+/** The verified session: `uid` is null for the owner password login. */
+export async function getPmsSession(req: Request): Promise<{ uid: string | null } | null> {
   const secret = process.env["AUTH_SECRET"];
-  if (!secret) return false;
+  if (!secret) return null;
   const name = cookieName(isSecureRequest(req));
   const token = readCookie(req, name);
-  if (!token) return false;
+  if (!token) return null;
   try {
     const payload = await decodeJwt({ token, secret, salt: name });
-    return payload?.["pms"] === true;
+    if (payload?.["pms"] !== true) return null;
+    const uid = payload["uid"];
+    return { uid: typeof uid === "string" && uid ? uid : null };
   } catch {
-    return false;
+    return null;
   }
+}
+
+export async function hasPmsSession(req: Request): Promise<boolean> {
+  return (await getPmsSession(req)) !== null;
 }
 
 // PMS_ADMIN_PASSWORD when set, otherwise the site's existing ADMIN_PIN.

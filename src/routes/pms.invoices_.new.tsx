@@ -9,6 +9,8 @@ import { addDays, channelLabel, fmtDate, istToday, PmsAuthError, pms, type PmsBo
 import { inr2, propertyLabel } from "@/lib/pms-format";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
 import { usePms } from "@/components/pms/pms-context";
+import { GuardDialog } from "@/components/pms/guard-dialog";
+import { collectGuardWarnings, type GuardWarning } from "@/lib/pms-guards";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
 export const Route = createFileRoute("/pms/invoices_/new")({
@@ -84,6 +86,10 @@ function InvoiceBuilder() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmFinalize, setConfirmFinalize] = useState(false);
+  const [guard, setGuard] = useState<{ warnings: GuardWarning[]; finalize: boolean } | null>(null);
+  const [agentName, setAgentName] = useState("");
+  const [commissionType, setCommissionType] = useState<"percentage" | "fixed">("percentage");
+  const [commissionValue, setCommissionValue] = useState("");
   useBackDismiss(confirmFinalize, () => setConfirmFinalize(false));
   const [loaded, setLoaded] = useState(!editId);
 
@@ -181,6 +187,9 @@ function InvoiceBuilder() {
         setDepositRefunded(inv.deposit_refunded);
         setRefundDate(inv.deposit_refund_date ?? "");
         setNotes(inv.notes ?? "");
+        setAgentName(inv.agent_name ?? "");
+        setCommissionType(inv.commission_type === "fixed" ? "fixed" : "percentage");
+        setCommissionValue(inv.commission_value ? String(inv.commission_value) : "");
         setLoaded(true);
       })
       .catch((err) => {
@@ -234,7 +243,8 @@ function InvoiceBuilder() {
       .slice(0, 50);
   }, [bookings, invoiceIds, pickerSearch, bookingId]);
 
-  async function save(finalize: boolean) {
+  // Runs the business guards; any warning must be confirmed before saving.
+  function save(finalize: boolean) {
     if (mode === "linked" && !bookingId) {
       toast.error("Choose a reservation to link, or switch to manual entry");
       return;
@@ -259,6 +269,21 @@ function InvoiceBuilder() {
       toast.error("Enter a valid GSTIN or leave it empty");
       return;
     }
+    setConfirmFinalize(false);
+    const warnings = collectGuardWarnings({
+      propertyId,
+      guests,
+      rooms: roomsCount,
+      roomRates: rows.filter((r) => r.item_type === "room").map((r) => ({ date: r.date || checkIn, rate: Number(r.rate) || 0 })),
+    });
+    if (warnings.length > 0) {
+      setGuard({ warnings, finalize });
+      return;
+    }
+    void persist(finalize);
+  }
+
+  async function persist(finalize: boolean) {
     setSaving(true);
     try {
       const res = await pms<{ id: string; invoiceNumber: string }>(`invoices${editId ? `?id=${editId}` : ""}`, {
@@ -293,6 +318,9 @@ function InvoiceBuilder() {
           depositRefunded,
           depositRefundDate: depositRefunded ? refundDate : "",
           notes,
+          agentName: commissionValue.trim() ? agentName : "",
+          commissionType: commissionValue.trim() ? commissionType : null,
+          commissionValue: Number(commissionValue) || 0,
         }),
       });
       toast.success(finalize ? `Invoice ${res.invoiceNumber} finalized` : `Draft ${res.invoiceNumber} saved`);
@@ -303,6 +331,7 @@ function InvoiceBuilder() {
     } finally {
       setSaving(false);
       setConfirmFinalize(false);
+      setGuard(null);
     }
   }
 
@@ -667,6 +696,43 @@ function InvoiceBuilder() {
         </div>
       </section>
 
+      {/* Internal commission (never printed on the guest's invoice) */}
+      <section className={`${card} mt-4`}>
+        <h2 className="font-semibold">Agent / OTA commission (internal)</h2>
+        <p className="text-xs text-slate-500">Recorded for your own reports only. It is never shown on the invoice or voucher the guest receives.</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <label className={label}>
+            Agent / source name
+            <input value={agentName} onChange={(e) => setAgentName(e.target.value)} className={field} />
+          </label>
+          <div className="grid gap-1 text-xs font-medium text-slate-500">
+            Commission type
+            <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm font-semibold">
+              {(
+                [
+                  ["percentage", "Percentage %"],
+                  ["fixed", "Fixed ₹"],
+                ] as const
+              ).map(([t, text]) => (
+                <button key={t} type="button" onClick={() => setCommissionType(t)} className={`flex-1 rounded-md px-2 py-1.5 ${commissionType === t ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500"}`}>
+                  {text}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className={label}>
+            Commission value
+            <input type="number" min={0} value={commissionValue} onChange={(e) => setCommissionValue(e.target.value)} className={field} />
+          </label>
+        </div>
+        {commissionValue.trim() !== "" && (
+          <p className="mt-2 text-xs text-slate-600">
+            Commission {inr2(commissionType === "percentage" ? Math.round(totals.taxable * Number(commissionValue)) / 100 : Math.min(Number(commissionValue), totals.taxable))} · Net payout to property{" "}
+            {inr2(totals.taxable - (commissionType === "percentage" ? Math.round(totals.taxable * Number(commissionValue)) / 100 : Math.min(Number(commissionValue), totals.taxable)))}
+          </p>
+        )}
+      </section>
+
       {/* Live totals + actions */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-4 py-3 md:left-64">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3">
@@ -681,7 +747,7 @@ function InvoiceBuilder() {
             </p>
           </div>
           <div className="flex gap-2">
-            <button type="button" disabled={saving} onClick={() => void save(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+            <button type="button" disabled={saving} onClick={() => save(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
               Save as Draft
             </button>
             <button type="button" disabled={saving} onClick={() => setConfirmFinalize(true)} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
@@ -690,6 +756,8 @@ function InvoiceBuilder() {
           </div>
         </div>
       </div>
+
+      {guard && <GuardDialog warnings={guard.warnings} onCancel={() => setGuard(null)} onConfirmed={() => void persist(guard.finalize)} />}
 
       {confirmFinalize && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setConfirmFinalize(false)}>
@@ -702,7 +770,7 @@ function InvoiceBuilder() {
               <button type="button" onClick={() => setConfirmFinalize(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
                 Cancel
               </button>
-              <button type="button" disabled={saving} onClick={() => void save(true)} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+              <button type="button" disabled={saving} onClick={() => save(true)} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
                 {saving ? "Finalizing..." : "Finalize"}
               </button>
             </div>

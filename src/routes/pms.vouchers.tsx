@@ -9,6 +9,8 @@ import { addDays, fmtDate, istToday, pms, type PmsBooking } from "@/lib/pms-clie
 import { propertyLabel } from "@/lib/pms-format";
 import { usePms } from "@/components/pms/pms-context";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
+import { GuardDialog } from "@/components/pms/guard-dialog";
+import { collectGuardWarnings, type GuardWarning } from "@/lib/pms-guards";
 import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
@@ -19,8 +21,12 @@ export const Route = createFileRoute("/pms/vouchers")({
 const field = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40";
 const label = "grid gap-1 text-xs font-medium text-slate-500";
 
+const SOURCES = ["Direct", "Airbnb", "Booking.com", "Offline / Walk-in", "Travel Agent / OTA"] as const;
+const COMMISSION_SOURCES = new Set<string>(["Airbnb", "Booking.com", "Travel Agent / OTA"]);
+
 function VoucherForm({ defaultProperty, onClose, onCreated }: { defaultProperty: string; onClose: () => void; onCreated: (booking: PmsBooking | null) => void }) {
   useBackDismiss(true, onClose);
+  const { allowedProperties } = usePms();
   const [propertyId, setPropertyId] = useState(defaultProperty === "all" ? "" : defaultProperty);
   const [guestName, setGuestName] = useState("");
   const [mobile, setMobile] = useState("+91 ");
@@ -33,21 +39,54 @@ function VoucherForm({ defaultProperty, onClose, onCreated }: { defaultProperty:
   const [tariff, setTariff] = useState("");
   const [advance, setAdvance] = useState("");
   const [mode, setMode] = useState<string>("Cash");
+  const [source, setSource] = useState<string>("Offline / Walk-in");
+  const [agentName, setAgentName] = useState("");
+  const [commissionType, setCommissionType] = useState<"percentage" | "fixed">("percentage");
+  const [commissionValue, setCommissionValue] = useState("");
+  const [guard, setGuard] = useState<GuardWarning[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const multi = propertyId !== "" && maxRoomsForProperty(propertyId) > 1;
   const nights = Math.max(0, Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000));
+  const tariffNum = Number(tariff) || 0;
+  const hasCommission = COMMISSION_SOURCES.has(source);
+  const commissionAmount = !hasCommission ? 0 : commissionType === "percentage" ? Math.round(tariffNum * (Number(commissionValue) || 0)) / 100 : Math.min(Number(commissionValue) || 0, tariffNum);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  function requestSave() {
     setError(null);
     if (!propertyId) return setError("Select a property");
     if (nights <= 0) return setError("Check-out must be after check-in");
+    if (!guestName.trim() || !mobile.trim() || tariff === "") return setError("Guest name, mobile and total tariff are required");
+    const perRoomNight = tariffNum / (nights * Math.max(1, rooms));
+    const warnings = collectGuardWarnings({ propertyId, guests, rooms, roomRates: [{ date: checkIn, rate: Math.round(perRoomNight * 100) / 100 }] });
+    if (warnings.length > 0) return setGuard(warnings);
+    void persist();
+  }
+
+  async function persist() {
+    setGuard(null);
     setSaving(true);
     try {
       const res = await pms<{ booking: PmsBooking | null }>("vouchers", {
         method: "POST",
-        body: JSON.stringify({ propertyId, guestName, mobile, email, checkIn, checkOut, totalGuests: guests, rooms, roomName, totalTariff: Number(tariff), advance: Number(advance) || 0, paymentMode: mode }),
+        body: JSON.stringify({
+          propertyId,
+          guestName,
+          mobile,
+          email,
+          checkIn,
+          checkOut,
+          totalGuests: guests,
+          rooms,
+          roomName,
+          totalTariff: tariffNum,
+          advance: Number(advance) || 0,
+          paymentMode: mode,
+          source,
+          agentName: hasCommission ? agentName : "",
+          commissionType,
+          commissionValue: hasCommission ? Number(commissionValue) || 0 : 0,
+        }),
       });
       toast.success("Voucher created and dates locked on the website");
       onCreated(res.booking);
@@ -60,7 +99,14 @@ function VoucherForm({ defaultProperty, onClose, onCreated }: { defaultProperty:
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={onClose}>
-      <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          requestSave();
+        }}
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl"
+      >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold">Create Offline / Walk-in Voucher</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600">
@@ -68,12 +114,31 @@ function VoucherForm({ defaultProperty, onClose, onCreated }: { defaultProperty:
           </button>
         </div>
         <p className="mt-1 text-xs text-slate-500">Creates a confirmed reservation, locks these nights on the website, and opens the guest voucher.</p>
+
+        <div className="mt-4">
+          <p className="text-xs font-medium text-slate-500">Booking source</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Booking source">
+            {SOURCES.map((src) => (
+              <button
+                key={src}
+                type="button"
+                role="radio"
+                aria-checked={source === src}
+                onClick={() => setSource(src)}
+                className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${source === src ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+              >
+                {src}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className={`${label} sm:col-span-2`}>
             Property *
             <select value={propertyId} onChange={(e) => { setPropertyId(e.target.value); setRooms(1); }} className={field} required>
               <option value="">Select a property</option>
-              {PROPERTIES.map((p) => (
+              {PROPERTIES.filter((p) => allowedProperties.includes(p.slug)).map((p) => (
                 <option key={p.slug} value={p.slug}>
                   {propertyLabel(p.slug)}
                 </option>
@@ -134,6 +199,47 @@ function VoucherForm({ defaultProperty, onClose, onCreated }: { defaultProperty:
           </label>
           <p className="self-end text-xs text-slate-500">{nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "Choose valid dates"}</p>
         </div>
+
+        {hasCommission && (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Agent / OTA commission (internal)</p>
+            <div className="mt-2 grid gap-3 sm:grid-cols-3">
+              <label className={label}>
+                Agent / source name
+                <input value={agentName} onChange={(e) => setAgentName(e.target.value)} className={field} />
+              </label>
+              <div className="grid gap-1 text-xs font-medium text-slate-500">
+                Commission type
+                <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm font-semibold">
+                  {(
+                    [
+                      ["percentage", "Percentage %"],
+                      ["fixed", "Fixed ₹"],
+                    ] as const
+                  ).map(([t, text]) => (
+                    <button key={t} type="button" onClick={() => setCommissionType(t)} className={`flex-1 rounded-md px-2 py-1.5 ${commissionType === t ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500"}`}>
+                      {text}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className={label}>
+                Commission value
+                <input type="number" min={0} value={commissionValue} onChange={(e) => setCommissionValue(e.target.value)} className={field} />
+              </label>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+              <span className="text-slate-600">
+                Commission: <b>{formatINR(commissionAmount)}</b>
+              </span>
+              <span className="text-slate-600">
+                Net payout to property: <b>{formatINR(tariffNum - commissionAmount)}</b>
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-slate-400">Kept in your records only. The guest&apos;s voucher never shows commission.</p>
+          </div>
+        )}
+
         {error && <p className="mt-3 text-sm font-semibold text-red-600">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
@@ -144,6 +250,7 @@ function VoucherForm({ defaultProperty, onClose, onCreated }: { defaultProperty:
           </button>
         </div>
       </form>
+      {guard && <GuardDialog warnings={guard} onCancel={() => setGuard(null)} onConfirmed={() => void persist()} />}
     </div>
   );
 }
@@ -157,7 +264,7 @@ function PmsVouchers() {
   const offline = useMemo(
     () =>
       (bookings ?? [])
-        .filter((b) => b.channel === "walk_in" && b.status !== "cancelled" && (property === "all" || b.property_id === property))
+        .filter((b) => (b.notes ?? "").startsWith("Offline voucher") && b.status !== "cancelled" && (property === "all" || b.property_id === property))
         .sort((a, b) => b.created_at.localeCompare(a.created_at)),
     [bookings, property],
   );

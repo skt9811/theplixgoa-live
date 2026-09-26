@@ -1,32 +1,33 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { BedDouble, CalendarRange, FileText, HeartPulse, LayoutDashboard, LogOut, Menu, Plus, Receipt, Settings, Ticket, X } from "lucide-react";
+import { BedDouble, CalendarRange, UtensilsCrossed, FileText, HeartPulse, LayoutDashboard, LogOut, Menu, Plus, Receipt, Settings, Ticket, X } from "lucide-react";
 import { usePms } from "@/components/pms/pms-context";
 import { ScopeChip } from "@/components/pms/scope-chip";
 import { ThemeToggle } from "@/components/pms/theme-toggle";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
 const NAV = [
-  { to: "/pms", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { to: "/pms/bookings", label: "Bookings", icon: BedDouble, exact: false },
-  { to: "/pms/inventory", label: "Rates & Inventory", icon: CalendarRange, exact: false },
-  { to: "/pms/expenses", label: "Expenses", icon: Receipt, exact: false },
-  { to: "/pms/invoices", label: "Invoices", icon: FileText, exact: false },
-  { to: "/pms/vouchers", label: "Vouchers", icon: Ticket, exact: false },
-  { to: "/pms/system", label: "System Health", icon: HeartPulse, exact: false },
-  { to: "/pms/settings", label: "Settings", icon: Settings, exact: false },
+  { to: "/pms", label: "Dashboard", icon: LayoutDashboard, exact: true, tab: "dashboard" },
+  { to: "/pms/bookings", label: "Bookings", icon: BedDouble, exact: false, tab: "bookings" },
+  { to: "/pms/inventory", label: "Rates & Inventory", icon: CalendarRange, exact: false, tab: "bookings" },
+  { to: "/pms/pos", label: "Restaurant POS", icon: UtensilsCrossed, exact: false, tab: "bookings" },
+  { to: "/pms/expenses", label: "Expenses", icon: Receipt, exact: false, tab: "expenses" },
+  { to: "/pms/invoices", label: "Invoices", icon: FileText, exact: false, tab: "invoices" },
+  { to: "/pms/vouchers", label: "Vouchers", icon: Ticket, exact: false, tab: "vouchers" },
+  { to: "/pms/system", label: "System Health", icon: HeartPulse, exact: false, tab: "settings" },
+  { to: "/pms/settings", label: "Settings", icon: Settings, exact: false, tab: "settings" },
 ] as const;
 
 // Full-viewport overlay: the PMS is its own app, so it sits above the public
 // site's header/footer instead of sharing that chrome.
 export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout: () => void }) {
-  const { openCreate } = usePms();
+  const { openCreate, can, user } = usePms();
   const [drawer, setDrawer] = useState(false);
   useBackDismiss(drawer, () => setDrawer(false));
 
   const links = (
     <nav className="grid gap-1 p-3">
-      {NAV.map((item) => {
+      {NAV.filter((item) => can(item.tab)).map((item) => {
         const Icon = item.icon;
         return (
           <Link
@@ -41,6 +42,9 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
           </Link>
         );
       })}
+      <p className="mt-3 truncate border-t border-slate-100 px-3 pt-3 text-xs text-slate-500">
+        Signed in as <span className="font-semibold text-slate-700">{user.name}</span>
+      </p>
       <button
         type="button"
         onClick={onLogout}
@@ -72,6 +76,7 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
           <div className="hidden sm:block">
             <ThemeToggle />
           </div>
+          {can("bookings") && (
           <button
             type="button"
             onClick={openCreate}
@@ -82,6 +87,7 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
             <span className="hidden sm:inline">Create Reservation</span>
             <span className="sm:hidden">New</span>
           </button>
+          )}
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>

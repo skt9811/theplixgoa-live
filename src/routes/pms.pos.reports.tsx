@@ -1,8 +1,8 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, ChevronRight } from "lucide-react";
-import { istToday, pms } from "@/lib/pms-client";
-import { inr } from "@/lib/pms-pos-client";
+import { istToday } from "@/lib/pms-client";
+import { inr, posFetch } from "@/lib/pms-pos-client";
 import { usePos } from "@/components/pms/pos/pos-context";
 
 export const Route = createFileRoute("/pms/pos/reports")({ component: Reports });
@@ -55,7 +55,7 @@ function Reports() {
     setRows(null);
     setError(null);
     try {
-      const r = await pms<{ rows: Row[] }>(`pos/reports?type=${active.id}&property=${encodeURIComponent(property)}&from=${from}&to=${to}`);
+      const r = await posFetch<{ rows: Row[] }>(`reports?type=${active.id}&property=${encodeURIComponent(property)}&from=${from}&to=${to}`);
       setRows(r.rows);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load the report");

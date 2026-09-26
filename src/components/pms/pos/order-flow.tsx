@@ -4,7 +4,9 @@ import { ArrowLeft, Minus, Pencil, Plus, Search, Trash2, UserRound, X } from "lu
 import { computeTotals, type DiscountType } from "@/lib/pms-pos-calc";
 import { inr, posAction, posOrder, posSave, type PosLine, type PosOrderData } from "@/lib/pms-pos-client";
 import { billSlip, kotSlip, type SlipContext } from "@/lib/pms-escpos";
-import { paperOf, printSlip } from "@/lib/pms-pos-print";
+import { printSlip } from "@/lib/pms-pos-print";
+import { slipContext } from "@/components/pms/pos/pos-slip-context";
+import { kotFeedback } from "@/lib/pms-pos-feedback";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 import { usePos } from "@/components/pms/pos/pos-context";
 import { EMPTY_GUEST, GuestModal, type Guest } from "@/components/pms/pos/guest-modal";
@@ -96,7 +98,8 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
     [sent, drafts, discountType, discountValue, other],
   );
   const addedCount = drafts.reduce((s, d) => s + d.qty, 0);
-  const slipCtx: SlipContext = { propertyName, address: state?.printer?.bill_address, gstin: state?.printer?.bill_gstin, footer: state?.printer?.bill_footer, paper: paperOf(state?.printer ?? null) };
+  const slipCtx: SlipContext = slipContext(propertyName, state);
+  const presets = state?.settings.discounts ?? [];
 
   function attemptClose() {
     if (dirty && drafts.length > 0 && !window.confirm("Discard the items you added?")) return;
@@ -131,10 +134,22 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
       if (kot && res.kotNumber) {
         const kotItems = res.lines.filter((l) => l.kot_number === res.kotNumber && l.status === "active");
         toast.success(`KOT #${res.kotNumber} saved`);
-        // Printing can wait on a Bluetooth chooser, so it never holds up the order.
-        void printSlip(kotSlip(slipCtx, { table: res.order.table_name, kot: res.kotNumber, orderNumber: res.order.order_number, items: kotItems.map((l) => ({ name: l.item_name, qty: l.quantity, notes: l.notes })) }), state?.printer ?? null)
-          .then((r) => toast(r.message))
-          .catch(() => toast.error("Could not print the KOT"));
+        kotFeedback(state?.settings.display);
+        // Items go to the printer they are assigned to (kitchen / bar). Printing can
+        // wait on a Bluetooth chooser, so it never holds up the order.
+        const dest = (l: PosLine) => state?.items.find((i) => i.id === l.item_id)?.printer_destination ?? "kitchen";
+        const groups = (["kitchen", "bar"] as const).map((d) => ({ d, lines: kotItems.filter((l) => dest(l) === d) })).filter((g) => g.lines.length > 0);
+        void (async () => {
+          for (const g of groups) {
+            const title = groups.length > 1 || g.d === "bar" ? `${g.d.toUpperCase()} ORDER TICKET` : undefined;
+            try {
+              const r = await printSlip(kotSlip(slipCtx, { ...(title ? { title } : {}), table: res.order.table_name, kot: res.kotNumber!, orderNumber: res.order.order_number, items: g.lines.map((l) => ({ name: l.item_name, qty: l.quantity, notes: l.notes })) }), state?.printer ?? null);
+              toast(`${g.d === "bar" ? "Bar" : "Kitchen"}: ${r.message}`);
+            } catch {
+              toast.error("Could not print the KOT");
+            }
+          }
+        })();
       }
       return res;
     } catch (err) {
@@ -205,6 +220,13 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
         <div className="fixed inset-0 z-[88] flex items-center justify-center bg-black/50 p-4" onClick={() => setModal(null)}>
           <div className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-bold text-slate-900">Discount</h3>
+            {presets.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {presets.map((d) => (
+                  <button key={d.label} type="button" onClick={() => { setDiscountType(d.type); setDiscountValue(d.value); setDirty(true); }} className={`rounded-full border px-3 py-1 text-xs font-semibold ${discountType === d.type && discountValue === d.value ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-600"}`}>{d.label}</button>
+                ))}
+              </div>
+            )}
             <div className="mt-3 flex gap-2">
               {([["fixed", "Fixed ₹"], ["percent", "Percent %"]] as const).map(([t, l]) => (
                 <button key={t} type="button" onClick={() => setDiscountType(t)} className={`flex-1 rounded-lg border py-2 text-sm font-semibold ${discountType === t ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-600"}`}>{l}</button>

@@ -4,7 +4,8 @@ import { Eye, MoreVertical, Printer, Users } from "lucide-react";
 import { toast } from "sonner";
 import { elapsed, inr, posOrder, type PosTable } from "@/lib/pms-pos-client";
 import { billSlip } from "@/lib/pms-escpos";
-import { paperOf, printSlip } from "@/lib/pms-pos-print";
+import { printSlip } from "@/lib/pms-pos-print";
+import { slipContext } from "@/components/pms/pos/pos-slip-context";
 import { usePos } from "@/components/pms/pos/pos-context";
 import { OrderFlow } from "@/components/pms/pos/order-flow";
 import { TableActionsSheet } from "@/components/pms/pos/table-actions";
@@ -23,6 +24,14 @@ function DineIn() {
   const [flow, setFlow] = useState<Flow>(null);
   const [actions, setActions] = useState<PosTable | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [viewApplied, setViewApplied] = useState(false);
+  useEffect(() => {
+    if (state && !viewApplied) {
+      setFilter(state.settings.display.defaultView);
+      setViewApplied(true);
+    }
+  }, [state, viewApplied]);
+  const compact = state?.settings.display.density === "compact";
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 1000);
@@ -42,7 +51,7 @@ function DineIn() {
       const d = await posOrder(t.order.id);
       const active = d.lines.filter((l) => l.status === "active");
       const res = await printSlip(
-        billSlip({ propertyName, address: state?.printer?.bill_address, gstin: state?.printer?.bill_gstin, footer: state?.printer?.bill_footer, paper: paperOf(state?.printer ?? null) }, {
+        billSlip(slipContext(propertyName, state), {
           orderNumber: d.order.order_number, table: d.order.table_name, at: new Date(), guest: d.order.guest_name,
           items: active.map((l) => ({ name: l.item_name, qty: l.quantity, rate: l.unit_price, amount: l.total_price })),
           subtotal: d.order.subtotal, discount: d.order.discount_amount, tax: d.order.tax_amount, other: d.order.other_charges, roundOff: 0, total: d.order.total_amount, method: null,
@@ -66,7 +75,7 @@ function DineIn() {
       </div>
 
       {!state ? <p className="py-16 text-center text-sm text-slate-400">Loading tables...</p> : tables.length === 0 ? <p className="py-16 text-center text-sm text-slate-400">No tables match this filter.</p> : (
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className={`mt-3 grid gap-3 ${compact ? "grid-cols-3 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3"}`}>
           {tables.map((t) =>
             t.order ? (
               <div key={t.id} className={`rounded-xl border-2 bg-white p-3 ${t.status === "billing" ? "border-amber-400" : "border-emerald-500"}`}>

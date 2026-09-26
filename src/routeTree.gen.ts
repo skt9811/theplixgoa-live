@@ -48,8 +48,26 @@ import { Route as PmsPosHelpRouteImport } from './routes/pms.pos.help'
 import { Route as PmsPosManageRouteImport } from './routes/pms.pos.manage'
 import { Route as PmsPosQuickRouteImport } from './routes/pms.pos.quick'
 import { Route as PmsPosReportsRouteImport } from './routes/pms.pos.reports'
+import { Route as PmsPosSettingsRouteImport } from './routes/pms.pos.settings'
 import { Route as PmsSettingsUsersRouteImport } from './routes/pms.settings_.users'
+import { Route as PmsPosManageIndexRouteImport } from './routes/pms.pos.manage.index'
+import { Route as PmsPosManageActivityLogsRouteImport } from './routes/pms.pos.manage.activity-logs'
+import { Route as PmsPosManageCategoriesRouteImport } from './routes/pms.pos.manage.categories'
+import { Route as PmsPosManageCustomersRouteImport } from './routes/pms.pos.manage.customers'
+import { Route as PmsPosManageEmployeesRouteImport } from './routes/pms.pos.manage.employees'
+import { Route as PmsPosManageIncomeExpenseRouteImport } from './routes/pms.pos.manage.income-expense'
+import { Route as PmsPosManageInvoicesRouteImport } from './routes/pms.pos.manage.invoices'
+import { Route as PmsPosManageItemsRouteImport } from './routes/pms.pos.manage.items'
+import { Route as PmsPosSettingsIndexRouteImport } from './routes/pms.pos.settings.index'
+import { Route as PmsPosSettingsDiscountsRouteImport } from './routes/pms.pos.settings.discounts'
+import { Route as PmsPosSettingsDisplayRouteImport } from './routes/pms.pos.settings.display'
+import { Route as PmsPosSettingsGeneralRouteImport } from './routes/pms.pos.settings.general'
+import { Route as PmsPosSettingsPaymentTaxRouteImport } from './routes/pms.pos.settings.payment-tax'
 import { Route as PmsPosSettingsPrinterRouteImport } from './routes/pms.pos.settings.printer'
+import { Route as PmsPosSettingsStationsRouteImport } from './routes/pms.pos.settings.stations'
+import { Route as PmsPosSettingsStoreRouteImport } from './routes/pms.pos.settings.store'
+import { Route as PmsPosSettingsTableLayoutRouteImport } from './routes/pms.pos.settings.table-layout'
+import { Route as PmsPosSettingsUtilityRouteImport } from './routes/pms.pos.settings.utility'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -246,15 +264,109 @@ const PmsPosReportsRoute = PmsPosReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => PmsPosRoute,
 } as any)
+const PmsPosSettingsRoute = PmsPosSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => PmsPosRoute,
+} as any)
 const PmsSettingsUsersRoute = PmsSettingsUsersRouteImport.update({
   id: '/settings_/users',
   path: '/settings/users',
   getParentRoute: () => PmsRoute,
 } as any)
+const PmsPosManageIndexRoute = PmsPosManageIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PmsPosManageRoute,
+} as any)
+const PmsPosManageActivityLogsRoute =
+  PmsPosManageActivityLogsRouteImport.update({
+    id: '/activity-logs',
+    path: '/activity-logs',
+    getParentRoute: () => PmsPosManageRoute,
+  } as any)
+const PmsPosManageCategoriesRoute = PmsPosManageCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => PmsPosManageRoute,
+} as any)
+const PmsPosManageCustomersRoute = PmsPosManageCustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => PmsPosManageRoute,
+} as any)
+const PmsPosManageEmployeesRoute = PmsPosManageEmployeesRouteImport.update({
+  id: '/employees',
+  path: '/employees',
+  getParentRoute: () => PmsPosManageRoute,
+} as any)
+const PmsPosManageIncomeExpenseRoute =
+  PmsPosManageIncomeExpenseRouteImport.update({
+    id: '/income-expense',
+    path: '/income-expense',
+    getParentRoute: () => PmsPosManageRoute,
+  } as any)
+const PmsPosManageInvoicesRoute = PmsPosManageInvoicesRouteImport.update({
+  id: '/invoices',
+  path: '/invoices',
+  getParentRoute: () => PmsPosManageRoute,
+} as any)
+const PmsPosManageItemsRoute = PmsPosManageItemsRouteImport.update({
+  id: '/items',
+  path: '/items',
+  getParentRoute: () => PmsPosManageRoute,
+} as any)
+const PmsPosSettingsIndexRoute = PmsPosSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PmsPosSettingsRoute,
+} as any)
+const PmsPosSettingsDiscountsRoute = PmsPosSettingsDiscountsRouteImport.update({
+  id: '/discounts',
+  path: '/discounts',
+  getParentRoute: () => PmsPosSettingsRoute,
+} as any)
+const PmsPosSettingsDisplayRoute = PmsPosSettingsDisplayRouteImport.update({
+  id: '/display',
+  path: '/display',
+  getParentRoute: () => PmsPosSettingsRoute,
+} as any)
+const PmsPosSettingsGeneralRoute = PmsPosSettingsGeneralRouteImport.update({
+  id: '/general',
+  path: '/general',
+  getParentRoute: () => PmsPosSettingsRoute,
+} as any)
+const PmsPosSettingsPaymentTaxRoute =
+  PmsPosSettingsPaymentTaxRouteImport.update({
+    id: '/payment-tax',
+    path: '/payment-tax',
+    getParentRoute: () => PmsPosSettingsRoute,
+  } as any)
 const PmsPosSettingsPrinterRoute = PmsPosSettingsPrinterRouteImport.update({
-  id: '/settings/printer',
-  path: '/settings/printer',
-  getParentRoute: () => PmsPosRoute,
+  id: '/printer',
+  path: '/printer',
+  getParentRoute: () => PmsPosSettingsRoute,
+} as any)
+const PmsPosSettingsStationsRoute = PmsPosSettingsStationsRouteImport.update({
+  id: '/stations',
+  path: '/stations',
+  getParentRoute: () => PmsPosSettingsRoute,
+} as any)
+const PmsPosSettingsStoreRoute = PmsPosSettingsStoreRouteImport.update({
+  id: '/store',
+  path: '/store',
+  getParentRoute: () => PmsPosSettingsRoute,
+} as any)
+const PmsPosSettingsTableLayoutRoute =
+  PmsPosSettingsTableLayoutRouteImport.update({
+    id: '/table-layout',
+    path: '/table-layout',
+    getParentRoute: () => PmsPosSettingsRoute,
+  } as any)
+const PmsPosSettingsUtilityRoute = PmsPosSettingsUtilityRouteImport.update({
+  id: '/utility',
+  path: '/utility',
+  getParentRoute: () => PmsPosSettingsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -293,12 +405,30 @@ export interface FileRoutesByFullPath {
   '/portal/': typeof PortalIndexRoute
   '/pms/invoices/new': typeof PmsInvoicesNewRoute
   '/pms/pos/help': typeof PmsPosHelpRoute
-  '/pms/pos/manage': typeof PmsPosManageRoute
+  '/pms/pos/manage': typeof PmsPosManageRouteWithChildren
   '/pms/pos/quick': typeof PmsPosQuickRoute
   '/pms/pos/reports': typeof PmsPosReportsRoute
+  '/pms/pos/settings': typeof PmsPosSettingsRouteWithChildren
   '/pms/settings/users': typeof PmsSettingsUsersRoute
   '/pms/pos/': typeof PmsPosIndexRoute
+  '/pms/pos/manage/activity-logs': typeof PmsPosManageActivityLogsRoute
+  '/pms/pos/manage/categories': typeof PmsPosManageCategoriesRoute
+  '/pms/pos/manage/customers': typeof PmsPosManageCustomersRoute
+  '/pms/pos/manage/employees': typeof PmsPosManageEmployeesRoute
+  '/pms/pos/manage/income-expense': typeof PmsPosManageIncomeExpenseRoute
+  '/pms/pos/manage/invoices': typeof PmsPosManageInvoicesRoute
+  '/pms/pos/manage/items': typeof PmsPosManageItemsRoute
+  '/pms/pos/settings/discounts': typeof PmsPosSettingsDiscountsRoute
+  '/pms/pos/settings/display': typeof PmsPosSettingsDisplayRoute
+  '/pms/pos/settings/general': typeof PmsPosSettingsGeneralRoute
+  '/pms/pos/settings/payment-tax': typeof PmsPosSettingsPaymentTaxRoute
   '/pms/pos/settings/printer': typeof PmsPosSettingsPrinterRoute
+  '/pms/pos/settings/stations': typeof PmsPosSettingsStationsRoute
+  '/pms/pos/settings/store': typeof PmsPosSettingsStoreRoute
+  '/pms/pos/settings/table-layout': typeof PmsPosSettingsTableLayoutRoute
+  '/pms/pos/settings/utility': typeof PmsPosSettingsUtilityRoute
+  '/pms/pos/manage/': typeof PmsPosManageIndexRoute
+  '/pms/pos/settings/': typeof PmsPosSettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -333,12 +463,28 @@ export interface FileRoutesByTo {
   '/portal': typeof PortalIndexRoute
   '/pms/invoices/new': typeof PmsInvoicesNewRoute
   '/pms/pos/help': typeof PmsPosHelpRoute
-  '/pms/pos/manage': typeof PmsPosManageRoute
   '/pms/pos/quick': typeof PmsPosQuickRoute
   '/pms/pos/reports': typeof PmsPosReportsRoute
   '/pms/settings/users': typeof PmsSettingsUsersRoute
   '/pms/pos': typeof PmsPosIndexRoute
+  '/pms/pos/manage/activity-logs': typeof PmsPosManageActivityLogsRoute
+  '/pms/pos/manage/categories': typeof PmsPosManageCategoriesRoute
+  '/pms/pos/manage/customers': typeof PmsPosManageCustomersRoute
+  '/pms/pos/manage/employees': typeof PmsPosManageEmployeesRoute
+  '/pms/pos/manage/income-expense': typeof PmsPosManageIncomeExpenseRoute
+  '/pms/pos/manage/invoices': typeof PmsPosManageInvoicesRoute
+  '/pms/pos/manage/items': typeof PmsPosManageItemsRoute
+  '/pms/pos/settings/discounts': typeof PmsPosSettingsDiscountsRoute
+  '/pms/pos/settings/display': typeof PmsPosSettingsDisplayRoute
+  '/pms/pos/settings/general': typeof PmsPosSettingsGeneralRoute
+  '/pms/pos/settings/payment-tax': typeof PmsPosSettingsPaymentTaxRoute
   '/pms/pos/settings/printer': typeof PmsPosSettingsPrinterRoute
+  '/pms/pos/settings/stations': typeof PmsPosSettingsStationsRoute
+  '/pms/pos/settings/store': typeof PmsPosSettingsStoreRoute
+  '/pms/pos/settings/table-layout': typeof PmsPosSettingsTableLayoutRoute
+  '/pms/pos/settings/utility': typeof PmsPosSettingsUtilityRoute
+  '/pms/pos/manage': typeof PmsPosManageIndexRoute
+  '/pms/pos/settings': typeof PmsPosSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -377,12 +523,30 @@ export interface FileRoutesById {
   '/portal/': typeof PortalIndexRoute
   '/pms/invoices_/new': typeof PmsInvoicesNewRoute
   '/pms/pos/help': typeof PmsPosHelpRoute
-  '/pms/pos/manage': typeof PmsPosManageRoute
+  '/pms/pos/manage': typeof PmsPosManageRouteWithChildren
   '/pms/pos/quick': typeof PmsPosQuickRoute
   '/pms/pos/reports': typeof PmsPosReportsRoute
+  '/pms/pos/settings': typeof PmsPosSettingsRouteWithChildren
   '/pms/settings_/users': typeof PmsSettingsUsersRoute
   '/pms/pos/': typeof PmsPosIndexRoute
+  '/pms/pos/manage/activity-logs': typeof PmsPosManageActivityLogsRoute
+  '/pms/pos/manage/categories': typeof PmsPosManageCategoriesRoute
+  '/pms/pos/manage/customers': typeof PmsPosManageCustomersRoute
+  '/pms/pos/manage/employees': typeof PmsPosManageEmployeesRoute
+  '/pms/pos/manage/income-expense': typeof PmsPosManageIncomeExpenseRoute
+  '/pms/pos/manage/invoices': typeof PmsPosManageInvoicesRoute
+  '/pms/pos/manage/items': typeof PmsPosManageItemsRoute
+  '/pms/pos/settings/discounts': typeof PmsPosSettingsDiscountsRoute
+  '/pms/pos/settings/display': typeof PmsPosSettingsDisplayRoute
+  '/pms/pos/settings/general': typeof PmsPosSettingsGeneralRoute
+  '/pms/pos/settings/payment-tax': typeof PmsPosSettingsPaymentTaxRoute
   '/pms/pos/settings/printer': typeof PmsPosSettingsPrinterRoute
+  '/pms/pos/settings/stations': typeof PmsPosSettingsStationsRoute
+  '/pms/pos/settings/store': typeof PmsPosSettingsStoreRoute
+  '/pms/pos/settings/table-layout': typeof PmsPosSettingsTableLayoutRoute
+  '/pms/pos/settings/utility': typeof PmsPosSettingsUtilityRoute
+  '/pms/pos/manage/': typeof PmsPosManageIndexRoute
+  '/pms/pos/settings/': typeof PmsPosSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -425,9 +589,27 @@ export interface FileRouteTypes {
     | '/pms/pos/manage'
     | '/pms/pos/quick'
     | '/pms/pos/reports'
+    | '/pms/pos/settings'
     | '/pms/settings/users'
     | '/pms/pos/'
+    | '/pms/pos/manage/activity-logs'
+    | '/pms/pos/manage/categories'
+    | '/pms/pos/manage/customers'
+    | '/pms/pos/manage/employees'
+    | '/pms/pos/manage/income-expense'
+    | '/pms/pos/manage/invoices'
+    | '/pms/pos/manage/items'
+    | '/pms/pos/settings/discounts'
+    | '/pms/pos/settings/display'
+    | '/pms/pos/settings/general'
+    | '/pms/pos/settings/payment-tax'
     | '/pms/pos/settings/printer'
+    | '/pms/pos/settings/stations'
+    | '/pms/pos/settings/store'
+    | '/pms/pos/settings/table-layout'
+    | '/pms/pos/settings/utility'
+    | '/pms/pos/manage/'
+    | '/pms/pos/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -462,12 +644,28 @@ export interface FileRouteTypes {
     | '/portal'
     | '/pms/invoices/new'
     | '/pms/pos/help'
-    | '/pms/pos/manage'
     | '/pms/pos/quick'
     | '/pms/pos/reports'
     | '/pms/settings/users'
     | '/pms/pos'
+    | '/pms/pos/manage/activity-logs'
+    | '/pms/pos/manage/categories'
+    | '/pms/pos/manage/customers'
+    | '/pms/pos/manage/employees'
+    | '/pms/pos/manage/income-expense'
+    | '/pms/pos/manage/invoices'
+    | '/pms/pos/manage/items'
+    | '/pms/pos/settings/discounts'
+    | '/pms/pos/settings/display'
+    | '/pms/pos/settings/general'
+    | '/pms/pos/settings/payment-tax'
     | '/pms/pos/settings/printer'
+    | '/pms/pos/settings/stations'
+    | '/pms/pos/settings/store'
+    | '/pms/pos/settings/table-layout'
+    | '/pms/pos/settings/utility'
+    | '/pms/pos/manage'
+    | '/pms/pos/settings'
   id:
     | '__root__'
     | '/'
@@ -508,9 +706,27 @@ export interface FileRouteTypes {
     | '/pms/pos/manage'
     | '/pms/pos/quick'
     | '/pms/pos/reports'
+    | '/pms/pos/settings'
     | '/pms/settings_/users'
     | '/pms/pos/'
+    | '/pms/pos/manage/activity-logs'
+    | '/pms/pos/manage/categories'
+    | '/pms/pos/manage/customers'
+    | '/pms/pos/manage/employees'
+    | '/pms/pos/manage/income-expense'
+    | '/pms/pos/manage/invoices'
+    | '/pms/pos/manage/items'
+    | '/pms/pos/settings/discounts'
+    | '/pms/pos/settings/display'
+    | '/pms/pos/settings/general'
+    | '/pms/pos/settings/payment-tax'
     | '/pms/pos/settings/printer'
+    | '/pms/pos/settings/stations'
+    | '/pms/pos/settings/store'
+    | '/pms/pos/settings/table-layout'
+    | '/pms/pos/settings/utility'
+    | '/pms/pos/manage/'
+    | '/pms/pos/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -812,6 +1028,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PmsPosReportsRouteImport
       parentRoute: typeof PmsPosRoute
     }
+    '/pms/pos/settings': {
+      id: '/pms/pos/settings'
+      path: '/settings'
+      fullPath: '/pms/pos/settings'
+      preLoaderRoute: typeof PmsPosSettingsRouteImport
+      parentRoute: typeof PmsPosRoute
+    }
     '/pms/settings_/users': {
       id: '/pms/settings_/users'
       path: '/settings/users'
@@ -819,32 +1042,207 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PmsSettingsUsersRouteImport
       parentRoute: typeof PmsRoute
     }
+    '/pms/pos/manage/': {
+      id: '/pms/pos/manage/'
+      path: '/'
+      fullPath: '/pms/pos/manage/'
+      preLoaderRoute: typeof PmsPosManageIndexRouteImport
+      parentRoute: typeof PmsPosManageRoute
+    }
+    '/pms/pos/manage/activity-logs': {
+      id: '/pms/pos/manage/activity-logs'
+      path: '/activity-logs'
+      fullPath: '/pms/pos/manage/activity-logs'
+      preLoaderRoute: typeof PmsPosManageActivityLogsRouteImport
+      parentRoute: typeof PmsPosManageRoute
+    }
+    '/pms/pos/manage/categories': {
+      id: '/pms/pos/manage/categories'
+      path: '/categories'
+      fullPath: '/pms/pos/manage/categories'
+      preLoaderRoute: typeof PmsPosManageCategoriesRouteImport
+      parentRoute: typeof PmsPosManageRoute
+    }
+    '/pms/pos/manage/customers': {
+      id: '/pms/pos/manage/customers'
+      path: '/customers'
+      fullPath: '/pms/pos/manage/customers'
+      preLoaderRoute: typeof PmsPosManageCustomersRouteImport
+      parentRoute: typeof PmsPosManageRoute
+    }
+    '/pms/pos/manage/employees': {
+      id: '/pms/pos/manage/employees'
+      path: '/employees'
+      fullPath: '/pms/pos/manage/employees'
+      preLoaderRoute: typeof PmsPosManageEmployeesRouteImport
+      parentRoute: typeof PmsPosManageRoute
+    }
+    '/pms/pos/manage/income-expense': {
+      id: '/pms/pos/manage/income-expense'
+      path: '/income-expense'
+      fullPath: '/pms/pos/manage/income-expense'
+      preLoaderRoute: typeof PmsPosManageIncomeExpenseRouteImport
+      parentRoute: typeof PmsPosManageRoute
+    }
+    '/pms/pos/manage/invoices': {
+      id: '/pms/pos/manage/invoices'
+      path: '/invoices'
+      fullPath: '/pms/pos/manage/invoices'
+      preLoaderRoute: typeof PmsPosManageInvoicesRouteImport
+      parentRoute: typeof PmsPosManageRoute
+    }
+    '/pms/pos/manage/items': {
+      id: '/pms/pos/manage/items'
+      path: '/items'
+      fullPath: '/pms/pos/manage/items'
+      preLoaderRoute: typeof PmsPosManageItemsRouteImport
+      parentRoute: typeof PmsPosManageRoute
+    }
+    '/pms/pos/settings/': {
+      id: '/pms/pos/settings/'
+      path: '/'
+      fullPath: '/pms/pos/settings/'
+      preLoaderRoute: typeof PmsPosSettingsIndexRouteImport
+      parentRoute: typeof PmsPosSettingsRoute
+    }
+    '/pms/pos/settings/discounts': {
+      id: '/pms/pos/settings/discounts'
+      path: '/discounts'
+      fullPath: '/pms/pos/settings/discounts'
+      preLoaderRoute: typeof PmsPosSettingsDiscountsRouteImport
+      parentRoute: typeof PmsPosSettingsRoute
+    }
+    '/pms/pos/settings/display': {
+      id: '/pms/pos/settings/display'
+      path: '/display'
+      fullPath: '/pms/pos/settings/display'
+      preLoaderRoute: typeof PmsPosSettingsDisplayRouteImport
+      parentRoute: typeof PmsPosSettingsRoute
+    }
+    '/pms/pos/settings/general': {
+      id: '/pms/pos/settings/general'
+      path: '/general'
+      fullPath: '/pms/pos/settings/general'
+      preLoaderRoute: typeof PmsPosSettingsGeneralRouteImport
+      parentRoute: typeof PmsPosSettingsRoute
+    }
+    '/pms/pos/settings/payment-tax': {
+      id: '/pms/pos/settings/payment-tax'
+      path: '/payment-tax'
+      fullPath: '/pms/pos/settings/payment-tax'
+      preLoaderRoute: typeof PmsPosSettingsPaymentTaxRouteImport
+      parentRoute: typeof PmsPosSettingsRoute
+    }
     '/pms/pos/settings/printer': {
       id: '/pms/pos/settings/printer'
-      path: '/settings/printer'
+      path: '/printer'
       fullPath: '/pms/pos/settings/printer'
       preLoaderRoute: typeof PmsPosSettingsPrinterRouteImport
-      parentRoute: typeof PmsPosRoute
+      parentRoute: typeof PmsPosSettingsRoute
+    }
+    '/pms/pos/settings/stations': {
+      id: '/pms/pos/settings/stations'
+      path: '/stations'
+      fullPath: '/pms/pos/settings/stations'
+      preLoaderRoute: typeof PmsPosSettingsStationsRouteImport
+      parentRoute: typeof PmsPosSettingsRoute
+    }
+    '/pms/pos/settings/store': {
+      id: '/pms/pos/settings/store'
+      path: '/store'
+      fullPath: '/pms/pos/settings/store'
+      preLoaderRoute: typeof PmsPosSettingsStoreRouteImport
+      parentRoute: typeof PmsPosSettingsRoute
+    }
+    '/pms/pos/settings/table-layout': {
+      id: '/pms/pos/settings/table-layout'
+      path: '/table-layout'
+      fullPath: '/pms/pos/settings/table-layout'
+      preLoaderRoute: typeof PmsPosSettingsTableLayoutRouteImport
+      parentRoute: typeof PmsPosSettingsRoute
+    }
+    '/pms/pos/settings/utility': {
+      id: '/pms/pos/settings/utility'
+      path: '/utility'
+      fullPath: '/pms/pos/settings/utility'
+      preLoaderRoute: typeof PmsPosSettingsUtilityRouteImport
+      parentRoute: typeof PmsPosSettingsRoute
     }
   }
 }
 
+interface PmsPosManageRouteChildren {
+  PmsPosManageActivityLogsRoute: typeof PmsPosManageActivityLogsRoute
+  PmsPosManageCategoriesRoute: typeof PmsPosManageCategoriesRoute
+  PmsPosManageCustomersRoute: typeof PmsPosManageCustomersRoute
+  PmsPosManageEmployeesRoute: typeof PmsPosManageEmployeesRoute
+  PmsPosManageIncomeExpenseRoute: typeof PmsPosManageIncomeExpenseRoute
+  PmsPosManageInvoicesRoute: typeof PmsPosManageInvoicesRoute
+  PmsPosManageItemsRoute: typeof PmsPosManageItemsRoute
+  PmsPosManageIndexRoute: typeof PmsPosManageIndexRoute
+}
+
+const PmsPosManageRouteChildren: PmsPosManageRouteChildren = {
+  PmsPosManageActivityLogsRoute: PmsPosManageActivityLogsRoute,
+  PmsPosManageCategoriesRoute: PmsPosManageCategoriesRoute,
+  PmsPosManageCustomersRoute: PmsPosManageCustomersRoute,
+  PmsPosManageEmployeesRoute: PmsPosManageEmployeesRoute,
+  PmsPosManageIncomeExpenseRoute: PmsPosManageIncomeExpenseRoute,
+  PmsPosManageInvoicesRoute: PmsPosManageInvoicesRoute,
+  PmsPosManageItemsRoute: PmsPosManageItemsRoute,
+  PmsPosManageIndexRoute: PmsPosManageIndexRoute,
+}
+
+const PmsPosManageRouteWithChildren = PmsPosManageRoute._addFileChildren(
+  PmsPosManageRouteChildren,
+)
+
+interface PmsPosSettingsRouteChildren {
+  PmsPosSettingsDiscountsRoute: typeof PmsPosSettingsDiscountsRoute
+  PmsPosSettingsDisplayRoute: typeof PmsPosSettingsDisplayRoute
+  PmsPosSettingsGeneralRoute: typeof PmsPosSettingsGeneralRoute
+  PmsPosSettingsPaymentTaxRoute: typeof PmsPosSettingsPaymentTaxRoute
+  PmsPosSettingsPrinterRoute: typeof PmsPosSettingsPrinterRoute
+  PmsPosSettingsStationsRoute: typeof PmsPosSettingsStationsRoute
+  PmsPosSettingsStoreRoute: typeof PmsPosSettingsStoreRoute
+  PmsPosSettingsTableLayoutRoute: typeof PmsPosSettingsTableLayoutRoute
+  PmsPosSettingsUtilityRoute: typeof PmsPosSettingsUtilityRoute
+  PmsPosSettingsIndexRoute: typeof PmsPosSettingsIndexRoute
+}
+
+const PmsPosSettingsRouteChildren: PmsPosSettingsRouteChildren = {
+  PmsPosSettingsDiscountsRoute: PmsPosSettingsDiscountsRoute,
+  PmsPosSettingsDisplayRoute: PmsPosSettingsDisplayRoute,
+  PmsPosSettingsGeneralRoute: PmsPosSettingsGeneralRoute,
+  PmsPosSettingsPaymentTaxRoute: PmsPosSettingsPaymentTaxRoute,
+  PmsPosSettingsPrinterRoute: PmsPosSettingsPrinterRoute,
+  PmsPosSettingsStationsRoute: PmsPosSettingsStationsRoute,
+  PmsPosSettingsStoreRoute: PmsPosSettingsStoreRoute,
+  PmsPosSettingsTableLayoutRoute: PmsPosSettingsTableLayoutRoute,
+  PmsPosSettingsUtilityRoute: PmsPosSettingsUtilityRoute,
+  PmsPosSettingsIndexRoute: PmsPosSettingsIndexRoute,
+}
+
+const PmsPosSettingsRouteWithChildren = PmsPosSettingsRoute._addFileChildren(
+  PmsPosSettingsRouteChildren,
+)
+
 interface PmsPosRouteChildren {
   PmsPosHelpRoute: typeof PmsPosHelpRoute
-  PmsPosManageRoute: typeof PmsPosManageRoute
+  PmsPosManageRoute: typeof PmsPosManageRouteWithChildren
   PmsPosQuickRoute: typeof PmsPosQuickRoute
   PmsPosReportsRoute: typeof PmsPosReportsRoute
+  PmsPosSettingsRoute: typeof PmsPosSettingsRouteWithChildren
   PmsPosIndexRoute: typeof PmsPosIndexRoute
-  PmsPosSettingsPrinterRoute: typeof PmsPosSettingsPrinterRoute
 }
 
 const PmsPosRouteChildren: PmsPosRouteChildren = {
   PmsPosHelpRoute: PmsPosHelpRoute,
-  PmsPosManageRoute: PmsPosManageRoute,
+  PmsPosManageRoute: PmsPosManageRouteWithChildren,
   PmsPosQuickRoute: PmsPosQuickRoute,
   PmsPosReportsRoute: PmsPosReportsRoute,
+  PmsPosSettingsRoute: PmsPosSettingsRouteWithChildren,
   PmsPosIndexRoute: PmsPosIndexRoute,
-  PmsPosSettingsPrinterRoute: PmsPosSettingsPrinterRoute,
 }
 
 const PmsPosRouteWithChildren =

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Zap } from "lucide-react";
-import { pms } from "@/lib/pms-client";
-import { elapsed, inr } from "@/lib/pms-pos-client";
+import { elapsed, inr, posFetch } from "@/lib/pms-pos-client";
 import { usePos } from "@/components/pms/pos/pos-context";
 import { OrderFlow } from "@/components/pms/pos/order-flow";
 
@@ -20,7 +19,7 @@ function QuickSale() {
 
   const load = useCallback(async () => {
     try {
-      const r = await pms<{ rows: (Open & { table_name: string })[] }>(`pos/reports?type=hold&property=${encodeURIComponent(property)}`);
+      const r = await posFetch<{ rows: (Open & { table_name: string })[] }>(`reports?type=hold&property=${encodeURIComponent(property)}`);
       setOpen(r.rows.filter((o) => o.table_name === "Quick"));
     } catch {
       setOpen([]);

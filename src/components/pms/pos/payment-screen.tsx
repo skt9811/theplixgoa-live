@@ -6,16 +6,19 @@ import { inr, posAction, posSettle, type PosOrderData } from "@/lib/pms-pos-clie
 import { billSlip, type SlipContext } from "@/lib/pms-escpos";
 import { printSlip, type PrinterSettings } from "@/lib/pms-pos-print";
 import { round2 } from "@/lib/pms-pos-calc";
+import { usePos } from "@/components/pms/pos/pos-context";
 
-const MODES = ["Cash", "UPI", "Card", "Loyalty", "Account"] as const;
+const ALL_MODES = ["Cash", "UPI", "Card", "Loyalty", "Account"] as const;
 const field = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-emerald-500";
 
 export function PaymentScreen({ property, data, printer, ctx, onBack, onDone }: { property: string; data: PosOrderData; printer: PrinterSettings; ctx: SlipContext; onBack: () => void; onDone: () => void }) {
   const o = data.order;
   const base = o.total_amount;
-  const [method, setMethod] = useState<(typeof MODES)[number]>("Cash");
+  const { state } = usePos();
+  const MODES = ALL_MODES.filter((m) => !state?.settings.payment.methods || state.settings.payment.methods.includes(m));
+  const [method, setMethod] = useState<(typeof ALL_MODES)[number]>(MODES[0] ?? "Cash");
   const [received, setReceived] = useState(String(base));
-  const [roundOff, setRoundOff] = useState(0);
+  const [roundOff, setRoundOff] = useState(() => (state?.settings.general.roundOff ? round2(Math.round(base) - base) : 0));
   const [remark, setRemark] = useState("");
   const [bookings, setBookings] = useState<PmsBooking[] | null>(null);
   const [bookingId, setBookingId] = useState("");

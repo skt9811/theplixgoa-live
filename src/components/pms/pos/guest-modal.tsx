@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { pms } from "@/lib/pms-client";
-import { inr } from "@/lib/pms-pos-client";
+import { inr, posFetch } from "@/lib/pms-pos-client";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
 export type Guest = { name: string; count: number; phone: string; isCommercial: boolean; addressType: string; address: string; city: string; zip: string };
@@ -18,7 +17,7 @@ export function GuestModal({ property, guest, onChange, onClose }: { property: s
   useEffect(() => {
     if (tab !== "history") return;
     setHistory(null);
-    pms<{ orders: NonNullable<typeof history> }>(`pos/guest-history?property=${encodeURIComponent(property)}&phone=${encodeURIComponent(guest.phone)}`)
+    posFetch<{ orders: NonNullable<typeof history> }>(`guest-history?property=${encodeURIComponent(property)}&phone=${encodeURIComponent(guest.phone)}`)
       .then((r) => setHistory(r.orders))
       .catch(() => setHistory([]));
   }, [tab, property, guest.phone]);

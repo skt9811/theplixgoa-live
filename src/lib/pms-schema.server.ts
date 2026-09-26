@@ -326,6 +326,79 @@ export function ensurePosSchema(sql: Sql): Promise<void> {
       await sql`ALTER TABLE pms_pos_printer_settings ADD COLUMN IF NOT EXISTS bill_address text`;
       await sql`ALTER TABLE pms_pos_printer_settings ADD COLUMN IF NOT EXISTS bill_gstin varchar(20)`;
       await sql`ALTER TABLE pms_pos_printer_settings ADD COLUMN IF NOT EXISTS bill_footer text`;
+      // --- Management / settings expansion (all additive) ---
+      await sql`ALTER TABLE pms_pos_items ADD COLUMN IF NOT EXISTS category_name varchar(100)`;
+      await sql`ALTER TABLE pms_pos_items ADD COLUMN IF NOT EXISTS stock numeric(10, 2) DEFAULT 0.0`;
+      await sql`ALTER TABLE pms_pos_items ADD COLUMN IF NOT EXISTS brand varchar(100)`;
+      await sql`ALTER TABLE pms_pos_items ADD COLUMN IF NOT EXISTS printer_destination varchar(50) DEFAULT 'kitchen'`;
+      await sql`ALTER TABLE pms_pos_items ALTER COLUMN price SET DEFAULT 0.00`;
+      // Deleting a category keeps its items (uncategorised) instead of deleting them.
+      await sql`ALTER TABLE pms_pos_items DROP CONSTRAINT IF EXISTS pms_pos_items_category_id_fkey`;
+      await sql`ALTER TABLE pms_pos_items ADD CONSTRAINT pms_pos_items_category_id_fkey FOREIGN KEY (category_id) REFERENCES pms_pos_categories(id) ON DELETE SET NULL`;
+      await sql`UPDATE pms_pos_items i SET category_name = c.name FROM pms_pos_categories c WHERE i.category_id = c.id AND i.category_name IS NULL`;
+      await sql`ALTER TABLE pms_pos_tables ADD COLUMN IF NOT EXISTS sort_order int DEFAULT 0`;
+      await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS order_type varchar(20) DEFAULT 'dine_in'`;
+      await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS billed_by_user varchar(100)`;
+      await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS daily_number int`;
+      await sql`ALTER TABLE pms_pos_order_items ADD COLUMN IF NOT EXISTS stock_deducted boolean NOT NULL DEFAULT false`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_pos_customers (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          property_id varchar(100) NOT NULL,
+          name varchar(150) NOT NULL,
+          mobile varchar(50) NOT NULL,
+          is_commercial boolean DEFAULT false,
+          address_type varchar(20) DEFAULT 'Hotel',
+          address text,
+          city varchar(100),
+          zipcode varchar(20),
+          created_at timestamptz DEFAULT now()
+        )`;
+      await sql`ALTER TABLE pms_pos_customers ADD COLUMN IF NOT EXISTS persons int DEFAULT 1`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_pos_customers_mobile_key ON pms_pos_customers (property_id, mobile)`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_pos_security_groups (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          property_id varchar(100) NOT NULL,
+          name varchar(50) NOT NULL,
+          permissions jsonb DEFAULT '{}'::jsonb
+        )`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_pos_security_groups_name_key ON pms_pos_security_groups (property_id, lower(name))`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_pos_employees (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          property_id varchar(100) NOT NULL,
+          first_name varchar(100) NOT NULL,
+          last_name varchar(100),
+          employee_code varchar(50) UNIQUE NOT NULL,
+          pin varchar(10) NOT NULL,
+          card_number varchar(50),
+          security_group varchar(50) NOT NULL,
+          is_active boolean DEFAULT true,
+          allow_web_access boolean DEFAULT false,
+          web_email varchar(150),
+          web_password_hash varchar(255)
+        )`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_pos_activity_logs (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          property_id varchar(100) NOT NULL,
+          station_id varchar(50) DEFAULT '10',
+          user_name varchar(100) NOT NULL,
+          action varchar(100) NOT NULL,
+          details jsonb,
+          created_at timestamptz DEFAULT now()
+        )`;
+      await sql`ALTER TABLE pms_pos_activity_logs ALTER COLUMN action TYPE varchar(255)`;
+      await sql`CREATE INDEX IF NOT EXISTS pms_pos_activity_logs_idx ON pms_pos_activity_logs (property_id, created_at)`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_pos_settings (
+          property_id varchar(100) NOT NULL,
+          key varchar(50) NOT NULL,
+          value jsonb NOT NULL DEFAULT '{}'::jsonb,
+          updated_at timestamptz DEFAULT now(),
+          PRIMARY KEY (property_id, key)
+        )`;
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_orders_prop_idx ON pms_pos_orders (property_id, created_at)`;
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_order_items_order_idx ON pms_pos_order_items (order_id)`;
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_tables_prop_idx ON pms_pos_tables (property_id)`;

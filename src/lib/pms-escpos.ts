@@ -37,11 +37,11 @@ const stamp = (d: Date) => d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata",
 
 export type SlipContext = { propertyName: string; address?: string | null | undefined; gstin?: string | null | undefined; footer?: string | null | undefined; paper: PaperSize };
 
-export function kotSlip(ctx: SlipContext, o: { table: string; kot: number; orderNumber: number; items: { name: string; qty: number; notes?: string | null }[]; at?: Date; by?: string }): SlipLine[] {
+export function kotSlip(ctx: SlipContext, o: { title?: string; table: string; kot: number; orderNumber: number; items: { name: string; qty: number; notes?: string | null }[]; at?: Date; by?: string }): SlipLine[] {
   const cols = PAPER_COLUMNS[ctx.paper];
   const lines: SlipLine[] = [
     { text: ctx.propertyName.toUpperCase(), align: "center", bold: true },
-    { text: "KITCHEN ORDER TICKET", align: "center", bold: true },
+    { text: o.title ?? "KITCHEN ORDER TICKET", align: "center", bold: true },
     rule(cols),
     { text: `Table: ${o.table}`, bold: true, big: true },
     { text: twoCol(`KOT #${o.kot}`, `Order #${o.orderNumber}`, cols) },

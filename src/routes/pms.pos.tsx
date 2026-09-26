@@ -74,7 +74,7 @@ function PosLayout() {
         <div className="mx-auto flex max-w-3xl">
           {TABS.map((t) => {
             const Icon = t.icon;
-            const active = t.exact ? pathname === t.to : pathname.startsWith(t.to);
+            const active = t.exact ? pathname === t.to : pathname.startsWith(t.to) || (t.to === "/pms/pos/manage" && pathname.startsWith("/pms/pos/settings"));
             return (
               <Link key={t.to} to={t.to} className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium" aria-current={active ? "page" : undefined}>
                 <Icon className={`size-5 ${active ? "text-emerald-600" : "text-slate-400"}`} aria-hidden />

@@ -1,29 +1,17 @@
 // Server-only. /api/pms/pos/* for the restaurant / cafe POS. Everything reads
 // and writes the PMS database (NEON_PMS_DATABASE_URL); the website database is
 // only touched by the shared session/booking code elsewhere, never here.
-import type postgres from "postgres";
 import { PROPERTIES } from "@/lib/plix";
 import { getPmsDb } from "@/lib/pms-db.server";
 import { ensureInvoicesSchema, ensurePosSchema } from "@/lib/pms-schema.server";
 import { audit } from "@/lib/pms-audit.server";
 import { computeTotals, round2 } from "@/lib/pms-pos-calc";
-import { canProperty, isAllProps, type Actor } from "@/lib/pms-users.server";
+import { isAllProps, type Actor } from "@/lib/pms-users.server";
 
-type Sql = ReturnType<typeof postgres>;
+import { ISO_DATE, PosError, canManage, istToday, json, loadSettings, logPos, num, requireProperty, str, type Sql } from "@/lib/pms-pos-shared.server";
+import { handlePosAdminApi } from "@/lib/pms-pos-admin.server";
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
-const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
-const num = (v: unknown, d = 0) => (typeof v === "number" && Number.isFinite(v) ? v : d);
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const METHODS = new Set(["Cash", "UPI", "Card", "Loyalty", "Account"]);
-const istToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
-
-class PosError extends Error {
-  constructor(message: string, readonly status = 400) {
-    super(message);
-  }
-}
 
 const DEFAULT_TABLES: [string, string][] = [
   ["Open Table", "open"], ["Villa", "villa"], ["R1", "room"], ["R2", "room"], ["R3", "room"], ["R4", "room"], ["R5", "room"], ["R6", "room"], ["R7", "room"], ["R8", "room"],
@@ -36,6 +24,9 @@ const DEFAULT_MENU: Record<string, [string, number, boolean][]> = {
 };
 
 async function seedProperty(sql: Sql, property: string) {
+  // Sample data is created once per property; deleting everything later must not bring it back.
+  const [done] = await sql`SELECT 1 FROM pms_pos_settings WHERE property_id = ${property} AND key = 'seeded'`;
+  if (done) return;
   const [t] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM pms_pos_tables WHERE property_id = ${property}`;
   if ((t?.n ?? 0) === 0) {
     for (const [name, type] of DEFAULT_TABLES) await sql`INSERT INTO pms_pos_tables (property_id, name, table_type) VALUES (${property}, ${name}, ${type})`;
@@ -50,6 +41,7 @@ async function seedProperty(sql: Sql, property: string) {
       }
     }
   }
+  await sql`INSERT INTO pms_pos_settings (property_id, key, value) VALUES (${property}, 'seeded', '{}'::jsonb) ON CONFLICT DO NOTHING`;
 }
 
 type LineRow = { id: string; kot_number: number; item_id: string | null; item_name: string; quantity: number; unit_price: string; total_price: string; notes: string | null; status: string; tax_rate: string | null };
@@ -59,27 +51,22 @@ const mapLine = (l: LineRow) => ({ id: l.id, kot_number: l.kot_number, item_id: 
 const mapOrder = (o: OrderRow) => ({ ...o, order_number: Number(o["order_number"]), subtotal: Number(o.subtotal), tax_amount: Number(o["tax_amount"]), discount_amount: Number(o["discount_amount"]), discount_value: Number(o.discount_value ?? 0), other_charges: Number(o.other_charges), total_amount: Number(o["total_amount"]), round_off: Number(o["round_off"] ?? 0) });
 
 async function recalc(sql: Sql, orderId: string) {
-  const [o] = await sql<OrderRow[]>`SELECT * FROM pms_pos_orders WHERE id = ${orderId}`;
+  const [o] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
-  const lines = await sql<LineRow[]>`SELECT * FROM pms_pos_order_items WHERE order_id = ${orderId} AND status = 'active'`;
+  const lines = await sql<LineRow[]>`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted FROM pms_pos_order_items WHERE order_id = ${orderId} AND status = 'active'`;
   const t = computeTotals(lines.map((l) => ({ total: Number(l.total_price), rate: Number(l.tax_rate ?? 5) })), o.discount_type, Number(o.discount_value ?? 0), Number(o.other_charges));
   await sql`UPDATE pms_pos_orders SET subtotal = ${t.subtotal}, discount_amount = ${t.discount}, tax_amount = ${t.tax}, total_amount = ${t.total} WHERE id = ${orderId}`;
 }
 
 async function loadOrder(sql: Sql, orderId: string) {
-  const [o] = await sql<OrderRow[]>`SELECT * FROM pms_pos_orders WHERE id = ${orderId}`;
+  const [o] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
-  const lines = await sql<LineRow[]>`SELECT * FROM pms_pos_order_items WHERE order_id = ${orderId} ORDER BY kot_number, ctid`;
+  const lines = await sql<LineRow[]>`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted FROM pms_pos_order_items WHERE order_id = ${orderId} ORDER BY kot_number, ctid`;
   return { order: mapOrder(o), lines: lines.map(mapLine) };
 }
 
-function requireProperty(actor: Actor, slug: string) {
-  if (!PROPERTIES.some((p) => p.slug === slug)) throw new PosError("Choose a property first");
-  if (!canProperty(actor, slug)) throw new PosError("You do not have access to this property", 403);
-}
-
 async function ownedOrder(sql: Sql, actor: Actor, orderId: string): Promise<OrderRow> {
-  const [o] = await sql<OrderRow[]>`SELECT * FROM pms_pos_orders WHERE id = ${orderId}`;
+  const [o] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
   requireProperty(actor, o.property_id);
   return o;
@@ -89,19 +76,37 @@ async function freeTable(sql: Sql, tableId: string | null) {
   if (tableId) await sql`UPDATE pms_pos_tables SET status = 'empty', current_order_id = NULL WHERE id = ${tableId}`;
 }
 
+// Stock leaves the shelf when a line is sent to the kitchen (or billed directly)
+// and comes back if that line is voided or its order cancelled. Negative stock
+// is allowed on purpose: the count is a guide, never a reason to refuse a sale.
+async function deductStock(sql: Sql, orderId: string, kotOnly: boolean) {
+  await sql`UPDATE pms_pos_items i SET stock = COALESCE(i.stock, 0) - s.q
+    FROM (SELECT item_id, sum(quantity) AS q FROM pms_pos_order_items WHERE order_id = ${orderId} AND status = 'active' AND stock_deducted = false AND item_id IS NOT NULL
+          AND (${!kotOnly} OR kot_number > 0) GROUP BY item_id) s WHERE i.id = s.item_id`;
+  await sql`UPDATE pms_pos_order_items SET stock_deducted = true WHERE order_id = ${orderId} AND status = 'active' AND stock_deducted = false AND item_id IS NOT NULL AND (${!kotOnly} OR kot_number > 0)`;
+}
+
+async function restoreStock(sql: Sql, orderId: string, lineId?: string) {
+  await sql`UPDATE pms_pos_items i SET stock = COALESCE(i.stock, 0) + s.q
+    FROM (SELECT item_id, sum(quantity) AS q FROM pms_pos_order_items WHERE order_id = ${orderId} AND status = 'active' AND stock_deducted = true AND item_id IS NOT NULL
+          AND (${lineId ?? null}::uuid IS NULL OR id = ${lineId ?? null}::uuid) GROUP BY item_id) s WHERE i.id = s.item_id`;
+  await sql`UPDATE pms_pos_order_items SET stock_deducted = false WHERE order_id = ${orderId} AND stock_deducted = true AND (${lineId ?? null}::uuid IS NULL OR id = ${lineId ?? null}::uuid)`;
+}
+
 async function getState(url: URL, actor: Actor, sql: Sql) {
   const property = str(url.searchParams.get("property"));
   requireProperty(actor, property);
   await seedProperty(sql, property);
-  const [tables, categories, items, printer] = await Promise.all([
+  const [tables, categories, items, printer, settings] = await Promise.all([
     sql`SELECT t.id, t.name, t.table_type, t.status, o.id AS order_id, o.order_number, o.total_amount, o.guest_count, o.created_at, o.status AS order_status,
                (SELECT count(*)::int FROM pms_pos_order_items i WHERE i.order_id = o.id AND i.status = 'active') AS item_count
         FROM pms_pos_tables t LEFT JOIN pms_pos_orders o ON o.id = t.current_order_id AND o.status IN ('running', 'billing')
         WHERE t.property_id = ${property}
-        ORDER BY CASE t.table_type WHEN 'open' THEN 0 WHEN 'villa' THEN 1 ELSE 2 END, length(t.name), t.name`,
+        ORDER BY t.sort_order, CASE t.table_type WHEN 'open' THEN 0 WHEN 'villa' THEN 1 ELSE 2 END, length(t.name), t.name`,
     sql`SELECT id, name, sort_order, is_active, color FROM pms_pos_categories WHERE property_id = ${property} ORDER BY sort_order, name`,
-    sql`SELECT id, category_id, name, price::float AS price, is_veg, tax_rate::float AS tax_rate, is_available FROM pms_pos_items WHERE property_id = ${property} ORDER BY name`,
-    sql`SELECT * FROM pms_pos_printer_settings WHERE property_id = ${property}`,
+    sql`SELECT id, category_id, category_name, name, price::float AS price, stock::float AS stock, brand, printer_destination, is_veg, tax_rate::float AS tax_rate, is_available FROM pms_pos_items WHERE property_id = ${property} ORDER BY name`,
+    sql`SELECT id, property_id, printer_type, printer_name, mac_address, left_margin, paper_size, bill_address, bill_gstin, bill_footer FROM pms_pos_printer_settings WHERE property_id = ${property}`,
+    loadSettings(sql, property),
   ]);
   return {
     tables: tables.map((t) => ({
@@ -111,10 +116,11 @@ async function getState(url: URL, actor: Actor, sql: Sql) {
     categories,
     items,
     printer: printer[0] ?? null,
+    settings,
   };
 }
 
-async function saveOrder(request: Request, actor: Actor, sql: Sql) {
+async function saveOrder(request: Request, actor: Actor, sql: Sql, station: string) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const property = str(body["property"]);
   requireProperty(actor, property);
@@ -125,6 +131,8 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql) {
   const discountValue = Math.max(0, num(body["discountValue"]));
   const other = Math.max(0, num(body["otherCharges"]));
 
+  const settings = await loadSettings(sql, property);
+  const noTax = (settings.payment as { taxMode?: string }).taxMode === "none";
   const result = await sql.begin(async (tx0) => {
     const tx = tx0 as unknown as Sql;
     let orderId = str(body["orderId"]);
@@ -132,22 +140,22 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql) {
     if (!orderId) {
       const tableId = str(body["tableId"]);
       if (tableId) {
-        const [table] = await tx<{ id: string; name: string; property_id: string; current_order_id: string | null }[]>`SELECT * FROM pms_pos_tables WHERE id = ${tableId} FOR UPDATE`;
+        const [table] = await tx<{ id: string; name: string; property_id: string; current_order_id: string | null }[]>`SELECT id, property_id, name, table_type, status, current_order_id, sort_order FROM pms_pos_tables WHERE id = ${tableId} FOR UPDATE`;
         if (!table || table.property_id !== property) throw new PosError("Table not found", 404);
         if (table.current_order_id) orderId = table.current_order_id;
         else {
-          const [o] = await tx<{ id: string }[]>`INSERT INTO pms_pos_orders (property_id, table_id, table_name, created_by) VALUES (${property}, ${table.id}, ${table.name}, ${actor.name}) RETURNING id`;
+          const [o] = await tx<{ id: string }[]>`INSERT INTO pms_pos_orders (property_id, table_id, table_name, created_by, order_type) VALUES (${property}, ${table.id}, ${table.name}, ${actor.name}, ${(table as unknown as { table_type: string }).table_type === "room" ? "room_service" : "dine_in"}) RETURNING id`;
           orderId = o!.id;
           created = true;
           await tx`UPDATE pms_pos_tables SET status = 'running', current_order_id = ${orderId} WHERE id = ${table.id}`;
         }
       } else {
-        const [o] = await tx<{ id: string }[]>`INSERT INTO pms_pos_orders (property_id, table_name, created_by) VALUES (${property}, 'Quick', ${actor.name}) RETURNING id`;
+        const [o] = await tx<{ id: string }[]>`INSERT INTO pms_pos_orders (property_id, table_name, created_by, order_type) VALUES (${property}, 'Quick', ${actor.name}, 'dine_in') RETURNING id`;
         orderId = o!.id;
         created = true;
       }
     }
-    const [existing] = await tx<OrderRow[]>`SELECT * FROM pms_pos_orders WHERE id = ${orderId} FOR UPDATE`;
+    const [existing] = await tx<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number FROM pms_pos_orders WHERE id = ${orderId} FOR UPDATE`;
     if (!existing || existing.property_id !== property) throw new PosError("Order not found", 404);
     if (existing.status !== "running" && existing.status !== "billing") throw new PosError("This order is already closed", 409);
 
@@ -165,14 +173,14 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql) {
       const qty = Math.max(1, Math.floor(num(d["qty"], 1)));
       let name = str(d["name"]).slice(0, 150);
       let price = Math.max(0, num(d["unitPrice"]));
-      let rate = Math.min(100, Math.max(0, num(d["taxRate"], 5)));
+      let rate = noTax ? 0 : Math.min(100, Math.max(0, num(d["taxRate"], 5)));
       const itemId = str(d["itemId"]);
       if (itemId) {
         const [item] = await tx<{ name: string; price: string; tax_rate: string }[]>`SELECT name, price, tax_rate FROM pms_pos_items WHERE id = ${itemId} AND property_id = ${property}`;
         if (!item) throw new PosError("A menu item no longer exists");
         name = item.name;
         price = Number(item.price);
-        rate = Number(item.tax_rate);
+        rate = noTax ? 0 : Number(item.tax_rate);
       }
       if (!name) throw new PosError("Every line needs a name");
       await tx`INSERT INTO pms_pos_order_items (order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, tax_rate, added_by)
@@ -186,21 +194,36 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql) {
       const [m] = await tx<{ k: number }[]>`SELECT COALESCE(max(kot_number), 0)::int + 1 AS k FROM pms_pos_order_items WHERE order_id = ${orderId}`;
       kotNumber = m!.k;
       await tx`UPDATE pms_pos_order_items SET kot_number = ${kotNumber}, kot_at = now() WHERE order_id = ${orderId} AND kot_number = 0 AND status = 'active'`;
+      await deductStock(tx, orderId, true);
+    }
+    const gPhone = str(guest["phone"]).slice(0, 50);
+    if (gPhone.length >= 6 && str(guest["name"])) {
+      await tx`INSERT INTO pms_pos_customers (property_id, name, mobile, is_commercial, address_type, address, city, zipcode, persons)
+        VALUES (${property}, ${str(guest["name"]).slice(0, 150)}, ${gPhone}, ${guest["isCommercial"] === true}, ${str(guest["addressType"]).slice(0, 20) || "Hotel"}, ${str(guest["address"]) || null}, ${str(guest["city"]).slice(0, 100) || null}, ${str(guest["zip"]).slice(0, 20) || null}, ${Math.max(1, Math.floor(num(guest["count"], 1)))})
+        ON CONFLICT (property_id, mobile) DO NOTHING`;
     }
     await recalc(tx, orderId);
     return { orderId, kotNumber, created };
   });
 
-  if (result.created) await audit(actor, "CREATE", "pos", result.orderId, { property, kind: "order" });
-  return json({ ...(await loadOrder(sql, result.orderId)), kotNumber: result.kotNumber });
+  const saved = await loadOrder(sql, result.orderId);
+  if (result.created) {
+    await audit(actor, "CREATE", "pos", result.orderId, { property, kind: "order" });
+    await logPos(sql, actor, property, `Order Opened (Table ${saved.order.table_name}, Order #${saved.order.order_number})`, { orderId: result.orderId }, station);
+  }
+  if (result.kotNumber) {
+    const n = saved.lines.filter((l) => l.kot_number === result.kotNumber && l.status === "active").length;
+    await logPos(sql, actor, property, `KOT #${result.kotNumber} Sent (Table ${saved.order.table_name}, ${n} item${n === 1 ? "" : "s"})`, { orderId: result.orderId, kot: result.kotNumber }, station);
+  }
+  return json({ ...saved, kotNumber: result.kotNumber });
 }
 
 async function moveLines(tx: Sql, actor: Actor, from: OrderRow, lineIds: string[], toTableId: string) {
   if (lineIds.length === 0) throw new PosError("Select at least one item");
-  const [table] = await tx<{ id: string; name: string; property_id: string; current_order_id: string | null }[]>`SELECT * FROM pms_pos_tables WHERE id = ${toTableId} FOR UPDATE`;
+  const [table] = await tx<{ id: string; name: string; property_id: string; current_order_id: string | null }[]>`SELECT id, property_id, name, table_type, status, current_order_id, sort_order FROM pms_pos_tables WHERE id = ${toTableId} FOR UPDATE`;
   if (!table || table.property_id !== from.property_id) throw new PosError("Table not found", 404);
   if (table.id === from.table_id) throw new PosError("Choose a different table");
-  const lines = await tx<LineRow[]>`SELECT * FROM pms_pos_order_items WHERE order_id = ${from.id} AND status = 'active' AND id = ANY(${lineIds}::uuid[])`;
+  const lines = await tx<LineRow[]>`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted FROM pms_pos_order_items WHERE order_id = ${from.id} AND status = 'active' AND id = ANY(${lineIds}::uuid[])`;
   const remaining = await tx<{ n: number }[]>`SELECT count(*)::int AS n FROM pms_pos_order_items WHERE order_id = ${from.id} AND status = 'active' AND NOT (id = ANY(${lineIds}::uuid[]))`;
   if (lines.length === 0) throw new PosError("Those items were not found");
   if ((remaining[0]?.n ?? 0) === 0) throw new PosError("Leave at least one item on the original order (use Move Table instead)");
@@ -218,7 +241,7 @@ async function moveLines(tx: Sql, actor: Actor, from: OrderRow, lineIds: string[
   return targetId;
 }
 
-async function orderAction(request: Request, actor: Actor, sql: Sql) {
+async function orderAction(request: Request, actor: Actor, sql: Sql, station: string) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const action = str(body["action"]);
   const order = await ownedOrder(sql, actor, str(body["orderId"]));
@@ -235,10 +258,11 @@ async function orderAction(request: Request, actor: Actor, sql: Sql) {
       break;
     case "void_item": {
       const reason = str(body["reason"]) || "Voided";
-      const [line] = await sql<LineRow[]>`SELECT * FROM pms_pos_order_items WHERE id = ${str(body["lineId"])} AND order_id = ${order.id} AND status = 'active'`;
+      const [line] = await sql<LineRow[]>`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted FROM pms_pos_order_items WHERE id = ${str(body["lineId"])} AND order_id = ${order.id} AND status = 'active'`;
       if (!line) throw new PosError("Item not found", 404);
       const [{ n } = { n: 0 }] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM pms_pos_order_items WHERE order_id = ${order.id} AND status = 'active'`;
       if (n <= 1) throw new PosError("Cancel the order instead of voiding its last item");
+      await restoreStock(sql, order.id, line.id);
       await sql`UPDATE pms_pos_order_items SET status = 'voided', voided_by = ${actor.name}, void_reason = ${reason} WHERE id = ${line.id}`;
       await recalc(sql, order.id);
       await audit(actor, "DELETE", "pos", order.id, { kind: "void_item", item: line.item_name, qty: line.quantity, reason });
@@ -246,6 +270,7 @@ async function orderAction(request: Request, actor: Actor, sql: Sql) {
     }
     case "cancel": {
       const reason = str(body["reason"]) || "Cancelled";
+      await restoreStock(sql, order.id);
       await sql`UPDATE pms_pos_orders SET status = 'cancelled', cancel_reason = ${reason}, settled_at = now() WHERE id = ${order.id}`;
       await freeTable(sql, order.table_id);
       await audit(actor, "DELETE", "pos", order.id, { kind: "cancel_order", table: order.table_name, reason, total: Number(order["total_amount"]) });
@@ -255,7 +280,7 @@ async function orderAction(request: Request, actor: Actor, sql: Sql) {
       const to = str(body["toTableId"]);
       await sql.begin(async (tx0) => {
         const tx = tx0 as unknown as Sql;
-        const [t] = await tx<{ id: string; name: string; property_id: string; current_order_id: string | null }[]>`SELECT * FROM pms_pos_tables WHERE id = ${to} FOR UPDATE`;
+        const [t] = await tx<{ id: string; name: string; property_id: string; current_order_id: string | null }[]>`SELECT id, property_id, name, table_type, status, current_order_id, sort_order FROM pms_pos_tables WHERE id = ${to} FOR UPDATE`;
         if (!t || t.property_id !== order.property_id) throw new PosError("Table not found", 404);
         if (t.current_order_id) throw new PosError("That table already has a running order (use Merge To)");
         await tx`UPDATE pms_pos_tables SET status = 'running', current_order_id = ${order.id} WHERE id = ${t.id}`;
@@ -278,6 +303,7 @@ async function orderAction(request: Request, actor: Actor, sql: Sql) {
         await recalc(tx, target.id);
       });
       await audit(actor, "UPDATE", "pos", order.id, { kind: "merge", into: target.table_name });
+      await logPos(sql, actor, order.property_id, `Order merged (Table ${order.table_name} into ${target.table_name})`, { from: order.id, into: target.id }, station);
       return json(await loadOrder(sql, target.id));
     }
     case "move_lines": {
@@ -290,24 +316,28 @@ async function orderAction(request: Request, actor: Actor, sql: Sql) {
       }
       const targetId = await sql.begin(async (tx0) => moveLines(tx0 as unknown as Sql, actor, order, lineIds, to));
       await audit(actor, "UPDATE", "pos", order.id, { kind: "move_lines", from: order.table_name, count: lineIds.length });
+      await logPos(sql, actor, order.property_id, `Items moved (${lineIds.length} from Table ${order.table_name})`, { orderId: order.id }, station);
       return json({ ...(await loadOrder(sql, order.id)), movedTo: targetId });
     }
     default:
       throw new PosError("Unknown action");
   }
+  await logPos(sql, actor, order.property_id, `Order ${action.replace(/_/g, " ")} (Table ${order.table_name}, Order #${order["order_number"]})`, { orderId: order.id, action }, station);
   return json(await loadOrder(sql, order.id));
 }
 
-async function settle(request: Request, actor: Actor, sql: Sql) {
+async function settle(request: Request, actor: Actor, sql: Sql, station: string) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const order = await ownedOrder(sql, actor, str(body["orderId"]));
   if (order.status !== "running" && order.status !== "billing") throw new PosError("This order is already closed", 409);
   const method = str(body["method"]);
   if (!METHODS.has(method)) throw new PosError("Choose a payment mode");
+  const enabled = ((await loadSettings(sql, order.property_id)).payment as { methods?: string[] }).methods;
+  if (enabled && !enabled.includes(method)) throw new PosError(`${method} is turned off in Payment & Tax settings`);
   const roundOff = round2(num(body["roundOff"]));
   const remark = str(body["remark"]);
   await recalc(sql, order.id);
-  const [fresh] = await sql<OrderRow[]>`SELECT * FROM pms_pos_orders WHERE id = ${order.id}`;
+  const [fresh] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number FROM pms_pos_orders WHERE id = ${order.id}`;
   const total = round2(Number(fresh!["total_amount"]) + roundOff);
   const received = method === "Account" ? total : Math.max(0, num(body["received"], total));
   if (method !== "Account" && received < total) throw new PosError("Received amount is less than the bill total");
@@ -330,15 +360,19 @@ async function settle(request: Request, actor: Actor, sql: Sql) {
       await tx`UPDATE pms_invoices SET food_charges = food_charges + ${total}, grand_total = grand_total + ${total}, balance_due = balance_due + ${total} WHERE id = ${inv.id}`;
       note = [remark, `Posted to invoice ${inv.invoice_number}`].filter(Boolean).join(" · ");
     }
+    const [dn] = await tx<{ n: number }[]>`SELECT count(*)::int + 1 AS n FROM pms_pos_orders WHERE property_id = ${order.property_id} AND status = 'completed'
+      AND (settled_at AT TIME ZONE 'Asia/Kolkata')::date = (now() AT TIME ZONE 'Asia/Kolkata')::date`;
     await tx`UPDATE pms_pos_orders SET status = 'completed', payment_method = ${method}, received_amount = ${received}, round_off = ${roundOff},
-      total_amount = ${total}, remarks = ${note || null}, booking_id = ${bookingId || null}, settled_at = now() WHERE id = ${order.id}`;
+      total_amount = ${total}, remarks = ${note || null}, booking_id = ${bookingId || null}, settled_at = now(), billed_by_user = ${actor.name}, daily_number = ${dn!.n} WHERE id = ${order.id}`;
+    await deductStock(tx, order.id, false);
     await freeTable(tx, order.table_id);
   });
   await audit(actor, "FINALIZE", "pos", order.id, { kind: "settle", method, total, table: order.table_name });
+  await logPos(sql, actor, order.property_id, `Transaction Added (Order Billing, Total Amount: ₹${total.toFixed(2)})`, { orderId: order.id, method, total }, station);
   return json({ ...(await loadOrder(sql, order.id)), change: round2(Math.max(0, received - total)) });
 }
 
-async function menuApi(request: Request, actor: Actor, sql: Sql) {
+async function menuApi(request: Request, actor: Actor, sql: Sql, station: string) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const property = str(body["property"]);
   requireProperty(actor, property);
@@ -353,7 +387,10 @@ async function menuApi(request: Request, actor: Actor, sql: Sql) {
       const name = str(body["name"]).slice(0, 100);
       if (!name) throw new PosError("Category name is required");
       const color = /^#[0-9a-fA-F]{6}$/.test(str(body["color"])) ? str(body["color"]) : null;
-      if (id) await sql`UPDATE pms_pos_categories SET name = ${name}, color = ${color}, sort_order = ${Math.floor(num(body["sortOrder"]))}, is_active = ${body["isActive"] !== false} WHERE id = ${id} AND property_id = ${property}`;
+      if (id) {
+        await sql`UPDATE pms_pos_categories SET name = ${name}, color = ${color}, sort_order = ${Math.floor(num(body["sortOrder"]))}, is_active = ${body["isActive"] !== false} WHERE id = ${id} AND property_id = ${property}`;
+        await sql`UPDATE pms_pos_items SET category_name = ${name} WHERE category_id = ${id}`;
+      }
       else {
         const [m] = await sql<{ k: number }[]>`SELECT COALESCE(max(sort_order), -1)::int + 1 AS k FROM pms_pos_categories WHERE property_id = ${property}`;
         await sql`INSERT INTO pms_pos_categories (property_id, name, color, sort_order) VALUES (${property}, ${name}, ${color}, ${m!.k})`;
@@ -375,8 +412,12 @@ async function menuApi(request: Request, actor: Actor, sql: Sql) {
       const [cat] = await sql`SELECT 1 FROM pms_pos_categories WHERE id = ${categoryId} AND property_id = ${property}`;
       if (!cat) throw new PosError("Category not found");
       const rate = Math.min(100, Math.max(0, num(body["taxRate"], 5)));
-      if (id) await sql`UPDATE pms_pos_items SET name = ${name}, price = ${price}, category_id = ${categoryId}, is_veg = ${body["isVeg"] !== false}, tax_rate = ${rate}, is_available = ${body["isAvailable"] !== false} WHERE id = ${id} AND property_id = ${property}`;
-      else await sql`INSERT INTO pms_pos_items (property_id, category_id, name, price, is_veg, tax_rate) VALUES (${property}, ${categoryId}, ${name}, ${price}, ${body["isVeg"] !== false}, ${rate})`;
+      const catName = ((await sql<{ name: string }[]>`SELECT name FROM pms_pos_categories WHERE id = ${categoryId}`)[0])?.name ?? null;
+      const dest = str(body["printerDestination"]) === "bar" ? "bar" : "kitchen";
+      const brand = str(body["brand"]).slice(0, 100) || null;
+      const stock = num(body["stock"], 0);
+      if (id) await sql`UPDATE pms_pos_items SET name = ${name}, price = ${price}, category_id = ${categoryId}, category_name = ${catName}, is_veg = ${body["isVeg"] !== false}, tax_rate = ${rate}, is_available = ${body["isAvailable"] !== false}, brand = ${brand}, printer_destination = ${dest}, stock = ${stock} WHERE id = ${id} AND property_id = ${property}`;
+      else await sql`INSERT INTO pms_pos_items (property_id, category_id, category_name, name, price, is_veg, tax_rate, brand, printer_destination, stock) VALUES (${property}, ${categoryId}, ${catName}, ${name}, ${price}, ${body["isVeg"] !== false}, ${rate}, ${brand}, ${dest}, ${stock})`;
     }
   } else if (entity === "table") {
     if (del) {
@@ -388,11 +429,15 @@ async function menuApi(request: Request, actor: Actor, sql: Sql) {
       const name = str(body["name"]).slice(0, 50);
       const type = ["table", "room", "villa", "open"].includes(str(body["tableType"])) ? str(body["tableType"]) : "table";
       if (!name) throw new PosError("Table name is required");
-      if (id) await sql`UPDATE pms_pos_tables SET name = ${name}, table_type = ${type} WHERE id = ${id} AND property_id = ${property}`;
-      else await sql`INSERT INTO pms_pos_tables (property_id, name, table_type) VALUES (${property}, ${name}, ${type})`;
+      if (id) await sql`UPDATE pms_pos_tables SET name = ${name}, table_type = ${type}, sort_order = ${Math.floor(num(body["sortOrder"]))} WHERE id = ${id} AND property_id = ${property}`;
+      else {
+        const [m] = await sql<{ k: number }[]>`SELECT COALESCE(max(sort_order), 0)::int + 1 AS k FROM pms_pos_tables WHERE property_id = ${property}`;
+        await sql`INSERT INTO pms_pos_tables (property_id, name, table_type, sort_order) VALUES (${property}, ${name}, ${type}, ${m!.k})`;
+      }
     }
   } else throw new PosError("Unknown menu entity");
   await audit(actor, "UPDATE", "pos", id || property, { kind: `menu_${entity}`, action: del ? "delete" : "save" });
+  await logPos(sql, actor, property, `${entity[0]!.toUpperCase()}${entity.slice(1)} ${del ? "deleted" : id ? "updated" : "added"}${str(body["name"]) ? ` (${str(body["name"])})` : ""}`, { entity, id }, station);
   return json({ success: true });
 }
 
@@ -400,7 +445,7 @@ async function printerApi(request: Request, url: URL, actor: Actor, sql: Sql) {
   if (request.method === "GET") {
     const property = str(url.searchParams.get("property"));
     requireProperty(actor, property);
-    const [row] = await sql`SELECT * FROM pms_pos_printer_settings WHERE property_id = ${property}`;
+    const [row] = await sql`SELECT id, property_id, printer_type, printer_name, mac_address, left_margin, paper_size, bill_address, bill_gstin, bill_footer FROM pms_pos_printer_settings WHERE property_id = ${property}`;
     return json({ printer: row ?? null });
   }
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
@@ -492,13 +537,14 @@ export async function handlePosApi(sub: string, request: Request, url: URL, acto
       const o = await ownedOrder(sql, actor, str(url.searchParams.get("id")));
       return json(await loadOrder(sql, o.id));
     }
-    if (sub === "order" && request.method === "POST") return await saveOrder(request, actor, sql);
-    if (sub === "order/action" && request.method === "POST") return await orderAction(request, actor, sql);
-    if (sub === "order/settle" && request.method === "POST") return await settle(request, actor, sql);
-    const manages = actor.role === "admin" || actor.role === "manager";
+    const station = (request.headers.get("x-pos-station") ?? "10").slice(0, 50);
+    if (sub === "order" && request.method === "POST") return await saveOrder(request, actor, sql, station);
+    if (sub === "order/action" && request.method === "POST") return await orderAction(request, actor, sql, station);
+    if (sub === "order/settle" && request.method === "POST") return await settle(request, actor, sql, station);
+    const manages = canManage(actor);
     if (sub === "menu" && request.method === "POST") {
       if (!manages) return json({ error: "Only a manager or admin can change the menu" }, 403);
-      return await menuApi(request, actor, sql);
+      return await menuApi(request, actor, sql, station);
     }
     if (sub === "printer") {
       if (request.method !== "GET" && !manages) return json({ error: "Only a manager or admin can change printer settings" }, 403);
@@ -514,6 +560,8 @@ export async function handlePosApi(sub: string, request: Request, url: URL, acto
         WHERE property_id = ${property} AND status = 'completed' AND guest_phone = ${phone} ORDER BY settled_at DESC LIMIT 10`;
       return json({ orders });
     }
+    const extra = await handlePosAdminApi(sub, request, url, actor, sql, station);
+    if (extra) return extra;
     return json({ error: "Not found" }, 404);
   } catch (err) {
     if (err instanceof PosError) return json({ error: err.message }, err.status);

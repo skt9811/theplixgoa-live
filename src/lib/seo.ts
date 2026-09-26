@@ -328,6 +328,17 @@ export function sisterBrandName(p: Property): string {
   return SISTER_BRAND_NAMES[p.slug] ?? p.name;
 }
 
+// "<Short Name> by The Plix" for the schema name: p.name carries a marketing
+// suffix for some properties ("Vivenda Chico - 8 BHK Heritage Bungalow"), so
+// only the part before " - " is used. Names that already start with "The
+// Plix" are left as-is rather than becoming "The Plix Villa by The Plix".
+function schemaBrandName(p: Property): string {
+  const [head, tail] = p.name.split(" - ").map((x) => x.trim());
+  // A trailing location ("The Plix Resort - Morjim") is part of the name.
+  const short = tail === p.location ? `${head} ${tail}` : head!;
+  return /^the plix/i.test(short) ? short : `${short} by The Plix`;
+}
+
 export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
   const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -338,7 +349,7 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
     // scripts/seo-audit.mjs, which does a strict === "LodgingBusiness" match).
     "@type": "LodgingBusiness",
     "@id": `${SITE_URL}/properties/${p.slug}#lodging`,
-    name: p.name,
+    name: schemaBrandName(p),
     description: p.description,
     url: `${SITE_URL}/properties/${p.slug}`,
     // Full resolved gallery, not just the single OG cover shot — an LLM/AI
@@ -347,6 +358,8 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
     image: resolveImages(p.image_keys).map((src) => `${SITE_URL}${src}`),
     telephone: SITE_PHONE_2,
     email: SITE_EMAIL,
+    checkinTime: "14:00",
+    checkoutTime: "11:00",
     // The brand entity every property belongs to — same @id as brandJsonLd's
     // own entity (rendered once, homepage-only), so this points back to that
     // one Organization instead of asserting a second, unlinked one.
@@ -412,15 +425,12 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
   // than being stamped with the wrong compound's @id/map link.
   const enclaveEntity = p.enclave ? ENCLAVE_ENTITIES[p.enclave] : undefined;
   if (p.enclave && enclaveEntity) {
-    // Brand-stacked name ("Casa Marina by The Plix") for exact-match entity
-    // discovery — only for enclave members; every other property keeps its
-    // plain p.name. "Resort" (a real schema.org LodgingBusiness subtype) is
+    // "Resort" (a real schema.org LodgingBusiness subtype) is
     // more specific than the compound's own entities.json self-declaration
     // (LodgingBusiness) — deliberately not changed there to match, since
     // Google's rich-results check keys off a literal "LodgingBusiness"
     // string (see the @type comment above) and entities.json isn't linked
     // from any page anyway.
-    schema["name"] = `${p.name} by The Plix`;
     schema["containedInPlace"] = {
       "@type": "Resort",
       "@id": enclaveEntity.id,

@@ -1,34 +1,23 @@
-import { BarChart3, BedDouble, CalendarDays, Home, Receipt, UserCog } from "lucide-react";
+import { BarChart3, BedDouble, CalendarDays, Home, UserCog } from "lucide-react";
 
-export type PortalTab = "home" | "inventory" | "booking" | "analytics" | "ledger" | "menu";
+export type PortalTab = "home" | "inventory" | "booking" | "analytics" | "menu";
 
 const TABS: { id: PortalTab; label: string; icon: typeof Home }[] = [
   { id: "home", label: "Home", icon: Home },
   { id: "inventory", label: "Inventory", icon: CalendarDays },
   { id: "booking", label: "Booking", icon: BedDouble },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
-  { id: "ledger", label: "Ledger", icon: Receipt },
   { id: "menu", label: "Menu", icon: UserCog },
 ];
 
-export function PortalBottomNav({
-  active,
-  onChange,
-  role,
-}: {
-  active: PortalTab;
-  onChange: (tab: PortalTab) => void;
-  role: "owner" | "admin";
-}) {
-  // The Ledger tab is admin-only; owners see the original five tabs.
-  const tabs = TABS.filter((t) => t.id !== "ledger" || role === "admin");
+export function PortalBottomNav({ active, onChange }: { active: PortalTab; onChange: (tab: PortalTab) => void }) {
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 backdrop-blur-md"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="mx-auto flex w-full max-w-lg items-stretch justify-between px-2 py-1.5">
-        {tabs.map((tab) => {
+        {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = tab.id === active;
           return (

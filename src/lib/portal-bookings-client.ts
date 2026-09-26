@@ -4,7 +4,7 @@
 // PortalBooking type). Kept separate from that .server.ts file so client
 // components never import across the server boundary, matching this
 // codebase's existing convention.
-export type PortalBookingStatus = "confirmed" | "checked_in" | "completed" | "blocked" | "cancelled";
+export type PortalBookingStatus = "confirmed" | "checked_in" | "completed" | "blocked";
 
 export type PortalBooking = {
   id: string;
@@ -21,7 +21,7 @@ export type PortalBooking = {
   created_at: string;
   /** "pending" = an online checkout was started but not yet paid (the
    * Inventory tab's "Tentative" status). null for manual bookings. */
-  payment_status: "pending" | "paid" | "simulated" | "cancelled" | null;
+  payment_status: "pending" | "paid" | "simulated" | null;
   /** Set only for manual bookings that recorded it — shown "if available", not guaranteed. */
   rooms_count: number | null;
   /** The admin "+ Create Booking" flow's own payment tracking — distinct
@@ -33,8 +33,4 @@ export type PortalBooking = {
   commission_pct: number;
   /** commission_pct% of booking_amount, computed and stored server-side at write time. */
   commission_amount: number;
-  /** Booking source ("direct", "airbnb", ...); online checkouts are "direct". */
-  channel: string;
-  adults_count: number | null;
-  children_count: number | null;
 };

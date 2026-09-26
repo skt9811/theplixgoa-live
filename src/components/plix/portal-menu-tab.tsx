@@ -107,8 +107,6 @@ export function PortalMenuTab({
         </div>
       </div>
 
-      {role === "admin" && <DbHealthCard />}
-
       <button
         type="button"
         onClick={handleLogout}
@@ -117,41 +115,6 @@ export function PortalMenuTab({
         <LogOut className="size-4" aria-hidden /> Log Out
       </button>
     </>
-  );
-}
-
-type DbHealth = { configured: boolean; ok: boolean; ms: number | null; error?: string };
-
-function DbHealthCard() {
-  const [health, setHealth] = useState<{ main: DbHealth; pms: DbHealth } | "error" | null>(null);
-
-  useEffect(() => {
-    portalFetch("/api/portal/pms-health")
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("failed"))))
-      .then((data: { main: DbHealth; pms: DbHealth }) => setHealth(data))
-      .catch(() => setHealth("error"));
-  }, []);
-
-  function line(label: string, h: DbHealth | undefined) {
-    const text = !h ? "Checking..." : !h.configured ? "Not configured" : h.ok ? `Connected (${h.ms} ms)` : "Unreachable";
-    const color = !h ? "text-slate-400" : h.ok ? "text-emerald-600" : "text-red-600";
-    return (
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-slate-500">{label}</span>
-        <span className={`font-semibold ${color}`}>{text}</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-semibold text-slate-900">System Status</h2>
-      <div className="mt-3 grid gap-2">
-        {line("Bookings database", health && health !== "error" ? health.main : undefined)}
-        {line("PMS database", health && health !== "error" ? health.pms : undefined)}
-        {health === "error" && <p className="text-xs text-red-600">Could not run the health check.</p>}
-      </div>
-    </div>
   );
 }
 

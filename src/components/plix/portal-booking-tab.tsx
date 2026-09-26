@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { differenceInCalendarDays } from "date-fns";
-import { ChevronDown, Info, Loader as Loader2, MapPin, MessageCircle, Phone, Search, Users, X } from "lucide-react";
+import { ChevronDown, Info, Loader as Loader2, MapPin, MessageCircle, Plus, Users, X } from "lucide-react";
 import { formatINR, PROPERTIES, todayISO } from "@/lib/plix";
 import type { PortalBooking } from "@/lib/portal-bookings-client";
 import { portalFetch } from "@/lib/portal-native-session";
@@ -59,10 +59,9 @@ function effectiveCommissionAmount(b: PortalBooking): number {
   return b.commission_amount || b.booking_amount * (effectiveCommissionPct(b) / 100);
 }
 
-type LifecycleStatus = "upcoming" | "in_house" | "checkout" | "cancelled";
+type LifecycleStatus = "upcoming" | "in_house" | "checkout";
 
 function lifecycleStatus(booking: PortalBooking): LifecycleStatus {
-  if (booking.status === "cancelled") return "cancelled";
   if (booking.status === "checked_in") return "in_house";
   if (booking.status === "completed") return "checkout";
   return "upcoming";
@@ -72,62 +71,26 @@ const STATUS_PILL: Record<LifecycleStatus, { label: string; bg: string; text: st
   upcoming: { label: "Upcoming", bg: "#ffedd5", text: "#c2410c" },
   in_house: { label: "In-House", bg: "#dcfce7", text: "#15803d" },
   checkout: { label: "Checkout", bg: "#fee2e2", text: "#b91c1c" },
-  cancelled: { label: "Cancelled", bg: "#e2e8f0", text: "#475569" },
 };
-
-type StatusFilter = "all" | "confirmed" | "pending" | "cancelled";
-const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "confirmed", label: "Confirmed" },
-  { id: "pending", label: "Pending" },
-  { id: "cancelled", label: "Cancelled" },
-];
-
-// "Pending" = payment still outstanding at booking time: an unpaid online
-// checkout, or a manual booking recorded as Pending / Pay at Check-in.
-function isPaymentPending(b: PortalBooking): boolean {
-  if (b.status === "cancelled") return false;
-  if (b.source === "online") return b.payment_status === "pending";
-  return b.admin_payment_status === "pending" || b.admin_payment_status === "pay_at_checkin";
-}
-
-function channelLabel(b: PortalBooking): string {
-  return CHANNEL_OPTIONS.find((o) => o.value === b.channel)?.label ?? "Direct Website";
-}
-
-function paymentLabel(b: PortalBooking): string {
-  if (b.source === "online") return b.payment_status === "pending" ? "Pending" : "Paid";
-  return PAYMENT_STATUS_OPTIONS.find((o) => o.value === b.admin_payment_status)?.label ?? "Paid";
-}
-
-function advanceReceived(b: PortalBooking): number {
-  if (b.source === "online") return b.payment_status === "pending" ? 0 : b.booking_amount;
-  if (b.admin_payment_status === "paid" || b.admin_payment_status === null) return b.booking_amount;
-  return b.advance_amount ?? 0;
-}
-
-// wa.me needs digits only with the country code; a bare 10-digit number is
-// treated as Indian, matching how phones are entered everywhere else here.
-function whatsappUrl(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  return `https://wa.me/${digits.length === 10 ? `91${digits}` : digits}`;
-}
 
 export function PortalBookingTab({
   propertySlug,
   bookings,
   role,
+  onCreated,
   focusBookingId,
   onFocusHandled,
 }: {
   propertySlug: string;
   bookings: PortalBooking[];
   role: "owner" | "admin";
+  onCreated: () => void;
   focusBookingId: string | null;
   onFocusHandled: () => void;
 }) {
   const property = PROPERTIES.find((p) => p.slug === propertySlug);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -137,39 +100,6 @@ export function PortalBookingTab({
   const [propertyFilter, setPropertyFilter] = useState<string>(propertySlug);
   const [allPropertiesBookings, setAllPropertiesBookings] = useState<PortalBooking[] | null>(null);
   const [loadingAll, setLoadingAll] = useState(false);
-
-  // Admin-only list controls. Owners keep the plain chronological feed.
-  const isAdmin = role === "admin";
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [search, setSearch] = useState("");
-  const [cancelledBookings, setCancelledBookings] = useState<PortalBooking[] | null>(null);
-  const [loadingCancelled, setLoadingCancelled] = useState(false);
-
-  useEffect(() => {
-    if (!isAdmin || statusFilter !== "cancelled") return;
-    let cancelled = false;
-    setLoadingCancelled(true);
-    const slugs = propertyFilter === "all" ? PROPERTIES.map((p) => p.slug) : [propertyFilter];
-    Promise.all(
-      slugs.map((slug) =>
-        portalFetch(`/api/portal/bookings?property=${slug}&cancelled=1`)
-          .then((res) => (res.ok ? res.json() : { bookings: [] as PortalBooking[] }))
-          .then((data: { bookings?: PortalBooking[] }) => data.bookings ?? []),
-      ),
-    )
-      .then((results) => {
-        if (!cancelled) setCancelledBookings(results.flat().filter((b) => b.status === "cancelled"));
-      })
-      .catch(() => {
-        if (!cancelled) toast.error("Could not load cancelled bookings");
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingCancelled(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isAdmin, statusFilter, propertyFilter]);
 
   // Stay in sync with the shared dashboard-level property selector — if the
   // admin switches property there while this tab has "All Properties"
@@ -218,28 +148,10 @@ export function PortalBookingTab({
   // stays surface first, followed by everything further out, with a sticky
   // month divider wherever the month changes walking down the list.
   const sorted = useMemo(() => {
-    if (!isAdmin) {
-      return sourceBookings
-        .filter((b) => b.status !== "blocked" && b.payment_status !== "pending")
-        .sort((a, b) => a.check_in.localeCompare(b.check_in));
-    }
-    const base = statusFilter === "cancelled" ? (cancelledBookings ?? []) : sourceBookings.filter((b) => b.status !== "blocked");
-    const q = search.trim().toLowerCase();
-    const qDigits = q.replace(/\D/g, "");
-    return base
-      .filter((b) => {
-        if (statusFilter === "confirmed" && isPaymentPending(b)) return false;
-        if (statusFilter === "pending" && !isPaymentPending(b)) return false;
-        if (!q) return true;
-        return (
-          b.guest_name.toLowerCase().includes(q) ||
-          (qDigits.length > 0 && (b.guest_phone ?? "").replace(/\D/g, "").includes(qDigits)) ||
-          shortBookingId(b.id).includes(q) ||
-          b.id.toLowerCase().startsWith(q)
-        );
-      })
+    return sourceBookings
+      .filter((b) => b.status !== "blocked" && b.payment_status !== "pending")
       .sort((a, b) => a.check_in.localeCompare(b.check_in));
-  }, [sourceBookings, isAdmin, statusFilter, cancelledBookings, search]);
+  }, [sourceBookings]);
 
   const grouped = useMemo(() => {
     const groups: { key: string; label: string; items: PortalBooking[] }[] = [];
@@ -284,6 +196,15 @@ export function PortalBookingTab({
     <>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-slate-900">Booking</h1>
+        {role === "admin" && (
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="flex items-center gap-1 rounded-full bg-bronze px-3.5 py-2 text-xs font-semibold text-bronze-foreground"
+          >
+            <Plus className="size-3.5" aria-hidden /> Create Reservation
+          </button>
+        )}
       </div>
 
       <div className="mt-4">
@@ -312,42 +233,13 @@ export function PortalBookingTab({
         )}
       </div>
 
-      {isAdmin && (
-        <div className="mt-3 grid gap-2.5">
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-            {STATUS_FILTERS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setStatusFilter(f.id)}
-                className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                  statusFilter === f.id ? "border-bronze bg-bronze text-bronze-foreground" : "border-slate-200 bg-white text-slate-600"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-          <label className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-700 shadow-sm">
-            <Search className="size-3.5 text-slate-400" aria-hidden />
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search guest, phone or booking ID"
-              className="w-full bg-transparent outline-none placeholder:text-slate-400"
-            />
-          </label>
-        </div>
-      )}
-
       <div className="mt-4 grid gap-3">
-        {loadingAll || loadingCancelled ? (
+        {loadingAll ? (
           <div className="flex justify-center py-10">
             <Loader2 className="size-5 animate-spin text-slate-400" aria-hidden />
           </div>
         ) : grouped.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-400">{isAdmin && (search || statusFilter !== "all") ? "No bookings match." : "No bookings scheduled."}</p>
+          <p className="py-8 text-center text-sm text-slate-400">No bookings scheduled.</p>
         ) : (
           grouped.map((group) => (
             <div key={group.key} className="grid gap-3">
@@ -393,55 +285,6 @@ export function PortalBookingTab({
                           {pill.label}
                         </span>
                       </div>
-
-                      {isAdmin && (
-                        <div className="mt-3 grid gap-2.5">
-                          <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold">
-                            <span className="rounded-full bg-slate-900 px-2.5 py-1 text-white">{bProperty?.name ?? b.property_id}</span>
-                            <span className="rounded-full bg-bronze/15 px-2.5 py-1 text-bronze">{channelLabel(b)}</span>
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
-                              Adults {b.adults_count ?? b.guests_count} · Children {b.children_count ?? 0}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-100 p-2.5 text-center">
-                            <div>
-                              <p className="text-[10px] text-slate-400">Total</p>
-                              <p className="text-xs font-bold text-slate-800">{formatINR(b.booking_amount)}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-slate-400">Advance</p>
-                              <p className="text-xs font-bold text-emerald-600">{formatINR(advanceReceived(b))}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-slate-400">Balance</p>
-                              <p className="text-xs font-bold text-amber-600">{formatINR(Math.max(0, b.booking_amount - advanceReceived(b)))}</p>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-                              Payment: {paymentLabel(b)}
-                            </span>
-                            {b.guest_phone && (
-                              <div className="flex gap-1.5">
-                                <a
-                                  href={`tel:${b.guest_phone}`}
-                                  className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
-                                >
-                                  <Phone className="size-3" aria-hidden /> Call
-                                </a>
-                                <a
-                                  href={whatsappUrl(b.guest_phone)}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100"
-                                >
-                                  <MessageCircle className="size-3" aria-hidden /> WhatsApp
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
 
                       <div className="mt-4 grid grid-cols-3 items-center gap-2 rounded-2xl bg-slate-50 p-3 text-center">
                         <div>
@@ -534,11 +377,21 @@ export function PortalBookingTab({
         )}
       </div>
 
+      {creating && (
+        <CreateBookingSheet
+          propertySlug={propertySlug}
+          onClose={() => setCreating(false)}
+          onCreated={() => {
+            setCreating(false);
+            onCreated();
+          }}
+        />
+      )}
     </>
   );
 }
 
-export function CreateBookingSheet({
+function CreateBookingSheet({
   propertySlug,
   onClose,
   onCreated,

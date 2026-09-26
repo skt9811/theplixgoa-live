@@ -25,7 +25,7 @@ function getSql() {
   return sqlClient;
 }
 
-export type PortalBookingStatus = "confirmed" | "checked_in" | "completed" | "blocked" | "cancelled";
+export type PortalBookingStatus = "confirmed" | "checked_in" | "completed" | "blocked";
 
 export type PortalBooking = {
   id: string;
@@ -43,7 +43,7 @@ export type PortalBooking = {
   /** "pending" = an online checkout was started but not yet paid — the
    * Inventory tab's "Tentative" status chip. null for manual bookings,
    * which have no online payment lifecycle at all. */
-  payment_status: "pending" | "paid" | "simulated" | "cancelled" | null;
+  payment_status: "pending" | "paid" | "simulated" | null;
   /** Set only for manually punched-in bookings that recorded it (see the
    * admin "+ Create Booking" flow) — null for online bookings and for any
    * manual booking created before that field existed. The Home tab's
@@ -62,11 +62,6 @@ export type PortalBooking = {
   commission_pct: number;
   /** commission_pct% of booking_amount, computed and stored server-side at write time. */
   commission_amount: number;
-  /** Booking source ("direct", "airbnb", ...). Online checkouts are always "direct". */
-  channel: string;
-  /** Record-keeping split of guests_count; null for online bookings and older manual ones. */
-  adults_count: number | null;
-  children_count: number | null;
 };
 
 function toDateString(value: string | Date): string {
@@ -109,7 +104,7 @@ type OnlineRow = {
   guests_count: number;
   booking_amount: string | number;
   created_at: string | Date;
-  payment_status: "pending" | "paid" | "simulated" | "cancelled";
+  payment_status: "pending" | "paid" | "simulated";
   commission_pct: string | number;
   commission_amount: string | number;
 };
@@ -131,21 +126,12 @@ type ManualRow = {
   advance_amount: string | number | null;
   commission_pct: string | number;
   commission_amount: string | number;
-  channel: string;
-  adults_count: number | null;
-  children_count: number | null;
 };
 
 export async function handleGetPortalBookings(request: Request): Promise<Response> {
   const session = await getPortalSessionFromRequest(request);
   if (!session) return jsonResponse({ error: "Not authenticated" }, 401);
   const propertySlug = resolveEffectivePropertySlug(request, session);
-
-  // Cancelled rows are only ever returned to an admin who asks for them
-  // (the Bookings screen's "Cancelled" filter); every other caller gets
-  // exactly the same active-only result as before.
-  const includeCancelled = session.role === "admin" && new URL(request.url).searchParams.get("cancelled") === "1";
-  const onlineStatuses = includeCancelled ? ["paid", "simulated", "pending", "cancelled"] : ["paid", "simulated", "pending"];
 
   const sql = getSql();
   if (!sql) return jsonResponse({ bookings: [], propertySlug, role: session.role }, 200);
@@ -159,17 +145,16 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
                commission_pct, commission_amount
         FROM public.bookings
         WHERE property_id = ${propertySlug}
-          AND payment_status IN ${sql(onlineStatuses)}
+          AND payment_status IN ('paid', 'simulated', 'pending')
       `,
       sql<ManualRow[]>`
         SELECT id, property_id, guest_name, guest_phone,
                check_in, check_out, nights, guests_count,
                booking_amount, status, created_at, rooms_count,
-               payment_status, advance_amount, commission_pct, commission_amount,
-               channel, adults_count, children_count
+               payment_status, advance_amount, commission_pct, commission_amount
         FROM public.portal_bookings
         WHERE property_id = ${propertySlug}
-          ${includeCancelled ? sql`` : sql`AND status != 'cancelled'`}
+          AND status != 'cancelled'
       `,
     ]);
 
@@ -186,7 +171,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         nights: r.nights,
         guests_count: r.guests_count,
         booking_amount: Number(r.booking_amount),
-        status: r.payment_status === "cancelled" ? "cancelled" : deriveLifecycleStatus(check_in, check_out),
+        status: deriveLifecycleStatus(check_in, check_out),
         source: "online",
         created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
         payment_status: r.payment_status,
@@ -195,9 +180,6 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         advance_amount: null,
         commission_pct: Number(r.commission_pct),
         commission_amount: Number(r.commission_amount),
-        channel: "direct",
-        adults_count: null,
-        children_count: null,
       };
     });
 
@@ -214,8 +196,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         nights: r.nights,
         guests_count: r.guests_count,
         booking_amount: Number(r.booking_amount),
-        status:
-          r.status === "blocked" || r.status === "cancelled" ? r.status : deriveLifecycleStatus(check_in, check_out),
+        status: r.status === "blocked" ? "blocked" : deriveLifecycleStatus(check_in, check_out),
         source: "manual",
         created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
         payment_status: null,
@@ -224,9 +205,6 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         advance_amount: r.advance_amount === null ? null : Number(r.advance_amount),
         commission_pct: Number(r.commission_pct),
         commission_amount: Number(r.commission_amount),
-        channel: r.channel,
-        adults_count: r.adults_count,
-        children_count: r.children_count,
       };
     });
 

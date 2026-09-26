@@ -28,25 +28,6 @@ export function requireManager(actor: Actor) {
   if (!canManage(actor)) throw new PosError("Only a manager or admin can do this", 403);
 }
 
-export type PosSettingKey = "stations" | "display" | "general" | "discounts" | "store" | "payment";
-export const SETTING_KEYS: PosSettingKey[] = ["stations", "display", "general", "discounts", "store", "payment"];
-
-export const DEFAULT_SETTINGS: Record<PosSettingKey, unknown> = {
-  stations: [{ id: "10", name: "Main Bar / Reception" }],
-  display: { density: "comfortable", defaultView: "all", sound: true, vibration: true },
-  general: { currency: "INR", roundOff: false, defaultOrderType: "dine_in" },
-  discounts: [{ label: "5%", type: "percent", value: 5 }, { label: "10%", type: "percent", value: 10 }, { label: "15%", type: "percent", value: 15 }],
-  store: { name: "", address: "", phone: "", gstin: "", fssai: "", footer: "" },
-  payment: { methods: ["Cash", "UPI", "Card", "Account", "Loyalty"], taxMode: "gst", gstRate: 5 },
-};
-
-export async function loadSettings(sql: Sql, property: string): Promise<Record<PosSettingKey, unknown>> {
-  const rows = await sql<{ key: string; value: unknown }[]>`SELECT key, value FROM pms_pos_settings WHERE property_id = ${property}`;
-  const out = { ...DEFAULT_SETTINGS };
-  for (const r of rows) if ((SETTING_KEYS as string[]).includes(r.key)) (out as Record<string, unknown>)[r.key] = r.value;
-  return out;
-}
-
 /** Activity log entry (the POS's own per-station log, separate from the PMS-wide audit log). Never throws. */
 export async function logPos(sql: Sql, actor: Actor, property: string, action: string, details: Record<string, unknown> = {}, station = "10") {
   try {

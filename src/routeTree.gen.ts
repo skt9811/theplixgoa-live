@@ -63,10 +63,10 @@ import { Route as PmsPosSettingsDiscountsRouteImport } from './routes/pms.pos.se
 import { Route as PmsPosSettingsDisplayRouteImport } from './routes/pms.pos.settings.display'
 import { Route as PmsPosSettingsGeneralRouteImport } from './routes/pms.pos.settings.general'
 import { Route as PmsPosSettingsPaymentTaxRouteImport } from './routes/pms.pos.settings.payment-tax'
-import { Route as PmsPosSettingsPrinterRouteImport } from './routes/pms.pos.settings.printer'
+import { Route as PmsPosSettingsPrintersRouteImport } from './routes/pms.pos.settings.printers'
 import { Route as PmsPosSettingsStationsRouteImport } from './routes/pms.pos.settings.stations'
 import { Route as PmsPosSettingsStoreRouteImport } from './routes/pms.pos.settings.store'
-import { Route as PmsPosSettingsTableLayoutRouteImport } from './routes/pms.pos.settings.table-layout'
+import { Route as PmsPosSettingsTableGroupsRouteImport } from './routes/pms.pos.settings.table-groups'
 import { Route as PmsPosSettingsUtilityRouteImport } from './routes/pms.pos.settings.utility'
 
 const IndexRoute = IndexRouteImport.update({
@@ -342,9 +342,9 @@ const PmsPosSettingsPaymentTaxRoute =
     path: '/payment-tax',
     getParentRoute: () => PmsPosSettingsRoute,
   } as any)
-const PmsPosSettingsPrinterRoute = PmsPosSettingsPrinterRouteImport.update({
-  id: '/printer',
-  path: '/printer',
+const PmsPosSettingsPrintersRoute = PmsPosSettingsPrintersRouteImport.update({
+  id: '/printers',
+  path: '/printers',
   getParentRoute: () => PmsPosSettingsRoute,
 } as any)
 const PmsPosSettingsStationsRoute = PmsPosSettingsStationsRouteImport.update({
@@ -357,10 +357,10 @@ const PmsPosSettingsStoreRoute = PmsPosSettingsStoreRouteImport.update({
   path: '/store',
   getParentRoute: () => PmsPosSettingsRoute,
 } as any)
-const PmsPosSettingsTableLayoutRoute =
-  PmsPosSettingsTableLayoutRouteImport.update({
-    id: '/table-layout',
-    path: '/table-layout',
+const PmsPosSettingsTableGroupsRoute =
+  PmsPosSettingsTableGroupsRouteImport.update({
+    id: '/table-groups',
+    path: '/table-groups',
     getParentRoute: () => PmsPosSettingsRoute,
   } as any)
 const PmsPosSettingsUtilityRoute = PmsPosSettingsUtilityRouteImport.update({
@@ -422,10 +422,10 @@ export interface FileRoutesByFullPath {
   '/pms/pos/settings/display': typeof PmsPosSettingsDisplayRoute
   '/pms/pos/settings/general': typeof PmsPosSettingsGeneralRoute
   '/pms/pos/settings/payment-tax': typeof PmsPosSettingsPaymentTaxRoute
-  '/pms/pos/settings/printer': typeof PmsPosSettingsPrinterRoute
+  '/pms/pos/settings/printers': typeof PmsPosSettingsPrintersRoute
   '/pms/pos/settings/stations': typeof PmsPosSettingsStationsRoute
   '/pms/pos/settings/store': typeof PmsPosSettingsStoreRoute
-  '/pms/pos/settings/table-layout': typeof PmsPosSettingsTableLayoutRoute
+  '/pms/pos/settings/table-groups': typeof PmsPosSettingsTableGroupsRoute
   '/pms/pos/settings/utility': typeof PmsPosSettingsUtilityRoute
   '/pms/pos/manage/': typeof PmsPosManageIndexRoute
   '/pms/pos/settings/': typeof PmsPosSettingsIndexRoute
@@ -478,10 +478,10 @@ export interface FileRoutesByTo {
   '/pms/pos/settings/display': typeof PmsPosSettingsDisplayRoute
   '/pms/pos/settings/general': typeof PmsPosSettingsGeneralRoute
   '/pms/pos/settings/payment-tax': typeof PmsPosSettingsPaymentTaxRoute
-  '/pms/pos/settings/printer': typeof PmsPosSettingsPrinterRoute
+  '/pms/pos/settings/printers': typeof PmsPosSettingsPrintersRoute
   '/pms/pos/settings/stations': typeof PmsPosSettingsStationsRoute
   '/pms/pos/settings/store': typeof PmsPosSettingsStoreRoute
-  '/pms/pos/settings/table-layout': typeof PmsPosSettingsTableLayoutRoute
+  '/pms/pos/settings/table-groups': typeof PmsPosSettingsTableGroupsRoute
   '/pms/pos/settings/utility': typeof PmsPosSettingsUtilityRoute
   '/pms/pos/manage': typeof PmsPosManageIndexRoute
   '/pms/pos/settings': typeof PmsPosSettingsIndexRoute
@@ -540,10 +540,10 @@ export interface FileRoutesById {
   '/pms/pos/settings/display': typeof PmsPosSettingsDisplayRoute
   '/pms/pos/settings/general': typeof PmsPosSettingsGeneralRoute
   '/pms/pos/settings/payment-tax': typeof PmsPosSettingsPaymentTaxRoute
-  '/pms/pos/settings/printer': typeof PmsPosSettingsPrinterRoute
+  '/pms/pos/settings/printers': typeof PmsPosSettingsPrintersRoute
   '/pms/pos/settings/stations': typeof PmsPosSettingsStationsRoute
   '/pms/pos/settings/store': typeof PmsPosSettingsStoreRoute
-  '/pms/pos/settings/table-layout': typeof PmsPosSettingsTableLayoutRoute
+  '/pms/pos/settings/table-groups': typeof PmsPosSettingsTableGroupsRoute
   '/pms/pos/settings/utility': typeof PmsPosSettingsUtilityRoute
   '/pms/pos/manage/': typeof PmsPosManageIndexRoute
   '/pms/pos/settings/': typeof PmsPosSettingsIndexRoute
@@ -603,10 +603,10 @@ export interface FileRouteTypes {
     | '/pms/pos/settings/display'
     | '/pms/pos/settings/general'
     | '/pms/pos/settings/payment-tax'
-    | '/pms/pos/settings/printer'
+    | '/pms/pos/settings/printers'
     | '/pms/pos/settings/stations'
     | '/pms/pos/settings/store'
-    | '/pms/pos/settings/table-layout'
+    | '/pms/pos/settings/table-groups'
     | '/pms/pos/settings/utility'
     | '/pms/pos/manage/'
     | '/pms/pos/settings/'
@@ -659,10 +659,10 @@ export interface FileRouteTypes {
     | '/pms/pos/settings/display'
     | '/pms/pos/settings/general'
     | '/pms/pos/settings/payment-tax'
-    | '/pms/pos/settings/printer'
+    | '/pms/pos/settings/printers'
     | '/pms/pos/settings/stations'
     | '/pms/pos/settings/store'
-    | '/pms/pos/settings/table-layout'
+    | '/pms/pos/settings/table-groups'
     | '/pms/pos/settings/utility'
     | '/pms/pos/manage'
     | '/pms/pos/settings'
@@ -720,10 +720,10 @@ export interface FileRouteTypes {
     | '/pms/pos/settings/display'
     | '/pms/pos/settings/general'
     | '/pms/pos/settings/payment-tax'
-    | '/pms/pos/settings/printer'
+    | '/pms/pos/settings/printers'
     | '/pms/pos/settings/stations'
     | '/pms/pos/settings/store'
-    | '/pms/pos/settings/table-layout'
+    | '/pms/pos/settings/table-groups'
     | '/pms/pos/settings/utility'
     | '/pms/pos/manage/'
     | '/pms/pos/settings/'
@@ -1133,11 +1133,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PmsPosSettingsPaymentTaxRouteImport
       parentRoute: typeof PmsPosSettingsRoute
     }
-    '/pms/pos/settings/printer': {
-      id: '/pms/pos/settings/printer'
-      path: '/printer'
-      fullPath: '/pms/pos/settings/printer'
-      preLoaderRoute: typeof PmsPosSettingsPrinterRouteImport
+    '/pms/pos/settings/printers': {
+      id: '/pms/pos/settings/printers'
+      path: '/printers'
+      fullPath: '/pms/pos/settings/printers'
+      preLoaderRoute: typeof PmsPosSettingsPrintersRouteImport
       parentRoute: typeof PmsPosSettingsRoute
     }
     '/pms/pos/settings/stations': {
@@ -1154,11 +1154,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PmsPosSettingsStoreRouteImport
       parentRoute: typeof PmsPosSettingsRoute
     }
-    '/pms/pos/settings/table-layout': {
-      id: '/pms/pos/settings/table-layout'
-      path: '/table-layout'
-      fullPath: '/pms/pos/settings/table-layout'
-      preLoaderRoute: typeof PmsPosSettingsTableLayoutRouteImport
+    '/pms/pos/settings/table-groups': {
+      id: '/pms/pos/settings/table-groups'
+      path: '/table-groups'
+      fullPath: '/pms/pos/settings/table-groups'
+      preLoaderRoute: typeof PmsPosSettingsTableGroupsRouteImport
       parentRoute: typeof PmsPosSettingsRoute
     }
     '/pms/pos/settings/utility': {
@@ -1202,10 +1202,10 @@ interface PmsPosSettingsRouteChildren {
   PmsPosSettingsDisplayRoute: typeof PmsPosSettingsDisplayRoute
   PmsPosSettingsGeneralRoute: typeof PmsPosSettingsGeneralRoute
   PmsPosSettingsPaymentTaxRoute: typeof PmsPosSettingsPaymentTaxRoute
-  PmsPosSettingsPrinterRoute: typeof PmsPosSettingsPrinterRoute
+  PmsPosSettingsPrintersRoute: typeof PmsPosSettingsPrintersRoute
   PmsPosSettingsStationsRoute: typeof PmsPosSettingsStationsRoute
   PmsPosSettingsStoreRoute: typeof PmsPosSettingsStoreRoute
-  PmsPosSettingsTableLayoutRoute: typeof PmsPosSettingsTableLayoutRoute
+  PmsPosSettingsTableGroupsRoute: typeof PmsPosSettingsTableGroupsRoute
   PmsPosSettingsUtilityRoute: typeof PmsPosSettingsUtilityRoute
   PmsPosSettingsIndexRoute: typeof PmsPosSettingsIndexRoute
 }
@@ -1215,10 +1215,10 @@ const PmsPosSettingsRouteChildren: PmsPosSettingsRouteChildren = {
   PmsPosSettingsDisplayRoute: PmsPosSettingsDisplayRoute,
   PmsPosSettingsGeneralRoute: PmsPosSettingsGeneralRoute,
   PmsPosSettingsPaymentTaxRoute: PmsPosSettingsPaymentTaxRoute,
-  PmsPosSettingsPrinterRoute: PmsPosSettingsPrinterRoute,
+  PmsPosSettingsPrintersRoute: PmsPosSettingsPrintersRoute,
   PmsPosSettingsStationsRoute: PmsPosSettingsStationsRoute,
   PmsPosSettingsStoreRoute: PmsPosSettingsStoreRoute,
-  PmsPosSettingsTableLayoutRoute: PmsPosSettingsTableLayoutRoute,
+  PmsPosSettingsTableGroupsRoute: PmsPosSettingsTableGroupsRoute,
   PmsPosSettingsUtilityRoute: PmsPosSettingsUtilityRoute,
   PmsPosSettingsIndexRoute: PmsPosSettingsIndexRoute,
 }

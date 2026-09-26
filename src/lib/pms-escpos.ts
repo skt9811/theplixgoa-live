@@ -4,7 +4,7 @@
 export type PaperSize = "54mm" | "58mm" | "80mm";
 export const PAPER_COLUMNS: Record<PaperSize, number> = { "54mm": 30, "58mm": 32, "80mm": 48 };
 
-export type SlipLine = { text: string; align?: "left" | "center" | "right"; bold?: boolean; big?: boolean };
+export type SlipLine = { text: string; align?: "left" | "center" | "right"; bold?: boolean; big?: boolean; /** Print a QR code for this payload (native ESC/POS QR). */ qr?: string; /** Pulse the cash drawer. */ drawer?: boolean };
 
 const ascii = (s: string) => s.replace(/₹/g, "Rs.").replace(/[^\x20-\x7e]/g, "?");
 
@@ -35,7 +35,7 @@ const rule = (cols: number, ch = "-"): SlipLine => ({ text: ch.repeat(cols) });
 const money = (n: number) => n.toFixed(2);
 const stamp = (d: Date) => d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
 
-export type SlipContext = { propertyName: string; address?: string | null | undefined; gstin?: string | null | undefined; footer?: string | null | undefined; paper: PaperSize };
+export type SlipContext = { propertyName: string; hideName?: boolean; header?: string | null | undefined; address?: string | null | undefined; gstin?: string | null | undefined; footer?: string | null | undefined; paper: PaperSize };
 
 export function kotSlip(ctx: SlipContext, o: { title?: string; table: string; kot: number; orderNumber: number; items: { name: string; qty: number; notes?: string | null }[]; at?: Date; by?: string }): SlipLine[] {
   const cols = PAPER_COLUMNS[ctx.paper];
@@ -65,10 +65,14 @@ export function billSlip(
     orderNumber: number; table: string; at: Date; guest?: string | null;
     items: { name: string; qty: number; rate: number; amount: number }[];
     subtotal: number; discount: number; tax: number; other: number; roundOff: number; total: number; method?: string | null;
+    /** Per-rule tax (SGST, CGST, VAT...). When absent, one combined GST line is printed. */
+    taxLines?: Record<string, number>; qr?: string; drawer?: boolean;
   },
 ): SlipLine[] {
   const cols = PAPER_COLUMNS[ctx.paper];
-  const lines: SlipLine[] = [{ text: ctx.propertyName.toUpperCase(), align: "center", bold: true }];
+  const lines: SlipLine[] = [];
+  if (!ctx.hideName) lines.push({ text: ctx.propertyName.toUpperCase(), align: "center", bold: true });
+  if (ctx.header) for (const l of wrap(ctx.header, cols)) lines.push({ text: l, align: "center" });
   if (ctx.address) for (const l of wrap(ctx.address, cols)) lines.push({ text: l, align: "center" });
   if (ctx.gstin) lines.push({ text: `GSTIN: ${ctx.gstin}`, align: "center" });
   lines.push(
@@ -86,11 +90,15 @@ export function billSlip(
   lines.push(rule(cols), { text: twoCol("Subtotal", money(o.subtotal), cols) });
   if (o.discount > 0) lines.push({ text: twoCol("Discount", `-${money(o.discount)}`, cols) });
   if (o.other > 0) lines.push({ text: twoCol("Other charges", money(o.other), cols) });
-  lines.push({ text: twoCol("GST", money(o.tax), cols) });
+  const parts = o.taxLines ? Object.entries(o.taxLines).filter(([, v]) => v > 0) : [];
+  if (parts.length > 0) for (const [k, v] of parts) lines.push({ text: twoCol(k, money(v), cols) });
+  else lines.push({ text: twoCol("GST", money(o.tax), cols) });
   if (o.roundOff !== 0) lines.push({ text: twoCol("Round off", money(o.roundOff), cols) });
   lines.push(rule(cols, "="), { text: twoCol("TOTAL", `Rs.${money(o.total)}`, cols), bold: true, big: true });
   if (o.method) lines.push({ text: `Paid by: ${o.method}` });
-  lines.push(rule(cols), { text: ascii(ctx.footer || "Thank you! Visit again"), align: "center" }, { text: "" });
+  if (o.qr) lines.push({ text: "Scan to pay", align: "center" }, { text: "", qr: o.qr, align: "center" });
+  lines.push(rule(cols), ...wrap(ctx.footer || "Thank you! Visit again", cols).map((t) => ({ text: t, align: "center" as const })), { text: "" });
+  if (o.drawer) lines.push({ text: "", drawer: true });
   return lines;
 }
 
@@ -113,6 +121,8 @@ export function slipText(lines: SlipLine[], paper: PaperSize, leftMargin = 0): s
   const cols = PAPER_COLUMNS[paper];
   return lines
     .map((l) => {
+      if (l.drawer) return "";
+      if (l.qr) return `[ QR ${l.qr} ]`;
       const t = ascii(l.text);
       const pad = l.align === "center" ? Math.max(0, Math.floor((cols - t.length) / 2)) : l.align === "right" ? Math.max(0, cols - t.length) : 0;
       return " ".repeat(pad + Math.max(0, leftMargin > 0 ? 0 : 0)) + t;
@@ -127,6 +137,18 @@ export function slipBytes(lines: SlipLine[], paper: PaperSize, leftMargin = 0): 
   const cols = PAPER_COLUMNS[paper];
   for (const l of lines) {
     const align = l.align === "center" ? 1 : l.align === "right" ? 2 : 0;
+    if (l.drawer) {
+      out.push(0x1b, 0x70, 0x00, 0x19, 0xfa); // ESC p: open cash drawer
+      continue;
+    }
+    if (l.qr) {
+      // Native QR (GS ( k): model 2, module size 6, error correction M. Printers without QR support skip it.
+      const data = Array.from(new TextEncoder().encode(l.qr));
+      const n = data.length + 3;
+      out.push(0x1b, 0x61, 1, 0x1d, 0x28, 0x6b, 4, 0, 0x31, 0x41, 0x32, 0, 0x1d, 0x28, 0x6b, 3, 0, 0x31, 0x43, 6, 0x1d, 0x28, 0x6b, 3, 0, 0x31, 0x45, 0x31,
+        0x1d, 0x28, 0x6b, n & 255, n >> 8, 0x31, 0x50, 0x30, ...data, 0x1d, 0x28, 0x6b, 3, 0, 0x31, 0x51, 0x30, 0x0a);
+      continue;
+    }
     // Double-height lines get half the columns of room, so they are kept short by the builders.
     out.push(0x1b, 0x61, align, 0x1b, 0x45, l.bold ? 1 : 0, 0x1d, 0x21, l.big ? 0x01 : 0x00);
     const t = ascii(l.text).slice(0, cols);

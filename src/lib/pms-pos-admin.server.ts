@@ -3,7 +3,7 @@
 // menu import). PMS database only.
 import { audit } from "@/lib/pms-audit.server";
 import { hashPin, type Actor } from "@/lib/pms-users.server";
-import { PosError, SETTING_KEYS, ISO_DATE, istToday, json, loadSettings, logPos, num, requireManager, requireProperty, str, type PosSettingKey, type Sql } from "@/lib/pms-pos-shared.server";
+import { PosError, ISO_DATE, istToday, json, logPos, num, requireManager, requireProperty, str, type Sql } from "@/lib/pms-pos-shared.server";
 
 const PERMISSION_KEYS = ["can_discount", "can_void", "can_bill", "can_manage_menu", "can_view_reports"] as const;
 const DEFAULT_GROUPS: Record<string, string[]> = {
@@ -35,27 +35,6 @@ const body = async (request: Request) => ((await request.json().catch(() => ({})
 export async function handlePosAdminApi(sub: string, request: Request, url: URL, actor: Actor, sql: Sql, station: string): Promise<Response | null> {
   const get = request.method === "GET";
   const propertyQ = str(url.searchParams.get("property"));
-
-  // ---- settings ----
-  if (sub === "settings") {
-    if (get) {
-      requireProperty(actor, propertyQ);
-      return json({ settings: await loadSettings(sql, propertyQ) });
-    }
-    const b = await body(request);
-    const property = str(b["property"]);
-    requireProperty(actor, property);
-    requireManager(actor);
-    const key = str(b["key"]) as PosSettingKey;
-    if (!SETTING_KEYS.includes(key)) throw new PosError("Unknown setting");
-    const value = b["value"];
-    if (value === null || typeof value !== "object" || JSON.stringify(value).length > 20000) throw new PosError("Invalid settings value");
-    await sql`INSERT INTO pms_pos_settings (property_id, key, value) VALUES (${property}, ${key}, ${sql.json(value as never)})
-      ON CONFLICT (property_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`;
-    await logPos(sql, actor, property, `Settings updated (${key})`, { key }, station);
-    await audit(actor, "UPDATE", "pos", property, { kind: "settings", key });
-    return json({ success: true });
-  }
 
   // ---- customers ----
   if (sub === "customers") {
@@ -243,11 +222,11 @@ export async function handlePosAdminApi(sub: string, request: Request, url: URL,
         const name = str(i["name"]).slice(0, 150);
         const price = num(i["price"], -1);
         if (!name || price < 0) continue;
-        const rate = Math.min(100, Math.max(0, num(i["taxRate"], 5)));
+        const taxGroup = i["taxGroup"] === "vat" || i["taxGroup"] === "none" ? (i["taxGroup"] as string) : "gst";
         const dest = str(i["printerDestination"]) === "bar" ? "bar" : "kitchen";
         const [found] = await sql<{ id: string }[]>`SELECT id FROM pms_pos_items WHERE property_id = ${property} AND category_id = ${cat!.id} AND lower(name) = lower(${name})`;
-        if (found) await sql`UPDATE pms_pos_items SET price = ${price}, tax_rate = ${rate}, is_veg = ${i["isVeg"] !== false}, brand = ${str(i["brand"]).slice(0, 100) || null}, printer_destination = ${dest} WHERE id = ${found.id}`;
-        else await sql`INSERT INTO pms_pos_items (property_id, category_id, category_name, name, price, is_veg, tax_rate, brand, printer_destination, stock) VALUES (${property}, ${cat!.id}, ${cname}, ${name}, ${price}, ${i["isVeg"] !== false}, ${rate}, ${str(i["brand"]).slice(0, 100) || null}, ${dest}, ${num(i["stock"], 0)})`;
+        if (found) await sql`UPDATE pms_pos_items SET price = ${price}, tax_group = ${taxGroup}, is_veg = ${i["isVeg"] !== false}, brand = ${str(i["brand"]).slice(0, 100) || null}, printer_destination = ${dest} WHERE id = ${found.id}`;
+        else await sql`INSERT INTO pms_pos_items (property_id, category_id, category_name, name, price, is_veg, tax_group, brand, printer_destination, stock) VALUES (${property}, ${cat!.id}, ${cname}, ${name}, ${price}, ${i["isVeg"] !== false}, ${taxGroup}, ${str(i["brand"]).slice(0, 100) || null}, ${dest}, ${num(i["stock"], 0)})`;
         count++;
       }
     }

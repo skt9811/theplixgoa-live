@@ -2,11 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Printer } from "lucide-react";
 import { toast } from "sonner";
-import { billSlip } from "@/lib/pms-escpos";
-import { printSlip } from "@/lib/pms-pos-print";
+import { printOrder } from "@/components/pms/pos/print-order";
 import { inr, posFetch, posOrder, type PosOrderData } from "@/lib/pms-pos-client";
 import { usePos } from "@/components/pms/pos/pos-context";
-import { slipContext } from "@/components/pms/pos/pos-slip-context";
 import { BackLink, PageTitle, RangeInputs, Sheet, btnPrimary, field, useRange } from "@/components/pms/pos/pos-ui";
 
 export const Route = createFileRoute("/pms/pos/manage/invoices")({ component: Invoices });
@@ -33,13 +31,9 @@ function Invoices() {
   useEffect(() => void load(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function reprint(d: PosOrderData) {
-    const active = d.lines.filter((l) => l.status === "active");
-    const r = await printSlip(billSlip(slipContext(propertyName, state), {
-      orderNumber: d.order.order_number, table: d.order.table_name, at: new Date(d.order.settled_at ?? d.order.created_at), guest: d.order.guest_name,
-      items: active.map((l) => ({ name: l.item_name, qty: l.quantity, rate: l.unit_price, amount: l.total_price })),
-      subtotal: d.order.subtotal, discount: d.order.discount_amount, tax: d.order.tax_amount, other: d.order.other_charges, roundOff: d.order.round_off, total: d.order.total_amount, method: d.order.payment_method,
-    }), state?.printer ?? null);
-    toast(r.message);
+    if (!state) return;
+    const r = await printOrder(state, propertyName, d, d.order.status === "completed");
+    if (r) toast(r.message);
   }
 
   return (

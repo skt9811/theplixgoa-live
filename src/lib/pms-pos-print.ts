@@ -22,12 +22,13 @@ type Gatt = { connect: () => Promise<Gatt>; getPrimaryServices: () => Promise<{ 
 type BtDevice = { gatt?: Gatt };
 type BtNav = { bluetooth?: { requestDevice: (o: unknown) => Promise<BtDevice> } };
 
-let cached: { device: BtDevice; chr: Chr } | null = null;
+const cached = new Map<string, { device: BtDevice; chr: Chr }>();
 
 export const paperOf = (p: PrinterSettings): PaperSize => (p?.paper_size === "58mm" || p?.paper_size === "80mm" ? p.paper_size : "54mm");
 
 async function connect(settings: PrinterSettings): Promise<Chr> {
-  if (cached?.chr) return cached.chr;
+  const key = settings?.printer_name?.trim() || "*";
+  if (cached.get(key)?.chr) return cached.get(key)!.chr;
   const bt = (navigator as unknown as BtNav).bluetooth!;
   const name = settings?.printer_name?.trim();
   const device = await bt.requestDevice(name ? { filters: [{ name }], optionalServices: PRINT_SERVICES } : { acceptAllDevices: true, optionalServices: PRINT_SERVICES });
@@ -35,7 +36,7 @@ async function connect(settings: PrinterSettings): Promise<Chr> {
   for (const svc of await server.getPrimaryServices()) {
     for (const c of await svc.getCharacteristics()) {
       if (c.properties.write || c.properties.writeWithoutResponse) {
-        cached = { device, chr: c };
+        cached.set(key, { device, chr: c });
         return c;
       }
     }
@@ -64,7 +65,7 @@ export async function printSlip(lines: SlipLine[], settings: PrinterSettings): P
       }
       return { mode: "bluetooth", message: "Sent to printer" };
     } catch (err) {
-      cached = null;
+      cached.delete(settings?.printer_name?.trim() || "*");
       if (err instanceof Error && err.name === "NotFoundError") return { mode: "preview", message: "No printer selected" };
       // fall through to RawBT / preview
     }

@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import { istToday } from "@/lib/pms-client";
-import { posPost, type PosSettings } from "@/lib/pms-pos-client";
+import { posConfigSave, type PosConfig } from "@/lib/pms-pos-client";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 import { usePos } from "@/components/pms/pos/pos-context";
 
@@ -50,16 +50,16 @@ export function Labeled({ label, children }: { label: string; children: ReactNod
   return <label className="block text-xs font-medium text-slate-500">{label}<div className="mt-1">{children}</div></label>;
 }
 
-/** Saves one settings document (stations, display, ...) and refreshes the POS state. */
-export function useSaveSetting() {
+/** Saves one piece of configuration (kind: store, discount, printer, station, tax, payment-method, general) and refreshes the POS state. */
+export function useConfigSave() {
   const { property, reload } = usePos();
   const [saving, setSaving] = useState(false);
-  const save = useCallback(async <K extends keyof PosSettings>(key: K, value: PosSettings[K]) => {
+  const save = useCallback(async (kind: string, body: Record<string, unknown>, message = "Saved") => {
     setSaving(true);
     try {
-      await posPost("settings", { property, key, value });
+      await posConfigSave(kind, { property, ...body });
       await reload();
-      toast.success("Settings saved");
+      toast.success(message);
       return true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save");
@@ -97,15 +97,15 @@ export async function run(fn: () => Promise<unknown>, done: string): Promise<boo
   }
 }
 
-/** A local editable copy of one settings document, filled once the POS state has loaded. */
-export function useSettingDraft<K extends keyof PosSettings>(key: K) {
+/** A local editable copy of part of the POS config, filled once the state has loaded. */
+export function useDraft<T>(pick: (c: PosConfig) => T) {
   const { state } = usePos();
-  const { save, saving } = useSaveSetting();
-  const [draft, setDraft] = useState<PosSettings[K] | null>(null);
+  const [draft, setDraft] = useState<T | null>(null);
   useEffect(() => {
-    if (state && draft === null) setDraft(structuredClone(state.settings[key]));
-  }, [state, draft, key]);
-  return { draft, setDraft, saving, save: () => (draft ? save(key, draft) : Promise.resolve(false)) };
+    if (state && draft === null) setDraft(structuredClone(pick(state.config)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, draft]);
+  return [draft, setDraft] as const;
 }
 
 export function SaveBar({ onSave, saving }: { onSave: () => void; saving: boolean }) {

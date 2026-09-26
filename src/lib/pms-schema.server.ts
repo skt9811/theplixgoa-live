@@ -399,6 +399,96 @@ export function ensurePosSchema(sql: Sql): Promise<void> {
           updated_at timestamptz DEFAULT now(),
           PRIMARY KEY (property_id, key)
         )`;
+      // --- Configuration tables (replace the single JSON settings document) ---
+      await sql`ALTER TABLE pms_pos_items ADD COLUMN IF NOT EXISTS tax_group varchar(10) NOT NULL DEFAULT 'gst'`;
+      await sql`ALTER TABLE pms_pos_items ADD COLUMN IF NOT EXISTS image_url text`;
+      await sql`ALTER TABLE pms_pos_items ADD COLUMN IF NOT EXISTS track_profit boolean NOT NULL DEFAULT false`;
+      await sql`ALTER TABLE pms_pos_items ADD COLUMN IF NOT EXISTS cost_price numeric(10, 2) NOT NULL DEFAULT 0`;
+      await sql`ALTER TABLE pms_pos_order_items ADD COLUMN IF NOT EXISTS tax_group varchar(10) NOT NULL DEFAULT 'gst'`;
+      await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS tax_breakdown jsonb`;
+      await sql`ALTER TABLE pms_pos_tables ADD COLUMN IF NOT EXISTS group_name varchar(100)`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_pos_store_profiles (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          property_id varchar(100) NOT NULL UNIQUE,
+          store_name varchar(150) NOT NULL DEFAULT 'Cope Cafe',
+          company_name varchar(150) NOT NULL DEFAULT 'Harbor Court Beach Resort',
+          owner_name varchar(150),
+          address_line1 text,
+          pincode varchar(20) DEFAULT '403512',
+          gstin varchar(50) DEFAULT '30AAOCP7135Q1ZV',
+          phone varchar(50) DEFAULT '8882171431',
+          email varchar(150) DEFAULT 'harborcourt.goa@gmail.com',
+          website varchar(150),
+          is_active boolean DEFAULT true
+        )`;
+      await sql`ALTER TABLE pms_pos_store_profiles ADD COLUMN IF NOT EXISTS fax varchar(50)`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_pos_discounts (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          property_id varchar(100) NOT NULL,
+          name varchar(100) NOT NULL,
+          discount_type varchar(20) DEFAULT 'Percentage',
+          amount numeric(10, 2) NOT NULL DEFAULT 10.00,
+          start_date date,
+          end_date date,
+          apply_in_store boolean DEFAULT true,
+          apply_in_online boolean DEFAULT false,
+          is_active boolean DEFAULT true
+        )`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_pos_printers (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          property_id varchar(100) NOT NULL,
+          printer_name varchar(150) NOT NULL,
+          connection_type varchar(30) DEFAULT 'Bluetooth',
+          mac_address varchar(100),
+          ip_address varchar(100),
+          station_number int DEFAULT 10,
+          assigned_role varchar(50) DEFAULT 'Bill & KOT',
+          paper_size varchar(20) DEFAULT '58mm',
+          is_connected boolean DEFAULT true
+        )`;
+      // Which kitchen ticket a KOT printer takes: everything, kitchen items or bar items.
+      await sql`ALTER TABLE pms_pos_printers ADD COLUMN IF NOT EXISTS destination varchar(20) NOT NULL DEFAULT 'all'`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_pos_stations (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          property_id varchar(100) NOT NULL,
+          station_number int NOT NULL,
+          device_name varchar(255) NOT NULL,
+          is_active boolean DEFAULT true,
+          is_printing_station boolean DEFAULT false
+        )`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_pos_stations_key ON pms_pos_stations (property_id, station_number)`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_pos_tax_rules (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          property_id varchar(100) NOT NULL,
+          name varchar(50) NOT NULL,
+          rate_percent numeric(5, 2) NOT NULL,
+          is_enabled boolean DEFAULT true,
+          apply_based_on_amount boolean DEFAULT false,
+          amount_threshold numeric(10, 2) DEFAULT 0.00,
+          amount_wise_rate numeric(5, 2) DEFAULT 0.00
+        )`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_pos_tax_rules_key ON pms_pos_tax_rules (property_id, name)`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_pos_payment_methods (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          property_id varchar(100) NOT NULL,
+          payment_type varchar(50) NOT NULL,
+          is_allowed boolean DEFAULT true,
+          open_cash_drawer boolean DEFAULT false,
+          receipt_copies int DEFAULT 1
+        )`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_pos_payment_methods_key ON pms_pos_payment_methods (property_id, payment_type)`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_pos_general_settings (
+          property_id varchar(100) PRIMARY KEY,
+          settings jsonb NOT NULL DEFAULT '{}'::jsonb,
+          updated_at timestamptz DEFAULT now()
+        )`;
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_orders_prop_idx ON pms_pos_orders (property_id, created_at)`;
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_order_items_order_idx ON pms_pos_order_items (order_id)`;
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_tables_prop_idx ON pms_pos_tables (property_id)`;

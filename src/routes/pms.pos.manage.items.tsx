@@ -7,7 +7,7 @@ import { BackLink, Labeled, PageTitle, Sheet, Toggle, btnGhost, btnPrimary, fiel
 
 export const Route = createFileRoute("/pms/pos/manage/items")({ component: Items });
 
-type Form = { name: string; price: string; categoryId: string; taxRate: string; isVeg: boolean; isAvailable: boolean; brand: string; printerDestination: "kitchen" | "bar"; stock: string };
+type Form = { name: string; price: string; categoryId: string; taxGroup: string; imageUrl: string; isVeg: boolean; isAvailable: boolean; brand: string; printerDestination: "kitchen" | "bar"; stock: string };
 
 function Items() {
   const { state, property, reload } = usePos();
@@ -30,11 +30,11 @@ function Items() {
 
   function open(item: Partial<PosItem>) {
     setEdit(item);
-    setF({ name: item.name ?? "", price: item.price !== undefined ? String(item.price) : "", categoryId: item.category_id ?? categories[0]?.id ?? "", taxRate: String(item.tax_rate ?? state?.settings.payment.gstRate ?? 5), isVeg: item.is_veg ?? true, isAvailable: item.is_available ?? true, brand: item.brand ?? "", printerDestination: item.printer_destination ?? "kitchen", stock: item.stock !== undefined ? String(item.stock) : "0" });
+    setF({ name: item.name ?? "", price: item.price !== undefined ? String(item.price) : "", categoryId: item.category_id ?? categories[0]?.id ?? "", taxGroup: item.tax_group ?? "gst", imageUrl: item.image_url ?? "", isVeg: item.is_veg ?? true, isAvailable: item.is_available ?? true, brand: item.brand ?? "", printerDestination: item.printer_destination ?? "kitchen", stock: item.stock !== undefined ? String(item.stock) : "0" });
   }
   async function save() {
     if (!f) return;
-    if (await run(() => posMenu({ property, entity: "item", id: edit?.id, name: f.name, price: Number(f.price), categoryId: f.categoryId, taxRate: Number(f.taxRate), isVeg: f.isVeg, isAvailable: f.isAvailable, brand: f.brand, printerDestination: f.printerDestination, stock: Number(f.stock) || 0 }), "Item saved")) {
+    if (await run(() => posMenu({ property, entity: "item", id: edit?.id, name: f.name, price: Number(f.price), categoryId: f.categoryId, taxGroup: f.taxGroup, imageUrl: f.imageUrl, isVeg: f.isVeg, isAvailable: f.isAvailable, brand: f.brand, printerDestination: f.printerDestination, stock: Number(f.stock) || 0 }), "Item saved")) {
       setEdit(null);
       await reload();
     }
@@ -92,7 +92,7 @@ function Items() {
             <div className="grid grid-cols-2 gap-3">
               <Labeled label="Price (₹)"><input className={field} type="number" inputMode="decimal" min={0} value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></Labeled>
               <Labeled label={edit.id ? "Current stock" : "Initial stock"}><input className={field} type="number" inputMode="decimal" value={f.stock} onChange={(e) => setF({ ...f, stock: e.target.value })} /></Labeled>
-              <Labeled label="GST %"><input className={field} type="number" inputMode="decimal" min={0} value={f.taxRate} onChange={(e) => setF({ ...f, taxRate: e.target.value })} /></Labeled>
+              <Labeled label="Tax"><select className={field} value={f.taxGroup} onChange={(e) => setF({ ...f, taxGroup: e.target.value })}><option value="gst">GST (SGST + CGST)</option><option value="vat">VAT</option><option value="none">No tax</option></select></Labeled>
               <Labeled label="Brand"><input className={field} value={f.brand} onChange={(e) => setF({ ...f, brand: e.target.value })} /></Labeled>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -101,6 +101,7 @@ function Items() {
             <div className="grid grid-cols-2 gap-2">
               {(["kitchen", "bar"] as const).map((d) => <button key={d} type="button" onClick={() => setF({ ...f, printerDestination: d })} className={`rounded-lg border py-2 text-sm font-semibold capitalize ${f.printerDestination === d ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-500"}`}>{d} printer</button>)}
             </div>
+            <Labeled label="Image URL (optional)"><input className={field} type="url" inputMode="url" value={f.imageUrl} onChange={(e) => setF({ ...f, imageUrl: e.target.value })} placeholder="https://..." /></Labeled>
             <Toggle label="Available for ordering" checked={f.isAvailable} onChange={(v) => setF({ ...f, isAvailable: v })} />
           </div>
           <div className="mt-4 flex gap-2">

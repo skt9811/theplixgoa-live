@@ -27,7 +27,7 @@ function Utility() {
     if (!state) return;
     const data = {
       property, exportedAt: new Date().toISOString(),
-      categories: state.categories.map((c) => ({ name: c.name, items: state.items.filter((i) => i.category_id === c.id).map((i) => ({ name: i.name, price: i.price, isVeg: i.is_veg, taxRate: i.tax_rate, brand: i.brand, printerDestination: i.printer_destination, stock: i.stock })) })),
+      categories: state.categories.map((c) => ({ name: c.name, items: state.items.filter((i) => i.category_id === c.id).map((i) => ({ name: i.name, price: i.price, isVeg: i.is_veg, taxGroup: i.tax_group, brand: i.brand, printerDestination: i.printer_destination, stock: i.stock })) })),
     };
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));

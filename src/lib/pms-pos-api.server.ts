@@ -5,13 +5,14 @@ import { PROPERTIES } from "@/lib/plix";
 import { getPmsDb } from "@/lib/pms-db.server";
 import { ensureInvoicesSchema, ensurePosSchema } from "@/lib/pms-schema.server";
 import { audit } from "@/lib/pms-audit.server";
-import { computeTotals, round2 } from "@/lib/pms-pos-calc";
+import { round2 } from "@/lib/pms-pos-calc";
 import { isAllProps, type Actor } from "@/lib/pms-users.server";
 
-import { ISO_DATE, PosError, canManage, istToday, json, loadSettings, logPos, num, requireProperty, str, type Sql } from "@/lib/pms-pos-shared.server";
+import { ISO_DATE, PosError, canManage, istToday, json, logPos, num, requireProperty, str, type Sql } from "@/lib/pms-pos-shared.server";
+import { PAYMENT_TYPE_NAMES, handleConfigApi, loadConfig, seedConfig } from "@/lib/pms-pos-config.server";
+import { computeOrder, type TaxGroup } from "@/lib/pms-pos-calc";
 import { handlePosAdminApi } from "@/lib/pms-pos-admin.server";
 
-const METHODS = new Set(["Cash", "UPI", "Card", "Loyalty", "Account"]);
 
 const DEFAULT_TABLES: [string, string][] = [
   ["Open Table", "open"], ["Villa", "villa"], ["R1", "room"], ["R2", "room"], ["R3", "room"], ["R4", "room"], ["R5", "room"], ["R6", "room"], ["R7", "room"], ["R8", "room"],
@@ -23,10 +24,15 @@ const DEFAULT_MENU: Record<string, [string, number, boolean][]> = {
   Beverages: [["Fresh Lime Soda", 90, true], ["Masala Chai", 60, true], ["Cold Coffee", 140, true]],
 };
 
+const seededMenu = new Set<string>();
 async function seedProperty(sql: Sql, property: string) {
+  if (seededMenu.has(property)) return;
   // Sample data is created once per property; deleting everything later must not bring it back.
   const [done] = await sql`SELECT 1 FROM pms_pos_settings WHERE property_id = ${property} AND key = 'seeded'`;
-  if (done) return;
+  if (done) {
+    seededMenu.add(property);
+    return;
+  }
   const [t] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM pms_pos_tables WHERE property_id = ${property}`;
   if ((t?.n ?? 0) === 0) {
     for (const [name, type] of DEFAULT_TABLES) await sql`INSERT INTO pms_pos_tables (property_id, name, table_type) VALUES (${property}, ${name}, ${type})`;
@@ -42,31 +48,34 @@ async function seedProperty(sql: Sql, property: string) {
     }
   }
   await sql`INSERT INTO pms_pos_settings (property_id, key, value) VALUES (${property}, 'seeded', '{}'::jsonb) ON CONFLICT DO NOTHING`;
+  seededMenu.add(property);
 }
 
-type LineRow = { id: string; kot_number: number; item_id: string | null; item_name: string; quantity: number; unit_price: string; total_price: string; notes: string | null; status: string; tax_rate: string | null };
+type LineRow = { id: string; kot_number: number; item_id: string | null; item_name: string; quantity: number; unit_price: string; total_price: string; notes: string | null; status: string; tax_rate: string | null; tax_group: string };
 type OrderRow = Record<string, unknown> & { id: string; property_id: string; table_id: string | null; table_name: string; status: string; subtotal: string; discount_type: string | null; discount_value: string | null; other_charges: string };
 
-const mapLine = (l: LineRow) => ({ id: l.id, kot_number: l.kot_number, item_id: l.item_id, item_name: l.item_name, quantity: l.quantity, unit_price: Number(l.unit_price), total_price: Number(l.total_price), notes: l.notes, status: l.status, tax_rate: Number(l.tax_rate ?? 5) });
+const mapLine = (l: LineRow) => ({ id: l.id, kot_number: l.kot_number, item_id: l.item_id, item_name: l.item_name, quantity: l.quantity, unit_price: Number(l.unit_price), total_price: Number(l.total_price), notes: l.notes, status: l.status, tax_rate: Number(l.tax_rate ?? 0), tax_group: l.tax_group });
 const mapOrder = (o: OrderRow) => ({ ...o, order_number: Number(o["order_number"]), subtotal: Number(o.subtotal), tax_amount: Number(o["tax_amount"]), discount_amount: Number(o["discount_amount"]), discount_value: Number(o.discount_value ?? 0), other_charges: Number(o.other_charges), total_amount: Number(o["total_amount"]), round_off: Number(o["round_off"] ?? 0) });
 
 async function recalc(sql: Sql, orderId: string) {
-  const [o] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number FROM pms_pos_orders WHERE id = ${orderId}`;
+  const [o] = await sql<OrderRow[]>`SELECT id, property_id, discount_type, discount_value, other_charges FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
-  const lines = await sql<LineRow[]>`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted FROM pms_pos_order_items WHERE order_id = ${orderId} AND status = 'active'`;
-  const t = computeTotals(lines.map((l) => ({ total: Number(l.total_price), rate: Number(l.tax_rate ?? 5) })), o.discount_type, Number(o.discount_value ?? 0), Number(o.other_charges));
-  await sql`UPDATE pms_pos_orders SET subtotal = ${t.subtotal}, discount_amount = ${t.discount}, tax_amount = ${t.tax}, total_amount = ${t.total} WHERE id = ${orderId}`;
+  const lines = await sql<{ id: string; total_price: string; tax_group: string }[]>`SELECT id, total_price, tax_group FROM pms_pos_order_items WHERE order_id = ${orderId} AND status = 'active'`;
+  const { taxRules } = await loadConfig(sql, o.property_id);
+  const t = computeOrder(lines.map((l) => ({ total: Number(l.total_price), group: (l.tax_group as TaxGroup) ?? "gst" })), taxRules, o.discount_type, Number(o.discount_value ?? 0), Number(o.other_charges));
+  for (const [k, l] of lines.entries()) await sql`UPDATE pms_pos_order_items SET tax_rate = ${t.rates[k] ?? 0} WHERE id = ${l.id}`;
+  await sql`UPDATE pms_pos_orders SET subtotal = ${t.subtotal}, discount_amount = ${t.discount}, tax_amount = ${t.tax}, total_amount = ${t.total}, tax_breakdown = ${sql.json(t.breakdown as never)} WHERE id = ${orderId}`;
 }
 
 async function loadOrder(sql: Sql, orderId: string) {
-  const [o] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number FROM pms_pos_orders WHERE id = ${orderId}`;
+  const [o] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
-  const lines = await sql<LineRow[]>`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted FROM pms_pos_order_items WHERE order_id = ${orderId} ORDER BY kot_number, ctid`;
+  const lines = await sql<LineRow[]>`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted, tax_group FROM pms_pos_order_items WHERE order_id = ${orderId} ORDER BY kot_number, ctid`;
   return { order: mapOrder(o), lines: lines.map(mapLine) };
 }
 
 async function ownedOrder(sql: Sql, actor: Actor, orderId: string): Promise<OrderRow> {
-  const [o] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number FROM pms_pos_orders WHERE id = ${orderId}`;
+  const [o] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
   requireProperty(actor, o.property_id);
   return o;
@@ -97,26 +106,25 @@ async function getState(url: URL, actor: Actor, sql: Sql) {
   const property = str(url.searchParams.get("property"));
   requireProperty(actor, property);
   await seedProperty(sql, property);
-  const [tables, categories, items, printer, settings] = await Promise.all([
-    sql`SELECT t.id, t.name, t.table_type, t.status, o.id AS order_id, o.order_number, o.total_amount, o.guest_count, o.created_at, o.status AS order_status,
+  await seedConfig(sql, property);
+  const [tables, categories, items, config] = await Promise.all([
+    sql`SELECT t.id, t.name, t.table_type, t.group_name, t.status, o.id AS order_id, o.order_number, o.total_amount, o.guest_count, o.created_at, o.status AS order_status,
                (SELECT count(*)::int FROM pms_pos_order_items i WHERE i.order_id = o.id AND i.status = 'active') AS item_count
         FROM pms_pos_tables t LEFT JOIN pms_pos_orders o ON o.id = t.current_order_id AND o.status IN ('running', 'billing')
         WHERE t.property_id = ${property}
         ORDER BY t.sort_order, CASE t.table_type WHEN 'open' THEN 0 WHEN 'villa' THEN 1 ELSE 2 END, length(t.name), t.name`,
     sql`SELECT id, name, sort_order, is_active, color FROM pms_pos_categories WHERE property_id = ${property} ORDER BY sort_order, name`,
-    sql`SELECT id, category_id, category_name, name, price::float AS price, stock::float AS stock, brand, printer_destination, is_veg, tax_rate::float AS tax_rate, is_available FROM pms_pos_items WHERE property_id = ${property} ORDER BY name`,
-    sql`SELECT id, property_id, printer_type, printer_name, mac_address, left_margin, paper_size, bill_address, bill_gstin, bill_footer FROM pms_pos_printer_settings WHERE property_id = ${property}`,
-    loadSettings(sql, property),
+    sql`SELECT id, category_id, category_name, name, price::float AS price, stock::float AS stock, brand, printer_destination, is_veg, tax_group, image_url, is_available, track_profit, cost_price::float AS cost_price FROM pms_pos_items WHERE property_id = ${property} ORDER BY name`,
+    loadConfig(sql, property),
   ]);
   return {
     tables: tables.map((t) => ({
-      id: t["id"], name: t["name"], table_type: t["table_type"], status: t["order_id"] ? (t["order_status"] === "billing" ? "billing" : "running") : "empty",
+      id: t["id"], name: t["name"], table_type: t["table_type"], group_name: t["group_name"], status: t["order_id"] ? (t["order_status"] === "billing" ? "billing" : "running") : "empty",
       order: t["order_id"] ? { id: t["order_id"], order_number: Number(t["order_number"]), total: Number(t["total_amount"]), guest_count: t["guest_count"], created_at: t["created_at"], item_count: t["item_count"] } : null,
     })),
     categories,
     items,
-    printer: printer[0] ?? null,
-    settings,
+    config,
   };
 }
 
@@ -131,8 +139,8 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
   const discountValue = Math.max(0, num(body["discountValue"]));
   const other = Math.max(0, num(body["otherCharges"]));
 
-  const settings = await loadSettings(sql, property);
-  const noTax = (settings.payment as { taxMode?: string }).taxMode === "none";
+  const [storeRow] = await sql<{ is_active: boolean }[]>`SELECT is_active FROM pms_pos_store_profiles WHERE property_id = ${property}`;
+  if (storeRow && storeRow.is_active === false && !str(body["orderId"])) throw new PosError("This store is deactivated. Reactivate it in Store Setup to take new orders.", 403);
   const result = await sql.begin(async (tx0) => {
     const tx = tx0 as unknown as Sql;
     let orderId = str(body["orderId"]);
@@ -140,7 +148,7 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
     if (!orderId) {
       const tableId = str(body["tableId"]);
       if (tableId) {
-        const [table] = await tx<{ id: string; name: string; property_id: string; current_order_id: string | null }[]>`SELECT id, property_id, name, table_type, status, current_order_id, sort_order FROM pms_pos_tables WHERE id = ${tableId} FOR UPDATE`;
+        const [table] = await tx<{ id: string; name: string; property_id: string; current_order_id: string | null }[]>`SELECT id, property_id, name, table_type, status, current_order_id, sort_order, group_name FROM pms_pos_tables WHERE id = ${tableId} FOR UPDATE`;
         if (!table || table.property_id !== property) throw new PosError("Table not found", 404);
         if (table.current_order_id) orderId = table.current_order_id;
         else {
@@ -155,7 +163,7 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
         created = true;
       }
     }
-    const [existing] = await tx<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number FROM pms_pos_orders WHERE id = ${orderId} FOR UPDATE`;
+    const [existing] = await tx<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown FROM pms_pos_orders WHERE id = ${orderId} FOR UPDATE`;
     if (!existing || existing.property_id !== property) throw new PosError("Order not found", 404);
     if (existing.status !== "running" && existing.status !== "billing") throw new PosError("This order is already closed", 409);
 
@@ -173,18 +181,19 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
       const qty = Math.max(1, Math.floor(num(d["qty"], 1)));
       let name = str(d["name"]).slice(0, 150);
       let price = Math.max(0, num(d["unitPrice"]));
-      let rate = noTax ? 0 : Math.min(100, Math.max(0, num(d["taxRate"], 5)));
+      let group: TaxGroup = d["taxGroup"] === "vat" || d["taxGroup"] === "none" ? (d["taxGroup"] as TaxGroup) : "gst";
       const itemId = str(d["itemId"]);
       if (itemId) {
-        const [item] = await tx<{ name: string; price: string; tax_rate: string }[]>`SELECT name, price, tax_rate FROM pms_pos_items WHERE id = ${itemId} AND property_id = ${property}`;
+        const [item] = await tx<{ name: string; price: string; tax_group: string }[]>`SELECT name, price, tax_group FROM pms_pos_items WHERE id = ${itemId} AND property_id = ${property}`;
         if (!item) throw new PosError("A menu item no longer exists");
         name = item.name;
-        price = Number(item.price);
-        rate = noTax ? 0 : Number(item.tax_rate);
+        // A catalog price of 0 marks an open-price item: the price the staff typed at the table is used.
+        if (Number(item.price) > 0) price = Number(item.price);
+        group = (item.tax_group as TaxGroup) ?? "gst";
       }
       if (!name) throw new PosError("Every line needs a name");
-      await tx`INSERT INTO pms_pos_order_items (order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, tax_rate, added_by)
-        VALUES (${orderId}, 0, ${itemId || null}, ${name}, ${qty}, ${price}, ${round2(price * qty)}, ${str(d["notes"]) || null}, ${rate}, ${actor.name})`;
+      await tx`INSERT INTO pms_pos_order_items (order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, tax_rate, tax_group, added_by)
+        VALUES (${orderId}, 0, ${itemId || null}, ${name}, ${qty}, ${price}, ${round2(price * qty)}, ${str(d["notes"]) || null}, 0, ${group}, ${actor.name})`;
     }
 
     let kotNumber: number | null = null;
@@ -220,10 +229,10 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
 
 async function moveLines(tx: Sql, actor: Actor, from: OrderRow, lineIds: string[], toTableId: string) {
   if (lineIds.length === 0) throw new PosError("Select at least one item");
-  const [table] = await tx<{ id: string; name: string; property_id: string; current_order_id: string | null }[]>`SELECT id, property_id, name, table_type, status, current_order_id, sort_order FROM pms_pos_tables WHERE id = ${toTableId} FOR UPDATE`;
+  const [table] = await tx<{ id: string; name: string; property_id: string; current_order_id: string | null }[]>`SELECT id, property_id, name, table_type, status, current_order_id, sort_order, group_name FROM pms_pos_tables WHERE id = ${toTableId} FOR UPDATE`;
   if (!table || table.property_id !== from.property_id) throw new PosError("Table not found", 404);
   if (table.id === from.table_id) throw new PosError("Choose a different table");
-  const lines = await tx<LineRow[]>`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted FROM pms_pos_order_items WHERE order_id = ${from.id} AND status = 'active' AND id = ANY(${lineIds}::uuid[])`;
+  const lines = await tx<LineRow[]>`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted, tax_group FROM pms_pos_order_items WHERE order_id = ${from.id} AND status = 'active' AND id = ANY(${lineIds}::uuid[])`;
   const remaining = await tx<{ n: number }[]>`SELECT count(*)::int AS n FROM pms_pos_order_items WHERE order_id = ${from.id} AND status = 'active' AND NOT (id = ANY(${lineIds}::uuid[]))`;
   if (lines.length === 0) throw new PosError("Those items were not found");
   if ((remaining[0]?.n ?? 0) === 0) throw new PosError("Leave at least one item on the original order (use Move Table instead)");
@@ -258,7 +267,7 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
       break;
     case "void_item": {
       const reason = str(body["reason"]) || "Voided";
-      const [line] = await sql<LineRow[]>`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted FROM pms_pos_order_items WHERE id = ${str(body["lineId"])} AND order_id = ${order.id} AND status = 'active'`;
+      const [line] = await sql<LineRow[]>`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted, tax_group FROM pms_pos_order_items WHERE id = ${str(body["lineId"])} AND order_id = ${order.id} AND status = 'active'`;
       if (!line) throw new PosError("Item not found", 404);
       const [{ n } = { n: 0 }] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM pms_pos_order_items WHERE order_id = ${order.id} AND status = 'active'`;
       if (n <= 1) throw new PosError("Cancel the order instead of voiding its last item");
@@ -280,7 +289,7 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
       const to = str(body["toTableId"]);
       await sql.begin(async (tx0) => {
         const tx = tx0 as unknown as Sql;
-        const [t] = await tx<{ id: string; name: string; property_id: string; current_order_id: string | null }[]>`SELECT id, property_id, name, table_type, status, current_order_id, sort_order FROM pms_pos_tables WHERE id = ${to} FOR UPDATE`;
+        const [t] = await tx<{ id: string; name: string; property_id: string; current_order_id: string | null }[]>`SELECT id, property_id, name, table_type, status, current_order_id, sort_order, group_name FROM pms_pos_tables WHERE id = ${to} FOR UPDATE`;
         if (!t || t.property_id !== order.property_id) throw new PosError("Table not found", 404);
         if (t.current_order_id) throw new PosError("That table already has a running order (use Merge To)");
         await tx`UPDATE pms_pos_tables SET status = 'running', current_order_id = ${order.id} WHERE id = ${t.id}`;
@@ -331,16 +340,19 @@ async function settle(request: Request, actor: Actor, sql: Sql, station: string)
   const order = await ownedOrder(sql, actor, str(body["orderId"]));
   if (order.status !== "running" && order.status !== "billing") throw new PosError("This order is already closed", 409);
   const method = str(body["method"]);
-  if (!METHODS.has(method)) throw new PosError("Choose a payment mode");
-  const enabled = ((await loadSettings(sql, order.property_id)).payment as { methods?: string[] }).methods;
-  if (enabled && !enabled.includes(method)) throw new PosError(`${method} is turned off in Payment & Tax settings`);
+  if (!PAYMENT_TYPE_NAMES.includes(method)) throw new PosError("Choose a payment mode");
+  const cfg = await loadConfig(sql, order.property_id);
+  const pm = cfg.paymentMethods.find((m) => m["payment_type"] === method);
+  if (pm && pm["is_allowed"] === false) throw new PosError(`${method} is turned off in Payment & Tax settings`);
+  if (!cfg.general.customerPhoneOptional && !order["guest_phone"]) throw new PosError("Add the customer's mobile number before billing (Customer phone is required in General Setup)");
+  const noPayment = method === "Account" || method === "NC";
   const roundOff = round2(num(body["roundOff"]));
   const remark = str(body["remark"]);
   await recalc(sql, order.id);
-  const [fresh] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number FROM pms_pos_orders WHERE id = ${order.id}`;
+  const [fresh] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown FROM pms_pos_orders WHERE id = ${order.id}`;
   const total = round2(Number(fresh!["total_amount"]) + roundOff);
-  const received = method === "Account" ? total : Math.max(0, num(body["received"], total));
-  if (method !== "Account" && received < total) throw new PosError("Received amount is less than the bill total");
+  const received = noPayment ? total : Math.max(0, num(body["received"], total));
+  if (!noPayment && received < total) throw new PosError("Received amount is less than the bill total");
   const [{ n } = { n: 0 }] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM pms_pos_order_items WHERE order_id = ${order.id} AND status = 'active'`;
   if (n === 0) throw new PosError("There are no items to bill");
 
@@ -411,13 +423,16 @@ async function menuApi(request: Request, actor: Actor, sql: Sql, station: string
       if (!name || price < 0 || !categoryId) throw new PosError("Name, price and category are required");
       const [cat] = await sql`SELECT 1 FROM pms_pos_categories WHERE id = ${categoryId} AND property_id = ${property}`;
       if (!cat) throw new PosError("Category not found");
-      const rate = Math.min(100, Math.max(0, num(body["taxRate"], 5)));
+      const taxGroup = body["taxGroup"] === "vat" || body["taxGroup"] === "none" ? (body["taxGroup"] as string) : "gst";
+      const imageUrl = /^https?:\/\//i.test(str(body["imageUrl"])) ? str(body["imageUrl"]).slice(0, 500) : null;
       const catName = ((await sql<{ name: string }[]>`SELECT name FROM pms_pos_categories WHERE id = ${categoryId}`)[0])?.name ?? null;
       const dest = str(body["printerDestination"]) === "bar" ? "bar" : "kitchen";
       const brand = str(body["brand"]).slice(0, 100) || null;
       const stock = num(body["stock"], 0);
-      if (id) await sql`UPDATE pms_pos_items SET name = ${name}, price = ${price}, category_id = ${categoryId}, category_name = ${catName}, is_veg = ${body["isVeg"] !== false}, tax_rate = ${rate}, is_available = ${body["isAvailable"] !== false}, brand = ${brand}, printer_destination = ${dest}, stock = ${stock} WHERE id = ${id} AND property_id = ${property}`;
-      else await sql`INSERT INTO pms_pos_items (property_id, category_id, category_name, name, price, is_veg, tax_rate, brand, printer_destination, stock) VALUES (${property}, ${categoryId}, ${catName}, ${name}, ${price}, ${body["isVeg"] !== false}, ${rate}, ${brand}, ${dest}, ${stock})`;
+      const trackProfit = body["trackProfit"] === true;
+      const costPrice = Math.max(0, num(body["costPrice"], 0));
+      if (id) await sql`UPDATE pms_pos_items SET name = ${name}, price = ${price}, category_id = ${categoryId}, category_name = ${catName}, is_veg = ${body["isVeg"] !== false}, tax_group = ${taxGroup}, image_url = ${imageUrl}, is_available = ${body["isAvailable"] !== false}, brand = ${brand}, printer_destination = ${dest}, stock = ${stock}, track_profit = ${trackProfit}, cost_price = ${costPrice} WHERE id = ${id} AND property_id = ${property}`;
+      else await sql`INSERT INTO pms_pos_items (property_id, category_id, category_name, name, price, is_veg, tax_group, image_url, brand, printer_destination, stock, track_profit, cost_price) VALUES (${property}, ${categoryId}, ${catName}, ${name}, ${price}, ${body["isVeg"] !== false}, ${taxGroup}, ${imageUrl}, ${brand}, ${dest}, ${stock}, ${trackProfit}, ${costPrice})`;
     }
   } else if (entity === "table") {
     if (del) {
@@ -429,37 +444,20 @@ async function menuApi(request: Request, actor: Actor, sql: Sql, station: string
       const name = str(body["name"]).slice(0, 50);
       const type = ["table", "room", "villa", "open"].includes(str(body["tableType"])) ? str(body["tableType"]) : "table";
       if (!name) throw new PosError("Table name is required");
-      if (id) await sql`UPDATE pms_pos_tables SET name = ${name}, table_type = ${type}, sort_order = ${Math.floor(num(body["sortOrder"]))} WHERE id = ${id} AND property_id = ${property}`;
+      const groupName = str(body["groupName"]).slice(0, 100) || null;
+      if (id) await sql`UPDATE pms_pos_tables SET name = ${name}, table_type = ${type}, group_name = ${groupName}, sort_order = ${Math.floor(num(body["sortOrder"]))} WHERE id = ${id} AND property_id = ${property}`;
       else {
         const [m] = await sql<{ k: number }[]>`SELECT COALESCE(max(sort_order), 0)::int + 1 AS k FROM pms_pos_tables WHERE property_id = ${property}`;
-        await sql`INSERT INTO pms_pos_tables (property_id, name, table_type, sort_order) VALUES (${property}, ${name}, ${type}, ${m!.k})`;
+        await sql`INSERT INTO pms_pos_tables (property_id, name, table_type, group_name, sort_order) VALUES (${property}, ${name}, ${type}, ${groupName}, ${m!.k})`;
       }
     }
+  } else if (entity === "group") {
+    const from = str(body["from"]);
+    const to = str(body["to"]).slice(0, 100) || null;
+    await sql`UPDATE pms_pos_tables SET group_name = ${to} WHERE property_id = ${property} AND COALESCE(group_name, '') = ${from}`;
   } else throw new PosError("Unknown menu entity");
   await audit(actor, "UPDATE", "pos", id || property, { kind: `menu_${entity}`, action: del ? "delete" : "save" });
   await logPos(sql, actor, property, `${entity[0]!.toUpperCase()}${entity.slice(1)} ${del ? "deleted" : id ? "updated" : "added"}${str(body["name"]) ? ` (${str(body["name"])})` : ""}`, { entity, id }, station);
-  return json({ success: true });
-}
-
-async function printerApi(request: Request, url: URL, actor: Actor, sql: Sql) {
-  if (request.method === "GET") {
-    const property = str(url.searchParams.get("property"));
-    requireProperty(actor, property);
-    const [row] = await sql`SELECT id, property_id, printer_type, printer_name, mac_address, left_margin, paper_size, bill_address, bill_gstin, bill_footer FROM pms_pos_printer_settings WHERE property_id = ${property}`;
-    return json({ printer: row ?? null });
-  }
-  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-  const property = str(body["property"]);
-  requireProperty(actor, property);
-  const type = ["Bluetooth", "Network", "USB"].includes(str(body["printerType"])) ? str(body["printerType"]) : "Bluetooth";
-  const paper = ["54mm", "58mm", "80mm"].includes(str(body["paperSize"])) ? str(body["paperSize"]) : "54mm";
-  await sql`
-    INSERT INTO pms_pos_printer_settings (property_id, printer_type, printer_name, mac_address, left_margin, paper_size, bill_address, bill_gstin, bill_footer)
-    VALUES (${property}, ${type}, ${str(body["printerName"]).slice(0, 150) || null}, ${str(body["macAddress"]).slice(0, 100) || null},
-      ${Math.min(20, Math.max(0, Math.floor(num(body["leftMargin"]))))}, ${paper}, ${str(body["billAddress"]) || null}, ${str(body["billGstin"]).slice(0, 20) || null}, ${str(body["billFooter"]) || null})
-    ON CONFLICT (property_id) DO UPDATE SET printer_type = EXCLUDED.printer_type, printer_name = EXCLUDED.printer_name, mac_address = EXCLUDED.mac_address,
-      left_margin = EXCLUDED.left_margin, paper_size = EXCLUDED.paper_size, bill_address = EXCLUDED.bill_address, bill_gstin = EXCLUDED.bill_gstin, bill_footer = EXCLUDED.bill_footer`;
-  await audit(actor, "UPDATE", "pos", property, { kind: "printer_settings" });
   return json({ success: true });
 }
 
@@ -546,10 +544,6 @@ export async function handlePosApi(sub: string, request: Request, url: URL, acto
       if (!manages) return json({ error: "Only a manager or admin can change the menu" }, 403);
       return await menuApi(request, actor, sql, station);
     }
-    if (sub === "printer") {
-      if (request.method !== "GET" && !manages) return json({ error: "Only a manager or admin can change printer settings" }, 403);
-      return await printerApi(request, url, actor, sql);
-    }
     if (sub === "reports" && request.method === "GET") return await reports(url, actor, sql);
     if (sub === "guest-history" && request.method === "GET") {
       const property = str(url.searchParams.get("property"));
@@ -560,6 +554,8 @@ export async function handlePosApi(sub: string, request: Request, url: URL, acto
         WHERE property_id = ${property} AND status = 'completed' AND guest_phone = ${phone} ORDER BY settled_at DESC LIMIT 10`;
       return json({ orders });
     }
+    const cfg = await handleConfigApi(sub, request, actor, sql, station);
+    if (cfg) return cfg;
     const extra = await handlePosAdminApi(sub, request, url, actor, sql, station);
     if (extra) return extra;
     return json({ error: "Not found" }, 404);

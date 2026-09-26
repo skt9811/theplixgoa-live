@@ -18,40 +18,56 @@ export function setStation(id: string) {
   }
 }
 
+/** Accepts "harbor_court", "Harbor Court" or "harbor-court" and returns the canonical property slug. */
+export function normalizePropertySlug(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s_]+/g, "-");
+}
+
 /** `pms()` for /api/pms/pos/* paths, tagged with this device's station. */
 export function posFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  path = path.replace(/([?&]property=)([^&]*)/, (_m, k: string, v: string) => `${k}${encodeURIComponent(normalizePropertySlug(decodeURIComponent(v)))}`);
+  if (typeof init.body === "string" && init.body.includes('"property"')) {
+    try {
+      const b = JSON.parse(init.body) as Record<string, unknown>;
+      if (typeof b["property"] === "string") init = { ...init, body: JSON.stringify({ ...b, property: normalizePropertySlug(b["property"]) }) };
+    } catch {
+      // not JSON: send as is
+    }
+  }
   return pms<T>(`pos/${path}`, { ...init, headers: { "X-Pos-Station": getStation(), ...(init.headers as Record<string, string> | undefined) } });
 }
 export const posPost = <T = { success: boolean }>(path: string, body: Record<string, unknown>) => posFetch<T>(path, { method: "POST", body: JSON.stringify(body) });
-import type { PrinterSettings } from "@/lib/pms-pos-print";
+import type { TaxGroup, TaxRule } from "@/lib/pms-pos-calc";
 
 export type PosTable = {
-  id: string; name: string; table_type: string; status: "empty" | "running" | "billing";
+  id: string; name: string; table_type: string; group_name: string | null; status: "empty" | "running" | "billing";
   order: { id: string; order_number: number; total: number; guest_count: number; created_at: string; item_count: number } | null;
 };
 export type PosCategory = { id: string; name: string; sort_order: number; is_active: boolean; color: string | null };
 export type PosItem = {
   id: string; category_id: string | null; category_name: string | null; name: string; price: number; stock: number; brand: string | null;
-  printer_destination: "kitchen" | "bar"; is_veg: boolean; tax_rate: number; is_available: boolean;
+  printer_destination: "kitchen" | "bar"; is_veg: boolean; tax_group: TaxGroup; image_url: string | null; is_available: boolean; track_profit?: boolean; cost_price?: number;
 };
-export type PosStation = { id: string; name: string };
-export type PosDiscount = { label: string; type: "fixed" | "percent"; value: number };
-export type PosSettings = {
-  stations: PosStation[];
-  display: { density: "compact" | "comfortable"; defaultView: "all" | "running" | "empty" | "billing"; sound: boolean; vibration: boolean };
-  general: { currency: string; roundOff: boolean; defaultOrderType: "dine_in" | "room_service" };
-  discounts: PosDiscount[];
-  store: { name: string; address: string; phone: string; gstin: string; fssai: string; footer: string };
-  payment: { methods: string[]; taxMode: "gst" | "none"; gstRate: number };
+export type PosStore = { id: string; store_name: string; company_name: string; owner_name: string | null; address_line1: string | null; pincode: string | null; gstin: string | null; phone: string | null; fax: string | null; email: string | null; website: string | null; is_active: boolean };
+export type PosDiscountRow = { id: string; name: string; discount_type: "Percentage" | "Fixed"; amount: number; start_date: string | null; end_date: string | null; apply_in_store: boolean; apply_in_online: boolean; is_active: boolean };
+export type PosPrinterRow = { id: string; printer_name: string; connection_type: "Bluetooth" | "Network" | "USB"; mac_address: string | null; ip_address: string | null; station_number: number; assigned_role: "Bill Printer" | "KOT Printer" | "Bill & KOT"; paper_size: "54mm" | "58mm" | "80mm"; is_connected: boolean; destination: "all" | "kitchen" | "bar" };
+export type PosStationRow = { id: string; station_number: number; device_name: string; is_active: boolean; is_printing_station: boolean };
+export type PosPaymentMethod = { id: string; payment_type: string; is_allowed: boolean; open_cash_drawer: boolean; receipt_copies: number };
+export type PosGeneral = {
+  hideStoreName: boolean; printLogo: boolean; printKotOnBillPrinter: boolean; defaultPrintKot: boolean; printQr: boolean; printHsn: boolean; printConfirmPopup: boolean;
+  upiId: string; header: string; footer: string;
+  customerPhoneOptional: boolean; allowEditAfterBilling: boolean; allowPaymentWithoutBilling: boolean; categoryAsMenu: boolean; showTaxSeparately: boolean;
+  roundOff: boolean; leftMargin: number; itemColumns: number; tableColumns: number; itemImages: boolean; sound: boolean; vibration: boolean; defaultView: "all" | "running" | "empty" | "billing";
 };
-export type PosPrinter = (PrinterSettings & { bill_address?: string | null; bill_gstin?: string | null; bill_footer?: string | null }) | null;
-export type PosState = { tables: PosTable[]; categories: PosCategory[]; items: PosItem[]; printer: PosPrinter; settings: PosSettings };
+export type PosConfig = { store: PosStore | null; discounts: PosDiscountRow[]; printers: PosPrinterRow[]; stations: PosStationRow[]; taxRules: TaxRule[]; paymentMethods: PosPaymentMethod[]; general: PosGeneral };
+export type PosState = { tables: PosTable[]; categories: PosCategory[]; items: PosItem[]; config: PosConfig };
 
-export type PosLine = { id: string; kot_number: number; item_id: string | null; item_name: string; quantity: number; unit_price: number; total_price: number; notes: string | null; status: string; tax_rate: number };
+export type PosLine = { id: string; kot_number: number; item_id: string | null; item_name: string; quantity: number; unit_price: number; total_price: number; notes: string | null; status: string; tax_rate: number; tax_group: TaxGroup };
 export type PosOrder = {
   id: string; order_number: number; property_id: string; table_id: string | null; table_name: string; guest_name: string | null; guest_phone: string | null; guest_count: number;
   status: "running" | "billing" | "completed" | "cancelled"; subtotal: number; tax_amount: number; discount_amount: number; discount_type: "fixed" | "percent" | null; discount_value: number;
   other_charges: number; total_amount: number; round_off: number; payment_method: string | null; remarks: string | null; created_at: string; settled_at: string | null;
+  tax_breakdown: Record<string, number> | null;
   is_commercial: boolean | null; address_type: string | null; address: string | null; city: string | null; zipcode: string | null;
 };
 export type PosOrderData = { order: PosOrder; lines: PosLine[]; kotNumber?: number | null; change?: number; movedTo?: string };
@@ -73,3 +89,6 @@ export function elapsed(iso: string, now: number): string {
   const m = Math.floor((s % 3600) / 60);
   return [h, m, s % 60].map((n) => String(n).padStart(2, "0")).join(":");
 }
+
+/** Saves one piece of configuration (store, discount, printer, station, tax rule, payment method, general). */
+export const posConfigSave = (kind: string, body: Record<string, unknown>) => posPost(`config/${kind}`, body);

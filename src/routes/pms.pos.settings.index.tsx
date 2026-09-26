@@ -21,15 +21,15 @@ function Settings() {
       <BackLink to="/pms/pos/manage" label="Manage" />
       <h1 className="text-lg font-bold text-slate-900">Settings</h1>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Tile to="/pms/pos/settings/table-layout" icon={<Armchair className="size-5" aria-hidden />} label="Table Layout" sub="Tables, rooms, order" />
-        <Tile to="/pms/pos/settings/stations" icon={<Station className="size-5" aria-hidden />} label="Manage Station" sub="Terminal IDs" />
-        <Tile to="/pms/pos/settings/display" icon={<Monitor className="size-5" aria-hidden />} label="Display Setting" sub="Density, cues" />
+        <Tile to="/pms/pos/settings/table-groups" icon={<Armchair className="size-5" aria-hidden />} label="Table Groups" sub="Zones, tables, rooms" />
+        <Tile to="/pms/pos/settings/stations" icon={<Station className="size-5" aria-hidden />} label="Stations & Devices" sub="Terminals, printing station" />
+        <Tile to="/pms/pos/settings/display" icon={<Monitor className="size-5" aria-hidden />} label="Display Setup" sub="Columns, images" />
         <Tile to="/pms/pos/settings/utility" icon={<Wrench className="size-5" aria-hidden />} label="Utility" sub="Cache, menu import/export" />
-        <Tile to="/pms/pos/settings/general" icon={<Calculator className="size-5" aria-hidden />} label="General Setup" sub="Currency, round-off" />
+        <Tile to="/pms/pos/settings/general" icon={<Calculator className="size-5" aria-hidden />} label="General Setup" sub="Receipts, UPI QR, rules" />
         <Tile to="/pms/pos/settings/payment-tax" icon={<Receipt className="size-5" aria-hidden />} label="Payment & Tax" sub="Modes and GST" />
-        <Tile to="/pms/pos/settings/discounts" icon={<BadgePercent className="size-5" aria-hidden />} label="Discount Presets" sub="Quick discounts" />
-        <Tile to="/pms/pos/settings/store" icon={<Store className="size-5" aria-hidden />} label="Store Details" sub="Name, GSTIN, footer" />
-        <Tile to="/pms/pos/settings/printer" icon={<Printer className="size-5" aria-hidden />} label="Printer Config" sub="Bluetooth, paper, test" />
+        <Tile to="/pms/pos/settings/discounts" icon={<BadgePercent className="size-5" aria-hidden />} label="Discounts" sub="Offers and validity" />
+        <Tile to="/pms/pos/settings/store" icon={<Store className="size-5" aria-hidden />} label="Store Setup" sub="Name, GSTIN, contact" />
+        <Tile to="/pms/pos/settings/printers" icon={<Printer className="size-5" aria-hidden />} label="Printers" sub="Bill and KOT routing" />
       </div>
     </div>
   );

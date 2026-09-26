@@ -3,9 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Eye, MoreVertical, Printer, Users } from "lucide-react";
 import { toast } from "sonner";
 import { elapsed, inr, posOrder, type PosTable } from "@/lib/pms-pos-client";
-import { billSlip } from "@/lib/pms-escpos";
-import { printSlip } from "@/lib/pms-pos-print";
-import { slipContext } from "@/components/pms/pos/pos-slip-context";
+import { printOrder } from "@/components/pms/pos/print-order";
 import { usePos } from "@/components/pms/pos/pos-context";
 import { OrderFlow } from "@/components/pms/pos/order-flow";
 import { TableActionsSheet } from "@/components/pms/pos/table-actions";
@@ -27,11 +25,11 @@ function DineIn() {
   const [viewApplied, setViewApplied] = useState(false);
   useEffect(() => {
     if (state && !viewApplied) {
-      setFilter(state.settings.display.defaultView);
+      setFilter(state.config.general.defaultView);
       setViewApplied(true);
     }
   }, [state, viewApplied]);
-  const compact = state?.settings.display.density === "compact";
+  const cols = Math.min(4, Math.max(1, state?.config.general.tableColumns ?? 2));
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 1000);
@@ -44,21 +42,17 @@ function DineIn() {
   }, [flow, actions, reload]);
 
   const tables = useMemo(() => (state?.tables ?? []).filter((t) => filter === "all" || t.status === filter), [state, filter]);
+  const sections = useMemo(() => {
+    const m = new Map<string, PosTable[]>();
+    for (const t of tables) m.set(t.group_name ?? "", [...(m.get(t.group_name ?? "") ?? []), t]);
+    return Array.from(m.entries());
+  }, [tables]);
 
   async function printTable(t: PosTable) {
-    if (!t.order) return;
+    if (!t.order || !state) return;
     try {
-      const d = await posOrder(t.order.id);
-      const active = d.lines.filter((l) => l.status === "active");
-      const res = await printSlip(
-        billSlip(slipContext(propertyName, state), {
-          orderNumber: d.order.order_number, table: d.order.table_name, at: new Date(), guest: d.order.guest_name,
-          items: active.map((l) => ({ name: l.item_name, qty: l.quantity, rate: l.unit_price, amount: l.total_price })),
-          subtotal: d.order.subtotal, discount: d.order.discount_amount, tax: d.order.tax_amount, other: d.order.other_charges, roundOff: 0, total: d.order.total_amount, method: null,
-        }),
-        state?.printer ?? null,
-      );
-      toast(res.message);
+      const res = await printOrder(state, propertyName, await posOrder(t.order.id));
+      if (res) toast(res.message);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not print");
     }
@@ -67,6 +61,7 @@ function DineIn() {
   return (
     <div>
       <div className="rounded-xl bg-emerald-700 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide text-white">{propertyName}</div>
+      {state?.config.store && !state.config.store.is_active && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">This store is deactivated. New orders are blocked until it is reactivated in Store Setup.</p>}
       <div className="mt-3 flex items-center justify-between gap-3">
         <h1 className="text-lg font-bold text-slate-900">Dine-in</h1>
         <select value={filter} onChange={(e) => setFilter(e.target.value as Filter)} aria-label="Filter tables" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 outline-none">
@@ -75,8 +70,12 @@ function DineIn() {
       </div>
 
       {!state ? <p className="py-16 text-center text-sm text-slate-400">Loading tables...</p> : tables.length === 0 ? <p className="py-16 text-center text-sm text-slate-400">No tables match this filter.</p> : (
-        <div className={`mt-3 grid gap-3 ${compact ? "grid-cols-3 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3"}`}>
-          {tables.map((t) =>
+        <div className="mt-3 grid gap-4">
+          {sections.map(([g, list]) => (
+            <div key={g || "none"}>
+              {sections.length > 1 && <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">{g || "Other"}</p>}
+              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+                {list.map((t) =>
             t.order ? (
               <div key={t.id} className={`rounded-xl border-2 bg-white p-3 ${t.status === "billing" ? "border-amber-400" : "border-emerald-500"}`}>
                 <div className="flex items-start justify-between">
@@ -98,6 +97,9 @@ function DineIn() {
               </button>
             ),
           )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

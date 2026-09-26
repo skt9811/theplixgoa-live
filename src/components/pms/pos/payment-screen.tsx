@@ -3,22 +3,21 @@ import { toast } from "sonner";
 import { ArrowLeft, Check, Printer } from "lucide-react";
 import { istToday, pms, type PmsBooking } from "@/lib/pms-client";
 import { inr, posAction, posSettle, type PosOrderData } from "@/lib/pms-pos-client";
-import { billSlip, type SlipContext } from "@/lib/pms-escpos";
-import { printSlip, type PrinterSettings } from "@/lib/pms-pos-print";
+import { printOrder } from "@/components/pms/pos/print-order";
 import { round2 } from "@/lib/pms-pos-calc";
 import { usePos } from "@/components/pms/pos/pos-context";
 
-const ALL_MODES = ["Cash", "UPI", "Card", "Loyalty", "Account"] as const;
 const field = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-emerald-500";
 
-export function PaymentScreen({ property, data, printer, ctx, onBack, onDone }: { property: string; data: PosOrderData; printer: PrinterSettings; ctx: SlipContext; onBack: () => void; onDone: () => void }) {
+export function PaymentScreen({ property, propertyName, data, onBack, onDone }: { property: string; propertyName: string; data: PosOrderData; onBack: () => void; onDone: () => void }) {
   const o = data.order;
   const base = o.total_amount;
   const { state } = usePos();
-  const MODES = ALL_MODES.filter((m) => !state?.settings.payment.methods || state.settings.payment.methods.includes(m));
-  const [method, setMethod] = useState<(typeof ALL_MODES)[number]>(MODES[0] ?? "Cash");
+  const MODES = (state?.config.paymentMethods ?? []).filter((m) => m.is_allowed).map((m) => m.payment_type);
+  const [method, setMethod] = useState<string>(MODES[0] ?? "Cash");
+  const noPayment = method === "Account" || method === "NC";
   const [received, setReceived] = useState(String(base));
-  const [roundOff, setRoundOff] = useState(() => (state?.settings.general.roundOff ? round2(Math.round(base) - base) : 0));
+  const [roundOff, setRoundOff] = useState(() => (state?.config.general.roundOff ? round2(Math.round(base) - base) : 0));
   const [remark, setRemark] = useState("");
   const [bookings, setBookings] = useState<PmsBooking[] | null>(null);
   const [bookingId, setBookingId] = useState("");
@@ -38,7 +37,12 @@ export function PaymentScreen({ property, data, printer, ctx, onBack, onDone }: 
     if (method !== "Account" || bookings) return;
     const today = istToday();
     pms<{ bookings: PmsBooking[] }>("bookings")
-      .then((r) => setBookings(r.bookings.filter((b) => b.property_id === property && b.status !== "cancelled" && b.check_in <= today && b.check_out >= today)))
+      .then((r) => {
+        const live = r.bookings.filter((b) => b.property_id === property && b.status !== "cancelled" && b.check_in <= today && b.check_out >= today);
+        setBookings(live);
+        // Room orders link to the reservation on their own when only one guest is in house.
+        if (live.length === 1) setBookingId(live[0]!.id);
+      })
       .catch(() => setBookings([]));
   }, [method, bookings, property]);
 
@@ -57,16 +61,9 @@ export function PaymentScreen({ property, data, printer, ctx, onBack, onDone }: 
   }
 
   async function printBill() {
-    const d = settled ?? data;
-    const res = await printSlip(
-      billSlip(ctx, {
-        orderNumber: d.order.order_number, table: d.order.table_name, at: new Date(d.order.settled_at ?? Date.now()), guest: d.order.guest_name,
-        items: lines.map((l) => ({ name: l.item_name, qty: l.quantity, rate: l.unit_price, amount: l.total_price })),
-        subtotal: d.order.subtotal, discount: d.order.discount_amount, tax: d.order.tax_amount, other: d.order.other_charges, roundOff: d.order.round_off, total: d.order.total_amount, method: d.order.payment_method,
-      }),
-      printer,
-    );
-    toast(res.message);
+    if (!state) return;
+    const res = await printOrder(state, propertyName, settled ?? data, settled !== null);
+    if (res) toast(res.message);
   }
 
   if (settled) {
@@ -114,7 +111,7 @@ export function PaymentScreen({ property, data, printer, ctx, onBack, onDone }: 
 
       <div className="mt-3 grid gap-3">
         <div className="flex gap-2">
-          <label className="flex-1 text-xs font-medium text-slate-500">Add Received Amount<input className={`${field} mt-1`} type="number" inputMode="decimal" min={0} value={received} onChange={(e) => setReceived(e.target.value)} disabled={method === "Account"} /></label>
+          <label className="flex-1 text-xs font-medium text-slate-500">Add Received Amount<input className={`${field} mt-1`} type="number" inputMode="decimal" min={0} value={received} onChange={(e) => setReceived(e.target.value)} disabled={noPayment} /></label>
           <button type="button" onClick={() => setRoundOff(roundOff === 0 ? round2(Math.round(base) - base) : 0)} className={`mt-5 shrink-0 rounded-lg border px-3 text-xs font-semibold ${roundOff !== 0 ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-600"}`}>Round Off</button>
         </div>
         <label className="text-xs font-medium text-slate-500">Remark (optional)<input className={`${field} mt-1`} value={remark} onChange={(e) => setRemark(e.target.value)} /></label>
@@ -127,8 +124,10 @@ export function PaymentScreen({ property, data, printer, ctx, onBack, onDone }: 
             {m === "Account" ? "Account / Charge to Room" : m}
           </button>
         ))}
+        {MODES.length === 0 && <p className="col-span-3 text-sm text-red-600">Every payment method is turned off in Payment &amp; Tax settings.</p>}
       </div>
 
+      {method === "NC" && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">No-charge: the bill is closed without taking payment and is recorded as complimentary.</p>}
       {method === "Account" && (
         <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
           <p className="text-xs font-medium text-slate-500">Post to an in-house reservation</p>
@@ -142,7 +141,7 @@ export function PaymentScreen({ property, data, printer, ctx, onBack, onDone }: 
         </div>
       )}
 
-      <button type="button" disabled={busy || (method === "Account" && !bookingId) || (method !== "Account" && receivedNum < total)} onClick={() => void settle()} className="mt-5 w-full rounded-lg bg-emerald-600 py-3 text-sm font-bold text-white disabled:opacity-50">
+      <button type="button" disabled={busy || MODES.length === 0 || (method === "Account" && !bookingId) || (!noPayment && receivedNum < total)} onClick={() => void settle()} className="mt-5 w-full rounded-lg bg-emerald-600 py-3 text-sm font-bold text-white disabled:opacity-50">
         {busy ? "Settling..." : `Settle ${inr(total)}`}
       </button>
     </div>

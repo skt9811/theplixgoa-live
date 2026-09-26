@@ -34,10 +34,10 @@ export function CategoryModal({ defaultType, onClose, onSaved }: { defaultType: 
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 sm:items-center sm:p-4" onClick={onClose}>
-      <form onSubmit={save} onClick={(e) => e.stopPropagation()} className={`${DARK.card} ${DARK.border} max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl p-5 text-slate-100 sm:rounded-3xl`}>
+      <form onSubmit={save} onClick={(e) => e.stopPropagation()} className={`${DARK.card} ${DARK.border} max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl p-5 text-foreground sm:rounded-3xl`}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Add Category</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-200">
+          <button type="button" onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground">
             <X className="size-5" aria-hidden />
           </button>
         </div>
@@ -47,15 +47,15 @@ export function CategoryModal({ defaultType, onClose, onSaved }: { defaultType: 
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder="Category name" aria-label="Category name" className={`${DARK.input} flex-1`} autoFocus />
         </div>
 
-        <div className="mt-4 flex gap-1 rounded-full bg-white/[0.06] p-1">
+        <div className="mt-4 flex gap-1 rounded-full bg-muted p-1">
           {(["expense", "income"] as const).map((t) => (
-            <button key={t} type="button" onClick={() => setType(t)} className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold capitalize ${type === t ? "bg-white/15 text-white" : "text-slate-400"}`}>
+            <button key={t} type="button" onClick={() => setType(t)} className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold capitalize ${type === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
               {t}
             </button>
           ))}
         </div>
 
-        <p className="mt-4 text-xs text-slate-400">Icon</p>
+        <p className="mt-4 text-xs text-muted-foreground">Icon</p>
         <div className="mt-2 grid grid-cols-6 gap-2">
           {ICON_KEYS.map((key) => {
             const Icon = iconFor(key);
@@ -66,7 +66,7 @@ export function CategoryModal({ defaultType, onClose, onSaved }: { defaultType: 
                 onClick={() => setIcon(key)}
                 aria-label={key}
                 aria-pressed={icon === key}
-                className={`flex size-11 items-center justify-center rounded-xl transition-colors ${icon === key ? "bg-white/15 text-white ring-1 ring-white/30" : "bg-white/[0.04] text-slate-400 hover:bg-white/10"}`}
+                className={`flex size-11 items-center justify-center rounded-xl transition-colors ${icon === key ? "bg-card text-foreground shadow-sm ring-1 ring-border" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}
               >
                 <Icon className="size-5" aria-hidden />
               </button>
@@ -74,7 +74,7 @@ export function CategoryModal({ defaultType, onClose, onSaved }: { defaultType: 
           })}
         </div>
 
-        <p className="mt-4 text-xs text-slate-400">Colour</p>
+        <p className="mt-4 text-xs text-muted-foreground">Colour</p>
         <div className="mt-2 flex flex-wrap gap-2.5">
           {COLOR_PALETTE.map((c) => (
             <button
@@ -83,7 +83,7 @@ export function CategoryModal({ defaultType, onClose, onSaved }: { defaultType: 
               onClick={() => setColor(c)}
               aria-label={`Colour ${c}`}
               aria-pressed={color === c}
-              className={`size-9 rounded-full transition-transform ${color === c ? "scale-110 ring-2 ring-white" : ""}`}
+              className={`size-9 rounded-full transition-transform ${color === c ? "scale-110 ring-2 ring-foreground" : ""}`}
               style={{ backgroundColor: c }}
             />
           ))}

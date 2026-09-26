@@ -108,10 +108,10 @@ export function HomeTab({ property, categories, refreshKey, onChanged }: { prope
       {/* Budget / cash summary */}
       <section id="cash-summary" className={`${DARK.card} ${DARK.border} scroll-mt-4 rounded-3xl p-4`}>
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-slate-200">Cash Summary</h2>
-          <div className="flex gap-1 rounded-full bg-white/[0.06] p-1">
+          <h2 className="text-sm font-semibold text-foreground">Cash Summary</h2>
+          <div className="flex gap-1 rounded-full bg-muted p-1">
             {(["monthly", "annual"] as const).map((p) => (
-              <button key={p} type="button" onClick={() => { setPeriod(p); setEditing(false); }} className={`rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize ${period === p ? "bg-white/15 text-white" : "text-slate-400"}`}>
+              <button key={p} type="button" onClick={() => { setPeriod(p); setEditing(false); }} className={`rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize ${period === p ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
                 {p}
               </button>
             ))}
@@ -119,17 +119,17 @@ export function HomeTab({ property, categories, refreshKey, onChanged }: { prope
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-slate-400">Operating budget</p>
-            <p className="mt-0.5 text-xl font-bold text-slate-100">{budget > 0 ? money(budget) : "Not set"}</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Operating budget</p>
+            <p className="mt-0.5 text-xl font-bold text-foreground">{budget > 0 ? money(budget) : "Not set"}</p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-slate-400">Actual outflow</p>
-            <p className="mt-0.5 text-xl font-bold text-slate-100">{transactions ? money(scoped.outflow) : "-"}</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Actual outflow</p>
+            <p className="mt-0.5 text-xl font-bold text-foreground">{transactions ? money(scoped.outflow) : "-"}</p>
           </div>
         </div>
         {budget > 0 && (
           <div className="mt-3">
-            <div className="h-2 overflow-hidden rounded-full bg-white/10">
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
               <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pct)}%`, backgroundColor: barColor }} />
             </div>
             <p className="mt-1.5 text-xs" style={{ color: barColor }}>
@@ -137,7 +137,7 @@ export function HomeTab({ property, categories, refreshKey, onChanged }: { prope
             </p>
           </div>
         )}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>
             Cash outflow {money(scoped.cash)} · Income {money(scoped.income)}
           </span>
@@ -159,10 +159,10 @@ export function HomeTab({ property, categories, refreshKey, onChanged }: { prope
       {/* Recent transactions */}
       <section>
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-200">{seeAll ? "All Transactions" : "Recent Transactions"}</h2>
+          <h2 className="text-sm font-semibold text-foreground">{seeAll ? "All Transactions" : "Recent Transactions"}</h2>
           <div className="flex items-center gap-3">
             {seeAll && (
-              <button type="button" onClick={exportCsv} disabled={filtered.length === 0} className="flex items-center gap-1 text-xs font-semibold text-slate-300 hover:text-white disabled:opacity-40">
+              <button type="button" onClick={exportCsv} disabled={filtered.length === 0} className="flex items-center gap-1 text-xs font-semibold text-foreground/80 hover:text-foreground disabled:opacity-40">
                 <Download className="size-3.5" aria-hidden /> Export CSV
               </button>
             )}
@@ -172,19 +172,19 @@ export function HomeTab({ property, categories, refreshKey, onChanged }: { prope
           </div>
         </div>
         <label className={`${DARK.input} mt-3 flex items-center gap-2`}>
-          <Search className="size-4 text-slate-500" aria-hidden />
-          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search note, category, tag" className="w-full bg-transparent outline-none placeholder:text-slate-500" />
+          <Search className="size-4 text-muted-foreground" aria-hidden />
+          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search note, category, tag" className="w-full bg-transparent outline-none placeholder:text-muted-foreground" />
         </label>
         {error && <p className="mt-3 text-sm font-medium text-red-400">{error}</p>}
-        {!transactions && !error && <p className="mt-8 text-center text-sm text-slate-500">Loading transactions...</p>}
-        {transactions && shown.length === 0 && <p className="mt-8 text-center text-sm text-slate-500">{search ? "No transactions match." : `No transactions in ${year} yet. Tap + to add one.`}</p>}
+        {!transactions && !error && <p className="mt-8 text-center text-sm text-muted-foreground">Loading transactions...</p>}
+        {transactions && shown.length === 0 && <p className="mt-8 text-center text-sm text-muted-foreground">{search ? "No transactions match." : `No transactions in ${year} yet. Tap + to add one.`}</p>}
         <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
           {shown.map((t) => (
             <TransactionCard key={t.id} tx={t} category={categoryOf(t)} onDelete={() => setDeleting(t)} />
           ))}
         </div>
         {!seeAll && filtered.length > shown.length && (
-          <button type="button" onClick={() => setSeeAll(true)} className="mt-3 w-full rounded-full border border-white/10 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/5">
+          <button type="button" onClick={() => setSeeAll(true)} className="mt-3 w-full rounded-full border border-border py-2.5 text-sm font-semibold text-foreground/80 hover:bg-muted/60">
             See all {filtered.length}
           </button>
         )}

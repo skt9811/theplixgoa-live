@@ -76,12 +76,12 @@ export function AddTransactionSheet({
   }
 
   const pill = (active: boolean) =>
-    `rounded-full px-4 py-2 text-sm font-semibold transition-colors ${active ? "bg-white/15 text-white" : "text-slate-400 hover:text-slate-200"}`;
+    `rounded-full px-4 py-2 text-sm font-semibold transition-colors ${active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`;
 
   return (
-    <div className="fixed inset-0 z-[75] flex flex-col overflow-hidden bg-[var(--pms-bg)] text-slate-100">
-      <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-3">
-        <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-2 text-slate-400 hover:bg-white/10">
+    <div className="fixed inset-0 z-[75] flex flex-col overflow-hidden bg-background text-foreground">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-2 text-muted-foreground hover:bg-muted">
           <X className="size-5" aria-hidden />
         </button>
         <p className="font-semibold">Add Transaction</p>
@@ -90,7 +90,7 @@ export function AddTransactionSheet({
 
       <div className="flex-1 overflow-y-auto px-4 pb-32 pt-4">
         <div className="mx-auto grid max-w-lg gap-5">
-          <div className="flex gap-1 rounded-full bg-white/[0.06] p-1" role="tablist">
+          <div className="flex gap-1 rounded-full bg-muted p-1" role="tablist">
             {(["expense", "income", "transfer"] as const).map((k) => (
               <button
                 key={k}
@@ -109,18 +109,18 @@ export function AddTransactionSheet({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1.5 text-xs text-slate-400">
+            <label className="grid gap-1.5 text-xs text-muted-foreground">
               Date
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={DARK.input} />
             </label>
-            <label className="grid gap-1.5 text-xs text-slate-400">
+            <label className="grid gap-1.5 text-xs text-muted-foreground">
               Time
               <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={DARK.input} />
             </label>
           </div>
 
           <label className="grid gap-1 text-center">
-            <span className="text-xs text-slate-400">Amount</span>
+            <span className="text-xs text-muted-foreground">Amount</span>
             <span className="flex items-center justify-center gap-1">
               <span className="text-4xl font-semibold" style={{ color: accent }}>₹</span>
               <input
@@ -132,7 +132,7 @@ export function AddTransactionSheet({
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0"
                 aria-label="Amount"
-                className="w-full max-w-[14rem] bg-transparent text-center text-5xl font-semibold outline-none placeholder:text-slate-600"
+                className="w-full max-w-[14rem] bg-transparent text-center text-5xl font-semibold outline-none placeholder:text-muted-foreground"
                 style={{ color: accent }}
               />
             </span>
@@ -140,13 +140,13 @@ export function AddTransactionSheet({
 
           {kind !== "transfer" ? (
             <div className="grid gap-1.5">
-              <span className="text-xs text-slate-400">Category</span>
+              <span className="text-xs text-muted-foreground">Category</span>
               <button type="button" onClick={() => setPickingCategory((v) => !v)} className={`${DARK.card} ${DARK.border} flex items-center justify-between rounded-2xl px-4 py-3`}>
                 <span className="flex items-center gap-3">
-                  {selected ? <CategoryBadge icon={selected.icon} color={selected.color} size="sm" /> : <span className="size-8 rounded-lg bg-white/[0.06]" />}
-                  <span className={selected ? "font-medium" : "text-slate-500"}>{selected ? selected.name : "Select category"}</span>
+                  {selected ? <CategoryBadge icon={selected.icon} color={selected.color} size="sm" /> : <span className="size-8 rounded-lg bg-muted" />}
+                  <span className={selected ? "font-medium" : "text-muted-foreground"}>{selected ? selected.name : "Select category"}</span>
                 </span>
-                <ChevronDown className={`size-4 text-slate-400 transition-transform ${pickingCategory ? "rotate-180" : ""}`} aria-hidden />
+                <ChevronDown className={`size-4 text-muted-foreground transition-transform ${pickingCategory ? "rotate-180" : ""}`} aria-hidden />
               </button>
               {pickingCategory && (
                 <div className={`${DARK.card} ${DARK.border} rounded-2xl p-3`}>
@@ -159,28 +159,28 @@ export function AddTransactionSheet({
                           setCategory(c.name);
                           setPickingCategory(false);
                         }}
-                        className={`flex flex-col items-center gap-1.5 rounded-xl p-2.5 text-center text-[11px] leading-tight transition-colors ${category === c.name ? "bg-white/10" : "hover:bg-white/5"}`}
+                        className={`flex flex-col items-center gap-1.5 rounded-xl p-2.5 text-center text-[11px] leading-tight transition-colors ${category === c.name ? "bg-muted" : "hover:bg-muted/60"}`}
                       >
                         <CategoryBadge icon={c.icon} color={c.color} />
                         {c.name}
                       </button>
                     ))}
                   </div>
-                  <button type="button" onClick={onManageCategories} className="mt-2 w-full rounded-xl py-2 text-xs font-semibold text-emerald-400 hover:bg-white/5">
+                  <button type="button" onClick={onManageCategories} className="mt-2 w-full rounded-xl py-2 text-xs font-semibold text-emerald-400 hover:bg-muted/60">
                     + Add or manage categories
                   </button>
                 </div>
               )}
             </div>
           ) : (
-            <div className={`${DARK.card} ${DARK.border} flex items-center gap-2 rounded-2xl px-4 py-3 text-sm text-slate-300`}>
+            <div className={`${DARK.card} ${DARK.border} flex items-center gap-2 rounded-2xl px-4 py-3 text-sm text-foreground/80`}>
               <ArrowLeftRight className="size-4 text-blue-400" aria-hidden /> Move money between your accounts. Transfers are not counted as spending or income.
             </div>
           )}
 
           <div className="grid gap-1.5">
-            <span className="text-xs text-slate-400">{kind === "transfer" ? "From account" : "Payment mode"}</span>
-            <div className="flex gap-1 rounded-full bg-white/[0.06] p-1">
+            <span className="text-xs text-muted-foreground">{kind === "transfer" ? "From account" : "Payment mode"}</span>
+            <div className="flex gap-1 rounded-full bg-muted p-1">
               {PAYMENT_MODES.map((m) => (
                 <button key={m} type="button" onClick={() => setMode(m)} className={`flex-1 ${pill(mode === m)}`}>
                   {m}
@@ -190,8 +190,8 @@ export function AddTransactionSheet({
           </div>
           {kind === "transfer" && (
             <div className="grid gap-1.5">
-              <span className="text-xs text-slate-400">To account</span>
-              <div className="flex gap-1 rounded-full bg-white/[0.06] p-1">
+              <span className="text-xs text-muted-foreground">To account</span>
+              <div className="flex gap-1 rounded-full bg-muted p-1">
                 {PAYMENT_MODES.map((m) => (
                   <button key={m} type="button" onClick={() => setTransferTo(m)} className={`flex-1 ${pill(transferTo === m)}`}>
                     {m}
@@ -201,12 +201,12 @@ export function AddTransactionSheet({
             </div>
           )}
 
-          <label className="grid gap-1.5 text-xs text-slate-400">
+          <label className="grid gap-1.5 text-xs text-muted-foreground">
             Note / vendor
             <input value={note} maxLength={150} onChange={(e) => setNote(e.target.value)} placeholder="Write a note" className={DARK.input} />
           </label>
 
-          <div className="grid gap-1.5 text-xs text-slate-400">
+          <div className="grid gap-1.5 text-xs text-muted-foreground">
             <span>Tags</span>
             <div className={`${DARK.input} flex flex-wrap items-center gap-1.5`}>
               {tags.map((t) => (
@@ -225,17 +225,17 @@ export function AddTransactionSheet({
                 }}
                 onBlur={() => tagInput && addTags(tagInput)}
                 placeholder={tags.length ? "" : "#maintenance, #urgent, #supplies"}
-                className="min-w-[8rem] flex-1 bg-transparent text-sm outline-none placeholder:text-slate-500"
+                className="min-w-[8rem] flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
             </div>
           </div>
 
-          <label className="grid gap-1.5 text-xs text-slate-400">
+          <label className="grid gap-1.5 text-xs text-muted-foreground">
             Receipt link
             <input value={receipt} maxLength={500} onChange={(e) => setReceipt(e.target.value)} placeholder="https://... or bill number" className={DARK.input} />
           </label>
 
-          <label className="grid gap-1.5 text-xs text-slate-400">
+          <label className="grid gap-1.5 text-xs text-muted-foreground">
             Property
             <select value={property} onChange={(e) => setProperty(e.target.value)} className={DARK.input}>
               <option value="">Select a property</option>
@@ -251,7 +251,7 @@ export function AddTransactionSheet({
         </div>
       </div>
 
-      <div className="absolute inset-x-0 bottom-0 border-t border-white/[0.07] bg-[var(--pms-bg)] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
+      <div className="absolute inset-x-0 bottom-0 border-t border-border bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
         <button
           type="button"
           onClick={() => void save()}

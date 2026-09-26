@@ -6,6 +6,7 @@ export async function pms<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`/api/pms/${path}`, {
     ...init,
     credentials: "include",
+    cache: "no-store",
     headers: { ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
   });
   const data = (await res.json().catch(() => ({}))) as { error?: string } & Record<string, unknown>;

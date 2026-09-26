@@ -26,5 +26,19 @@ export function usePmsBookings() {
     void load();
   }, [load, refreshKey]);
 
+  // Bookings can be deleted in /admin while a PMS tab stays open, so reload
+  // whenever the tab regains focus instead of showing what was loaded earlier.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [load]);
+
   return { bookings, error, reload: load };
 }

@@ -1,10 +1,10 @@
-// Dark finance theme used by /pms/expenses.
+// Theme-aware ledger styles: built on the semantic tokens (bg-card, text-foreground, ...) that the PMS theme engine defines per theme.
 export const DARK = {
-  bg: "bg-[var(--pms-bg)]",
-  card: "bg-[var(--pms-card)]",
-  border: "border border-white/[0.07]",
-  input: "rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20",
-  muted: "text-slate-400",
+  bg: "bg-background",
+  card: "bg-card",
+  border: "border border-border",
+  input: "rounded-xl border border-border bg-muted/50 px-3.5 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20",
+  muted: "text-muted-foreground",
 } as const;
 
 export const GREEN = "#10B981";

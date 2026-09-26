@@ -31,7 +31,7 @@ import {
 function json(body: unknown, status = 200, headers?: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...headers },
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", ...headers },
   });
 }
 
@@ -105,6 +105,12 @@ type Sql = NonNullable<ReturnType<typeof getWebDb>>;
 // portal_bookings.status = 'cancelled'), so those rows must not surface here.
 // Every read goes to the database directly on each request; API responses
 // already carry Cache-Control: no-store.
+// The admin's "delete booking" is a soft delete (admin-bookings-crud.server.ts):
+// portal_bookings.status = 'cancelled' for manual bookings and bookings.
+// payment_status = 'cancelled' for website ones. The partner portal hides both
+// (portal-bookings-api.server.ts), and this query applies exactly the same
+// filters (website: paid / simulated / pending; manual: not cancelled, not a
+// pure date block), so a booking removed in /admin can never appear in PMS.
 async function listBookings(sql: Sql): Promise<PmsBooking[]> {
   const [online, manual] = await Promise.all([
     sql<

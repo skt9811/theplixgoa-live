@@ -51,25 +51,31 @@
     --pms-chrome: #ffffff;
   }
 
-  /* ---- Expenses ledger: authored dark, so it flips the other way ---- */
-  [data-pms-theme="dark"] .pms-ledger {
-    --color-slate-50: #f8fafc;
-    --color-slate-100: #f1f5f9;
-    --color-slate-200: #e2e8f0;
-    --color-slate-300: #cbd5e1;
-    --color-slate-400: #94a3b8;
-    --color-slate-500: #64748b;
-    --color-slate-600: #475569;
-    --color-emerald-700: #047857;
+  /* ---- Semantic tokens (bg-background, bg-card, text-foreground, ...) ----
+     The expenses screen is built on these instead of fixed colours, so it can
+     never disagree with the rest of the PMS. html[...] outranks the site's
+     :root / .dark values while a PMS page is open. */
+  html[data-pms-theme="dark"] {
+    --background: #0b0f12;
+    --foreground: #f1f5f9;
+    --card: #181d26;
+    --card-foreground: #f1f5f9;
+    --muted: #232b37;
+    --muted-foreground: #94a3b8;
+    --border: rgba(255, 255, 255, 0.09);
   }
+  html[data-pms-theme="light"] {
+    --background: #f8fafc;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --border: #e2e8f0;
+  }
+  /* Accent text used on the ledger (green/red/blue/amber) needs darker
+     shades on a light canvas to stay readable. */
   [data-pms-theme="light"] .pms-ledger {
-    --color-white: #0f172a;
-    --color-slate-100: #0f172a;
-    --color-slate-200: #1e293b;
-    --color-slate-300: #334155;
-    --color-slate-400: #64748b;
-    --color-slate-500: #64748b;
-    --color-slate-600: #94a3b8;
     --color-emerald-300: #047857;
     --color-emerald-400: #059669;
     --color-blue-400: #2563eb;

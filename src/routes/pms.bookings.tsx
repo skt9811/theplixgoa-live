@@ -16,12 +16,11 @@ export const Route = createFileRoute("/pms/bookings")({
   component: PmsBookings,
 });
 
-type StatusFilter = "all" | "confirmed" | "pending" | "cancelled";
+type StatusFilter = "all" | "confirmed" | "pending";
 const STATUS_CHIPS: { id: StatusFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "confirmed", label: "Confirmed" },
   { id: "pending", label: "Pending" },
-  { id: "cancelled", label: "Cancelled" },
 ];
 
 const STATUS_STYLE: Record<PmsBooking["status"], string> = {

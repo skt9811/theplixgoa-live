@@ -45,7 +45,7 @@ function Donut({ slices, total }: { slices: { name: string; value: number; color
   let offset = 0;
   return (
     <svg viewBox="0 0 140 140" className="mx-auto size-44" role="img" aria-label="Category distribution">
-      <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="16" />
+      <circle cx="70" cy="70" r={r} fill="none" stroke="var(--muted)" strokeWidth="16" />
       {total > 0 &&
         slices.map((s) => {
           const len = (s.value / total) * c;
@@ -55,10 +55,10 @@ function Donut({ slices, total }: { slices: { name: string; value: number; color
           offset += len;
           return el;
         })}
-      <text x="70" y="66" textAnchor="middle" fontSize="9" fill="#94a3b8">
+      <text x="70" y="66" textAnchor="middle" fontSize="9" style={{ fill: "var(--muted-foreground)" }}>
         Total
       </text>
-      <text x="70" y="82" textAnchor="middle" fontSize="13" fontWeight="700" fill="#f1f5f9">
+      <text x="70" y="82" textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: "var(--foreground)" }}>
         {money(total)}
       </text>
     </svg>
@@ -131,9 +131,9 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
-      <div className="flex gap-1 rounded-full bg-white/[0.06] p-1">
+      <div className="flex gap-1 rounded-full bg-muted p-1">
         {frames.map((f) => (
-          <button key={f.id} type="button" onClick={() => setFrame(f.id)} className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold ${frame === f.id ? "bg-white/15 text-white" : "text-slate-400"}`}>
+          <button key={f.id} type="button" onClick={() => setFrame(f.id)} className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold ${frame === f.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
             {f.label}
           </button>
         ))}
@@ -146,14 +146,14 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
         </div>
       ) : (
         <div className="flex items-center justify-between">
-          <button type="button" onClick={() => setAnchor((a) => stepAnchor(frame, a, -1))} aria-label="Previous" className="rounded-full p-2 text-slate-300 hover:bg-white/10">
+          <button type="button" onClick={() => setAnchor((a) => stepAnchor(frame, a, -1))} aria-label="Previous" className="rounded-full p-2 text-foreground/80 hover:bg-muted">
             <ChevronLeft className="size-5" aria-hidden />
           </button>
           <div className="text-center">
             <p className="text-lg font-semibold">{range.label}</p>
-            <p className="text-xs text-slate-400">{transactions ? `${data.length} transaction${data.length === 1 ? "" : "s"}` : "Loading..."}</p>
+            <p className="text-xs text-muted-foreground">{transactions ? `${data.length} transaction${data.length === 1 ? "" : "s"}` : "Loading..."}</p>
           </div>
-          <button type="button" onClick={() => setAnchor((a) => stepAnchor(frame, a, 1))} aria-label="Next" className="rounded-full p-2 text-slate-300 hover:bg-white/10">
+          <button type="button" onClick={() => setAnchor((a) => stepAnchor(frame, a, 1))} aria-label="Next" className="rounded-full p-2 text-foreground/80 hover:bg-muted">
             <ChevronRight className="size-5" aria-hidden />
           </button>
         </div>
@@ -164,16 +164,16 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
       <section className={`${DARK.card} ${DARK.border} rounded-3xl p-4`}>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-slate-400">Spending</p>
-            <p className="mt-0.5 text-xl font-bold text-slate-100">{money(spent)}</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Spending</p>
+            <p className="mt-0.5 text-xl font-bold text-foreground">{money(spent)}</p>
           </div>
           <div className="text-right">
-            <p className="text-[11px] uppercase tracking-wide text-slate-400">Income</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Income</p>
             <p className="mt-0.5 text-xl font-bold" style={{ color: GREEN }}>{money(earned)}</p>
           </div>
         </div>
-        <div className="mt-3 flex items-center justify-between border-t border-white/[0.07] pt-3">
-          <span className="text-sm text-slate-400">Net balance</span>
+        <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+          <span className="text-sm text-muted-foreground">Net balance</span>
           <span className="flex items-center gap-2 font-bold" style={{ color: net >= 0 ? GREEN : "#F87171" }}>
             <span className="inline-block size-2 rounded-full" style={{ backgroundColor: net >= 0 ? GREEN : "#F87171" }} />
             {net < 0 ? "−" : ""}
@@ -186,17 +186,17 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
       {/* Categories breakdown */}
       <section className={`${DARK.card} ${DARK.border} rounded-3xl p-4`}>
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-slate-200">Categories</h2>
-          <div className="flex gap-1 rounded-full bg-white/[0.06] p-1">
+          <h2 className="text-sm font-semibold text-foreground">Categories</h2>
+          <div className="flex gap-1 rounded-full bg-muted p-1">
             {(["expense", "income"] as const).map((v) => (
-              <button key={v} type="button" onClick={() => setView(v)} className={`rounded-full px-3.5 py-1.5 text-xs font-semibold ${view === v ? "bg-white/15 text-white" : "text-slate-400"}`}>
+              <button key={v} type="button" onClick={() => setView(v)} className={`rounded-full px-3.5 py-1.5 text-xs font-semibold ${view === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
                 {v === "expense" ? "Spending" : "Income"}
               </button>
             ))}
           </div>
         </div>
         {rows.items.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-500">Nothing recorded in this period.</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">Nothing recorded in this period.</p>
         ) : (
           <>
             <div className="mt-3">
@@ -208,14 +208,14 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
                   <CategoryBadge icon={r.icon} color={r.color} size="sm" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="truncate text-sm text-slate-200">{r.name}</span>
-                      <span className="shrink-0 text-sm font-semibold text-slate-100">{money(r.value)}</span>
+                      <span className="truncate text-sm text-foreground">{r.name}</span>
+                      <span className="shrink-0 text-sm font-semibold text-foreground">{money(r.value)}</span>
                     </div>
                     <div className="mt-1 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                         <div className="h-full rounded-full" style={{ width: `${r.pct}%`, backgroundColor: r.color }} />
                       </div>
-                      <span className="w-10 shrink-0 text-right text-[11px] text-slate-400">{r.pct.toFixed(0)}%</span>
+                      <span className="w-10 shrink-0 text-right text-[11px] text-muted-foreground">{r.pct.toFixed(0)}%</span>
                     </div>
                   </div>
                 </li>
@@ -228,8 +228,8 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
       {/* Monthly trend */}
       <section className={`${DARK.card} ${DARK.border} rounded-3xl p-4`}>
         <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-slate-200">Monthly spending · {year}</h2>
-          <span className="text-xs text-slate-400">Avg {money(Math.round(monthly.avg))}</span>
+          <h2 className="text-sm font-semibold text-foreground">Monthly spending · {year}</h2>
+          <span className="text-xs text-muted-foreground">Avg {money(Math.round(monthly.avg))}</span>
         </div>
         <div className="relative mt-4 flex h-36 items-end gap-1.5">
           {monthly.avg > 0 && (
@@ -245,7 +245,7 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
         </div>
         <div className="mt-1.5 flex gap-1.5">
           {monthNames.map((m, i) => (
-            <span key={i} className="flex-1 text-center text-[10px] text-slate-500">
+            <span key={i} className="flex-1 text-center text-[10px] text-muted-foreground">
               {m}
             </span>
           ))}
@@ -254,15 +254,15 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
 
       {/* Payment modes */}
       <section className={`${DARK.card} ${DARK.border} rounded-3xl p-4`}>
-        <h2 className="text-sm font-semibold text-slate-200">Payment modes</h2>
+        <h2 className="text-sm font-semibold text-foreground">Payment modes</h2>
         <ul className="mt-3 grid gap-3">
           {byMode.map((m) => (
             <li key={m.mode}>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-300">{m.mode === "Cash" ? "Cash (Petty Cash)" : m.mode}</span>
-                <span className="font-semibold text-slate-100">{money(m.total)}</span>
+                <span className="text-foreground/80">{m.mode === "Cash" ? "Cash (Petty Cash)" : m.mode}</span>
+                <span className="font-semibold text-foreground">{money(m.total)}</span>
               </div>
-              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-sky-400" style={{ width: `${spent > 0 ? (m.total / spent) * 100 : 0}%` }} />
               </div>
             </li>
@@ -272,15 +272,15 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
 
       {/* Averages and tags */}
       <section className={`${DARK.card} ${DARK.border} rounded-3xl p-4`}>
-        <h2 className="text-sm font-semibold text-slate-200">Averages &amp; tags</h2>
+        <h2 className="text-sm font-semibold text-foreground">Averages &amp; tags</h2>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-slate-400">Per month</p>
-            <p className="mt-0.5 text-lg font-bold text-slate-100">{money(Math.round(spent / spanMonths))}</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Per month</p>
+            <p className="mt-0.5 text-lg font-bold text-foreground">{money(Math.round(spent / spanMonths))}</p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-slate-400">Per transaction</p>
-            <p className="mt-0.5 text-lg font-bold text-slate-100">{money(spending.length ? Math.round(spent / spending.length) : 0)}</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Per transaction</p>
+            <p className="mt-0.5 text-lg font-bold text-foreground">{money(spending.length ? Math.round(spent / spending.length) : 0)}</p>
           </div>
         </div>
         {tags.length > 0 ? (
@@ -292,7 +292,7 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
             ))}
           </div>
         ) : (
-          <p className="mt-3 text-xs text-slate-500">No tagged spending in this period.</p>
+          <p className="mt-3 text-xs text-muted-foreground">No tagged spending in this period.</p>
         )}
       </section>
     </div>

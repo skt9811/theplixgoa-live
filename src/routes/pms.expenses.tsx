@@ -37,22 +37,22 @@ function PmsExpenses() {
     const active = tab === t.id;
     return (
       <button key={t.id} type="button" onClick={() => setTab(t.id)} className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium" aria-current={active ? "page" : undefined}>
-        <Icon className={`size-5 ${active ? "text-emerald-400" : "text-slate-500"}`} aria-hidden />
-        <span className={active ? "text-emerald-400" : "text-slate-500"}>{t.label}</span>
+        <Icon className={`size-5 ${active ? "text-emerald-400" : "text-muted-foreground"}`} aria-hidden />
+        <span className={active ? "text-emerald-400" : "text-muted-foreground"}>{t.label}</span>
       </button>
     );
   };
 
   return (
-    <div className="pms-ledger -m-4 min-h-[calc(100dvh-57px)] bg-[var(--pms-bg)] p-4 pb-32 text-slate-100 md:-m-6 md:p-6 md:pb-32">
+    <div className="pms-ledger -m-4 min-h-[calc(100dvh-57px)] bg-background p-4 pb-32 text-foreground md:-m-6 md:p-6 md:pb-32">
       <div className="mx-auto max-w-xl">
         <div className="mb-4">
           <h1 className="text-xl font-bold">Expenses</h1>
-          <p className="text-xs text-slate-400">{propertyDisplayName(property)}</p>
+          <p className="text-xs text-muted-foreground">{propertyDisplayName(property)}</p>
         </div>
         {error && <p className="mb-3 text-sm font-medium text-red-400">{error}</p>}
         {!categories ? (
-          <p className="py-16 text-center text-sm text-slate-500">Loading...</p>
+          <p className="py-16 text-center text-sm text-muted-foreground">Loading...</p>
         ) : tab === "home" ? (
           <HomeTab property={property} categories={categories} refreshKey={refresh} onChanged={bump} />
         ) : tab === "analysis" ? (
@@ -63,7 +63,7 @@ function PmsExpenses() {
       </div>
 
       {/* Bottom tab bar with the central floating add button */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.07] bg-[var(--pms-chrome)] backdrop-blur md:left-64" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card backdrop-blur md:left-64" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="relative mx-auto flex max-w-xl items-stretch">
           {tabButton(tabs[0]!)}
           {tabButton(tabs[1]!)}
@@ -77,8 +77,8 @@ function PmsExpenses() {
             }}
             className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium"
           >
-            <Wallet className="size-5 text-slate-500" aria-hidden />
-            <span className="text-slate-500">Budget</span>
+            <Wallet className="size-5 text-muted-foreground" aria-hidden />
+            <span className="text-muted-foreground">Budget</span>
           </button>
           <button
             type="button"

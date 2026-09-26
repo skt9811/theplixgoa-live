@@ -1,18 +1,33 @@
-import { MapPin, MessageCircle, Phone } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Download, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { PROPERTIES } from "@/lib/plix";
 import { PMS_COMPANY } from "@/lib/pms-company";
+import { HOUSE_RULES } from "@/lib/pms-voucher-content";
 import { getPropertyPmsConfig } from "@/lib/pms-properties-config";
-import { fmtDate, waLink, type PmsBooking } from "@/lib/pms-client";
+import { fmtDate, pms, waLink, type PmsBooking } from "@/lib/pms-client";
 import { PrintSheet } from "@/components/pms/print-sheet";
 
-const HOUSE_RULES = [
-  "Swimming pool timings: 8:00 AM to 10:00 PM. Swimwear is mandatory in the pool.",
-  "No loud music after 10:00 PM.",
-  "A valid government-issued photo ID (Aadhaar, Passport, Driving Licence or PAN) is required from every guest at check-in.",
-  "A refundable security deposit is collected at check-in (cash or UPI) and returned in full within 48 hours of check-out, subject to no damage to the property.",
-];
-
 export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; onClose: () => void }) {
+  const [emailTo, setEmailTo] = useState(booking.guest_email ?? "");
+  const [sending, setSending] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  async function sendEmail() {
+    setEmailError(null);
+    setSending(true);
+    try {
+      await pms("vouchers/email", { method: "POST", body: JSON.stringify({ bookingId: booking.id, to: emailTo.trim() }) });
+      setSentTo(emailTo.trim());
+      toast.success(`Voucher emailed to ${emailTo.trim()}`);
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : "Could not send the email");
+    } finally {
+      setSending(false);
+    }
+  }
+
   const property = PROPERTIES.find((p) => p.slug === booking.property_id);
   const config = getPropertyPmsConfig(booking.property_id, property?.name.split(" - ")[0]);
   const propertyName = config.name;
@@ -55,6 +70,14 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
       docTitle={`Stay-Voucher-${booking.ref}`}
       onClose={onClose}
       actions={
+        <>
+        <a
+          href={`/api/pms/vouchers/pdf?booking=${booking.id}`}
+          download={`Stay-Voucher-${booking.ref}.pdf`}
+          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <Download className="size-4" aria-hidden /> Download PDF
+        </a>
         <a
           href={shareUrl}
           target="_blank"
@@ -63,6 +86,7 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
         >
           <MessageCircle className="size-4" aria-hidden /> Share to WhatsApp
         </a>
+        </>
       }
     >
       <div className="flex flex-wrap items-start justify-between gap-3 border-b-2 border-emerald-700 pb-4">
@@ -143,6 +167,34 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
             <li key={rule}>{rule}</li>
           ))}
         </ul>
+      </section>
+
+      <section className="pms-no-print mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+        <h3 className="text-sm font-bold text-emerald-800">Send this voucher by email</h3>
+        <p className="mt-0.5 text-xs text-slate-600">The guest receives the voucher as a PDF attachment.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <input
+            type="email"
+            value={emailTo}
+            onChange={(e) => {
+              setEmailTo(e.target.value);
+              setSentTo(null);
+            }}
+            placeholder="guest@example.com"
+            aria-label="Guest email"
+            className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40"
+          />
+          <button
+            type="button"
+            onClick={() => void sendEmail()}
+            disabled={sending || !emailTo.trim()}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+          >
+            <Mail className="size-4" aria-hidden /> {sending ? "Sending..." : "Send Email"}
+          </button>
+        </div>
+        {sentTo && <p className="mt-2 text-xs font-semibold text-emerald-700">Sent to {sentTo}.</p>}
+        {emailError && <p className="mt-2 text-xs font-semibold text-red-600">{emailError}</p>}
       </section>
 
       <p className="mt-5 border-t border-slate-200 pt-3 text-center text-[11px] text-slate-500">

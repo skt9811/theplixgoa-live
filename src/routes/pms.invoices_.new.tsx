@@ -8,6 +8,7 @@ import { BOOKING_SOURCES, computeInvoice, EXTRA_PRESETS, lineAmount, PAYMENT_MET
 import { addDays, channelLabel, fmtDate, istToday, PmsAuthError, pms, type PmsBooking, type PmsInvoice } from "@/lib/pms-client";
 import { inr2, propertyLabel } from "@/lib/pms-format";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
+import { usePms } from "@/components/pms/pms-context";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
 export const Route = createFileRoute("/pms/invoices_/new")({
@@ -47,12 +48,13 @@ function InvoiceBuilder() {
   const { booking: prefillBooking, id: editId } = Route.useSearch();
   const navigate = useNavigate();
   const { bookings } = usePmsBookings();
+  const { property: activeProperty } = usePms();
   const [invoiceIds, setInvoiceIds] = useState<Record<string, { id: string; number: string; finalized: boolean }>>({});
 
   const [mode, setMode] = useState<"linked" | "manual">(prefillBooking ? "linked" : "manual");
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [pickerSearch, setPickerSearch] = useState("");
-  const [propertyId, setPropertyId] = useState("");
+  const [propertyId, setPropertyId] = useState(activeProperty === "all" ? "" : activeProperty);
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [guestEmail, setGuestEmail] = useState("");

@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { PROPERTIES, formatINR } from "@/lib/plix";
+import { formatINR } from "@/lib/plix";
 import { addDays, fmtDate, istToday, PmsAuthError, pms } from "@/lib/pms-client";
 import { usePms } from "@/components/pms/pms-context";
+import { propertyDisplayName } from "@/components/pms/property-selector";
 
 export const Route = createFileRoute("/pms/inventory")({
-  validateSearch: (search: Record<string, unknown>): { property?: string | undefined } => ({
-    property: typeof search["property"] === "string" ? search["property"] : undefined,
-  }),
   component: PmsInventory,
 });
 
@@ -20,16 +18,10 @@ type Grid = {
 };
 
 function PmsInventory() {
-  const { property: initialProperty } = Route.useSearch();
-  const { refreshKey, property: globalProperty, setProperty: setGlobalProperty } = usePms();
-  // Inventory needs one concrete property: the global selection when a
-  // property is chosen, otherwise a local pick (portfolio view has no single grid).
-  const [localProperty, setLocalProperty] = useState(initialProperty && PROPERTIES.some((p) => p.slug === initialProperty) ? initialProperty : PROPERTIES[0]!.slug);
-  const property = globalProperty === "all" ? localProperty : globalProperty;
-  const setProperty = (value: string) => {
-    setLocalProperty(value);
-    setGlobalProperty(value);
-  };
+  const { refreshKey, property: globalProperty } = usePms();
+  // Rates and blocks belong to one property, chosen on the Dashboard. In the
+  // portfolio view there is no single grid to show.
+  const property = globalProperty === "all" ? null : globalProperty;
   const [start, setStart] = useState(istToday());
   const [end, setEnd] = useState(addDays(istToday(), 29));
   const [grid, setGrid] = useState<Grid | null>(null);
@@ -39,7 +31,7 @@ function PmsInventory() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    if (end < start) return;
+    if (end < start || !property) return;
     try {
       setGrid(await pms<Grid>(`inventory?property=${property}&start=${start}&end=${end}`));
       setError(null);
@@ -62,6 +54,7 @@ function PmsInventory() {
       toast.error("End date must be on or after the start date");
       return;
     }
+    if (!property) return;
     setBusy(true);
     try {
       const action = mode === "open" ? "open" : mode === "none" ? "none" : "block";
@@ -83,6 +76,21 @@ function PmsInventory() {
     }
   }
 
+  if (!property) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <h1 className="text-xl font-bold">Rates &amp; Inventory</h1>
+        <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+          <p className="font-semibold text-slate-800">Choose a property first</p>
+          <p className="mt-1 text-sm text-slate-500">Rates and blocked dates belong to one property. Select it on the Dashboard, then come back here.</p>
+          <Link to="/pms" className="mt-4 inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+            Go to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const days: string[] = [];
   if (end >= start) for (let d = start, i = 0; d <= end && i < 121; d = addDays(d, 1), i++) days.push(d);
   const field = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40";
@@ -93,16 +101,10 @@ function PmsInventory() {
       <p className="text-sm text-slate-500">Changes update the website calendar and prices immediately.</p>
 
       <form onSubmit={apply} className="mt-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-6">
-        <label className="grid gap-1 text-xs text-slate-500 md:col-span-2">
+        <div className="grid gap-1 text-xs text-slate-500 md:col-span-2">
           Property
-          <select value={property} onChange={(e) => setProperty(e.target.value)} className={field}>
-            {PROPERTIES.map((p) => (
-              <option key={p.slug} value={p.slug}>
-                {p.name.split(" - ")[0]}
-              </option>
-            ))}
-          </select>
-        </label>
+          <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">{propertyDisplayName(globalProperty)}</p>
+        </div>
         <label className="grid gap-1 text-xs text-slate-500">
           Start date
           <input type="date" value={start} onChange={(e) => setStart(e.target.value)} className={field} />

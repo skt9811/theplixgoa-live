@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { BedDouble, CalendarRange, FileText, HeartPulse, LayoutDashboard, LogOut, Menu, Plus, Receipt, Settings, Ticket, X } from "lucide-react";
 import { usePms } from "@/components/pms/pms-context";
-import { PropertySelector } from "@/components/pms/property-selector";
+import { ScopeChip } from "@/components/pms/scope-chip";
 import { ThemeToggle } from "@/components/pms/theme-toggle";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
@@ -67,7 +67,7 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
             <Menu className="size-5" aria-hidden />
           </button>
           <div className="min-w-0 flex-1">
-            <PropertySelector />
+            <ScopeChip />
           </div>
           <div className="hidden sm:block">
             <ThemeToggle />

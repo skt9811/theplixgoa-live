@@ -6,13 +6,11 @@ import { PROPERTIES, formatINR } from "@/lib/plix";
 import { CHANNELS, channelLabel, fmtDate, paymentLabel, pms, waLink, type PmsBooking, type PmsInvoice } from "@/lib/pms-client";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
 import { usePms } from "@/components/pms/pms-context";
+import { propertyDisplayName } from "@/components/pms/property-selector";
 import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
 import { TaxInvoiceModal } from "@/components/pms/tax-invoice-modal";
 
 export const Route = createFileRoute("/pms/bookings")({
-  validateSearch: (search: Record<string, unknown>): { property?: string | undefined } => ({
-    property: typeof search["property"] === "string" ? search["property"] : undefined,
-  }),
   component: PmsBookings,
 });
 
@@ -30,15 +28,10 @@ const STATUS_STYLE: Record<PmsBooking["status"], string> = {
 };
 
 function PmsBookings() {
-  const { property: initialProperty } = Route.useSearch();
   const { bookings, error } = usePmsBookings();
-  const { property, setProperty } = usePms();
+  const { property } = usePms();
 
-  // A /pms/bookings?property=... link (e.g. from a property card) selects that
-  // property globally, so the choice carries to the other tabs too.
-  useEffect(() => {
-    if (initialProperty && PROPERTIES.some((p) => p.slug === initialProperty)) setProperty(initialProperty);
-  }, [initialProperty, setProperty]);
+
   const [status, setStatus] = useState<StatusFilter>("all");
   const [source, setSource] = useState("all");
   const [search, setSearch] = useState("");
@@ -88,17 +81,9 @@ function PmsBookings() {
   return (
     <div className="mx-auto max-w-6xl">
       <h1 className="text-xl font-bold">Bookings</h1>
-      <p className="text-sm text-slate-500">Sorted by check-in date, upcoming first.</p>
+      <p className="text-sm text-slate-500">{propertyDisplayName(property)} · sorted by check-in date, upcoming first.</p>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1.4fr]">
-        <select value={property} onChange={(e) => setProperty(e.target.value)} className={field} aria-label="Property">
-          <option value="all">All Properties</option>
-          {PROPERTIES.map((p) => (
-            <option key={p.slug} value={p.slug}>
-              {p.name.split(" - ")[0]}
-            </option>
-          ))}
-        </select>
+      <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1.4fr]">
         <select value={source} onChange={(e) => setSource(e.target.value)} className={field} aria-label="Source">
           <option value="all">All Sources</option>
           {CHANNELS.map((c) => (

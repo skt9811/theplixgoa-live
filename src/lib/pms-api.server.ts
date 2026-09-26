@@ -19,6 +19,9 @@ import { COLOR_PALETTE, HEX_COLOR, ICON_KEYS, PAYMENT_MODES, TX_TYPES, normalize
 import { GOA_STATE_CODE, GST_RATE_OPTIONS, GSTIN_RE, STATE_NAMES } from "@/lib/pms-gst";
 import { BOOKING_SOURCES, computeInvoice, lineAmount, PAYMENT_METHODS, type ItemInput } from "@/lib/pms-invoice-calc";
 import { PMS_PROPERTIES_CONFIG } from "@/lib/pms-properties-config";
+import { buildStayVoucherPdf } from "@/lib/pms-voucher-pdf.server";
+import { voucherDetails } from "@/lib/pms-voucher-content";
+import { PMS_COMPANY } from "@/lib/pms-company";
 import {
   buildPmsSessionCookie,
   clearPmsSessionCookie,
@@ -961,6 +964,76 @@ async function createVoucher(request: Request): Promise<Response> {
   return json({ success: true, id: outcome.id, booking });
 }
 
+async function findBooking(id: string): Promise<PmsBooking | null> {
+  const webDb = getWebDb();
+  if (!webDb) return null;
+  return (await listBookings(webDb)).find((b) => b.id === id) ?? null;
+}
+
+async function voucherPdf(url: URL): Promise<Response> {
+  const booking = await findBooking(url.searchParams.get("booking") ?? "");
+  if (!booking) return json({ error: "Booking not found" }, 404);
+  const bytes = await buildStayVoucherPdf(booking);
+  return new Response(Buffer.from(bytes), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="Stay-Voucher-${booking.ref}.pdf"`,
+      "Cache-Control": "no-store, max-age=0",
+    },
+  });
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const esc = (v: string) => v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+
+// Emails the guest their Stay Voucher as a PDF attachment, through the same
+// Resend account and sender the booking confirmations already use.
+async function emailVoucher(request: Request): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const booking = await findBooking(str(body["bookingId"]));
+  if (!booking) return json({ error: "Booking not found" }, 404);
+  const to = str(body["to"]) || booking.guest_email || "";
+  if (!EMAIL_RE.test(to)) return json({ error: "Enter a valid email address" }, 400);
+  const apiKey = process.env["RESEND_API_KEY"] ?? "";
+  if (!apiKey) return json({ error: "Email is not configured on this server (RESEND_API_KEY missing)" }, 503);
+  const from = process.env["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
+
+  const d = voucherDetails(booking.property_id);
+  const pdf = await buildStayVoucherPdf(booking);
+  const dates = `${booking.check_in} to ${booking.check_out}`;
+  const html = `<div style="font-family:Arial,sans-serif;max-width:560px;color:#0f172a">
+    <p style="font-size:18px;font-weight:bold;color:#065f46">Plix Hospitality</p>
+    <p>Hello ${esc(booking.guest_name)},</p>
+    <p>Your stay at <b>${esc(d.propertyName)}</b> is ${booking.status === "confirmed" ? "confirmed" : "reserved"}. Your stay voucher is attached as a PDF.</p>
+    <p><b>Check-in:</b> ${esc(booking.check_in)} from 2:00 PM<br/><b>Check-out:</b> ${esc(booking.check_out)} by 11:00 AM<br/><b>Location:</b> ${esc(d.address)}${d.mapUrl ? ` (<a href="${esc(d.mapUrl)}">map</a>)` : ""}<br/>${esc(d.contactLine)}</p>
+    <p>Please carry a valid government photo ID for every guest. We look forward to hosting you.</p>
+    <p style="color:#64748b;font-size:12px">${esc(PMS_COMPANY.name)} - ${esc(PMS_COMPANY.address)}</p></div>`;
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: `The Plix Goa <${from}>`,
+      to: [to],
+      reply_to: from,
+      subject: `Your stay voucher - ${d.propertyName} (${dates})`,
+      html,
+      attachments: [{ filename: `Stay-Voucher-${booking.ref}.pdf`, content: Buffer.from(pdf).toString("base64"), content_type: "application/pdf" }],
+    }),
+  });
+  if (!res.ok) {
+    console.error("[pms] voucher email failed:", res.status, await res.text().catch(() => ""));
+    return json({ error: "The email service rejected the message. Check the address and try again." }, 502);
+  }
+  return json({ success: true, to });
+}
+
 export async function handlePmsApi(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname.replace(/^\/api\/pms\/?/, "");
@@ -982,6 +1055,8 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     if (path === "invoices" && request.method === "GET") return await listInvoices(url);
     if (path === "invoices" && (request.method === "POST" || request.method === "PUT")) return await saveInvoice(request, url);
     if (path === "invoices" && request.method === "DELETE") return await deleteInvoice(url);
+    if (path === "vouchers/pdf" && request.method === "GET") return await voucherPdf(url);
+    if (path === "vouchers/email" && request.method === "POST") return await emailVoucher(request);
     if (path === "vouchers" && request.method === "POST") return await createVoucher(request);
     if (path === "settings" && request.method === "GET") return await getSettings();
     if (path === "settings" && request.method === "POST") return await saveSetting(request);

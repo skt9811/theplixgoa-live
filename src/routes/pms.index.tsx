@@ -5,7 +5,7 @@ import { channelLabel, fmtDate, istToday, type PmsBooking } from "@/lib/pms-clie
 import { forProperty, statusBadge, trendFor, type StatusBadge } from "@/lib/pms-analytics";
 import { usePms } from "@/components/pms/pms-context";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
-import { propertyDisplayName } from "@/components/pms/property-selector";
+import { propertyDisplayName, PropertySelector } from "@/components/pms/property-selector";
 import { TrendChart } from "@/components/pms/trend-chart";
 
 export const Route = createFileRoute("/pms/")({
@@ -84,10 +84,18 @@ function PmsDashboard() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <h1 className="text-xl font-bold">Dashboard</h1>
-      <p className="text-sm text-slate-500">
-        {propertyDisplayName(property)} · {fmtDate(today)}
-      </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">Dashboard</h1>
+          <p className="text-sm text-slate-500">
+            {propertyDisplayName(property)} · {fmtDate(today)}
+          </p>
+        </div>
+        <div className="w-full sm:w-auto">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Property</p>
+          <PropertySelector />
+        </div>
+      </div>
       {error && <p className="mt-3 text-sm font-medium text-red-600">{error}</p>}
 
       <h2 className="mt-5 text-sm font-semibold uppercase tracking-wide text-slate-500">Today&apos;s summary</h2>

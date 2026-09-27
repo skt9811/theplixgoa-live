@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { getStation, type PosGeneral } from "@/lib/pms-pos-client";
-import { printersFor, toTransport, upiPayload } from "@/lib/pms-pos-printer";
+import { printersFor, toastPrintResult, toTransport, upiPayload } from "@/lib/pms-pos-printer";
 import { printSlip } from "@/lib/pms-pos-print";
 import { usePos } from "@/components/pms/pos/pos-context";
 import { BackLink, Labeled, PageTitle, SaveBar, Toggle, field, useConfigSave, useDraft } from "@/components/pms/pos/pos-ui";
@@ -44,7 +44,7 @@ function General() {
     }
     const printers = printersFor({ ...state!.config, general: d! }, "bill", getStation());
     const lines = [{ text: storeName.toUpperCase(), align: "center" as const, bold: true }, { text: "UPI QR TEST (Rs.100.00)", align: "center" as const }, { text: "", qr: payload, align: "center" as const }, { text: "" }];
-    toast((await printSlip(lines, toTransport(printers[0], d!.leftMargin))).message);
+    toastPrintResult(await printSlip(lines, toTransport(printers[0], d!.leftMargin)));
   }
   const list = (items: typeof PRINT) => items.map((t) => <Toggle key={t.key} label={t.label} {...(t.hint ? { hint: t.hint } : {})} checked={d[t.key]} onChange={(v) => !t.off && set({ [t.key]: v } as Partial<PosGeneral>)} />);
 

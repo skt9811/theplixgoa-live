@@ -1,12 +1,21 @@
 // POS print pipeline: picks the right printer(s) from the property's printer
 // matrix, builds the KOT / bill slips (ESC/POS, with an optional UPI QR code)
 // and hands each one to the transport in pms-pos-print.ts.
+import { toast } from "sonner";
 import { billSlip, kotSlip, testSlip, type SlipContext, type SlipLine } from "@/lib/pms-escpos";
 import { printSlip, type PrintResult, type PrinterSettings } from "@/lib/pms-pos-print";
 import type { PosConfig, PosPrinterRow } from "@/lib/pms-pos-client";
 
 export type PaperSize = "54mm" | "58mm" | "80mm";
 const paper = (p: PosPrinterRow | undefined): PaperSize => (p?.paper_size === "54mm" || p?.paper_size === "80mm" ? p.paper_size : "58mm");
+
+/** Every print button shows its result the same way: an error toast for a real failure (a native Bluetooth error, most often), a plain one otherwise. */
+export function toastPrintResult(r: PrintResult | null, prefix?: string): void {
+  if (!r) return;
+  const message = prefix ? `${prefix}: ${r.message}` : r.message;
+  if (r.mode === "native-error") toast.error(message);
+  else toast(message);
+}
 
 /** The UPI deep link a customer's app opens: pay this VPA this amount. */
 export function upiPayload(upiId: string, storeName: string, amount: number): string {
@@ -17,7 +26,8 @@ export function upiPayload(upiId: string, storeName: string, amount: number): st
 // `null` (not a fake "Bluetooth, no address" printer) so printSlip can tell "nothing
 // configured" apart from "a real printer configured for Bluetooth with no known MAC",
 // and point the operator at Settings instead of silently trying RawBT for a phantom job.
-export const toTransport = (p: PosPrinterRow | undefined, leftMargin: number): PrinterSettings => (p ? { printer_type: p.connection_type, printer_name: p.printer_name, mac_address: p.connection_type === "Network" ? p.ip_address : p.mac_address, left_margin: leftMargin, paper_size: p.paper_size } : null);
+export const toTransport = (p: PosPrinterRow | undefined, leftMargin: number): PrinterSettings =>
+  p ? { printer_type: p.connection_type, printer_name: p.printer_name, mac_address: p.connection_type === "Network" ? p.ip_address : p.mac_address, left_margin: leftMargin, paper_size: p.paper_size, assigned_role: p.assigned_role } : null;
 
 /** Printers that should receive this job, preferring the ones on this device's station. */
 export function printersFor(config: PosConfig, role: "bill" | "kot", station: string, destination: "kitchen" | "bar" = "kitchen"): PosPrinterRow[] {

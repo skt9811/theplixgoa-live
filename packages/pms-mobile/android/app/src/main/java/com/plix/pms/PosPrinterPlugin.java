@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.os.Build;
 import android.util.Base64;
+import android.util.Log;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -37,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
     permissions = { @Permission(strings = { Manifest.permission.BLUETOOTH_CONNECT }, alias = "bluetooth") }
 )
 public class PosPrinterPlugin extends Plugin {
+    private static final String TAG = "PosPrinterPlugin";
     private static final UUID SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
 
     // Kept open across print jobs (KOT then bill, one after another) so
@@ -48,13 +50,15 @@ public class PosPrinterPlugin extends Plugin {
         String mac = call.getString("mac");
         String data = call.getString("data");
         if (mac == null || mac.isEmpty() || data == null) {
-            call.reject("mac and data (base64) are required");
+            Log.e(TAG, "write(): missing mac or data on the call");
+            call.reject("Printer MAC Address Missing");
             return;
         }
         // Android 12+ (API 31) gates classic-Bluetooth connect behind the
         // runtime BLUETOOTH_CONNECT permission; earlier versions grant it at
         // install time from the manifest entries above.
         if (Build.VERSION.SDK_INT >= 31 && getPermissionState("bluetooth") != PermissionState.GRANTED) {
+            Log.i(TAG, "write(" + mac + "): requesting BLUETOOTH_CONNECT permission");
             call.setKeepAlive(true);
             saveCall(call);
             requestPermissionForAlias("bluetooth", call, "writeAfterPermission");
@@ -66,41 +70,55 @@ public class PosPrinterPlugin extends Plugin {
     @PermissionCallback
     private void writeAfterPermission(PluginCall call) {
         if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
-            call.reject("Bluetooth permission was not granted");
+            Log.e(TAG, "write(): BLUETOOTH_CONNECT permission denied by the operator");
+            call.reject("Bluetooth Connect Permission Denied");
             return;
         }
         doWrite(call.getString("mac"), call.getString("data"), call);
     }
 
     private void doWrite(String mac, String base64Data, PluginCall call) {
-        try {
-            BluetoothSocket socket = sockets.get(mac);
-            if (socket == null || !socket.isConnected()) {
-                BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-                if (adapter == null) {
-                    call.reject("This device has no Bluetooth adapter");
-                    return;
-                }
+        BluetoothSocket socket = sockets.get(mac);
+
+        // Stage 1: get a connected RFCOMM socket (reuse one already open from a previous job, or open one now).
+        if (socket == null || !socket.isConnected()) {
+            BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+            if (adapter == null) {
+                Log.e(TAG, "write(" + mac + "): no Bluetooth adapter on this device");
+                call.reject("This device has no Bluetooth adapter");
+                return;
+            }
+            try {
                 BluetoothDevice device = adapter.getRemoteDevice(mac);
                 socket = device.createRfcommSocketToServiceRecord(SPP_UUID);
                 adapter.cancelDiscovery();
                 socket.connect();
                 sockets.put(mac, socket);
+                Log.i(TAG, "write(" + mac + "): socket connected");
+            } catch (Exception e) {
+                Log.e(TAG, "write(" + mac + "): socket.connect() failed", e);
+                sockets.remove(mac);
+                call.reject("Socket Connection Failed: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()), e);
+                return;
             }
+        }
+
+        // Stage 2: write the ESC/POS bytes to the now-connected socket.
+        try {
             OutputStream out = socket.getOutputStream();
             out.write(Base64.decode(base64Data, Base64.NO_WRAP));
             out.flush();
+            Log.i(TAG, "write(" + mac + "): " + base64Data.length() + " base64 chars written");
             call.resolve();
         } catch (Exception e) {
+            Log.e(TAG, "write(" + mac + "): outputStream.write() failed", e);
             BluetoothSocket dead = sockets.remove(mac);
-            if (dead != null) {
-                try {
-                    dead.close();
-                } catch (Exception ignored) {
-                    // already gone
-                }
+            try {
+                if (dead != null) dead.close();
+            } catch (Exception ignored) {
+                // already gone
             }
-            call.reject(e.getMessage() != null ? e.getMessage() : "Could not reach the printer", e);
+            call.reject("Socket Connection Failed: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()), e);
         }
     }
 
@@ -132,7 +150,8 @@ public class PosPrinterPlugin extends Plugin {
     @PermissionCallback
     private void getPairedDevicesAfterPermission(PluginCall call) {
         if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
-            call.reject("Bluetooth permission was not granted");
+            Log.e(TAG, "getPairedDevices(): BLUETOOTH_CONNECT permission denied by the operator");
+            call.reject("Bluetooth Connect Permission Denied");
             return;
         }
         doGetPairedDevices(call);
@@ -141,6 +160,7 @@ public class PosPrinterPlugin extends Plugin {
     private void doGetPairedDevices(PluginCall call) {
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         if (adapter == null) {
+            Log.e(TAG, "getPairedDevices(): no Bluetooth adapter on this device");
             call.reject("This device has no Bluetooth adapter");
             return;
         }
@@ -155,9 +175,11 @@ public class PosPrinterPlugin extends Plugin {
             }
             JSObject ret = new JSObject();
             ret.put("devices", devicesArray);
+            Log.i(TAG, "getPairedDevices(): " + devicesArray.length() + " bonded device(s)");
             call.resolve(ret);
         } catch (SecurityException e) {
-            call.reject("Bluetooth permission was not granted", e);
+            Log.e(TAG, "getPairedDevices(): getBondedDevices() threw", e);
+            call.reject("Bluetooth Connect Permission Denied", e);
         }
     }
 }

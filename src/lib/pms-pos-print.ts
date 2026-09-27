@@ -10,12 +10,15 @@
 //     free RawBT app that owns the Bluetooth/USB/LAN connection.
 //  4. On-screen slip preview, so a bill is never lost when nothing prints.
 // Network / USB printers need a native plugin and are not driven from here.
+// Inside the Android app, a Bluetooth job never falls from (1) through to (3)/(4):
+// a native failure is reported back as `mode: "native-error"` with the real reason
+// instead of silently landing on an unaddressed RawBT intent that looks like success.
 import { Capacitor } from "@capacitor/core";
 import { withTimeout } from "@/lib/capacitor-utils";
 import { EC58B, slipBytes, slipText, type PaperSize, type SlipLine } from "@/lib/pms-escpos";
 
-export type PrinterSettings = { printer_type?: string | null; printer_name?: string | null; mac_address?: string | null; left_margin?: number | null; paper_size?: string | null } | null;
-export type PrintResult = { mode: "native" | "bluetooth" | "rawbt" | "preview"; message: string };
+export type PrinterSettings = { printer_type?: string | null; printer_name?: string | null; mac_address?: string | null; left_margin?: number | null; paper_size?: string | null; assigned_role?: string | null } | null;
+export type PrintResult = { mode: "native" | "bluetooth" | "rawbt" | "preview" | "native-error"; message: string };
 
 const PRINT_SERVICES = [
   "000018f0-0000-1000-8000-00805f9b34fb",
@@ -96,6 +99,23 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
+// PosPrinterPlugin.java already rejects with one of these canonical prefixes (optionally
+// followed by ": <the real IOException/SecurityException message>", which is kept intact
+// below rather than collapsed away). This list is a fallback for anything that doesn't
+// already match one of them — an older app build's plain exception message, for instance.
+const CANONICAL_NATIVE_ERRORS = ["Bluetooth Connect Permission Denied", "Printer MAC Address Missing", "Socket Connection Failed", "This device has no Bluetooth adapter"];
+
+/** Maps a raw Java exception message onto a short, operator-facing phrase — without losing whatever real detail the plugin appended after it. */
+function friendlyNativeError(raw: string): string {
+  if (CANONICAL_NATIVE_ERRORS.some((p) => raw.startsWith(p))) return raw;
+  const s = raw.toLowerCase();
+  if (s.includes("permission")) return "Bluetooth Connect Permission Denied";
+  if (s.includes("no bluetooth adapter")) return "This device has no Bluetooth hardware";
+  if (s.includes("timed out")) return "Printer did not respond (timed out)";
+  if (s.includes("connect") || s.includes("socket") || s.includes("read failed") || s.includes("broken pipe")) return `Socket Connection Failed: ${raw}`;
+  return raw;
+}
+
 export async function printSlip(lines: SlipLine[], settings: PrinterSettings): Promise<PrintResult> {
   // No printer row at all — a configuration problem, not a connection failure. Say so
   // instead of quietly firing an unaddressed RawBT intent that can look like it worked.
@@ -109,9 +129,19 @@ export async function printSlip(lines: SlipLine[], settings: PrinterSettings): P
   const bytes = slipBytes(lines, paper, settings.left_margin ?? 0);
   const type = settings.printer_type ?? "Bluetooth";
   const mac = settings.mac_address?.trim();
+  const roleLabel = settings.assigned_role || "the printer";
+  const isNativeApp = Capacitor.isNativePlatform();
 
   if (type === "Bluetooth") {
-    if (mac) {
+    // Inside the Android app this native RFCOMM bridge is the ONLY way to reach a classic-Bluetooth
+    // printer (Web Bluetooth is BLE/GATT-only and this WebView doesn't expose it anyway). So on native,
+    // a failure here is reported straight to the operator with the real reason — it never falls through
+    // to RawBT or a silent on-screen preview and gets mistaken for "it printed".
+    if (!mac) {
+      logErr(`no MAC address saved for ${roleLabel} (${settings.printer_name ?? "unnamed"})`);
+      if (isNativeApp) return { mode: "native-error", message: `No MAC address configured for ${roleLabel}. Set one in POS Settings → Printers.` };
+      log("browser session with no MAC — trying Web Bluetooth / RawBT instead");
+    } else {
       const native = nativePrinter();
       if (native) {
         log("attempting native Bluetooth (RFCOMM) write to", mac);
@@ -120,25 +150,29 @@ export async function printSlip(lines: SlipLine[], settings: PrinterSettings): P
           const outcome = await withTimeout(
             native
               .write({ mac, data: toBase64(bytes) })
-              .then(() => "ok" as const)
+              .then(() => ({ ok: true as const }))
               .catch((err: unknown) => {
-                logErr("native write failed:", err instanceof Error ? err.message : err);
-                return "failed" as const;
+                const message = err instanceof Error ? err.message : String(err);
+                logErr("native write failed:", message);
+                return { ok: false as const, message };
               }),
             8000,
-            "timeout" as const,
+            { ok: false as const, message: "timed out after 8 seconds" },
           );
-          if (outcome === "timeout") logErr("native write timed out after 8s — the plugin may not be registered in this build");
-          if (outcome === "ok") return { mode: "native", message: "Sent to printer" };
+          if (outcome.ok) return { mode: "native", message: "Sent to printer" };
+          logErr(`native write to ${roleLabel} (${mac}) failed:`, outcome.message);
+          if (isNativeApp) return { mode: "native-error", message: `${friendlyNativeError(outcome.message)} — ${roleLabel} (${mac}). Check it is powered on, in range and paired.` };
         } catch (err) {
           logErr("native bridge threw unexpectedly:", err);
+          if (isNativeApp) return { mode: "native-error", message: `${friendlyNativeError(err instanceof Error ? err.message : String(err))} — ${roleLabel} (${mac})` };
         }
       } else {
         log("native PosPrinter plugin not available (not running in the Android app, or an older build without it)");
+        if (isNativeApp) return { mode: "native-error", message: "The printer plugin isn't available in this app build. Reinstall the latest Plix PMS app." };
       }
-    } else {
-      log("printer has no MAC address saved — skipping the native bridge for", settings.printer_name ?? "(unnamed)");
     }
+  } else if (isNativeApp) {
+    log(`${type} printer — the native Bluetooth bridge only handles Bluetooth, falling through to RawBT for this one`);
   }
 
   if (type === "Bluetooth" && typeof navigator !== "undefined" && (navigator as unknown as BtNav).bluetooth) {

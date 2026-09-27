@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { ArrowLeft, MoreVertical, Minus, Pencil, Plus, Search, Trash2, UserRound, X } from "lucide-react";
 import { computeOrder, groupRate, round2, type DiscountType, type TaxGroup, type TaxRule } from "@/lib/pms-pos-calc";
 import { getStation, inr, type PosCategory, type PosItem, posAction, posMenu, posOrder, posSave, type PosLine, type PosOrderData } from "@/lib/pms-pos-client";
+import { toastPrintResult } from "@/lib/pms-pos-printer";
 import { printBill, printKot } from "@/lib/pms-pos-printer";
 import { slipContext } from "@/components/pms/pos/pos-slip-context";
 import { kotFeedback } from "@/lib/pms-pos-feedback";
@@ -260,7 +261,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
             try {
               if (!state) return;
               const r = await printKot(state.config, slipCtx, getStation(), { ...(title ? { title } : {}), destination: g.d, table: res.order.table_name, kot: res.kotNumber!, orderNumber: res.order.order_number, items: g.lines.map((l) => ({ name: l.item_name, qty: l.quantity, notes: l.notes })), by: user.name, remarks });
-              if (r) toast(`${g.d === "bar" ? "Bar" : "Kitchen"}: ${r.message}`);
+              if (r) toastPrintResult(r, g.d === "bar" ? "Bar" : "Kitchen");
             } catch {
               toast.error("Could not print the KOT");
             }
@@ -294,7 +295,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
       subtotal: totals.subtotal, discount: totals.discount, tax: totals.tax, other, roundOff: 0, total: totals.total, method: null,
       ...(state.config.general.showTaxSeparately ? { taxLines: totals.breakdown } : {}),
     });
-    if (res) toast(res.message);
+    if (res) toastPrintResult(res);
   }
 
   if (loading) return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-50 text-sm text-slate-400">Loading order...</div>;

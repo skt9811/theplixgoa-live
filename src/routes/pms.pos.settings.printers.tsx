@@ -5,7 +5,7 @@ import { Printer, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { posConfigSave, type PosPrinterRow } from "@/lib/pms-pos-client";
 import { EC58B } from "@/lib/pms-escpos";
-import { testPrinter } from "@/lib/pms-pos-printer";
+import { testPrinter, toastPrintResult } from "@/lib/pms-pos-printer";
 import { listPairedBluetoothDevices, type PairedBtDevice } from "@/lib/pms-pos-print";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 import { usePos } from "@/components/pms/pos/pos-context";
@@ -101,7 +101,7 @@ function Printers() {
               <button type="button" onClick={() => open(p, true)} className="shrink-0 rounded-lg border border-emerald-600 px-3 py-1.5 text-xs font-bold text-emerald-700">Assign</button>
             </div>
             <div className="mt-2 flex justify-end gap-3 border-t border-slate-100 pt-2">
-              <button type="button" onClick={async () => { const r = await testPrinter(p, slipContext(propertyName, state), state?.config.general.leftMargin ?? 0); toast(r.message); }} className="flex items-center gap-1 text-xs font-semibold text-slate-600"><Printer className="size-3.5" aria-hidden /> Print Test Slip</button>
+              <button type="button" onClick={async () => { const r = await testPrinter(p, slipContext(propertyName, state), state?.config.general.leftMargin ?? 0); toastPrintResult(r); }} className="flex items-center gap-1 text-xs font-semibold text-slate-600"><Printer className="size-3.5" aria-hidden /> Print Test Slip</button>
               <button type="button" aria-label={`Remove ${p.printer_name}`} onClick={async () => { if (window.confirm(`Remove ${p.printer_name}?`) && (await run(() => posConfigSave("printer", { property, action: "delete", id: p.id }), "Printer removed"))) await reload(); }} className="flex items-center gap-1 text-xs font-semibold text-red-600"><Trash2 className="size-3.5" aria-hidden /> Remove</button>
             </div>
           </div>

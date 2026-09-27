@@ -7,6 +7,8 @@ import { usePms } from "@/components/pms/pms-context";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
 import { propertyDisplayName, PropertySelector } from "@/components/pms/property-selector";
 import { TrendChart } from "@/components/pms/trend-chart";
+import { PmsPullToRefresh } from "@/components/pms/pms-pull-to-refresh";
+import type { BookingsView } from "@/routes/pms.bookings";
 
 export const Route = createFileRoute("/pms/")({
   component: PmsDashboard,
@@ -43,19 +45,29 @@ const BADGE_STYLE: Record<StatusBadge, string> = {
   Cancelled: "bg-slate-200 text-slate-600",
 };
 
-function Stat({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+function Stat({ label, value, hint, view }: { label: string; value: number | string; hint?: string; view?: BookingsView }) {
+  const body = (
+    <>
       <p className="text-xs font-medium text-slate-500">{label}</p>
       <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
       {hint && <p className="mt-0.5 text-[11px] text-slate-400">{hint}</p>}
-    </div>
+    </>
+  );
+  if (!view) return <div className="rounded-xl border border-slate-200 bg-white p-4">{body}</div>;
+  return (
+    <Link
+      to="/pms/bookings"
+      search={view === "all" ? {} : { view }}
+      className="block rounded-xl border border-slate-200 bg-white p-4 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50/40"
+    >
+      {body}
+    </Link>
   );
 }
 
 function PmsDashboard() {
   const { property } = usePms();
-  const { bookings, error } = usePmsBookings();
+  const { bookings, error, reload } = usePmsBookings();
   const today = istToday();
   const [rangeId, setRangeId] = useState<RangeId>("last30");
   const range = useMemo(() => rangeFor(rangeId, today), [rangeId, today]);
@@ -83,6 +95,7 @@ function PmsDashboard() {
   const ready = scoped !== null;
 
   return (
+    <PmsPullToRefresh onRefresh={reload}>
     <div className="mx-auto max-w-6xl">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -100,10 +113,10 @@ function PmsDashboard() {
 
       <h2 className="mt-5 text-sm font-semibold uppercase tracking-wide text-slate-500">Today&apos;s summary</h2>
       <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Bookings" value={ready ? stats.current.length : "-"} hint="In house and upcoming" />
-        <Stat label="Arrivals today" value={ready ? stats.arrivals.length : "-"} />
-        <Stat label="Departures today" value={ready ? stats.departures.length : "-"} />
-        <Stat label="In house now" value={ready ? stats.inHouse.length : "-"} />
+        <Stat label="Bookings" value={ready ? stats.current.length : "-"} hint="In house and upcoming" view="all" />
+        <Stat label="Arrivals today" value={ready ? stats.arrivals.length : "-"} view="arrivals" />
+        <Stat label="Departures today" value={ready ? stats.departures.length : "-"} view="departures" />
+        <Stat label="In house now" value={ready ? stats.inHouse.length : "-"} view="inhouse" />
       </div>
 
       <div className="mt-8 flex flex-wrap items-end justify-between gap-3">
@@ -199,5 +212,6 @@ function PmsDashboard() {
         })}
       </div>
     </div>
+    </PmsPullToRefresh>
   );
 }

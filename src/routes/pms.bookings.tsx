@@ -1,17 +1,29 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { FileText, Pencil, Phone, MessageCircle, Receipt, Search, Trash2 } from "lucide-react";
+import { Eye, EyeOff, FileText, Pencil, Phone, MessageCircle, Receipt, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PROPERTIES, formatINR } from "@/lib/plix";
-import { CHANNELS, channelLabel, fmtDate, paymentLabel, pms, waLink, type PmsBooking, type PmsInvoice } from "@/lib/pms-client";
+import { CHANNELS, channelLabel, fmtDate, istToday, paymentLabel, pms, waLink, type PmsBooking, type PmsInvoice } from "@/lib/pms-client";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
 import { usePms } from "@/components/pms/pms-context";
 import { propertyDisplayName } from "@/components/pms/property-selector";
 import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
 import { TaxInvoiceModal } from "@/components/pms/tax-invoice-modal";
 import { EditBookingModal } from "@/components/pms/edit-booking-modal";
+import { PmsPullToRefresh } from "@/components/pms/pms-pull-to-refresh";
+
+export type BookingsView = "all" | "arrivals" | "departures" | "inhouse";
+const VIEW_LABEL: Record<BookingsView, string> = {
+  all: "All",
+  arrivals: "Arrivals today",
+  departures: "Departures today",
+  inhouse: "In house now",
+};
 
 export const Route = createFileRoute("/pms/bookings")({
+  validateSearch: (search: Record<string, unknown>): { view?: BookingsView | undefined } => ({
+    view: search["view"] === "arrivals" || search["view"] === "departures" || search["view"] === "inhouse" ? search["view"] : undefined,
+  }),
   component: PmsBookings,
 });
 
@@ -31,7 +43,8 @@ const STATUS_STYLE: Record<PmsBooking["status"], string> = {
 function PmsBookings() {
   const { bookings, error, reload } = usePmsBookings();
   const { property } = usePms();
-
+  const { view = "all" } = Route.useSearch();
+  const today = istToday();
 
   const [status, setStatus] = useState<StatusFilter>("all");
   const [source, setSource] = useState("all");
@@ -40,7 +53,20 @@ function PmsBookings() {
   const [viewInvoice, setViewInvoice] = useState<PmsInvoice | null>(null);
   const [editing, setEditing] = useState<PmsBooking | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [togglingVisibility, setTogglingVisibility] = useState<string | null>(null);
   const [invoiceNumbers, setInvoiceNumbers] = useState<Record<string, { id: string; number: string; finalized: boolean }>>({});
+
+  async function togglePartnerVisibility(b: PmsBooking) {
+    setTogglingVisibility(b.id);
+    try {
+      await pms("bookings/toggle-partner-visibility", { method: "POST", body: JSON.stringify({ id: b.id, visible: !b.visible_on_partner_app }) });
+      await reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update Partner App visibility");
+    } finally {
+      setTogglingVisibility(null);
+    }
+  }
 
   async function cancelBooking(b: PmsBooking) {
     if (!window.confirm(`Are you sure you want to delete this booking? This will release the blocked dates for ${b.guest_name}'s stay.`)) return;
@@ -83,6 +109,13 @@ function PmsBookings() {
     const qDigits = q.replace(/\D/g, "");
     return (bookings ?? [])
       .filter((b) => (property === "all" || b.property_id === property) && (status === "all" || b.status === status) && (source === "all" || b.channel === source))
+      .filter((b) => {
+        if (view === "all") return true;
+        if (b.status === "cancelled") return false;
+        if (view === "arrivals") return b.check_in === today;
+        if (view === "departures") return b.check_out === today;
+        return b.check_in <= today && b.check_out > today;
+      })
       .filter(
         (b) =>
           !q ||
@@ -91,14 +124,24 @@ function PmsBookings() {
           b.ref.toLowerCase().includes(q) ||
           b.id.toLowerCase().includes(q),
       );
-  }, [bookings, property, status, source, search]);
+  }, [bookings, property, status, source, search, view, today]);
 
   const field = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40";
 
   return (
+    <PmsPullToRefresh onRefresh={reload}>
     <div className="mx-auto max-w-6xl">
       <h1 className="text-xl font-bold">Bookings</h1>
       <p className="text-sm text-slate-500">{propertyDisplayName(property)} · sorted by check-in date, upcoming first.</p>
+
+      {view !== "all" && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+          Showing: {VIEW_LABEL[view]}
+          <Link to="/pms/bookings" className="ml-auto text-xs font-semibold text-emerald-700 underline hover:text-emerald-900">
+            Clear filter
+          </Link>
+        </div>
+      )}
 
       <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1.4fr]">
         <select value={source} onChange={(e) => setSource(e.target.value)} className={field} aria-label="Source">
@@ -149,6 +192,11 @@ function PmsBookings() {
                 <span className="rounded-full bg-slate-900 px-2.5 py-1 text-white">{p?.name.split(" - ")[0] ?? b.property_id}</span>
                 <span className="rounded-full bg-sky-100 px-2.5 py-1 text-sky-700">{channelLabel(b.channel)}</span>
                 <span className={`rounded-full px-2.5 py-1 ${STATUS_STYLE[b.status]}`}>{b.status[0]!.toUpperCase() + b.status.slice(1)}</span>
+                {!b.visible_on_partner_app && (
+                  <span className="flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-1 text-slate-600">
+                    <EyeOff className="size-3" aria-hidden /> Hidden from Partner App
+                  </span>
+                )}
                 <span className="ml-auto font-mono text-slate-400">#{b.ref}</span>
               </div>
 
@@ -239,6 +287,17 @@ function PmsBookings() {
                       <Pencil className="size-3" aria-hidden /> Edit
                     </button>
                   )}
+                  {b.source === "manual" && (
+                    <button
+                      type="button"
+                      disabled={togglingVisibility === b.id}
+                      onClick={() => void togglePartnerVisibility(b)}
+                      className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      {b.visible_on_partner_app ? <EyeOff className="size-3" aria-hidden /> : <Eye className="size-3" aria-hidden />}
+                      {togglingVisibility === b.id ? "Updating..." : b.visible_on_partner_app ? "Hide from Partner App" : "Show on Partner App"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={cancelling === b.id}
@@ -267,5 +326,6 @@ function PmsBookings() {
         />
       )}
     </div>
+    </PmsPullToRefresh>
   );
 }

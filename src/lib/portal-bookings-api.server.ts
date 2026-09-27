@@ -155,6 +155,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         FROM public.portal_bookings
         WHERE property_id = ${propertySlug}
           AND status != 'cancelled'
+          AND visible_on_partner_app = true
       `,
     ]);
 

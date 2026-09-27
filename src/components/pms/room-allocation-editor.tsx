@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { formatINR } from "@/lib/plix";
 import { MEAL_PLANS, type RoomAllocation } from "@/lib/pms-client";
+import { RoomCountInput } from "@/components/pms/room-count-input";
 
 const field = "rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40";
 const EMPTY_ROOM: RoomAllocation = { category: "", adults: 2, extraBed: 0, children: 0, infants: 0, mealPlan: "Room Only", rate: 0 };
@@ -46,11 +47,11 @@ export function RoomAllocationEditor({ roomCount, rooms, onChange }: { roomCount
             <input value={r.category} onChange={(e) => patch(i, { category: e.target.value })} placeholder="Room name / category" className={`${field} sm:col-span-2`} />
             <label className="grid gap-0.5 text-[10px] text-slate-400">
               Adults
-              <input type="number" min={1} value={r.adults} onChange={(e) => patch(i, { adults: Math.max(1, Number(e.target.value) || 1) })} className={field} />
+              <RoomCountInput value={r.adults} min={1} onChange={(n) => patch(i, { adults: n })} className={field} label={`Room ${i + 1} adults`} />
             </label>
             <label className="grid gap-0.5 text-[10px] text-slate-400">
               Kids
-              <input type="number" min={0} value={r.children} onChange={(e) => patch(i, { children: Math.max(0, Number(e.target.value) || 0) })} className={field} />
+              <RoomCountInput value={r.children} min={0} onChange={(n) => patch(i, { children: n })} className={field} label={`Room ${i + 1} children`} />
             </label>
             <label className="grid gap-0.5 text-[10px] text-slate-400 sm:col-span-2">
               Tariff / Rate (₹)

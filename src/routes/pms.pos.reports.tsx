@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 import { istToday } from "@/lib/pms-client";
 import { inr, posFetch } from "@/lib/pms-pos-client";
 import { usePos } from "@/components/pms/pos/pos-context";
+import { PmsPullToRefresh } from "@/components/pms/pms-pull-to-refresh";
 
 export const Route = createFileRoute("/pms/pos/reports")({ component: Reports });
 
@@ -88,6 +89,7 @@ function Reports() {
   const sum = money && rows ? rows.reduce((s, r) => s + Number(r[money] ?? 0), 0) : null;
 
   return (
+    <PmsPullToRefresh onRefresh={load}>
     <div>
       <button type="button" onClick={() => setActive(null)} className="mb-2 flex items-center gap-1.5 text-sm font-medium text-slate-600"><ArrowLeft className="size-4" aria-hidden /> Reports</button>
       <h1 className="text-base font-bold text-slate-900">{active.label}</h1>
@@ -128,5 +130,6 @@ function Reports() {
         </div>
       )}
     </div>
+    </PmsPullToRefresh>
   );
 }

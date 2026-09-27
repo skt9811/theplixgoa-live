@@ -111,6 +111,8 @@ export type PmsBooking = {
   room_allocations: RoomAllocation[];
   /** Manual bookings only: the PMS operator's name at booking time, for the voucher's "Created By" line. Null for bookings created before this column existed, and for online bookings. */
   created_by: string | null;
+  /** Manual bookings only: whether this booking shows up in the Plix Partner app's own list (GET /api/portal/bookings). Always true for online bookings. */
+  visible_on_partner_app: boolean;
 };
 
 function safeEqual(a: string, b: string): boolean {
@@ -252,11 +254,12 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
         room_allocations: unknown;
         created_by: string | null;
         created_at: Date;
+        visible_on_partner_app: boolean;
       }[]
     >`
       SELECT id, property_id, guest_name, guest_phone, guest_email, check_in::text AS check_in, check_out::text AS check_out,
              nights, guests_count, adults_count, children_count, rooms_count, booking_amount, advance_amount,
-             payment_status, channel, status, notes, commission_pct, commission_amount, room_allocations, created_by, created_at
+             payment_status, channel, status, notes, commission_pct, commission_amount, room_allocations, created_by, created_at, visible_on_partner_app
       FROM public.portal_bookings
       WHERE status NOT IN ('blocked', 'cancelled')
     `,
@@ -297,6 +300,7 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       raw_status: null,
       room_allocations: [],
       created_by: null,
+      visible_on_partner_app: true,
     });
   }
   for (const r of manual) {
@@ -333,6 +337,7 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       raw_status: r.status,
       room_allocations: parseRoomAllocations(r.room_allocations),
       created_by: r.created_by,
+      visible_on_partner_app: r.visible_on_partner_app,
     });
   }
   return rows.sort((a, b) => a.check_in.localeCompare(b.check_in));
@@ -360,6 +365,7 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const total = Math.max(0, num(body["totalAmount"]));
   const advance = Math.max(0, num(body["advanceAmount"]));
   const roomAllocations = parseRoomAllocations(body["roomAllocations"]);
+  const visibleOnPartnerApp = body["visibleOnPartnerApp"] !== false;
 
   if (!PROPERTIES.some((p) => p.slug === propertySlug)) return json({ error: "Select a property" }, 400);
   if (!canProperty(actor, propertySlug)) return json({ error: "You do not have access to this property" }, 403);
@@ -375,11 +381,11 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
     INSERT INTO public.portal_bookings
       (property_id, guest_name, guest_phone, guest_email, check_in, check_out, nights, guests_count,
        adults_count, children_count, rooms_count, booking_amount, advance_amount, payment_status, channel, notes, status,
-       commission_pct, commission_amount, room_allocations, created_by)
+       commission_pct, commission_amount, room_allocations, created_by, visible_on_partner_app)
     VALUES
       (${propertySlug}, ${guestName}, ${guestPhone}, ${guestEmail}, ${checkIn}, ${checkOut}, ${nights}, ${adults + children},
        ${adults}, ${children}, ${rooms}, ${total}, ${advance}, ${paymentStatus}, ${channel}, ${notes}, 'confirmed',
-       0, 0, ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null}, ${actor.name.slice(0, 150)})
+       0, 0, ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null}, ${actor.name.slice(0, 150)}, ${visibleOnPartnerApp})
     RETURNING id
   `;
   let warning: string | undefined;
@@ -432,6 +438,7 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const total = Math.max(0, num(body["totalAmount"]));
   const advance = Math.max(0, num(body["advanceAmount"]));
   const roomAllocations = parseRoomAllocations(body["roomAllocations"]);
+  const visibleOnPartnerApp = body["visibleOnPartnerApp"] !== false;
 
   if (!guestName) return json({ error: "Guest name is required" }, 400);
   if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut)) return json({ error: "Enter valid dates" }, 400);
@@ -448,7 +455,8 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
       guests_count = ${adults + children}, adults_count = ${adults}, children_count = ${children},
       rooms_count = ${rooms}, booking_amount = ${total}, advance_amount = ${advance},
       payment_status = ${paymentStatus}, channel = ${channel}, status = ${status}, notes = ${notes},
-      room_allocations = ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null}
+      room_allocations = ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null},
+      visible_on_partner_app = ${visibleOnPartnerApp}
     WHERE id = ${id}::uuid`;
 
   let warning: string | undefined;
@@ -460,6 +468,28 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
   }
   await audit(actor, "UPDATE", "booking", id, { property: existing.property_id, guest: guestName, checkIn, checkOut, nights, total, channel, status });
   return json({ success: true, ...(warning ? { warning } : {}) });
+}
+
+// Quick toggle for the Bookings list's per-row "Show on Partner App" action —
+// same rule as updateBooking (manual/offline bookings only; an online booking
+// is always visible to its own paying guest's owner).
+async function toggleBookingPartnerVisibility(request: Request, sql: Sql, actor: Actor): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const id = str(body["id"]);
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid booking id" }, 400);
+  const [existing] = await sql<{ property_id: string; visible_on_partner_app: boolean }[]>`
+    SELECT property_id, visible_on_partner_app FROM public.portal_bookings WHERE id = ${id}::uuid`;
+  if (!existing) return json({ error: "Booking not found, or it isn't an editable offline booking" }, 404);
+  if (!canProperty(actor, existing.property_id)) return json({ error: "You do not have access to this property" }, 403);
+  const next = typeof body["visible"] === "boolean" ? (body["visible"] as boolean) : !existing.visible_on_partner_app;
+  await sql`UPDATE public.portal_bookings SET visible_on_partner_app = ${next} WHERE id = ${id}::uuid`;
+  await audit(actor, "UPDATE", "booking", id, { property: existing.property_id, visibleOnPartnerApp: next });
+  return json({ success: true, visible_on_partner_app: next });
 }
 
 // Soft-cancel only, matching this codebase's established rule (see
@@ -1490,6 +1520,7 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "any" | n
       return method === "GET" ? ["dashboard", "bookings", "vouchers", "invoices", "pos"] : ["bookings"];
     case "bookings/update":
     case "bookings/cancel":
+    case "bookings/toggle-partner-visibility":
       // Reachable from both the Bookings list and the Vouchers list (an offline
       // voucher is a portal_bookings row too) — either tab is enough.
       return ["bookings", "vouchers"];
@@ -1579,6 +1610,7 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     if (path === "bookings" && request.method === "POST") return await createBooking(request, sql, actor);
     if (path === "bookings/update" && request.method === "POST") return await updateBooking(request, sql, actor);
     if (path === "bookings/cancel" && request.method === "POST") return await cancelBooking(request, sql, actor);
+    if (path === "bookings/toggle-partner-visibility" && request.method === "POST") return await toggleBookingPartnerVisibility(request, sql, actor);
     if (path === "availability" && request.method === "GET") return await availability(url, sql, actor);
     if (path === "inventory" && request.method === "GET") return await getInventory(url, sql, actor);
     if (path === "inventory" && request.method === "POST") return await applyInventory(request, sql, actor);

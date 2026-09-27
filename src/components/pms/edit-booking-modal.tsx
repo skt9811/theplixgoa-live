@@ -37,6 +37,7 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
     booking.raw_status === "checked_in" ? "checked_in" : booking.raw_status === "completed" ? "completed" : "confirmed",
   );
   const [notes, setNotes] = useState(booking.notes ?? "");
+  const [visibleOnPartnerApp, setVisibleOnPartnerApp] = useState(booking.visible_on_partner_app);
   const [roomAllocations, setRoomAllocations] = useState<RoomAllocation[]>(booking.room_allocations);
   const roomRateSum = roomAllocations.reduce((s, r) => s + (r.rate || 0), 0);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +71,7 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
           status,
           notes,
           roomAllocations,
+          visibleOnPartnerApp,
         }),
       });
       toast.success("Booking updated");
@@ -123,11 +125,11 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
 
           <label className={label}>
             Adults
-            <input type="number" min={1} value={adults} onChange={(e) => setAdults(Math.max(1, Number(e.target.value)))} className={field} />
+            <RoomCountInput value={adults} min={1} onChange={setAdults} className={field} label="Adults" />
           </label>
           <label className={label}>
             Children
-            <input type="number" min={0} value={children} onChange={(e) => setChildren(Math.max(0, Number(e.target.value)))} className={field} />
+            <RoomCountInput value={children} min={0} onChange={setChildren} className={field} label="Children" />
           </label>
 
           {maxRoomsForProperty(booking.property_id) > 1 && (
@@ -186,6 +188,11 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
           <label className={`${label} sm:col-span-2`}>
             Internal notes / guest requests
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${field} resize-none`} />
+          </label>
+
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-600 sm:col-span-2">
+            <input type="checkbox" checked={visibleOnPartnerApp} onChange={(e) => setVisibleOnPartnerApp(e.target.checked)} className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+            Show this booking on the Plix Partner app
           </label>
         </div>
 

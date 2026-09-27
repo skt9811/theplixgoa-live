@@ -50,6 +50,8 @@ export type PmsBooking = {
   room_allocations: RoomAllocation[];
   /** Manual bookings only: the PMS operator's name at booking time, for the voucher's "Created By" line. */
   created_by: string | null;
+  /** Manual bookings only: whether this booking shows up in the Plix Partner app's own list (GET /api/portal/bookings). Always true for online bookings — there's no reason to hide a real gateway-paid stay from its own owner. */
+  visible_on_partner_app: boolean;
 };
 
 export type PmsUser = { id: string | null; name: string; role: string; props: string[]; tabs: string[]; isOwner: boolean };

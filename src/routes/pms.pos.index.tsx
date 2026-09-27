@@ -8,6 +8,7 @@ import { toastPrintResult } from "@/lib/pms-pos-printer";
 import { usePos } from "@/components/pms/pos/pos-context";
 import { OrderFlow } from "@/components/pms/pos/order-flow";
 import { TableActionsSheet } from "@/components/pms/pos/table-actions";
+import { PmsPullToRefresh } from "@/components/pms/pms-pull-to-refresh";
 
 export const Route = createFileRoute("/pms/pos/")({ component: DineIn });
 
@@ -60,6 +61,7 @@ function DineIn() {
   }
 
   return (
+    <PmsPullToRefresh onRefresh={reload}>
     <div>
       <div className="rounded-xl bg-emerald-700 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide text-white">{propertyName}</div>
       {state?.config.store && !state.config.store.is_active && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">This store is deactivated. New orders are blocked until it is reactivated in Store Setup.</p>}
@@ -116,5 +118,6 @@ function DineIn() {
         <OrderFlow tableId={flow.table.id} tableName={flow.table.name} orderId={flow.table.order?.id ?? null} startAtPayment={flow.payment} onClose={(changed) => { setFlow(null); if (changed) void reload(); }} />
       )}
     </div>
+    </PmsPullToRefresh>
   );
 }

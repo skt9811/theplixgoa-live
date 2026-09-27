@@ -156,6 +156,21 @@ function onlyCacheOk(response: Response): Response {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
+// The PMS Capacitor app (packages/pms-mobile) loads its pages straight from
+// this live Vercel deployment via server.url (see its capacitor.config.ts) —
+// there's no bundled webDir, so every launch/reload has to hit the network
+// for a fresh index HTML with up-to-date, content-hashed asset references.
+// Android's WebView will otherwise happily reuse a stale disk-cached HTML
+// page (and with it, stale JS chunk URLs) across app relaunches, so /pms/*
+// HTML responses are forced uncacheable regardless of whatever TanStack
+// Start/Vercel would otherwise set.
+function noStoreForPms(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+  headers.set("Pragma", "no-cache");
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     // Handled directly here, before the SSR/router handler: Razorpay's
@@ -417,7 +432,8 @@ export default {
 
       const contentType = response.headers.get("content-type") ?? "";
       if (response.body && contentType.includes("text/html")) {
-        return onlyCacheOk(await bufferHtmlResponse(response));
+        const buffered = await bufferHtmlResponse(response);
+        return onlyCacheOk(url.pathname.startsWith("/pms") ? noStoreForPms(buffered) : buffered);
       }
 
       return onlyCacheOk(await normalizeCatastrophicSsrResponse(response));

@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { pms } from "@/lib/pms-client";
 import { pmsHead, usePmsBrandedHead } from "@/components/pms/pms-head";
 import { PmsEmblem } from "@/components/pms/pms-emblem";
+import { hidePmsSplash } from "@/lib/pms-splash";
 import twilightVilla from "@/assets/casamarina23.webp";
 
 export const Route = createFileRoute("/pms_/login")({
@@ -22,7 +23,7 @@ function PmsLogin() {
   useEffect(() => {
     pms("session")
       .then(() => void navigate({ to: "/pms" }))
-      .catch(() => undefined);
+      .catch(() => void hidePmsSplash());
   }, [navigate]);
 
   async function submit(e: React.FormEvent) {

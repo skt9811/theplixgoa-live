@@ -20,6 +20,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SITE_NAME, websiteJsonLd, jsonLdScript } from "@/lib/seo";
 import { chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
 import { hidePortalSplash } from "@/lib/portal-splash";
+import { hidePmsSplash } from "@/lib/pms-splash";
 
 // Runs synchronously while the raw HTML is still parsing, before React ever
 // mounts/hydrates — a signed-in user landing on the welcome or login screen
@@ -259,15 +260,20 @@ function RootComponent() {
   }, []);
 
   // Safety net for the native splash (see capacitor.config.ts's
-  // launchAutoHide: false + portal-splash.ts): the portal welcome/login/
-  // dashboard screens each call hidePortalSplash() once they know they're
-  // the right screen to reveal, but if some other route is ever the first
-  // one a native cold launch lands on (a deep link, an error page), nothing
-  // else would ever call it — hidePortalSplash() is idempotent, so this just
-  // guarantees an upper bound instead of a permanently-stuck splash.
+  // launchAutoHide: false + portal-splash.ts / pms-splash.ts): the portal and
+  // PMS welcome/login/dashboard screens each call their own hide*Splash()
+  // once they know they're the right screen to reveal, but if some other
+  // route is ever the first one a native cold launch lands on (a deep link,
+  // an error page), nothing else would ever call it. Only one native app is
+  // ever actually running a given page load, so calling both is harmless —
+  // each is idempotent and only the real one's plugin bridge does anything —
+  // this just guarantees an upper bound instead of a permanently-stuck splash.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-    const timeout = window.setTimeout(() => void hidePortalSplash(), 4000);
+    const timeout = window.setTimeout(() => {
+      void hidePortalSplash();
+      void hidePmsSplash();
+    }, 4000);
     return () => window.clearTimeout(timeout);
   }, []);
 

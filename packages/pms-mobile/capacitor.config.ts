@@ -21,8 +21,11 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 1200,
-      launchAutoHide: true,
+      // Manual hide (src/lib/pms-splash.ts) instead of a fixed timer — a
+      // fixed launchShowDuration could elapse mid cold-launch network round
+      // trip and reveal the WebView's in-progress content (un-hydrated text,
+      // the wrong theme briefly) before the app knew which screen to show.
+      launchAutoHide: false,
       backgroundColor: "#0E231D",
       showSpinner: false,
       androidScaleType: "CENTER_INSIDE",

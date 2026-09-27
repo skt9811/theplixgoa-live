@@ -9,6 +9,7 @@ import { CreateReservationModal } from "@/components/pms/create-reservation-moda
 import { pms, tabForPath, TAB_HOME, TAB_LABELS, type PmsTab, type PmsUser } from "@/lib/pms-client";
 import { PmsThemeProvider, type ThemePreference } from "@/components/pms/pms-theme";
 import { pmsHead, usePmsBrandedHead } from "@/components/pms/pms-head";
+import { hidePmsSplash } from "@/lib/pms-splash";
 
 // Standalone Plix PMS shell for every /pms/* route except /pms/login (which
 // opts out of this layout via the pms_ prefix). Gated by its own PMS session.
@@ -68,6 +69,10 @@ function PmsLayout() {
     pms("session")
       .then((res) => {
         setUser((res as { user: PmsUser }).user);
+        // Reaching this means the dashboard is really the right screen to
+        // show, so the native splash (see capacitor.config.ts's
+        // launchAutoHide: false) can come down now.
+        void hidePmsSplash();
         pms<{ settings: { theme?: string } }>("settings")
           .then((r) => {
             const t = r.settings.theme;

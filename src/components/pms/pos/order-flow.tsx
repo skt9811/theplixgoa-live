@@ -260,7 +260,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
             const title = groups.length > 1 || g.d === "bar" ? `${g.d.toUpperCase()} ORDER TICKET` : undefined;
             try {
               if (!state) return;
-              const r = await printKot(state.config, slipCtx, getStation(), { ...(title ? { title } : {}), destination: g.d, table: res.order.table_name, kot: res.kotNumber!, orderNumber: res.order.order_number, items: g.lines.map((l) => ({ name: l.item_name, qty: l.quantity, notes: l.notes })), by: user.name, remarks });
+              const r = await printKot(state.config, slipCtx, getStation(), { ...(title ? { title } : {}), destination: g.d, table: res.order.table_name, kot: res.kotNumber!, orderNumber: res.order.order_number, items: g.lines.map((l) => ({ name: l.item_name, qty: l.quantity, notes: l.notes })), by: user.name, remarks }, property);
               if (r) toastPrintResult(r, g.d === "bar" ? "Bar" : "Kitchen");
             } catch {
               toast.error("Could not print the KOT");
@@ -294,7 +294,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
       items: [...sent.map((l) => ({ name: l.item_name, qty: l.quantity, rate: l.unit_price, amount: l.total_price })), ...drafts.map((d) => ({ name: d.name, qty: d.qty, rate: d.unitPrice, amount: d.qty * d.unitPrice }))],
       subtotal: totals.subtotal, discount: totals.discount, tax: totals.tax, other, roundOff: 0, total: totals.total, method: null,
       ...(state.config.general.showTaxSeparately ? { taxLines: totals.breakdown } : {}),
-    });
+    }, {}, property);
     if (res) toastPrintResult(res);
   }
 

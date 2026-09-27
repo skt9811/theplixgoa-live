@@ -18,7 +18,7 @@ import { withTimeout } from "@/lib/capacitor-utils";
 import { EC58B, slipBytes, slipText, type PaperSize, type SlipLine } from "@/lib/pms-escpos";
 
 export type PrinterSettings = { printer_type?: string | null; printer_name?: string | null; mac_address?: string | null; left_margin?: number | null; paper_size?: string | null; assigned_role?: string | null } | null;
-export type PrintResult = { mode: "native" | "bluetooth" | "rawbt" | "preview" | "native-error"; message: string };
+export type PrintResult = { mode: "native" | "bluetooth" | "rawbt" | "preview" | "native-error" | "queued"; message: string };
 
 const PRINT_SERVICES = [
   "000018f0-0000-1000-8000-00805f9b34fb",

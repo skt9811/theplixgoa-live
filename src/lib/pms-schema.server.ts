@@ -494,6 +494,26 @@ export function ensurePosSchema(sql: Sql): Promise<void> {
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_orders_prop_idx ON pms_pos_orders (property_id, created_at)`;
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_order_items_order_idx ON pms_pos_order_items (order_id)`;
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_tables_prop_idx ON pms_pos_tables (property_id)`;
+      // Remote print queue: a device with no local printer (e.g. an operator away from the
+      // property) drops a job here instead of failing; any device with the POS screen open
+      // for that property polls for pending jobs and prints them on its own paired printer.
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_pos_print_jobs (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          property_id varchar(100) NOT NULL,
+          role varchar(10) NOT NULL,
+          payload jsonb NOT NULL,
+          status varchar(20) NOT NULL DEFAULT 'pending',
+          attempts int NOT NULL DEFAULT 0,
+          claimed_by varchar(100),
+          claimed_at timestamptz,
+          created_by varchar(100) NOT NULL,
+          created_by_device varchar(100),
+          error text,
+          created_at timestamptz DEFAULT now(),
+          updated_at timestamptz DEFAULT now()
+        )`;
+      await sql`CREATE INDEX IF NOT EXISTS pms_pos_print_jobs_pending_idx ON pms_pos_print_jobs (property_id, status, created_at)`;
     })().catch((err) => {
       posReady = null;
       throw err;

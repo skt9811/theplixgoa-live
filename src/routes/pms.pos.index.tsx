@@ -4,6 +4,7 @@ import { Eye, MoreVertical, Printer, Users } from "lucide-react";
 import { toast } from "sonner";
 import { elapsed, inr, posOrder, type PosTable } from "@/lib/pms-pos-client";
 import { printOrder } from "@/components/pms/pos/print-order";
+import { toastPrintResult } from "@/lib/pms-pos-printer";
 import { usePos } from "@/components/pms/pos/pos-context";
 import { OrderFlow } from "@/components/pms/pos/order-flow";
 import { TableActionsSheet } from "@/components/pms/pos/table-actions";
@@ -17,7 +18,7 @@ const FILTERS: { id: Filter; label: string }[] = [
 type Flow = { table: PosTable; payment: boolean } | null;
 
 function DineIn() {
-  const { propertyName, state, reload } = usePos();
+  const { property, propertyName, state, reload } = usePos();
   const [filter, setFilter] = useState<Filter>("all");
   const [flow, setFlow] = useState<Flow>(null);
   const [actions, setActions] = useState<PosTable | null>(null);
@@ -51,8 +52,8 @@ function DineIn() {
   async function printTable(t: PosTable) {
     if (!t.order || !state) return;
     try {
-      const res = await printOrder(state, propertyName, await posOrder(t.order.id));
-      if (res) toast(res.message);
+      const res = await printOrder(state, propertyName, await posOrder(t.order.id), false, property);
+      if (res) toastPrintResult(res);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not print");
     }

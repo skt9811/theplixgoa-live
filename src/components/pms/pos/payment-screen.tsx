@@ -62,7 +62,7 @@ export function PaymentScreen({ property, propertyName, data, onBack, onDone }: 
 
   async function printBill() {
     if (!state) return;
-    const res = await printOrder(state, propertyName, settled ?? data, settled !== null);
+    const res = await printOrder(state, propertyName, settled ?? data, settled !== null, property);
     if (res) toast(res.message);
   }
 

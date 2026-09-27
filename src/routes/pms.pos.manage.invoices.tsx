@@ -32,7 +32,7 @@ function Invoices() {
 
   async function reprint(d: PosOrderData) {
     if (!state) return;
-    const r = await printOrder(state, propertyName, d, d.order.status === "completed");
+    const r = await printOrder(state, propertyName, d, d.order.status === "completed", property);
     if (r) toast(r.message);
   }
 

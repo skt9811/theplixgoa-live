@@ -3,7 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { createFileRoute } from "@tanstack/react-router";
 import { Printer, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { posConfigSave, type PosPrinterRow } from "@/lib/pms-pos-client";
+import { getStation, posConfigSave, setStation, type PosPrinterRow } from "@/lib/pms-pos-client";
 import { EC58B } from "@/lib/pms-escpos";
 import { testPrinter, toastPrintResult } from "@/lib/pms-pos-printer";
 import { listPairedBluetoothDevices, type PairedBtDevice } from "@/lib/pms-pos-print";
@@ -45,6 +45,17 @@ function Printers() {
   const [f, setF] = useState(EMPTY);
   const [picker, setPicker] = useState<PairedBtDevice[] | null>(null);
   const [pickerBusy, setPickerBusy] = useState(false);
+  const [mine, setMine] = useState(getStation());
+
+  // A printer only actually works from the phone that is physically paired with it
+  // (or, for Network/USB, on the same LAN) — the shared property-wide list above is
+  // just configuration. Claiming a station tells THIS device which of those rows to
+  // use when it prints; it never changes what the printer itself is.
+  function claimStation(n: number) {
+    setStation(String(n));
+    setMine(String(n));
+    toast.success(`This device is now Station ${n}`, { description: "It will use that station's printer(s) when printing here." });
+  }
   const list = state?.config.printers ?? [];
 
   function open(p?: PosPrinterRow, assignOnly = false) {
@@ -100,6 +111,11 @@ function Printers() {
               </button>
               <button type="button" onClick={() => open(p, true)} className="shrink-0 rounded-lg border border-emerald-600 px-3 py-1.5 text-xs font-bold text-emerald-700">Assign</button>
             </div>
+            {mine === String(p.station_number) ? (
+              <p className="mt-2 border-t border-slate-100 pt-2 text-[11px] font-semibold text-emerald-700">This device — prints here use this printer</p>
+            ) : (
+              <button type="button" onClick={() => claimStation(p.station_number)} className="mt-2 w-full border-t border-slate-100 pt-2 text-left text-[11px] font-semibold text-slate-500 hover:text-emerald-700">Make this my station (Station {p.station_number}) — for printing from here, including remote jobs</button>
+            )}
             <div className="mt-2 flex justify-end gap-3 border-t border-slate-100 pt-2">
               <button type="button" onClick={async () => { const r = await testPrinter(p, slipContext(propertyName, state), state?.config.general.leftMargin ?? 0); toastPrintResult(r); }} className="flex items-center gap-1 text-xs font-semibold text-slate-600"><Printer className="size-3.5" aria-hidden /> Print Test Slip</button>
               <button type="button" aria-label={`Remove ${p.printer_name}`} onClick={async () => { if (window.confirm(`Remove ${p.printer_name}?`) && (await run(() => posConfigSave("printer", { property, action: "delete", id: p.id }), "Printer removed"))) await reload(); }} className="flex items-center gap-1 text-xs font-semibold text-red-600"><Trash2 className="size-3.5" aria-hidden /> Remove</button>
@@ -142,7 +158,19 @@ function Printers() {
           </div>
           <div className="mt-4 flex gap-2">
             <button type="button" onClick={() => setEdit(null)} className={`flex-1 ${btnGhost}`}>Cancel</button>
-            <button type="button" disabled={saving} onClick={async () => { if (await save("printer", { id: edit.id, ...f, stationNumber: Number(f.stationNumber) || 10 }, "Printer saved")) setEdit(null); }} className={`flex-1 ${btnPrimary}`}>Save</button>
+            <button type="button" disabled={saving} onClick={async () => {
+                const stationNumber = Number(f.stationNumber) || 10;
+                if (await save("printer", { id: edit.id, ...f, stationNumber }, "Printer saved")) {
+                  // Whoever just entered a printer's connection details (added one, or
+                  // edited an existing one's MAC/paper/etc.) is the one physically set up
+                  // to use it, so this device becomes that station automatically — no
+                  // separate trip to Stations & Devices needed. "Assign" (role/station-only,
+                  // no connection details) leaves this alone: that is reconfiguring a shared
+                  // printer, not claiming it for this device.
+                  if (!edit.assignOnly) claimStation(stationNumber);
+                  setEdit(null);
+                }
+              }} className={`flex-1 ${btnPrimary}`}>Save</button>
           </div>
         </Sheet>
       )}

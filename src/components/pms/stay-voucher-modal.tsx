@@ -6,6 +6,7 @@ import { PMS_COMPANY } from "@/lib/pms-company";
 import { HOUSE_RULES } from "@/lib/pms-voucher-content";
 import { getPropertyPmsConfig } from "@/lib/pms-properties-config";
 import { fmtDate, pms, waLink, type PmsBooking } from "@/lib/pms-client";
+import { isNativeApp, saveAndSharePdf } from "@/lib/pms-native-file";
 import { PrintSheet } from "@/components/pms/print-sheet";
 
 export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; onClose: () => void }) {
@@ -13,6 +14,19 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
   const [sending, setSending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const pdfHref = `/api/pms/vouchers/pdf?booking=${booking.id}`;
+
+  async function downloadNative() {
+    setDownloading(true);
+    try {
+      await saveAndSharePdf(pdfHref, `Stay-Voucher-${booking.ref}.pdf`, "Stay Voucher");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not download the voucher");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   async function sendEmail() {
     setEmailError(null);
@@ -68,16 +82,28 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
     <PrintSheet
       title="Stay Voucher"
       docTitle={`Stay-Voucher-${booking.ref}`}
+      pdfHref={pdfHref}
       onClose={onClose}
       actions={
         <>
-        <a
-          href={`/api/pms/vouchers/pdf?booking=${booking.id}`}
-          download={`Stay-Voucher-${booking.ref}.pdf`}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          <Download className="size-4" aria-hidden /> Download PDF
-        </a>
+        {isNativeApp() ? (
+          <button
+            type="button"
+            onClick={() => void downloadNative()}
+            disabled={downloading}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            <Download className="size-4" aria-hidden /> {downloading ? "Preparing..." : "Download PDF"}
+          </button>
+        ) : (
+          <a
+            href={pdfHref}
+            download={`Stay-Voucher-${booking.ref}.pdf`}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <Download className="size-4" aria-hidden /> Download PDF
+          </a>
+        )}
         <a
           href={shareUrl}
           target="_blank"

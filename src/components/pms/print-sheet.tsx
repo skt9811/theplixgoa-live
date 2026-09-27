@@ -1,7 +1,9 @@
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 import { Printer, X } from "lucide-react";
 import { useBackDismiss } from "@/lib/pms-back-stack";
+import { isNativeApp, saveAndSharePdf } from "@/lib/pms-native-file";
 
 // The sheet is portalled straight into <body> so the print rules below can
 // hide every other body child (the whole PMS app, toasts, scripts' output)
@@ -22,12 +24,15 @@ const PRINT_CSS = `
 export function PrintSheet({
   title,
   docTitle,
+  pdfHref,
   onClose,
   actions,
   children,
 }: {
   title: string;
   docTitle: string;
+  /** A same-origin PDF endpoint for this document, when one exists (see stay-voucher-modal.tsx). On the Android app, "Print / Save PDF" fetches this and hands it to the OS instead of calling window.print(), which does nothing there. Documents with no server PDF (e.g. the tax invoice) fall back to a native-aware notice instead of silently no-op'ing. */
+  pdfHref?: string;
   onClose: () => void;
   actions?: ReactNode;
   children: ReactNode;
@@ -41,7 +46,19 @@ export function PrintSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  function print() {
+  async function print() {
+    if (isNativeApp()) {
+      if (!pdfHref) {
+        toast.error("Printing isn't available for this document in the app yet. Open theplixgoa.com/pms in your phone's browser to print it.");
+        return;
+      }
+      try {
+        await saveAndSharePdf(pdfHref, `${docTitle}.pdf`, title);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Could not save the PDF");
+      }
+      return;
+    }
     // The browser uses the page title as the default PDF file name.
     const previous = document.title;
     document.title = docTitle;

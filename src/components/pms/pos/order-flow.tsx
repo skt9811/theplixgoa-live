@@ -150,6 +150,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
   const [dirty, setDirty] = useState(false);
   const [modal, setModal] = useState<null | "guest" | "discount" | "charge" | "remarks" | "newItem" | "newCategory" | { noteFor: string } | { voidLine: PosLine } | { priceFor: PosItem }>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pendingSave, setPendingSave] = useState(false);
 
   // Refreshing the menu never touches the cart: drafts live in this component, not in the shared POS state.
   const reloadMenu = () => reload().catch(() => undefined);
@@ -198,6 +199,21 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
   function attemptClose() {
     if (dirty && drafts.length > 0 && !window.confirm("Discard the items you added?")) return;
     onClose(dirty);
+  }
+
+  // The blue Save button prompts for the guest's name/persons/mobile the first
+  // time an order is saved without them, instead of silently saving a blank
+  // customer — the bill and KOT both print the guest name once it is set.
+  function requestSave() {
+    if (!guest.name.trim()) {
+      setPendingSave(true);
+      setModal("guest");
+      return;
+    }
+    void (async () => {
+      const r = await persist(false);
+      if (r) onClose(true);
+    })();
   }
   useBackDismiss(modal === null, () => (view === "menu" ? attemptClose() : setView(view === "payment" ? "review" : "menu")));
 
@@ -348,7 +364,23 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
       {modal === "newItem" && <ItemAddSheet property={property} categories={categories} defaultCategory={activeCat} taxRules={state?.config.taxRules ?? []} onClose={() => setModal(null)} onSaved={async () => { await reload(); }} />}
       {modal === "newCategory" && <Prompt title="Add new category" label="Category name" confirm="Add" onClose={() => setModal(null)} onSubmit={(v) => { void (async () => { if (!v) return; try { await posMenu({ property, entity: "category", name: v }); await reloadMenu(); toast.success(`${v} category added`); setModal(null); } catch (err) { toast.error(err instanceof Error ? err.message : "Could not add the category"); } })(); }} />}
       {modal && typeof modal === "object" && "priceFor" in modal && <PricePrompt item={modal.priceFor} onClose={() => setModal(null)} onSubmit={(p, save) => void confirmPrice(modal.priceFor, p, save)} />}
-      {modal === "guest" && <GuestModal property={property} guest={guest} onChange={(g) => { setGuest(g); setDirty(true); }} onClose={() => setModal(null)} />}
+      {modal === "guest" && (
+        <GuestModal
+          property={property}
+          guest={guest}
+          onChange={(g) => { setGuest(g); setDirty(true); }}
+          onClose={() => {
+            setModal(null);
+            if (pendingSave) {
+              setPendingSave(false);
+              void (async () => {
+                const r = await persist(false);
+                if (r) onClose(true);
+              })();
+            }
+          }}
+        />
+      )}
       {modal === "remarks" && <Prompt title="Kitchen notes" label="Instructions for the kitchen" confirm="Save" multiline initial={remarks} onClose={() => setModal(null)} onSubmit={(v) => { setRemarks(v); setDirty(true); setModal(null); }} />}
       {modal === "charge" && <Prompt title="Add other charge" label="Amount (₹)" confirm="Add" initial={other ? String(other) : ""} onClose={() => setModal(null)} onSubmit={(v) => { setOther(Math.max(0, Number(v) || 0)); setDirty(true); setModal(null); }} />}
       {modal === "discount" && (
@@ -445,7 +477,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
         <div className="border-t border-slate-200 bg-white p-3">
           <div className="mx-auto grid max-w-md grid-cols-4 gap-2">
             <button type="button" disabled={busy} onClick={() => void printPreBill()} className="rounded-lg border border-slate-200 py-3 text-xs font-semibold text-slate-700 disabled:opacity-50">Print</button>
-            {quick ? <span /> : <button type="button" disabled={busy || drafts.length + sent.length === 0} onClick={async () => { const r = await persist(false); if (r) onClose(true); }} className="rounded-lg border border-emerald-600 py-3 text-sm font-bold text-emerald-700 disabled:opacity-50">Save</button>}
+            {quick ? <span /> : <button type="button" disabled={busy || drafts.length + sent.length === 0} onClick={requestSave} className="rounded-lg border border-emerald-600 py-3 text-sm font-bold text-emerald-700 disabled:opacity-50">Save</button>}
             <button type="button" disabled={busy || drafts.length === 0} onClick={async () => { const r = await persist(true); if (r) onClose(true); }} className="rounded-lg bg-emerald-600 py-3 text-sm font-bold text-white disabled:opacity-50">KOT</button>
             <button type="button" disabled={busy || drafts.length + sent.length === 0} onClick={async () => { const r = await persist(false); if (r) setView("payment"); }} className="rounded-lg bg-slate-900 py-3 text-xs font-bold text-white disabled:opacity-50">Settle</button>
           </div>

@@ -21,6 +21,7 @@ function occupancyRows(booking: PmsBooking): RoomAllocation[] {
       children: booking.children,
       infants: 0,
       mealPlan: "Room Only",
+      rate: booking.total,
     },
   ];
 }
@@ -192,6 +193,7 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
                 <th className="border-b border-slate-200 px-3 py-2">Adult + E Bed</th>
                 <th className="border-b border-slate-200 px-3 py-2">Child + Infant</th>
                 <th className="border-b border-slate-200 px-3 py-2">Meal Plan</th>
+                <th className="border-b border-slate-200 px-3 py-2 text-right">Rate</th>
               </tr>
             </thead>
             <tbody>
@@ -202,6 +204,7 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
                   <td className="px-3 py-2">{r.adults} + {r.extraBed}</td>
                   <td className="px-3 py-2">{r.children} + {r.infants}</td>
                   <td className="px-3 py-2">{r.mealPlan}</td>
+                  <td className="px-3 py-2 text-right">{formatINR(r.rate)}</td>
                 </tr>
               ))}
             </tbody>

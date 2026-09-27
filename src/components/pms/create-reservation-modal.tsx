@@ -5,6 +5,7 @@ import { PROPERTIES, formatINR } from "@/lib/plix";
 import { eachNight, maxRoomsForProperty, scalesPriceByRooms } from "@/lib/rates";
 import { addDays, CHANNELS, istToday, PAYMENTS, pms, type RoomAllocation } from "@/lib/pms-client";
 import { RoomAllocationEditor } from "@/components/pms/room-allocation-editor";
+import { RoomCountInput } from "@/components/pms/room-count-input";
 import { usePms } from "@/components/pms/pms-context";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
@@ -74,7 +75,11 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
 
   const rate = rateEdit !== "" ? Math.max(0, Number(rateEdit) || 0) : autoRate;
   const factor = property && scalesPriceByRooms(property) ? rooms : 1;
-  const calculated = rate * nights * factor;
+  const roomRateSum = roomAllocations.reduce((s, r) => s + (r.rate || 0), 0);
+  // A filled-in per-room breakdown is more specific than the flat nightly-rate
+  // calculation, so it wins as the default — the total field itself is still
+  // a free override either way.
+  const calculated = roomRateSum > 0 ? roomRateSum : rate * nights * factor;
   const total = totalOverride !== "" ? Math.max(0, Number(totalOverride) || 0) : calculated;
 
   // Same rule the server enforces on save, run live so the operator sees a
@@ -212,14 +217,7 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
           {property && maxRoomsForProperty(property) > 1 && (
             <label className={label}>
               Rooms
-              <input
-                type="number"
-                min={1}
-                max={maxRoomsForProperty(property)}
-                value={rooms}
-                onChange={(e) => setRooms(Math.min(maxRoomsForProperty(property), Math.max(1, Number(e.target.value))))}
-                className={field}
-              />
+              <RoomCountInput value={rooms} max={maxRoomsForProperty(property)} onChange={setRooms} className={field} />
             </label>
           )}
           <label className={label}>
@@ -243,7 +241,11 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
           </label>
           <p className="text-xs text-slate-500 sm:col-span-2">
             Total {formatINR(total)}
-            {totalOverride === "" ? ` = ${nights} night${nights === 1 ? "" : "s"} × ${formatINR(rate)}${factor > 1 ? ` × ${factor} rooms` : ""}` : " (manual override)"}
+            {totalOverride !== ""
+              ? " (manual override)"
+              : roomRateSum > 0
+                ? " = sum of room rates"
+                : ` = ${nights} night${nights === 1 ? "" : "s"} × ${formatINR(rate)}${factor > 1 ? ` × ${factor} rooms` : ""}`}
           </p>
 
           <label className={label}>
@@ -268,7 +270,7 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
             />
           </label>
 
-          <RoomAllocationEditor rooms={roomAllocations} onChange={setRoomAllocations} />
+          <RoomAllocationEditor roomCount={rooms} rooms={roomAllocations} onChange={setRoomAllocations} />
 
           <label className={`${label} sm:col-span-2`}>
             Internal notes / guest requests

@@ -10,6 +10,7 @@ import { propertyLabel } from "@/lib/pms-format";
 import { usePms } from "@/components/pms/pms-context";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
 import { GuardDialog } from "@/components/pms/guard-dialog";
+import { RoomCountInput } from "@/components/pms/room-count-input";
 import { collectGuardWarnings, type GuardWarning } from "@/lib/pms-guards";
 import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
 import { EditBookingModal } from "@/components/pms/edit-booking-modal";
@@ -177,7 +178,7 @@ function VoucherForm({ defaultProperty, onClose, onCreated }: { defaultProperty:
           {multi && (
             <label className={label}>
               Rooms
-              <input type="number" min={1} max={maxRoomsForProperty(propertyId)} value={rooms} onChange={(e) => setRooms(Math.min(maxRoomsForProperty(propertyId), Math.max(1, Number(e.target.value))))} className={field} />
+              <RoomCountInput value={rooms} max={maxRoomsForProperty(propertyId)} onChange={setRooms} className={field} />
             </label>
           )}
           <label className={label}>

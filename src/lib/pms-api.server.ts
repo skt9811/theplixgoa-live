@@ -74,7 +74,7 @@ const PAYMENTS = new Set(["paid", "partial", "pending", "pay_at_checkin"]);
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** One room allocated to a multi-room reservation, for the Stay Voucher's occupancy table. Purely descriptive — unrelated to pricing/availability, which still key off rooms_count/adults_count/children_count. */
-export type RoomAllocation = { category: string; adults: number; extraBed: number; children: number; infants: number; mealPlan: string };
+export type RoomAllocation = { category: string; adults: number; extraBed: number; children: number; infants: number; mealPlan: string; rate: number };
 
 export type PmsBooking = {
   id: string;
@@ -195,6 +195,7 @@ function parseRoomAllocations(raw: unknown): RoomAllocation[] {
       children: clampInt(r["children"], 10),
       infants: clampInt(r["infants"], 10),
       mealPlan: (MEAL_PLANS as readonly string[]).includes(str(r["mealPlan"])) ? str(r["mealPlan"]) : "Room Only",
+      rate: Math.max(0, num(r["rate"], 0)),
     }));
 }
 

@@ -15,7 +15,7 @@ export async function pms<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
-export type RoomAllocation = { category: string; adults: number; extraBed: number; children: number; infants: number; mealPlan: string };
+export type RoomAllocation = { category: string; adults: number; extraBed: number; children: number; infants: number; mealPlan: string; rate: number };
 
 export type PmsBooking = {
   id: string;

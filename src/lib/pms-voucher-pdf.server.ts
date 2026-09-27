@@ -3,13 +3,13 @@
 // standard PDF fonts, which cannot draw the rupee sign (no fontkit/embedded
 // Unicode font in this project) — amounts use "Rs." instead, the same
 // fallback already established for the ESC/POS thermal-printer output.
-import { readFileSync } from "node:fs";
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { PMS_COMPANY } from "@/lib/pms-company";
 import { channelLabel } from "@/lib/pms-client";
 import { voucherDetails } from "@/lib/pms-voucher-content";
+import { PLIX_VOUCHER_LOGO_PNG_BASE64 } from "@/lib/pms-voucher-logo";
 
-type RoomAllocation = { category: string; adults: number; extraBed: number; children: number; infants: number; mealPlan: string };
+type RoomAllocation = { category: string; adults: number; extraBed: number; children: number; infants: number; mealPlan: string; rate: number };
 
 // Structurally compatible with PmsBooking (pms-api.server.ts) — not imported
 // directly to avoid a circular import (that file imports buildStayVoucherPdf
@@ -51,7 +51,7 @@ const safe = (s: string) => s.replace(/[^\x20-\x7E -ÿ]/g, "?").replace(/₹/g, 
 
 function occupancyRows(b: VoucherBooking): RoomAllocation[] {
   if (b.room_allocations.length > 0) return b.room_allocations;
-  return [{ category: b.rooms > 1 ? `${b.rooms} Rooms` : "Room", adults: b.adults, extraBed: 0, children: b.children, infants: 0, mealPlan: "Room Only" }];
+  return [{ category: b.rooms > 1 ? `${b.rooms} Rooms` : "Room", adults: b.adults, extraBed: 0, children: b.children, infants: 0, mealPlan: "Room Only", rate: b.total }];
 }
 
 const CANCELLATION_POLICY = "Advance paid is non-refundable. Any date change is subject to availability and must be requested at least 48 hours before check-in.";
@@ -71,34 +71,47 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
   const rule = (color = LINE, thickness = 0.8) => page.drawLine({ start: { x: M, y }, end: { x: M + W, y }, thickness, color });
 
   // --- A. Header: logo top-left, booking meta top-right ---
-  let logo: PDFImage | null = null;
-  try {
-    const bytes = readFileSync(new URL("../assets/plix-voucher-logo.png", import.meta.url));
-    logo = await pdf.embedPng(bytes);
-  } catch {
-    logo = null; // the voucher still prints correctly without it
-  }
+  // The divider's y is derived from whatever the two sides actually drew
+  // (logo height vs. however many meta lines there are), instead of a fixed
+  // offset — a fixed offset is exactly what let the last meta line collide
+  // with the divider once a fifth line ("Source Type") was added here.
   const headerTop = y;
-  if (logo) {
-    const h = 44;
+  let logoBottom = headerTop - 44;
+  try {
+    // Inlined as base64 (pms-voucher-logo.ts) rather than read from disk:
+    // a serverless function bundle doesn't reliably carry a binary asset
+    // referenced via a runtime file path, which is what silently fell back
+    // to plain brand text in production.
+    const bytes = Buffer.from(PLIX_VOUCHER_LOGO_PNG_BASE64, "base64");
+    const logo = await pdf.embedPng(bytes);
+    const h = 40;
     const w = (logo.width / logo.height) * h;
     page.drawImage(logo, { x: M, y: headerTop - h, width: w, height: h });
-  } else {
+    // text() reads the shared `y`, which is still headerTop here — must move
+    // it below the image first, or the subtitle draws level with the top of
+    // the logo instead of underneath it.
+    y = headerTop - h - 12;
+    text("Boutique Stays & Luxury Villas", M, 8.5, regular, GREY);
+    logoBottom = y - 4;
+  } catch {
+    y = headerTop;
     text(PMS_COMPANY.brand, M, 18, bold, GREEN);
+    y -= 16;
+    text("Boutique Stays & Luxury Villas", M, 9, regular, GREY);
+    logoBottom = y - 4;
   }
 
   y = headerTop;
-  rightText("Booking Confirmation", 14, bold, GREEN);
+  rightText("BOOKING CONFIRMATION", 12.5, bold, GREEN);
   y -= 16;
-  rightText(`Booking Date: ${fmt(b.created_at.slice(0, 10))}`, 9, regular, GREY);
-  y -= 12;
   rightText(`Booking ID: #${b.ref}`, 9, regular, GREY);
   y -= 12;
-  rightText(`Booking Source: ${channelLabel(b.channel)}`, 9, regular, GREY);
+  rightText(`Booking Date: ${fmt(b.created_at.slice(0, 10))}`, 9, regular, GREY);
   y -= 12;
-  rightText(`Source Type: ${b.source === "online" ? "Online" : "Offline / Manual"}`, 9, regular, GREY);
+  rightText(`Source: ${channelLabel(b.channel)} (${b.source === "online" ? "Online" : "Offline"})`, 9, regular, GREY);
+  const metaBottom = y - 4;
 
-  y = headerTop - 52;
+  y = Math.min(logoBottom, metaBottom) - 10;
   rule(GREEN, 2);
   y -= 26;
 
@@ -117,11 +130,24 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
   y -= 10;
 
   // --- C. Master details (2-column) ---
+  // Label always on its own line, value on the line(s) below — never sharing
+  // a row. The previous design put a right-aligned value on the *same* line
+  // as its label; a value wrapped to nearly the full column width then
+  // started almost at the label's own x position, printing straight over it
+  // (the reported "Special Note" collision). A label can never collide with
+  // its own value when they're never on the same baseline.
   const colW = (W - 20) / 2;
   const col2X = M + colW + 20;
-  const detailRow = (x: number, label: string, value: string) => {
-    text(label, x, 9.5, regular, GREY);
-    text(value || "-", x + colW - regular.widthOfTextAtSize(value || "-", 9.5), 9.5, regular, INK);
+  const detailRow = (x: number, atY: number, label: string, value: string): number => {
+    y = atY;
+    text(label, x, 8, bold, GREY);
+    y -= 12;
+    const lines = wrap(value || "-", regular, 9.5, colW).slice(0, 3);
+    for (const l of lines) {
+      text(l, x, 9.5, regular, INK);
+      y -= 13;
+    }
+    return y - 3;
   };
   const guestRows: [string, string][] = [
     ["Guest Name", b.guest_name],
@@ -133,7 +159,7 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
     ["Check In Date", fmt(b.check_in)],
     ["Check Out Date", fmt(b.check_out)],
     ["Number Of Nights", String(b.nights)],
-    ["Number Of Rooms", String(occupancyRows(b).length)],
+    ["Number Of Rooms", String(b.rooms)],
     ["Total Amount", money(b.total)],
     ["Created By", b.created_by ?? "-"],
   ];
@@ -141,16 +167,18 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
   text("BOOKING DETAILS", col2X, 8, bold, GREY);
   y -= 14;
   const startY = y;
+  let leftY = startY;
   for (const [label, value] of guestRows) {
-    detailRow(M, label, value);
-    y -= 14;
+    y = detailRow(M, y, label, value);
+    leftY = y;
   }
   y = startY;
+  let rightY = startY;
   for (const [label, value] of bookingRows) {
-    detailRow(col2X, label, value);
-    y -= 14;
+    y = detailRow(col2X, y, label, value);
+    rightY = y;
   }
-  y = Math.min(y, startY - guestRows.length * 14) - 8;
+  y = Math.min(leftY, rightY) - 8;
   rule();
   y -= 22;
 
@@ -159,11 +187,12 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
   y -= 16;
   const rows = occupancyRows(b);
   const cols = [
-    { label: "Sr No", w: 36 },
-    { label: "Room Category", w: 150 },
-    { label: "Adult+E Bed", w: 88 },
-    { label: "Child+Infant", w: 88 },
-    { label: "Meal Plan", w: W - 36 - 150 - 88 - 88 },
+    { label: "Sr No", w: 30 },
+    { label: "Room Category", w: 128 },
+    { label: "Adult+E Bed", w: 72 },
+    { label: "Child+Infant", w: 72 },
+    { label: "Meal Plan", w: 115 },
+    { label: "Rate", w: W - 30 - 128 - 72 - 72 - 115 },
   ];
   let cx = M;
   const colX: number[] = [];
@@ -183,34 +212,43 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
   for (const [i, r] of rows.entries()) {
     const rowH = 18;
     if (i % 2 === 1) page.drawRectangle({ x: M, y: y - rowH, width: W, height: rowH, color: rgb(0.98, 0.98, 0.99) });
-    const cells = [String(i + 1), r.category || "Room", `${r.adults} + ${r.extraBed}`, `${r.children} + ${r.infants}`, r.mealPlan];
-    cells.forEach((v, ci) => page.drawText(fitCell(v, cols[ci]!.w), { x: colX[ci]! + 4, y: y - 13, size: 9, font: regular, color: INK }));
+    const cells = [String(i + 1), r.category || "Room", `${r.adults} + ${r.extraBed}`, `${r.children} + ${r.infants}`, r.mealPlan, money(r.rate)];
+    cells.forEach((v, ci) => {
+      const cw = cols[ci]!.w;
+      const fitted = fitCell(v, cw);
+      const x = ci === cells.length - 1 ? colX[ci]! + cw - 4 - regular.widthOfTextAtSize(fitted, 9) : colX[ci]! + 4;
+      page.drawText(fitted, { x, y: y - 13, size: 9, font: regular, color: INK });
+    });
     y -= rowH;
   }
   page.drawRectangle({ x: M, y, width: W, height: tableTop - y, borderColor: LINE, borderWidth: 0.8 });
   y -= 18;
+  const balanceDue = Math.max(0, Math.round((b.total - b.advance) * 100) / 100);
   rightText(`Grand Total: ${money(b.total)}`, 10.5, bold);
   y -= 14;
-  rightText(`Paid Amount: ${money(b.advance)}`, 10.5, bold, GREEN);
+  rightText(`Advance Paid: ${money(b.advance)}`, 10.5, bold, GREEN);
+  y -= 15;
+  rightText(balanceDue > 0 ? `Balance Due: ${money(balanceDue)}` : "Balance Due: Fully Paid", 11, bold, balanceDue > 0 ? RED : GREEN);
   y -= 22;
 
-  // --- E. Policies & declaration ---
-  text("CANCELLATION POLICY", M, 8, bold, GREY);
-  y -= 14;
-  for (const l of wrap(CANCELLATION_POLICY, regular, 9.5, W)) {
-    text(l, M, 9.5);
-    y -= 13;
+  // --- E. Policy & guest-ID callout ---
+  // pdf-lib has no rounded-rectangle primitive, so this is a plain filled
+  // box with a hairline border — the closest honest approximation of the
+  // requested rounded callout available in this renderer.
+  const idNotice = "Please carry a Government-approved Photo ID for every adult guest; it will be requested at check-in.";
+  const calloutLines = [`Cancellation Policy: ${CANCELLATION_POLICY}`, idNotice].flatMap((s) => wrap(s, regular, 9, W - 24));
+  const calloutH = calloutLines.length * 12 + 16;
+  page.drawRectangle({ x: M, y: y - calloutH, width: W, height: calloutH, color: rgb(0.965, 0.968, 0.973), borderColor: LINE, borderWidth: 0.8 });
+  let cy = y - 12;
+  for (const l of calloutLines) {
+    page.drawText(safe(l), { x: M + 12, y: cy, size: 9, font: regular, color: GREY });
+    cy -= 12;
   }
-  y -= 10;
-  rule();
-  y -= 16;
-  const notice1 = "Please provide Govt. Approved Photo Identity Card of All Adult person at the time of check in.";
-  const notice2 = "This is computer generated reservation and does not require any signature.";
-  for (const s of [notice1, notice2]) {
-    const size = 8.5;
-    text(s, M + (W - regular.widthOfTextAtSize(s, size)) / 2, size, regular, GREY);
-    y -= 12;
-  }
+  y -= calloutH + 14;
+  const notice = "This is a computer-generated reservation and does not require a signature.";
+  const noticeSize = 8.5;
+  text(notice, M + (W - regular.widthOfTextAtSize(notice, noticeSize)) / 2, noticeSize, regular, GREY);
+  y -= 12;
 
   // --- F. Footer (2 columns, pinned near the bottom) ---
   y = M + 92;

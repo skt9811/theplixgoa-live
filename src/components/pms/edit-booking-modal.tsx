@@ -5,6 +5,7 @@ import { PROPERTIES, formatINR } from "@/lib/plix";
 import { maxRoomsForProperty } from "@/lib/rates";
 import { CHANNELS, PAYMENTS, pms, type PmsBooking, type RoomAllocation } from "@/lib/pms-client";
 import { RoomAllocationEditor } from "@/components/pms/room-allocation-editor";
+import { RoomCountInput } from "@/components/pms/room-count-input";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
 const field = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40";
@@ -37,6 +38,7 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
   );
   const [notes, setNotes] = useState(booking.notes ?? "");
   const [roomAllocations, setRoomAllocations] = useState<RoomAllocation[]>(booking.room_allocations);
+  const roomRateSum = roomAllocations.reduce((s, r) => s + (r.rate || 0), 0);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -131,14 +133,7 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
           {maxRoomsForProperty(booking.property_id) > 1 && (
             <label className={label}>
               Rooms
-              <input
-                type="number"
-                min={1}
-                max={maxRoomsForProperty(booking.property_id)}
-                value={rooms}
-                onChange={(e) => setRooms(Math.min(maxRoomsForProperty(booking.property_id), Math.max(1, Number(e.target.value))))}
-                className={field}
-              />
+              <RoomCountInput value={rooms} max={maxRoomsForProperty(booking.property_id)} onChange={setRooms} className={field} />
             </label>
           )}
           <label className={label}>
@@ -155,6 +150,11 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
           <label className={label}>
             Total amount (₹)
             <input type="number" min={0} value={total} onChange={(e) => setTotal(e.target.value)} className={field} />
+            {roomRateSum > 0 && (
+              <button type="button" onClick={() => setTotal(String(roomRateSum))} className="mt-0.5 text-left text-[11px] font-semibold text-emerald-700 hover:underline">
+                Use sum of room rates ({formatINR(roomRateSum)})
+              </button>
+            )}
           </label>
           <label className={label}>
             Advance paid (₹)
@@ -181,7 +181,7 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
             </select>
           </label>
 
-          <RoomAllocationEditor rooms={roomAllocations} onChange={setRoomAllocations} />
+          <RoomAllocationEditor roomCount={rooms} rooms={roomAllocations} onChange={setRoomAllocations} />
 
           <label className={`${label} sm:col-span-2`}>
             Internal notes / guest requests

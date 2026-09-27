@@ -68,29 +68,56 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
-export async function printSlip(lines: SlipLine[], settings: PrinterSettings): Promise<PrintResult> {
-  const paper = paperOf(settings);
-  const bytes = slipBytes(lines, paper, settings?.left_margin ?? 0);
-  const type = settings?.printer_type ?? "Bluetooth";
-  const mac = settings?.mac_address?.trim();
+const log = (...args: unknown[]) => console.info("[pms-pos-print]", ...args);
+const logErr = (...args: unknown[]) => console.error("[pms-pos-print]", ...args);
 
-  if (type === "Bluetooth" && mac) {
-    const native = nativePrinter();
-    if (native) {
-      try {
-        // A hung/unlinked plugin call must never freeze the print button forever (see capacitor-utils.ts's withTimeout doc).
-        const ok = await withTimeout(
-          native.write({ mac, data: toBase64(bytes) }).then(() => true),
-          8000,
-          false,
-        );
-        if (ok) return { mode: "native", message: "Sent to printer" };
-      } catch {
-        // fall through to Web Bluetooth / RawBT / preview
+export async function printSlip(lines: SlipLine[], settings: PrinterSettings): Promise<PrintResult> {
+  // No printer row at all — a configuration problem, not a connection failure. Say so
+  // instead of quietly firing an unaddressed RawBT intent that can look like it worked.
+  if (!settings) {
+    log("no printer configured — skipping RawBT, showing the slip instead");
+    window.dispatchEvent(new CustomEvent("pms-pos-preview", { detail: slipText(lines, "54mm", 0) }));
+    return { mode: "preview", message: "No printer configured. Add one in POS Settings → Printers." };
+  }
+
+  const paper = paperOf(settings);
+  const bytes = slipBytes(lines, paper, settings.left_margin ?? 0);
+  const type = settings.printer_type ?? "Bluetooth";
+  const mac = settings.mac_address?.trim();
+
+  if (type === "Bluetooth") {
+    if (mac) {
+      const native = nativePrinter();
+      if (native) {
+        log("attempting native Bluetooth (RFCOMM) write to", mac);
+        try {
+          // A hung/unlinked plugin call must never freeze the print button forever (see capacitor-utils.ts's withTimeout doc).
+          const outcome = await withTimeout(
+            native
+              .write({ mac, data: toBase64(bytes) })
+              .then(() => "ok" as const)
+              .catch((err: unknown) => {
+                logErr("native write failed:", err instanceof Error ? err.message : err);
+                return "failed" as const;
+              }),
+            8000,
+            "timeout" as const,
+          );
+          if (outcome === "timeout") logErr("native write timed out after 8s — the plugin may not be registered in this build");
+          if (outcome === "ok") return { mode: "native", message: "Sent to printer" };
+        } catch (err) {
+          logErr("native bridge threw unexpectedly:", err);
+        }
+      } else {
+        log("native PosPrinter plugin not available (not running in the Android app, or an older build without it)");
       }
+    } else {
+      log("printer has no MAC address saved — skipping the native bridge for", settings.printer_name ?? "(unnamed)");
     }
   }
+
   if (type === "Bluetooth" && typeof navigator !== "undefined" && (navigator as unknown as BtNav).bluetooth) {
+    log("attempting Web Bluetooth (BLE/GATT)");
     try {
       const chr = await connect(settings);
       for (let i = 0; i < bytes.length; i += 100) {
@@ -100,15 +127,17 @@ export async function printSlip(lines: SlipLine[], settings: PrinterSettings): P
       }
       return { mode: "bluetooth", message: "Sent to printer" };
     } catch (err) {
-      cached.delete(settings?.printer_name?.trim() || "*");
+      cached.delete(settings.printer_name?.trim() || "*");
+      logErr("Web Bluetooth failed:", err instanceof Error ? err.message : err);
       if (err instanceof Error && err.name === "NotFoundError") return { mode: "preview", message: "No printer selected" };
       // fall through to RawBT / preview
     }
   }
   if (typeof window !== "undefined" && /Android/i.test(navigator.userAgent)) {
+    log("falling back to the RawBT app intent (its own connection to the printer, outside this app's control)");
     window.location.href = `rawbt:base64,${toBase64(bytes)}`;
-    return { mode: "rawbt", message: "Opened in RawBT" };
+    return { mode: "rawbt", message: "Handed to RawBT — check it actually printed; nothing here confirms RawBT is installed or connected" };
   }
-  window.dispatchEvent(new CustomEvent("pms-pos-preview", { detail: slipText(lines, paper, settings?.left_margin ?? 0) }));
+  window.dispatchEvent(new CustomEvent("pms-pos-preview", { detail: slipText(lines, paper, settings.left_margin ?? 0) }));
   return { mode: "preview", message: "No printer available. Showing the slip instead" };
 }

@@ -13,8 +13,11 @@ export function upiPayload(upiId: string, storeName: string, amount: number): st
   return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(storeName)}&am=${amount.toFixed(2)}&cu=INR`;
 }
 
-export const toTransport = (p: PosPrinterRow | undefined, leftMargin: number): PrinterSettings =>
-  p ? { printer_type: p.connection_type, printer_name: p.printer_name, mac_address: p.connection_type === "Network" ? p.ip_address : p.mac_address, left_margin: leftMargin, paper_size: p.paper_size } : { printer_type: "Bluetooth", left_margin: leftMargin, paper_size: "58mm" };
+// `undefined` means no printer is registered in POS settings at all — kept as a distinct
+// `null` (not a fake "Bluetooth, no address" printer) so printSlip can tell "nothing
+// configured" apart from "a real printer configured for Bluetooth with no known MAC",
+// and point the operator at Settings instead of silently trying RawBT for a phantom job.
+export const toTransport = (p: PosPrinterRow | undefined, leftMargin: number): PrinterSettings => (p ? { printer_type: p.connection_type, printer_name: p.printer_name, mac_address: p.connection_type === "Network" ? p.ip_address : p.mac_address, left_margin: leftMargin, paper_size: p.paper_size } : null);
 
 /** Printers that should receive this job, preferring the ones on this device's station. */
 export function printersFor(config: PosConfig, role: "bill" | "kot", station: string, destination: "kitchen" | "bar" = "kitchen"): PosPrinterRow[] {

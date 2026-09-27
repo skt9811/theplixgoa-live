@@ -17,6 +17,7 @@ import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
 import { ensureExpensesSchema, ensureInvoicesSchema } from "@/lib/pms-schema.server";
 import { COLOR_PALETTE, HEX_COLOR, ICON_KEYS, PAYMENT_MODES, TX_TYPES, normalizePaymentMode } from "@/lib/pms-categories";
 import { GOA_STATE_CODE, GST_RATE_OPTIONS, GSTIN_RE, STATE_NAMES } from "@/lib/pms-gst";
+import { signVoucherToken, verifyVoucherToken } from "@/lib/pms-voucher-link.server";
 import { BOOKING_SOURCES, computeInvoice, lineAmount, PAYMENT_METHODS, type ItemInput } from "@/lib/pms-invoice-calc";
 import { PMS_PROPERTIES_CONFIG } from "@/lib/pms-properties-config";
 import { handlePosApi } from "@/lib/pms-pos-api.server";
@@ -72,6 +73,9 @@ const CHANNELS = new Set(["direct", "offline_phone", "airbnb", "booking_com", "w
 const PAYMENTS = new Set(["paid", "partial", "pending", "pay_at_checkin"]);
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** One room allocated to a multi-room reservation, for the Stay Voucher's occupancy table. Purely descriptive — unrelated to pricing/availability, which still key off rooms_count/adults_count/children_count. */
+export type RoomAllocation = { category: string; adults: number; extraBed: number; children: number; infants: number; mealPlan: string };
+
 export type PmsBooking = {
   id: string;
   ref: string;
@@ -103,6 +107,10 @@ export type PmsBooking = {
   agent_name: string | null;
   /** Manual bookings only: the real portal_bookings.status column, not the confirmed/pending/cancelled label derived for display. Null for online bookings. */
   raw_status: string | null;
+  /** Manual bookings only: per-room occupancy for the Stay Voucher (see RoomAllocation). Null/empty for a simple single "row" booking. */
+  room_allocations: RoomAllocation[];
+  /** Manual bookings only: the PMS operator's name at booking time, for the voucher's "Created By" line. Null for bookings created before this column existed, and for online bookings. */
+  created_by: string | null;
 };
 
 function safeEqual(a: string, b: string): boolean {
@@ -171,6 +179,25 @@ type Sql = NonNullable<ReturnType<typeof getWebDb>>;
 // (portal-bookings-api.server.ts), and this query applies exactly the same
 // filters (website: paid / simulated / pending; manual: not cancelled, not a
 // pure date block), so a booking removed in /admin can never appear in PMS.
+const MEAL_PLANS = ["Room Only", "CP - Breakfast Included", "MAP", "AP", "EP"] as const;
+
+/** Sanitizes whatever landed in the jsonb column/request body into a safe, bounded RoomAllocation[] — never throws, drops anything malformed instead. */
+function parseRoomAllocations(raw: unknown): RoomAllocation[] {
+  if (!Array.isArray(raw)) return [];
+  const clampInt = (v: unknown, max: number) => Math.min(max, Math.max(0, Math.floor(num(v, 0))));
+  return raw
+    .filter((r): r is Record<string, unknown> => r !== null && typeof r === "object")
+    .slice(0, 30)
+    .map((r) => ({
+      category: str(r["category"]).slice(0, 100) || "Room",
+      adults: Math.max(1, clampInt(r["adults"], 20)),
+      extraBed: clampInt(r["extraBed"], 10),
+      children: clampInt(r["children"], 10),
+      infants: clampInt(r["infants"], 10),
+      mealPlan: (MEAL_PLANS as readonly string[]).includes(str(r["mealPlan"])) ? str(r["mealPlan"]) : "Room Only",
+    }));
+}
+
 async function listBookings(sql: Sql): Promise<PmsBooking[]> {
   const [online, manual] = await Promise.all([
     sql<
@@ -221,12 +248,14 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
         notes: string | null;
         commission_pct: string | null;
         commission_amount: string | null;
+        room_allocations: unknown;
+        created_by: string | null;
         created_at: Date;
       }[]
     >`
       SELECT id, property_id, guest_name, guest_phone, guest_email, check_in::text AS check_in, check_out::text AS check_out,
              nights, guests_count, adults_count, children_count, rooms_count, booking_amount, advance_amount,
-             payment_status, channel, status, notes, commission_pct, commission_amount, created_at
+             payment_status, channel, status, notes, commission_pct, commission_amount, room_allocations, created_by, created_at
       FROM public.portal_bookings
       WHERE status NOT IN ('blocked', 'cancelled')
     `,
@@ -265,6 +294,8 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       commission_amount: Number(r.commission_amount ?? 0),
       agent_name: null,
       raw_status: null,
+      room_allocations: [],
+      created_by: null,
     });
   }
   for (const r of manual) {
@@ -299,6 +330,8 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       commission_amount: Number(r.commission_amount ?? 0),
       agent_name: /Agent: ([^·]+?)(?: ·|$)/.exec(r.notes ?? "")?.[1]?.trim() ?? null,
       raw_status: r.status,
+      room_allocations: parseRoomAllocations(r.room_allocations),
+      created_by: r.created_by,
     });
   }
   return rows.sort((a, b) => a.check_in.localeCompare(b.check_in));
@@ -325,6 +358,7 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const rooms = Math.min(maxRoomsForProperty(propertySlug), Math.max(1, Math.floor(num(body["roomsCount"], 1))));
   const total = Math.max(0, num(body["totalAmount"]));
   const advance = Math.max(0, num(body["advanceAmount"]));
+  const roomAllocations = parseRoomAllocations(body["roomAllocations"]);
 
   if (!PROPERTIES.some((p) => p.slug === propertySlug)) return json({ error: "Select a property" }, 400);
   if (!canProperty(actor, propertySlug)) return json({ error: "You do not have access to this property" }, 403);
@@ -340,11 +374,11 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
     INSERT INTO public.portal_bookings
       (property_id, guest_name, guest_phone, guest_email, check_in, check_out, nights, guests_count,
        adults_count, children_count, rooms_count, booking_amount, advance_amount, payment_status, channel, notes, status,
-       commission_pct, commission_amount)
+       commission_pct, commission_amount, room_allocations, created_by)
     VALUES
       (${propertySlug}, ${guestName}, ${guestPhone}, ${guestEmail}, ${checkIn}, ${checkOut}, ${nights}, ${adults + children},
        ${adults}, ${children}, ${rooms}, ${total}, ${advance}, ${paymentStatus}, ${channel}, ${notes}, 'confirmed',
-       0, 0)
+       0, 0, ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null}, ${actor.name.slice(0, 150)})
     RETURNING id
   `;
   let warning: string | undefined;
@@ -396,6 +430,7 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const rooms = Math.min(maxRoomsForProperty(existing.property_id), Math.max(1, Math.floor(num(body["roomsCount"], 1))));
   const total = Math.max(0, num(body["totalAmount"]));
   const advance = Math.max(0, num(body["advanceAmount"]));
+  const roomAllocations = parseRoomAllocations(body["roomAllocations"]);
 
   if (!guestName) return json({ error: "Guest name is required" }, 400);
   if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut)) return json({ error: "Enter valid dates" }, 400);
@@ -411,7 +446,8 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
       check_in = ${checkIn}, check_out = ${checkOut}, nights = ${nights},
       guests_count = ${adults + children}, adults_count = ${adults}, children_count = ${children},
       rooms_count = ${rooms}, booking_amount = ${total}, advance_amount = ${advance},
-      payment_status = ${paymentStatus}, channel = ${channel}, status = ${status}, notes = ${notes}
+      payment_status = ${paymentStatus}, channel = ${channel}, status = ${status}, notes = ${notes},
+      room_allocations = ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null}
     WHERE id = ${id}::uuid`;
 
   let warning: string | undefined;
@@ -1240,9 +1276,16 @@ async function findBooking(id: string): Promise<PmsBooking | null> {
   return (await listBookings(webDb)).find((b) => b.id === id) ?? null;
 }
 
-async function voucherPdf(url: URL, actor: Actor): Promise<Response> {
-  const booking = await findBooking(url.searchParams.get("booking") ?? "");
-  if (!booking || !canProperty(actor, booking.property_id)) return json({ error: "Booking not found" }, 404);
+async function voucherPdf(url: URL, actor: Actor | null): Promise<Response> {
+  const bookingId = url.searchParams.get("booking") ?? "";
+  const booking = await findBooking(bookingId);
+  if (!booking) return json({ error: "Booking not found" }, 404);
+  if (actor) {
+    if (!canProperty(actor, booking.property_id)) return json({ error: "Booking not found" }, 404);
+  } else {
+    const ok = await verifyVoucherToken(url.searchParams.get("token") ?? "", bookingId);
+    if (!ok) return json({ error: "This link has expired. Reopen the voucher in the app." }, 401);
+  }
   const bytes = await buildStayVoucherPdf(booking);
   return new Response(Buffer.from(bytes), {
     status: 200,
@@ -1259,6 +1302,20 @@ const esc = (v: string) => v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 // Emails the guest their Stay Voucher as a PDF attachment, through the same
 // Resend account and sender the booking confirmations already use.
+async function voucherLink(request: Request, actor: Actor): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const bookingId = str(body["bookingId"]);
+  const booking = await findBooking(bookingId);
+  if (!booking || !canProperty(actor, booking.property_id)) return json({ error: "Booking not found" }, 404);
+  const token = await signVoucherToken(booking.id);
+  return json({ url: `/api/pms/vouchers/pdf?booking=${encodeURIComponent(booking.id)}&token=${encodeURIComponent(token)}` });
+}
+
 async function emailVoucher(request: Request, actor: Actor): Promise<Response> {
   let body: Record<string, unknown>;
   try {
@@ -1447,6 +1504,7 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "any" | n
     case "vouchers":
       return ["vouchers"];
     case "vouchers/pdf":
+    case "vouchers/link":
     case "vouchers/email":
       return ["vouchers", "bookings"];
     default:
@@ -1474,6 +1532,11 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     actor = null;
   }
   if (path === "session") return actor ? json({ ok: true, user: sessionInfo(actor) }) : json({ error: "Not authenticated" }, 401);
+  // The one route a signed, booking-scoped token can satisfy without a PMS
+  // session at all — see pms-voucher-link.server.ts for why this exists.
+  if (path === "vouchers/pdf" && request.method === "GET" && !actor && url.searchParams.get("token")) {
+    return await voucherPdf(url, null);
+  }
   if (!actor) return json({ error: "Not authenticated" }, 401);
 
   const need = requiredTabs(path, request.method);
@@ -1493,6 +1556,7 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     if (path === "invoices" && (request.method === "POST" || request.method === "PUT")) return await saveInvoice(request, url, actor);
     if (path === "invoices" && request.method === "DELETE") return await deleteInvoice(url, actor);
     if (path === "vouchers/pdf" && request.method === "GET") return await voucherPdf(url, actor);
+    if (path === "vouchers/link" && request.method === "POST") return await voucherLink(request, actor);
     if (path === "vouchers/email" && request.method === "POST") return await emailVoucher(request, actor);
     if (path === "vouchers" && request.method === "POST") return await createVoucher(request, actor);
     if (path === "settings" && request.method === "GET") return await getSettings();

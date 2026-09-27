@@ -15,6 +15,8 @@ export async function pms<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
+export type RoomAllocation = { category: string; adults: number; extraBed: number; children: number; infants: number; mealPlan: string };
+
 export type PmsBooking = {
   id: string;
   ref: string;
@@ -44,6 +46,10 @@ export type PmsBooking = {
   agent_name: string | null;
   /** Manual bookings only: the real portal_bookings.status column (confirmed/checked_in/completed/blocked/cancelled), not the confirmed/pending/cancelled label derived for display. Null for online bookings. */
   raw_status: string | null;
+  /** Manual bookings only: per-room occupancy for the Stay Voucher. Empty for a simple single "room" booking. */
+  room_allocations: RoomAllocation[];
+  /** Manual bookings only: the PMS operator's name at booking time, for the voucher's "Created By" line. */
+  created_by: string | null;
 };
 
 export type PmsUser = { id: string | null; name: string; role: string; props: string[]; tabs: string[]; isOwner: boolean };
@@ -94,6 +100,8 @@ export const CHANNELS = [
   { value: "owner_booking", label: "Owner Booking" },
   { value: "travel_agent", label: "Travel Agent / OTA" },
 ] as const;
+
+export const MEAL_PLANS = ["Room Only", "CP - Breakfast Included", "MAP", "AP", "EP"] as const;
 
 export const PAYMENTS = [
   { value: "paid", label: "Confirmed (100% Paid)" },

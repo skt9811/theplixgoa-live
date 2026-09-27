@@ -3,7 +3,8 @@ import { toast } from "sonner";
 import { X } from "lucide-react";
 import { PROPERTIES, formatINR } from "@/lib/plix";
 import { maxRoomsForProperty } from "@/lib/rates";
-import { CHANNELS, PAYMENTS, pms, type PmsBooking } from "@/lib/pms-client";
+import { CHANNELS, PAYMENTS, pms, type PmsBooking, type RoomAllocation } from "@/lib/pms-client";
+import { RoomAllocationEditor } from "@/components/pms/room-allocation-editor";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
 const field = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40";
@@ -35,6 +36,7 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
     booking.raw_status === "checked_in" ? "checked_in" : booking.raw_status === "completed" ? "completed" : "confirmed",
   );
   const [notes, setNotes] = useState(booking.notes ?? "");
+  const [roomAllocations, setRoomAllocations] = useState<RoomAllocation[]>(booking.room_allocations);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -65,6 +67,7 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
           paymentStatus,
           status,
           notes,
+          roomAllocations,
         }),
       });
       toast.success("Booking updated");
@@ -177,6 +180,8 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
               <option value="completed">Checked-Out</option>
             </select>
           </label>
+
+          <RoomAllocationEditor rooms={roomAllocations} onChange={setRoomAllocations} />
 
           <label className={`${label} sm:col-span-2`}>
             Internal notes / guest requests

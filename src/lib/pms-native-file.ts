@@ -40,6 +40,8 @@ export async function saveAndSharePdf(url: string, fileName: string, title: stri
   await Share.share({ title, url: written.uri, dialogTitle: title });
 }
 
+const PLUGIN_MISSING_RE = /not implemented/i;
+
 /**
  * Turns "'Filesystem' plugin is not implemented on android" (thrown when
  * the installed app predates the Gradle build that linked this plugin in)
@@ -47,6 +49,24 @@ export async function saveAndSharePdf(url: string, fileName: string, title: stri
  */
 export function nativeFileErrorMessage(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
-  if (/not implemented/i.test(raw)) return "This app build doesn't have PDF downloads yet — ask an admin to update the Plix PMS app, then try again.";
+  if (PLUGIN_MISSING_RE.test(raw)) return "Opening the voucher in your browser instead...";
   return raw || "Could not save the PDF";
+}
+
+export function isPluginMissingError(err: unknown): boolean {
+  return PLUGIN_MISSING_RE.test(err instanceof Error ? err.message : String(err));
+}
+
+/**
+ * Fallback for an installed app build that predates the Filesystem/Share
+ * plugins being linked in (see nativeFileErrorMessage above) — asks the
+ * server for a short-lived, booking-scoped link (pms-voucher-link.server.ts)
+ * and opens it in the system browser. That link works without the PMS
+ * session cookie the WebView holds (a separate, unauthenticated browsing
+ * context never sees it), which a plain `apiUrl(pdfHref)` would not.
+ */
+export async function openVoucherInSystemBrowser(bookingId: string): Promise<void> {
+  const { pms } = await import("@/lib/pms-client");
+  const { url } = await pms<{ url: string }>("vouchers/link", { method: "POST", body: JSON.stringify({ bookingId }) });
+  window.open(apiUrl(url), "_system");
 }

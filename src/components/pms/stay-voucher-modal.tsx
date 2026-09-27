@@ -1,13 +1,31 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Download, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
-import { PROPERTIES } from "@/lib/plix";
+import { Download, Mail, MessageCircle } from "lucide-react";
+import { PROPERTIES, formatINR } from "@/lib/plix";
 import { PMS_COMPANY } from "@/lib/pms-company";
-import { HOUSE_RULES } from "@/lib/pms-voucher-content";
 import { getPropertyPmsConfig } from "@/lib/pms-properties-config";
-import { fmtDate, pms, waLink, type PmsBooking } from "@/lib/pms-client";
-import { isNativeApp, nativeFileErrorMessage, saveAndSharePdf } from "@/lib/pms-native-file";
+import { channelLabel, fmtDate, pms, waLink, type PmsBooking, type RoomAllocation } from "@/lib/pms-client";
+import { isNativeApp, isPluginMissingError, nativeFileErrorMessage, openVoucherInSystemBrowser, saveAndSharePdf } from "@/lib/pms-native-file";
 import { PrintSheet } from "@/components/pms/print-sheet";
+import logo from "@/assets/plix-voucher-logo.png";
+
+// Every stay is guaranteed at least one occupancy row on the voucher, whether
+// or not staff filled in a per-room breakdown in the booking/edit form.
+function occupancyRows(booking: PmsBooking): RoomAllocation[] {
+  if (booking.room_allocations.length > 0) return booking.room_allocations;
+  return [
+    {
+      category: booking.rooms > 1 ? `${booking.rooms} Rooms` : "Room",
+      adults: booking.adults,
+      extraBed: 0,
+      children: booking.children,
+      infants: 0,
+      mealPlan: "Room Only",
+    },
+  ];
+}
+
+const CANCELLATION_POLICY = "Advance paid is non-refundable. Any date change is subject to availability and must be requested at least 48 hours before check-in.";
 
 export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; onClose: () => void }) {
   const [emailTo, setEmailTo] = useState(booking.guest_email ?? "");
@@ -22,7 +40,19 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
     try {
       await saveAndSharePdf(pdfHref, `Stay-Voucher-${booking.ref}.pdf`, "Stay Voucher");
     } catch (err) {
-      toast.error(nativeFileErrorMessage(err));
+      if (isPluginMissingError(err)) {
+        // This install predates the Filesystem/Share plugins being linked in
+        // — fall back to a signed link opened in the system browser rather
+        // than dead-ending on an "update the app" message.
+        toast.message(nativeFileErrorMessage(err));
+        try {
+          await openVoucherInSystemBrowser(booking.id);
+        } catch {
+          toast.error("Could not open the voucher. Please try again.");
+        }
+      } else {
+        toast.error(nativeFileErrorMessage(err));
+      }
     } finally {
       setDownloading(false);
     }
@@ -46,31 +76,22 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
   const config = getPropertyPmsConfig(booking.property_id, property?.name.split(" - ")[0]);
   const propertyName = config.name;
   const address = config.address.trim() || (property ? `${property.location}, ${property.region}` : "Goa");
-  const mapUrl = config.mapsUrl.trim() || property?.google_maps_url || null;
-  const confirmed = booking.status === "confirmed";
-
-  // A caretaker is only shown once a real phone number is filled in the
-  // config; until then guests get the central concierge numbers instead.
   const caretakerPhone = config.caretakerPhone.trim();
   const hasCaretaker = caretakerPhone.replace(/\D/g, "").length >= 10;
-  const caretakerName = config.caretakerName.trim();
-  const showCaretakerName = caretakerName !== "" && !/\(tbd\)/i.test(caretakerName);
-  const contactLine = hasCaretaker
-    ? `${showCaretakerName ? `${caretakerName}: ` : "Caretaker: "}${caretakerPhone}`
-    : `Concierge: ${PMS_COMPANY.phones.join(" / ")}`;
+
+  const rows = occupancyRows(booking);
+  const sourceType = booking.source === "online" ? "Online" : "Offline / Manual";
 
   const message = [
     `Hello ${booking.guest_name}, greetings from ${PMS_COMPANY.brand}!`,
-    `Your stay at ${propertyName} is ${confirmed ? "confirmed" : "reserved"}.`,
+    `Your stay at ${propertyName} is ${booking.status === "confirmed" ? "confirmed" : "reserved"}.`,
     "",
     `Check-in: ${fmtDate(booking.check_in)} (from 2:00 PM)`,
     `Check-out: ${fmtDate(booking.check_out)} (by 11:00 AM)`,
     `Guests: ${booking.adults} adult${booking.adults === 1 ? "" : "s"}${booking.children ? `, ${booking.children} child${booking.children === 1 ? "" : "ren"}` : ""}`,
     "",
     `Address: ${address}`,
-    ...(mapUrl ? [`Location: ${mapUrl}`] : []),
-    contactLine,
-    ...(hasCaretaker ? [`Concierge: ${PMS_COMPANY.phones[0]}`] : []),
+    hasCaretaker ? `Caretaker: ${caretakerPhone}` : `Concierge: ${PMS_COMPANY.phones.join(" / ")}`,
     "",
     "We look forward to hosting you!",
   ].join("\n");
@@ -80,7 +101,7 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
 
   return (
     <PrintSheet
-      title="Stay Voucher"
+      title="Booking Confirmation"
       docTitle={`Stay-Voucher-${booking.ref}`}
       pdfHref={pdfHref}
       onClose={onClose}
@@ -115,85 +136,112 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
         </>
       }
     >
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b-2 border-emerald-700 pb-4">
-        <div>
-          <p className="text-xl font-bold tracking-tight text-emerald-800">Plix Hospitality</p>
-          <p className="text-xs text-slate-500">{PMS_COMPANY.brand} · {PMS_COMPANY.website.replace("https://", "")}</p>
-        </div>
+      {/* A. Header */}
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-emerald-700 pb-4">
+        <img src={logo} alt={PMS_COMPANY.brand} className="h-16 w-auto object-contain" />
         <div className="text-right">
-          <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${confirmed ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
-            {confirmed ? "BOOKING CONFIRMED" : "RESERVATION"}
-          </span>
-          <p className="mt-1 text-xs text-slate-500">Booking ID: #{booking.ref}</p>
+          <p className="text-lg font-bold text-emerald-800">Booking Confirmation</p>
+          <p className="mt-1 text-xs text-slate-600">Booking Date: {fmtDate(booking.created_at.slice(0, 10))}</p>
+          <p className="text-xs text-slate-600">Booking ID: #{booking.ref}</p>
+          <p className="text-xs text-slate-600">Booking Source: {channelLabel(booking.channel)}</p>
+          <p className="text-xs text-slate-600">Source Type: {sourceType}</p>
         </div>
       </div>
 
-      <h2 className="mt-5 text-lg font-bold">Guest Stay Voucher</h2>
+      {/* B. Salutation */}
+      <p className="mt-5 text-sm">
+        Dear <span className="font-semibold">{booking.guest_name}</span>,
+      </p>
+      <p className="mt-1.5 text-sm text-slate-700">
+        Thank you for making a reservation with us for your upcoming holiday. We are pleased to confirm your booking based on below given booking details.
+      </p>
 
+      {/* C. Master details */}
       <div className="pms-avoid-break mt-4 grid gap-4 sm:grid-cols-2">
         <section className="rounded-xl border border-slate-200 p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Guest</h3>
-          <p className="mt-1 text-base font-semibold">{booking.guest_name}</p>
-          <p className="text-sm text-slate-600">
-            {booking.adults} adult{booking.adults === 1 ? "" : "s"}
-            {booking.children > 0 ? `, ${booking.children} child${booking.children === 1 ? "" : "ren"}` : ""}
-          </p>
+          <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Guest Details</h3>
+          <dl className="mt-2 grid gap-1.5 text-sm">
+            <div className="flex justify-between gap-3"><dt className="text-slate-500">Guest Name</dt><dd className="text-right font-medium">{booking.guest_name}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-slate-500">Guest Email</dt><dd className="text-right font-medium">{booking.guest_email || "—"}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-slate-500">Guest Mobile</dt><dd className="text-right font-medium">{booking.guest_phone || "—"}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-slate-500">Special Note</dt><dd className="text-right font-medium">{booking.notes || "—"}</dd></div>
+          </dl>
         </section>
         <section className="rounded-xl border border-slate-200 p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Stay</h3>
-          <p className="mt-1 text-sm">
-            <span className="font-semibold">Check-in:</span> {fmtDate(booking.check_in)}, 14:00
-          </p>
-          <p className="text-sm">
-            <span className="font-semibold">Check-out:</span> {fmtDate(booking.check_out)}, 11:00
-          </p>
-          <p className="text-sm text-slate-600">
-            {booking.nights} night{booking.nights === 1 ? "" : "s"}
-          </p>
+          <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Booking Details</h3>
+          <dl className="mt-2 grid gap-1.5 text-sm">
+            <div className="flex justify-between gap-3"><dt className="text-slate-500">Check In Date</dt><dd className="text-right font-medium">{fmtDate(booking.check_in)}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-slate-500">Check Out Date</dt><dd className="text-right font-medium">{fmtDate(booking.check_out)}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-slate-500">Number Of Nights</dt><dd className="text-right font-medium">{booking.nights}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-slate-500">Number Of Rooms</dt><dd className="text-right font-medium">{rows.length}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-slate-500">Total Amount</dt><dd className="text-right font-medium">{formatINR(booking.total)}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-slate-500">Created By</dt><dd className="text-right font-medium">{booking.created_by || "—"}</dd></div>
+          </dl>
         </section>
       </div>
 
-      <section className="pms-avoid-break mt-4 rounded-xl border border-slate-200 p-4">
-        <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Property</h3>
-        <p className="mt-1 text-base font-semibold">{propertyName}</p>
-        <p className="flex items-center gap-1.5 text-sm text-slate-600">
-          <MapPin className="size-3.5" aria-hidden /> {address}
-        </p>
-        {hasCaretaker ? (
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
-            <span>
-              <span className="font-semibold">Caretaker{showCaretakerName ? `: ${caretakerName}` : ""}</span> · {caretakerPhone}
-            </span>
-            <a
-              href={`tel:${caretakerPhone.replace(/[^\d+]/g, "")}`}
-              className="pms-no-print flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
-            >
-              <Phone className="size-3" aria-hidden /> Call Caretaker
-            </a>
+      {/* D. Booking summary table */}
+      <section className="pms-avoid-break mt-4">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Booking Summary</h3>
+        <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full min-w-[480px] border-collapse text-left text-sm">
+            <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+              <tr>
+                <th className="border-b border-slate-200 px-3 py-2">Sr No</th>
+                <th className="border-b border-slate-200 px-3 py-2">Room Category</th>
+                <th className="border-b border-slate-200 px-3 py-2">Adult + E Bed</th>
+                <th className="border-b border-slate-200 px-3 py-2">Child + Infant</th>
+                <th className="border-b border-slate-200 px-3 py-2">Meal Plan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i} className="border-b border-slate-100 last:border-0">
+                  <td className="px-3 py-2">{i + 1}</td>
+                  <td className="px-3 py-2">{r.category || "Room"}</td>
+                  <td className="px-3 py-2">{r.adults} + {r.extraBed}</td>
+                  <td className="px-3 py-2">{r.children} + {r.infants}</td>
+                  <td className="px-3 py-2">{r.mealPlan}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-2 flex justify-end">
+          <div className="grid gap-1 text-right text-sm">
+            <p>Grand Total: <span className="font-bold">{formatINR(booking.total)}/-</span></p>
+            <p>Paid Amount: <span className="font-bold text-emerald-700">{formatINR(booking.advance)}/-</span></p>
           </div>
-        ) : (
-          <p className="mt-1 text-sm">
-            <span className="font-semibold">Concierge:</span> {PMS_COMPANY.phones.join(" / ")}
-          </p>
-        )}
-        {mapUrl && (
-          <p className="mt-1 text-sm">
-            <a href={mapUrl} target="_blank" rel="noreferrer" className="font-semibold text-emerald-700 underline">
-              Open in Google Maps
-            </a>
-            <span className="hidden print:inline"> ({mapUrl})</span>
-          </p>
-        )}
+        </div>
       </section>
 
-      <section className="pms-avoid-break mt-4 rounded-xl border border-slate-200 p-4">
-        <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">House Rules</h3>
-        <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-slate-700">
-          {HOUSE_RULES.map((rule) => (
-            <li key={rule}>{rule}</li>
-          ))}
-        </ul>
+      {/* E. Policies & declaration */}
+      <section className="pms-avoid-break mt-5 rounded-xl border border-slate-200 p-4">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Cancellation Policy</h3>
+        <p className="mt-1 text-sm text-slate-700">{CANCELLATION_POLICY}</p>
+        <div className="mt-4 border-t border-dashed border-slate-200 pt-3 text-center text-xs text-slate-500">
+          <p>Please provide Govt. Approved Photo Identity Card of All Adult person at the time of check in.</p>
+          <p className="mt-0.5">This is computer generated reservation and does not require any signature.</p>
+        </div>
       </section>
+
+      {/* F. Footer */}
+      <div className="mt-5 grid gap-4 border-t border-slate-200 pt-4 text-xs text-slate-600 sm:grid-cols-2">
+        <div className="grid gap-0.5">
+          <p className="font-semibold text-slate-800">Thanks &amp; Regards,</p>
+          <p>Reservation Manager</p>
+          <p>Add: {address}</p>
+          {hasCaretaker && <p>For Any Clarification Contact Mobile: {caretakerPhone}</p>}
+          <p>Landline / Support: {PMS_COMPANY.phones.join(" / ")}</p>
+          <p>Email: {PMS_COMPANY.email}</p>
+          <p>Website: {PMS_COMPANY.website.replace("https://", "")}</p>
+          <p>GST Number: {PMS_COMPANY.gstin}</p>
+        </div>
+        <div className="grid gap-0.5 sm:text-right">
+          <p>Check In Time: <span className="font-semibold text-slate-800">14:00 Hrs</span></p>
+          <p>Check Out Time: <span className="font-bold text-red-600">11:00 Hrs</span></p>
+        </div>
+      </div>
 
       <section className="pms-no-print mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
         <h3 className="text-sm font-bold text-emerald-800">Send this voucher by email</h3>
@@ -222,10 +270,6 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
         {sentTo && <p className="mt-2 text-xs font-semibold text-emerald-700">Sent to {sentTo}.</p>}
         {emailError && <p className="mt-2 text-xs font-semibold text-red-600">{emailError}</p>}
       </section>
-
-      <p className="mt-5 border-t border-slate-200 pt-3 text-center text-[11px] text-slate-500">
-        {PMS_COMPANY.name} · {PMS_COMPANY.address} · {PMS_COMPANY.email}
-      </p>
     </PrintSheet>
   );
 }

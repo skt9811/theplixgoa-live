@@ -3,7 +3,8 @@ import { toast } from "sonner";
 import { X } from "lucide-react";
 import { PROPERTIES, formatINR } from "@/lib/plix";
 import { eachNight, maxRoomsForProperty, scalesPriceByRooms } from "@/lib/rates";
-import { addDays, CHANNELS, istToday, PAYMENTS, pms } from "@/lib/pms-client";
+import { addDays, CHANNELS, istToday, PAYMENTS, pms, type RoomAllocation } from "@/lib/pms-client";
+import { RoomAllocationEditor } from "@/components/pms/room-allocation-editor";
 import { usePms } from "@/components/pms/pms-context";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
@@ -28,6 +29,7 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
   const [payment, setPayment] = useState<string>("paid");
   const [advance, setAdvance] = useState("");
   const [notes, setNotes] = useState("");
+  const [roomAllocations, setRoomAllocations] = useState<RoomAllocation[]>([]);
   const [availability, setAvailability] = useState<Availability | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -115,6 +117,7 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
           paymentStatus: payment,
           advanceAmount: payment === "paid" ? total : Number(advance) || 0,
           notes,
+          roomAllocations,
         }),
       });
       toast.success("Reservation Created Successfully");
@@ -264,6 +267,8 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
               className={`${field} disabled:bg-slate-50`}
             />
           </label>
+
+          <RoomAllocationEditor rooms={roomAllocations} onChange={setRoomAllocations} />
 
           <label className={`${label} sm:col-span-2`}>
             Internal notes / guest requests

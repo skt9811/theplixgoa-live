@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { Printer, X } from "lucide-react";
 import { useBackDismiss } from "@/lib/pms-back-stack";
-import { isNativeApp, saveAndSharePdf } from "@/lib/pms-native-file";
+import { isNativeApp, nativeFileErrorMessage, saveAndSharePdf } from "@/lib/pms-native-file";
 
 // The sheet is portalled straight into <body> so the print rules below can
 // hide every other body child (the whole PMS app, toasts, scripts' output)
@@ -55,7 +55,7 @@ export function PrintSheet({
       try {
         await saveAndSharePdf(pdfHref, `${docTitle}.pdf`, title);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Could not save the PDF");
+        toast.error(nativeFileErrorMessage(err));
       }
       return;
     }

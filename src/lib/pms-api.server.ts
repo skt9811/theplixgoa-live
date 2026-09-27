@@ -11,7 +11,7 @@ import { timingSafeEqual } from "node:crypto";
 import { differenceInCalendarDays } from "date-fns";
 import { PROPERTIES } from "@/lib/plix";
 import { eachNight, isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates";
-import { findStayConflict, syncManualBlocks } from "@/lib/manual-booking-guard.server";
+import { findStayConflict, manualBlockReason, syncManualBlocks } from "@/lib/manual-booking-guard.server";
 import { notifyNewBooking } from "@/lib/push-notifications.server";
 import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
 import { ensureExpensesSchema, ensureInvoicesSchema } from "@/lib/pms-schema.server";
@@ -101,6 +101,8 @@ export type PmsBooking = {
   commission_pct: number;
   commission_amount: number;
   agent_name: string | null;
+  /** Manual bookings only: the real portal_bookings.status column, not the confirmed/pending/cancelled label derived for display. Null for online bookings. */
+  raw_status: string | null;
 };
 
 function safeEqual(a: string, b: string): boolean {
@@ -262,6 +264,7 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       commission_pct: Number(r.commission_pct ?? 0),
       commission_amount: Number(r.commission_amount ?? 0),
       agent_name: null,
+      raw_status: null,
     });
   }
   for (const r of manual) {
@@ -295,6 +298,7 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       commission_pct: Number(r.commission_pct ?? 0),
       commission_amount: Number(r.commission_amount ?? 0),
       agent_name: /Agent: ([^·]+?)(?: ·|$)/.exec(r.notes ?? "")?.[1]?.trim() ?? null,
+      raw_status: r.status,
     });
   }
   return rows.sort((a, b) => a.check_in.localeCompare(b.check_in));
@@ -356,6 +360,115 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   void notifyNewBooking(propertySlug, property?.name ?? propertySlug, guestName, total, checkIn, nights);
   await audit(actor, "CREATE", "booking", row?.id ?? "unknown", { property: propertySlug, guest: guestName, checkIn, checkOut, nights, total, channel });
   return json({ success: true, id: row?.id, nights, ...(warning ? { warning } : {}) });
+}
+
+// Only offline/manual bookings (portal_bookings — admin-created reservations
+// and offline vouchers) are editable here. An online booking is a real,
+// gateway-paid Razorpay transaction; changing its amounts or dates has
+// payment-reconciliation implications well outside this form's scope, so it
+// is only ever cancellable (see cancelBooking), never edited.
+async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const id = str(body["id"]);
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid booking id" }, 400);
+  const [existing] = await sql<{ property_id: string; status: string }[]>`SELECT property_id, status FROM public.portal_bookings WHERE id = ${id}::uuid`;
+  if (!existing) return json({ error: "Booking not found, or it isn't an editable offline booking" }, 404);
+  if (!canProperty(actor, existing.property_id)) return json({ error: "You do not have access to this property" }, 403);
+  if (existing.status === "cancelled") return json({ error: "This booking is cancelled. Nothing to edit." }, 400);
+
+  const guestName = str(body["guestName"]);
+  const guestPhone = str(body["guestPhone"]) || null;
+  const guestEmail = str(body["guestEmail"]) || null;
+  const checkIn = str(body["checkIn"]);
+  const checkOut = str(body["checkOut"]);
+  const notes = str(body["notes"]) || null;
+  const channel = CHANNELS.has(str(body["channel"])) ? str(body["channel"]) : "direct";
+  const paymentStatus = PAYMENTS.has(str(body["paymentStatus"])) ? str(body["paymentStatus"]) : "pending";
+  const rawStatus = str(body["status"]);
+  const status = ["confirmed", "checked_in", "completed"].includes(rawStatus) ? rawStatus : "confirmed";
+  const adults = Math.max(1, Math.floor(num(body["adultsCount"], 1)));
+  const children = Math.max(0, Math.floor(num(body["childrenCount"], 0)));
+  const rooms = Math.min(maxRoomsForProperty(existing.property_id), Math.max(1, Math.floor(num(body["roomsCount"], 1))));
+  const total = Math.max(0, num(body["totalAmount"]));
+  const advance = Math.max(0, num(body["advanceAmount"]));
+
+  if (!guestName) return json({ error: "Guest name is required" }, 400);
+  if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut)) return json({ error: "Enter valid dates" }, 400);
+  const nights = differenceInCalendarDays(new Date(checkOut), new Date(checkIn));
+  if (nights <= 0) return json({ error: "Check-out must be after check-in" }, 400);
+
+  const conflict = await findStayConflict(sql, existing.property_id, checkIn, checkOut, rooms, id);
+  if (conflict) return json({ error: conflict }, 409);
+
+  await sql`
+    UPDATE public.portal_bookings SET
+      guest_name = ${guestName}, guest_phone = ${guestPhone}, guest_email = ${guestEmail},
+      check_in = ${checkIn}, check_out = ${checkOut}, nights = ${nights},
+      guests_count = ${adults + children}, adults_count = ${adults}, children_count = ${children},
+      rooms_count = ${rooms}, booking_amount = ${total}, advance_amount = ${advance},
+      payment_status = ${paymentStatus}, channel = ${channel}, status = ${status}, notes = ${notes}
+    WHERE id = ${id}::uuid`;
+
+  let warning: string | undefined;
+  try {
+    await syncManualBlocks(sql, existing.property_id, id, checkIn, checkOut, true);
+  } catch (err) {
+    console.error("[pms] syncManualBlocks (update):", err instanceof Error ? err.message : err);
+    warning = "Saved, but the website calendar could not be updated. Check blocked dates manually.";
+  }
+  await audit(actor, "UPDATE", "booking", id, { property: existing.property_id, guest: guestName, checkIn, checkOut, nights, total, channel, status });
+  return json({ success: true, ...(warning ? { warning } : {}) });
+}
+
+// Soft-cancel only, matching this codebase's established rule (see
+// PmsBooking's status field and the admin dashboard's own delete=cancel
+// behavior): booking history is never hard-deleted, only marked cancelled,
+// and its blocked_dates rows released so the website can resell those nights.
+async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const id = str(body["id"]);
+  const source = str(body["source"]);
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid booking id" }, 400);
+
+  if (source === "manual") {
+    const [existing] = await sql<{ property_id: string; guest_name: string; status: string }[]>`SELECT property_id, guest_name, status FROM public.portal_bookings WHERE id = ${id}::uuid`;
+    if (!existing) return json({ error: "Booking not found" }, 404);
+    if (!canProperty(actor, existing.property_id)) return json({ error: "You do not have access to this property" }, 403);
+    if (existing.status === "cancelled") return json({ success: true });
+    await sql`UPDATE public.portal_bookings SET status = 'cancelled' WHERE id = ${id}::uuid`;
+    await sql`DELETE FROM public.blocked_dates WHERE property_id = ${existing.property_id} AND reason = ${manualBlockReason(id)}`;
+    await audit(actor, "DELETE", "booking", id, { property: existing.property_id, guest: existing.guest_name, source: "manual" });
+    return json({ success: true });
+  }
+  if (source === "online") {
+    const [existing] = await sql<{ property_id: string; guest_name: string; check_in: string; check_out: string; payment_status: string }[]>`
+      SELECT property_id, guest_name, check_in::text AS check_in, check_out::text AS check_out, payment_status FROM public.bookings WHERE id = ${id}::uuid`;
+    if (!existing) return json({ error: "Booking not found" }, 404);
+    if (!canProperty(actor, existing.property_id)) return json({ error: "You do not have access to this property" }, 403);
+    if (existing.payment_status === "cancelled") return json({ success: true });
+    await sql`UPDATE public.bookings SET payment_status = 'cancelled' WHERE id = ${id}::uuid`;
+    // Whole-villa properties only: multi-room resorts never had a blocked_dates
+    // row for this booking in the first place (see autoBlockDatesForStayCore).
+    if (!isMultiRoomProperty(existing.property_id)) {
+      await sql`
+        DELETE FROM public.blocked_dates
+        WHERE property_id = ${existing.property_id} AND reason = 'Booked'
+          AND date::date >= ${existing.check_in}::date AND date::date < ${existing.check_out}::date`;
+    }
+    await audit(actor, "DELETE", "booking", id, { property: existing.property_id, guest: existing.guest_name, source: "online" });
+    return json({ success: true });
+  }
+  return json({ error: "Unknown booking source. Expected \"manual\" or \"online\"." }, 400);
 }
 
 async function availability(url: URL, sql: Sql, actor: Actor): Promise<Response> {
@@ -1317,6 +1430,11 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "any" | n
       return "admin";
     case "bookings":
       return method === "GET" ? ["dashboard", "bookings", "vouchers", "invoices", "pos"] : ["bookings"];
+    case "bookings/update":
+    case "bookings/cancel":
+      // Reachable from both the Bookings list and the Vouchers list (an offline
+      // voucher is a portal_bookings row too) — either tab is enough.
+      return ["bookings", "vouchers"];
     case "availability":
     case "inventory":
       return method === "GET" ? ["bookings", "vouchers"] : ["bookings"];
@@ -1394,6 +1512,8 @@ export async function handlePmsApi(request: Request): Promise<Response> {
       return json({ bookings: isAllProps(actor) ? all : all.filter((b) => slugs.has(b.property_id)) });
     }
     if (path === "bookings" && request.method === "POST") return await createBooking(request, sql, actor);
+    if (path === "bookings/update" && request.method === "POST") return await updateBooking(request, sql, actor);
+    if (path === "bookings/cancel" && request.method === "POST") return await cancelBooking(request, sql, actor);
     if (path === "availability" && request.method === "GET") return await availability(url, sql, actor);
     if (path === "inventory" && request.method === "GET") return await getInventory(url, sql, actor);
     if (path === "inventory" && request.method === "POST") return await applyInventory(request, sql, actor);

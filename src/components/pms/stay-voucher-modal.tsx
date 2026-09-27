@@ -6,7 +6,7 @@ import { PMS_COMPANY } from "@/lib/pms-company";
 import { HOUSE_RULES } from "@/lib/pms-voucher-content";
 import { getPropertyPmsConfig } from "@/lib/pms-properties-config";
 import { fmtDate, pms, waLink, type PmsBooking } from "@/lib/pms-client";
-import { isNativeApp, saveAndSharePdf } from "@/lib/pms-native-file";
+import { isNativeApp, nativeFileErrorMessage, saveAndSharePdf } from "@/lib/pms-native-file";
 import { PrintSheet } from "@/components/pms/print-sheet";
 
 export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; onClose: () => void }) {
@@ -22,7 +22,7 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
     try {
       await saveAndSharePdf(pdfHref, `Stay-Voucher-${booking.ref}.pdf`, "Stay Voucher");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not download the voucher");
+      toast.error(nativeFileErrorMessage(err));
     } finally {
       setDownloading(false);
     }

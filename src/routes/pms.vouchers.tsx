@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { FileText, Plus, X } from "lucide-react";
+import { FileText, Pencil, Plus, Trash2, X } from "lucide-react";
 import { PROPERTIES, formatINR } from "@/lib/plix";
 import { maxRoomsForProperty } from "@/lib/rates";
 import { PAYMENT_METHODS } from "@/lib/pms-invoice-calc";
@@ -12,6 +12,7 @@ import { usePmsBookings } from "@/components/pms/use-pms-bookings";
 import { GuardDialog } from "@/components/pms/guard-dialog";
 import { collectGuardWarnings, type GuardWarning } from "@/lib/pms-guards";
 import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
+import { EditBookingModal } from "@/components/pms/edit-booking-modal";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
 export const Route = createFileRoute("/pms/vouchers")({
@@ -260,6 +261,22 @@ function PmsVouchers() {
   const { bookings, error, reload } = usePmsBookings();
   const [creating, setCreating] = useState(false);
   const [voucher, setVoucher] = useState<PmsBooking | null>(null);
+  const [editing, setEditing] = useState<PmsBooking | null>(null);
+  const [cancelling, setCancelling] = useState<string | null>(null);
+
+  async function cancelVoucher(b: PmsBooking) {
+    if (!window.confirm(`Are you sure you want to delete this voucher? This will release the blocked dates for ${b.guest_name}'s stay.`)) return;
+    setCancelling(b.id);
+    try {
+      await pms("bookings/cancel", { method: "POST", body: JSON.stringify({ id: b.id, source: b.source }) });
+      toast.success("Voucher cancelled");
+      await reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not cancel the voucher");
+    } finally {
+      setCancelling(null);
+    }
+  }
 
   const offline = useMemo(
     () =>
@@ -295,9 +312,17 @@ function PmsVouchers() {
                 {formatINR(b.total)} · advance {formatINR(b.advance)} · balance {formatINR(b.balance)}
               </p>
             </div>
-            <button type="button" onClick={() => setVoucher(b)} className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
-              <FileText className="size-3" aria-hidden /> Stay Voucher
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => setVoucher(b)} className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
+                <FileText className="size-3" aria-hidden /> Stay Voucher
+              </button>
+              <button type="button" onClick={() => setEditing(b)} className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                <Pencil className="size-3" aria-hidden /> Edit
+              </button>
+              <button type="button" disabled={cancelling === b.id} onClick={() => void cancelVoucher(b)} className="flex items-center gap-1 rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">
+                <Trash2 className="size-3" aria-hidden /> {cancelling === b.id ? "Cancelling..." : "Delete"}
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -314,6 +339,16 @@ function PmsVouchers() {
         />
       )}
       {voucher && <StayVoucherModal booking={voucher} onClose={() => setVoucher(null)} />}
+      {editing && (
+        <EditBookingModal
+          booking={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            void reload();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -42,6 +42,8 @@ export type PmsBooking = {
   commission_pct: number;
   commission_amount: number;
   agent_name: string | null;
+  /** Manual bookings only: the real portal_bookings.status column (confirmed/checked_in/completed/blocked/cancelled), not the confirmed/pending/cancelled label derived for display. Null for online bookings. */
+  raw_status: string | null;
 };
 
 export type PmsUser = { id: string | null; name: string; role: string; props: string[]; tabs: string[]; isOwner: boolean };

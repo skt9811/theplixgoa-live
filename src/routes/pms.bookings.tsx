@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { FileText, Phone, MessageCircle, Receipt, Search } from "lucide-react";
+import { FileText, Pencil, Phone, MessageCircle, Receipt, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PROPERTIES, formatINR } from "@/lib/plix";
 import { CHANNELS, channelLabel, fmtDate, paymentLabel, pms, waLink, type PmsBooking, type PmsInvoice } from "@/lib/pms-client";
@@ -9,6 +9,7 @@ import { usePms } from "@/components/pms/pms-context";
 import { propertyDisplayName } from "@/components/pms/property-selector";
 import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
 import { TaxInvoiceModal } from "@/components/pms/tax-invoice-modal";
+import { EditBookingModal } from "@/components/pms/edit-booking-modal";
 
 export const Route = createFileRoute("/pms/bookings")({
   component: PmsBookings,
@@ -28,7 +29,7 @@ const STATUS_STYLE: Record<PmsBooking["status"], string> = {
 };
 
 function PmsBookings() {
-  const { bookings, error } = usePmsBookings();
+  const { bookings, error, reload } = usePmsBookings();
   const { property } = usePms();
 
 
@@ -37,7 +38,23 @@ function PmsBookings() {
   const [search, setSearch] = useState("");
   const [voucherFor, setVoucherFor] = useState<PmsBooking | null>(null);
   const [viewInvoice, setViewInvoice] = useState<PmsInvoice | null>(null);
+  const [editing, setEditing] = useState<PmsBooking | null>(null);
+  const [cancelling, setCancelling] = useState<string | null>(null);
   const [invoiceNumbers, setInvoiceNumbers] = useState<Record<string, { id: string; number: string; finalized: boolean }>>({});
+
+  async function cancelBooking(b: PmsBooking) {
+    if (!window.confirm(`Are you sure you want to delete this booking? This will release the blocked dates for ${b.guest_name}'s stay.`)) return;
+    setCancelling(b.id);
+    try {
+      await pms("bookings/cancel", { method: "POST", body: JSON.stringify({ id: b.id, source: b.source }) });
+      toast.success("Booking cancelled");
+      await reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not cancel the booking");
+    } finally {
+      setCancelling(null);
+    }
+  }
 
   const loadInvoiceNumbers = useCallback(async () => {
     try {
@@ -213,6 +230,23 @@ function PmsBookings() {
                       <Receipt className="size-3" aria-hidden /> Create Invoice
                     </Link>
                   )}
+                  {b.source === "manual" && (
+                    <button
+                      type="button"
+                      onClick={() => setEditing(b)}
+                      className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      <Pencil className="size-3" aria-hidden /> Edit
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={cancelling === b.id}
+                    onClick={() => void cancelBooking(b)}
+                    className="flex items-center gap-1 rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                  >
+                    <Trash2 className="size-3" aria-hidden /> {cancelling === b.id ? "Cancelling..." : "Delete"}
+                  </button>
                 </div>
               )}
             </article>
@@ -222,6 +256,16 @@ function PmsBookings() {
 
       {voucherFor && <StayVoucherModal booking={voucherFor} onClose={() => setVoucherFor(null)} />}
       {viewInvoice && <TaxInvoiceModal invoice={viewInvoice} onClose={() => setViewInvoice(null)} />}
+      {editing && (
+        <EditBookingModal
+          booking={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            void reload();
+          }}
+        />
+      )}
     </div>
   );
 }

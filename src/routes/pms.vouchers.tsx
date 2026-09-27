@@ -48,6 +48,9 @@ function VoucherForm({ defaultProperty, onClose, onCreated }: { defaultProperty:
   const [guard, setGuard] = useState<GuardWarning[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [conflictError, setConflictError] = useState<string | null>(null);
+  const [forceOverride, setForceOverride] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
   const multi = propertyId !== "" && maxRoomsForProperty(propertyId) > 1;
   const nights = Math.max(0, Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000));
   const tariffNum = Number(tariff) || 0;
@@ -69,7 +72,7 @@ function VoucherForm({ defaultProperty, onClose, onCreated }: { defaultProperty:
     setGuard(null);
     setSaving(true);
     try {
-      const res = await pms<{ booking: PmsBooking | null }>("vouchers", {
+      const res = await pms<{ booking: PmsBooking | null; overridden?: boolean }>("vouchers", {
         method: "POST",
         body: JSON.stringify({
           propertyId,
@@ -88,12 +91,17 @@ function VoucherForm({ defaultProperty, onClose, onCreated }: { defaultProperty:
           agentName: hasCommission ? agentName : "",
           commissionType,
           commissionValue: hasCommission ? Number(commissionValue) || 0 : 0,
+          allowOverride: forceOverride,
+          overrideReason: overrideReason.trim(),
         }),
       });
       toast.success("Voucher created and dates locked on the website");
+      if (res.overridden) toast.warning("Saved as a manual override — this booking overbooks an already-reserved unit.");
       onCreated(res.booking);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the voucher");
+      const message = err instanceof Error ? err.message : "Could not create the voucher";
+      setError(message);
+      setConflictError(message);
     } finally {
       setSaving(false);
     }
@@ -242,13 +250,36 @@ function VoucherForm({ defaultProperty, onClose, onCreated }: { defaultProperty:
           </div>
         )}
 
+        {conflictError && (
+          <div className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3 text-xs">
+            <p className="font-semibold text-red-700">⚠️ Overriding Available Inventory (Date already booked/blocked). Proceeding will overbook this unit.</p>
+            <label className="mt-2 flex items-center gap-2 font-semibold text-red-800">
+              <input type="checkbox" checked={forceOverride} onChange={(e) => setForceOverride(e.target.checked)} className="size-4 rounded border-red-400 text-red-600 focus:ring-red-500" />
+              Force Manual Override
+            </label>
+            {forceOverride && (
+              <input
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                placeholder="Reason for override (optional)"
+                className="mt-2 w-full rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-red-400/40"
+              />
+            )}
+          </div>
+        )}
         {error && <p className="mt-3 text-sm font-semibold text-red-600">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
             Cancel
           </button>
-          <button type="submit" disabled={saving} className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
-            {saving ? "Creating..." : "Create Voucher"}
+          <button
+            type="submit"
+            disabled={saving}
+            className={`rounded-lg px-5 py-2 text-sm font-semibold text-white disabled:opacity-60 ${
+              conflictError && forceOverride ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"
+            }`}
+          >
+            {saving ? "Creating..." : conflictError && forceOverride ? "Create Voucher (Override)" : "Create Voucher"}
           </button>
         </div>
       </form>
@@ -303,9 +334,16 @@ function PmsVouchers() {
       {bookings && offline.length === 0 && <p className="mt-8 rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">No offline vouchers yet.</p>}
       <div className="mt-4 grid gap-2">
         {offline.map((b) => (
-          <div key={b.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <div key={b.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white px-4 py-3 ${b.is_manual_override ? "border-red-400 bg-red-50/30" : "border-slate-200"}`}>
             <div className="min-w-0">
-              <p className="truncate font-semibold">{b.guest_name}</p>
+              <p className="flex items-center gap-1.5 truncate font-semibold">
+                {b.guest_name}
+                {b.is_manual_override && (
+                  <span className="rounded-full border border-red-300 bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700" title={b.override_reason ?? undefined}>
+                    OVERRIDE
+                  </span>
+                )}
+              </p>
               <p className="text-xs text-slate-500">
                 {propertyLabel(b.property_id)} · {fmtDate(b.check_in)} → {fmtDate(b.check_out)} · {b.nights} night{b.nights === 1 ? "" : "s"} · #{b.ref}
               </p>

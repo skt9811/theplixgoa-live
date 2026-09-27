@@ -42,6 +42,9 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
   const roomRateSum = roomAllocations.reduce((s, r) => s + (r.rate || 0), 0);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [conflictError, setConflictError] = useState<string | null>(null);
+  const [forceOverride, setForceOverride] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
 
   const nights = checkIn && checkOut ? Math.max(0, Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000)) : 0;
 
@@ -52,7 +55,7 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
     if (nights <= 0) return setError("Check-out must be after check-in");
     setSaving(true);
     try {
-      const result = await pms<{ warning?: string }>("bookings/update", {
+      const result = await pms<{ warning?: string; overridden?: boolean }>("bookings/update", {
         method: "POST",
         body: JSON.stringify({
           id: booking.id,
@@ -72,13 +75,18 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
           notes,
           roomAllocations,
           visibleOnPartnerApp,
+          allowOverride: forceOverride,
+          overrideReason: overrideReason.trim(),
         }),
       });
       toast.success("Booking updated");
       if (result.warning) toast.warning(result.warning);
+      if (result.overridden) toast.warning("Saved as a manual override — this booking overbooks an already-reserved unit.");
       onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save changes");
+      const message = err instanceof Error ? err.message : "Could not save changes";
+      setError(message);
+      setConflictError(message);
     } finally {
       setSaving(false);
     }
@@ -122,6 +130,24 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
             <input type="date" value={checkOut} min={checkIn} onChange={(e) => setCheckOut(e.target.value)} className={field} required />
           </label>
           <p className="text-xs text-slate-500 sm:col-span-2">{nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "Select valid dates"}</p>
+
+          {conflictError && (
+            <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-xs sm:col-span-2">
+              <p className="font-semibold text-red-700">⚠️ Overriding Available Inventory (Date already booked/blocked). Proceeding will overbook this unit.</p>
+              <label className="mt-2 flex items-center gap-2 font-semibold text-red-800">
+                <input type="checkbox" checked={forceOverride} onChange={(e) => setForceOverride(e.target.checked)} className="size-4 rounded border-red-400 text-red-600 focus:ring-red-500" />
+                Force Manual Override
+              </label>
+              {forceOverride && (
+                <input
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="Reason for override (optional)"
+                  className="mt-2 w-full rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-red-400/40"
+                />
+              )}
+            </div>
+          )}
 
           <label className={label}>
             Adults
@@ -202,8 +228,14 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
             Cancel
           </button>
-          <button type="submit" disabled={saving} className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60">
-            {saving ? "Saving..." : "Save Changes"}
+          <button
+            type="submit"
+            disabled={saving}
+            className={`rounded-lg px-5 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-60 ${
+              conflictError && forceOverride ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"
+            }`}
+          >
+            {saving ? "Saving..." : conflictError && forceOverride ? "Save Changes (Override)" : "Save Changes"}
           </button>
         </div>
       </form>

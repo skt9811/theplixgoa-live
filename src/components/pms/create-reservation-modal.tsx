@@ -35,6 +35,8 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
   const [availability, setAvailability] = useState<Availability | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [forceOverride, setForceOverride] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
 
   const p = PROPERTIES.find((x) => x.slug === property);
   const nights = checkIn && checkOut ? Math.max(0, Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000)) : 0;
@@ -103,10 +105,10 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
     if (!property) return setServerError("Select a property");
     if (!guestName.trim()) return setServerError("Guest name is required");
     if (nights <= 0) return setServerError("Check-out must be after check-in");
-    if (conflict) return setServerError(conflict);
+    if (conflict && !forceOverride) return setServerError(`${conflict} Check "Force Manual Override" below to proceed anyway.`);
     setSaving(true);
     try {
-      const result = await pms<{ warning?: string }>("bookings", {
+      const result = await pms<{ warning?: string; overridden?: boolean }>("bookings", {
         method: "POST",
         body: JSON.stringify({
           propertySlug: property,
@@ -125,10 +127,13 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
           notes,
           roomAllocations,
           visibleOnPartnerApp,
+          allowOverride: forceOverride,
+          overrideReason: overrideReason.trim(),
         }),
       });
       toast.success("Reservation Created Successfully");
       if (result.warning) toast.warning(result.warning);
+      if (result.overridden) toast.warning("Saved as a manual override — this booking overbooks an already-reserved unit.");
       onCreated();
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Could not save reservation");
@@ -210,11 +215,29 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
           </label>
           <p className="text-xs sm:col-span-2">
             {conflict ? (
-              <span className="font-semibold text-red-600">{conflict} Choose different dates.</span>
+              <span className="font-semibold text-red-600">{conflict} Choose different dates, or force a manual override below.</span>
             ) : (
               <span className="text-slate-500">{nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "Select valid dates"}</span>
             )}
           </p>
+
+          {conflict && (
+            <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-xs sm:col-span-2">
+              <p className="font-semibold text-red-700">⚠️ Overriding Available Inventory (Date already booked/blocked). Proceeding will overbook this unit.</p>
+              <label className="mt-2 flex items-center gap-2 font-semibold text-red-800">
+                <input type="checkbox" checked={forceOverride} onChange={(e) => setForceOverride(e.target.checked)} className="size-4 rounded border-red-400 text-red-600 focus:ring-red-500" />
+                Force Manual Override
+              </label>
+              {forceOverride && (
+                <input
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="Reason for override (optional)"
+                  className="mt-2 w-full rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-red-400/40"
+                />
+              )}
+            </div>
+          )}
 
           {property && maxRoomsForProperty(property) > 1 && (
             <label className={label}>
@@ -293,10 +316,12 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
           </button>
           <button
             type="submit"
-            disabled={saving || Boolean(conflict)}
-            className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+            disabled={saving || (Boolean(conflict) && !forceOverride)}
+            className={`rounded-lg px-5 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-60 ${
+              conflict && forceOverride ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"
+            }`}
           >
-            {saving ? "Saving..." : "Create Reservation"}
+            {saving ? "Saving..." : conflict && forceOverride ? "Create Reservation (Override)" : "Create Reservation"}
           </button>
         </div>
       </form>

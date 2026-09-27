@@ -187,11 +187,16 @@ function PmsBookings() {
         {visible.map((b) => {
           const p = PROPERTIES.find((x) => x.slug === b.property_id);
           return (
-            <article key={`${b.source}-${b.id}`} className="rounded-xl border border-slate-200 bg-white p-4">
+            <article key={`${b.source}-${b.id}`} className={`rounded-xl border bg-white p-4 ${b.is_manual_override ? "border-red-400 bg-red-50/30" : "border-slate-200"}`}>
               <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
                 <span className="rounded-full bg-slate-900 px-2.5 py-1 text-white">{p?.name.split(" - ")[0] ?? b.property_id}</span>
                 <span className="rounded-full bg-sky-100 px-2.5 py-1 text-sky-700">{channelLabel(b.channel)}</span>
                 <span className={`rounded-full px-2.5 py-1 ${STATUS_STYLE[b.status]}`}>{b.status[0]!.toUpperCase() + b.status.slice(1)}</span>
+                {b.is_manual_override && (
+                  <span className="rounded-full border border-red-300 bg-red-100 px-2.5 py-1 text-red-700" title={b.override_reason ?? undefined}>
+                    OVERRIDE
+                  </span>
+                )}
                 {!b.visible_on_partner_app && (
                   <span className="flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-1 text-slate-600">
                     <EyeOff className="size-3" aria-hidden /> Hidden from Partner App

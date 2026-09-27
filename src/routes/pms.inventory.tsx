@@ -29,6 +29,8 @@ function PmsInventory() {
   const [price, setPrice] = useState("");
   const [mode, setMode] = useState<"none" | "Maintenance" | "Owner Stay" | "open">("none");
   const [busy, setBusy] = useState(false);
+  const [conflictError, setConflictError] = useState<string | null>(null);
+  const [forceOverride, setForceOverride] = useState(false);
 
   const load = useCallback(async () => {
     if (end < start || !property) return;
@@ -58,19 +60,32 @@ function PmsInventory() {
     setBusy(true);
     try {
       const action = mode === "open" ? "open" : mode === "none" ? "none" : "block";
-      const result = await pms<{ nights: number; priced: boolean; blocked: number; opened: number }>("inventory", {
+      const result = await pms<{ nights: number; priced: boolean; blocked: number; opened: number; overridden?: boolean }>("inventory", {
         method: "POST",
-        body: JSON.stringify({ property, start, end, price: price.trim() === "" ? null : Number(price), action, reason: mode === "Owner Stay" ? "Owner Stay" : "Maintenance" }),
+        body: JSON.stringify({
+          property,
+          start,
+          end,
+          price: price.trim() === "" ? null : Number(price),
+          action,
+          reason: mode === "Owner Stay" ? "Owner Stay" : "Maintenance",
+          allowOverride: forceOverride,
+        }),
       });
       toast.success(
         [result.priced ? "Rates updated" : "", action === "block" ? `${result.blocked} night(s) blocked` : "", action === "open" ? `${result.opened} night(s) opened` : ""]
           .filter(Boolean)
           .join(", ") || "Updated",
       );
+      if (result.overridden) toast.warning("Manual override applied — reserved nights in this range keep their existing booking, but free nights were blocked as requested.");
       setPrice("");
+      setConflictError(null);
+      setForceOverride(false);
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not apply changes");
+      const message = err instanceof Error ? err.message : "Could not apply changes";
+      toast.error(message);
+      setConflictError(message);
     } finally {
       setBusy(false);
     }
@@ -126,13 +141,24 @@ function PmsInventory() {
             <option value="Owner Stay">Block: Owner Stay</option>
           </select>
         </label>
+        {conflictError && (
+          <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-xs md:col-span-6">
+            <p className="font-semibold text-red-700">⚠️ {conflictError}</p>
+            <label className="mt-2 flex items-center gap-2 font-semibold text-red-800">
+              <input type="checkbox" checked={forceOverride} onChange={(e) => setForceOverride(e.target.checked)} className="size-4 rounded border-red-400 text-red-600 focus:ring-red-500" />
+              Force Manual Override
+            </label>
+          </div>
+        )}
         <div className="md:col-span-6">
           <button
             type="submit"
             disabled={busy || (price.trim() === "" && mode === "none")}
-            className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+            className={`rounded-lg px-5 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-50 ${
+              conflictError && forceOverride ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"
+            }`}
           >
-            {busy ? "Applying..." : "Apply to range"}
+            {busy ? "Applying..." : conflictError && forceOverride ? "Apply to range (Override)" : "Apply to range"}
           </button>
           <span className="ml-3 text-xs text-slate-400">The end date is included. Opening only releases maintenance/owner blocks, never reservations.</span>
         </div>
@@ -168,7 +194,11 @@ function PmsInventory() {
                     <td className="px-4 py-2 font-medium text-slate-800">{fmtDate(d)}</td>
                     <td className="px-4 py-2">
                       {formatINR(rate ?? grid.basePrice)}
-                      {rate === undefined && <span className="ml-1.5 text-xs text-slate-400">base</span>}
+                      {rate === undefined ? (
+                        <span className="ml-1.5 text-xs text-slate-400">base</span>
+                      ) : (
+                        <span className="ml-1.5 rounded-full border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">OVERRIDE</span>
+                      )}
                     </td>
                     <td className="px-4 py-2">
                       {booking ? (

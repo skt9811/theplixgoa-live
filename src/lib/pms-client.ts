@@ -52,6 +52,10 @@ export type PmsBooking = {
   created_by: string | null;
   /** Manual bookings only: whether this booking shows up in the Plix Partner app's own list (GET /api/portal/bookings). Always true for online bookings — there's no reason to hide a real gateway-paid stay from its own owner. */
   visible_on_partner_app: boolean;
+  /** Manual bookings only: true when staff explicitly forced this booking past a detected room/date conflict. Always false for online bookings. */
+  is_manual_override: boolean;
+  /** Manual bookings only: staff-entered or auto-generated reason for the override. Null unless is_manual_override is true. */
+  override_reason: string | null;
 };
 
 export type PmsUser = { id: string | null; name: string; role: string; props: string[]; tabs: string[]; isOwner: boolean };

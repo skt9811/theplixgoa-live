@@ -113,6 +113,10 @@ export type PmsBooking = {
   created_by: string | null;
   /** Manual bookings only: whether this booking shows up in the Plix Partner app's own list (GET /api/portal/bookings). Always true for online bookings. */
   visible_on_partner_app: boolean;
+  /** Manual bookings only: true when staff explicitly forced this booking past a detected room/date conflict (see findStayConflict + allowOverride). Always false for online bookings — a real gateway payment can never overbook past availability. */
+  is_manual_override: boolean;
+  /** Manual bookings only: staff-entered reason for the override, or an auto-generated one from the conflict message. Null unless is_manual_override is true. */
+  override_reason: string | null;
 };
 
 function safeEqual(a: string, b: string): boolean {
@@ -255,11 +259,14 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
         created_by: string | null;
         created_at: Date;
         visible_on_partner_app: boolean;
+        is_manual_override: boolean;
+        override_reason: string | null;
       }[]
     >`
       SELECT id, property_id, guest_name, guest_phone, guest_email, check_in::text AS check_in, check_out::text AS check_out,
              nights, guests_count, adults_count, children_count, rooms_count, booking_amount, advance_amount,
-             payment_status, channel, status, notes, commission_pct, commission_amount, room_allocations, created_by, created_at, visible_on_partner_app
+             payment_status, channel, status, notes, commission_pct, commission_amount, room_allocations, created_by, created_at,
+             visible_on_partner_app, is_manual_override, override_reason
       FROM public.portal_bookings
       WHERE status NOT IN ('blocked', 'cancelled')
     `,
@@ -301,6 +308,8 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       room_allocations: [],
       created_by: null,
       visible_on_partner_app: true,
+      is_manual_override: false,
+      override_reason: null,
     });
   }
   for (const r of manual) {
@@ -338,6 +347,8 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       room_allocations: parseRoomAllocations(r.room_allocations),
       created_by: r.created_by,
       visible_on_partner_app: r.visible_on_partner_app,
+      is_manual_override: r.is_manual_override,
+      override_reason: r.override_reason,
     });
   }
   return rows.sort((a, b) => a.check_in.localeCompare(b.check_in));
@@ -366,6 +377,8 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const advance = Math.max(0, num(body["advanceAmount"]));
   const roomAllocations = parseRoomAllocations(body["roomAllocations"]);
   const visibleOnPartnerApp = body["visibleOnPartnerApp"] !== false;
+  const allowOverride = body["allowOverride"] === true;
+  const overrideReasonInput = str(body["overrideReason"]).slice(0, 300) || null;
 
   if (!PROPERTIES.some((p) => p.slug === propertySlug)) return json({ error: "Select a property" }, 400);
   if (!canProperty(actor, propertySlug)) return json({ error: "You do not have access to this property" }, 403);
@@ -375,17 +388,20 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   if (nights <= 0) return json({ error: "Check-out must be after check-in" }, 400);
 
   const conflict = await findStayConflict(sql, propertySlug, checkIn, checkOut, rooms);
-  if (conflict) return json({ error: conflict }, 409);
+  if (conflict && !allowOverride) return json({ error: conflict }, 409);
+  const isManualOverride = Boolean(conflict) && allowOverride;
+  const overrideReason = isManualOverride ? overrideReasonInput || conflict : null;
 
   const [row] = await sql<{ id: string }[]>`
     INSERT INTO public.portal_bookings
       (property_id, guest_name, guest_phone, guest_email, check_in, check_out, nights, guests_count,
        adults_count, children_count, rooms_count, booking_amount, advance_amount, payment_status, channel, notes, status,
-       commission_pct, commission_amount, room_allocations, created_by, visible_on_partner_app)
+       commission_pct, commission_amount, room_allocations, created_by, visible_on_partner_app, is_manual_override, override_reason)
     VALUES
       (${propertySlug}, ${guestName}, ${guestPhone}, ${guestEmail}, ${checkIn}, ${checkOut}, ${nights}, ${adults + children},
        ${adults}, ${children}, ${rooms}, ${total}, ${advance}, ${paymentStatus}, ${channel}, ${notes}, 'confirmed',
-       0, 0, ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null}, ${actor.name.slice(0, 150)}, ${visibleOnPartnerApp})
+       0, 0, ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null}, ${actor.name.slice(0, 150)}, ${visibleOnPartnerApp},
+       ${isManualOverride}, ${overrideReason})
     RETURNING id
   `;
   let warning: string | undefined;
@@ -399,8 +415,17 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   }
   const property = PROPERTIES.find((p) => p.slug === propertySlug);
   void notifyNewBooking(propertySlug, property?.name ?? propertySlug, guestName, total, checkIn, nights);
-  await audit(actor, "CREATE", "booking", row?.id ?? "unknown", { property: propertySlug, guest: guestName, checkIn, checkOut, nights, total, channel });
-  return json({ success: true, id: row?.id, nights, ...(warning ? { warning } : {}) });
+  await audit(actor, "CREATE", "booking", row?.id ?? "unknown", {
+    property: propertySlug,
+    guest: guestName,
+    checkIn,
+    checkOut,
+    nights,
+    total,
+    channel,
+    ...(isManualOverride ? { manualOverride: true, overrideReason } : {}),
+  });
+  return json({ success: true, id: row?.id, nights, ...(warning ? { warning } : {}), ...(isManualOverride ? { overridden: true } : {}) });
 }
 
 // Only offline/manual bookings (portal_bookings — admin-created reservations
@@ -417,7 +442,8 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
   }
   const id = str(body["id"]);
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid booking id" }, 400);
-  const [existing] = await sql<{ property_id: string; status: string }[]>`SELECT property_id, status FROM public.portal_bookings WHERE id = ${id}::uuid`;
+  const [existing] = await sql<{ property_id: string; status: string; is_manual_override: boolean }[]>`
+    SELECT property_id, status, is_manual_override FROM public.portal_bookings WHERE id = ${id}::uuid`;
   if (!existing) return json({ error: "Booking not found, or it isn't an editable offline booking" }, 404);
   if (!canProperty(actor, existing.property_id)) return json({ error: "You do not have access to this property" }, 403);
   if (existing.status === "cancelled") return json({ error: "This booking is cancelled. Nothing to edit." }, 400);
@@ -439,6 +465,8 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const advance = Math.max(0, num(body["advanceAmount"]));
   const roomAllocations = parseRoomAllocations(body["roomAllocations"]);
   const visibleOnPartnerApp = body["visibleOnPartnerApp"] !== false;
+  const allowOverride = body["allowOverride"] === true;
+  const overrideReasonInput = str(body["overrideReason"]).slice(0, 300) || null;
 
   if (!guestName) return json({ error: "Guest name is required" }, 400);
   if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut)) return json({ error: "Enter valid dates" }, 400);
@@ -446,7 +474,12 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
   if (nights <= 0) return json({ error: "Check-out must be after check-in" }, 400);
 
   const conflict = await findStayConflict(sql, existing.property_id, checkIn, checkOut, rooms, id);
-  if (conflict) return json({ error: conflict }, 409);
+  if (conflict && !allowOverride) return json({ error: conflict }, 409);
+  // A save with no conflict this time keeps whatever override state the
+  // booking already had — editing guest details on a previously-overridden
+  // stay shouldn't silently clear its OVERRIDE badge.
+  const isManualOverride = conflict ? allowOverride : existing.is_manual_override;
+  const overrideReason = conflict && allowOverride ? overrideReasonInput || conflict : null;
 
   await sql`
     UPDATE public.portal_bookings SET
@@ -456,7 +489,9 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
       rooms_count = ${rooms}, booking_amount = ${total}, advance_amount = ${advance},
       payment_status = ${paymentStatus}, channel = ${channel}, status = ${status}, notes = ${notes},
       room_allocations = ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null},
-      visible_on_partner_app = ${visibleOnPartnerApp}
+      visible_on_partner_app = ${visibleOnPartnerApp},
+      is_manual_override = ${isManualOverride},
+      override_reason = COALESCE(${overrideReason}, CASE WHEN ${isManualOverride} THEN override_reason ELSE NULL END)
     WHERE id = ${id}::uuid`;
 
   let warning: string | undefined;
@@ -466,8 +501,18 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
     console.error("[pms] syncManualBlocks (update):", err instanceof Error ? err.message : err);
     warning = "Saved, but the website calendar could not be updated. Check blocked dates manually.";
   }
-  await audit(actor, "UPDATE", "booking", id, { property: existing.property_id, guest: guestName, checkIn, checkOut, nights, total, channel, status });
-  return json({ success: true, ...(warning ? { warning } : {}) });
+  await audit(actor, "UPDATE", "booking", id, {
+    property: existing.property_id,
+    guest: guestName,
+    checkIn,
+    checkOut,
+    nights,
+    total,
+    channel,
+    status,
+    ...(conflict && allowOverride ? { manualOverride: true, overrideReason } : {}),
+  });
+  return json({ success: true, ...(warning ? { warning } : {}), ...(conflict && allowOverride ? { overridden: true } : {}) });
 }
 
 // Quick toggle for the Bookings list's per-row "Show on Partner App" action —
@@ -602,6 +647,7 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
   const action = str(body["action"]); // "block" | "open" | "none"
   const reason = str(body["reason"]) === "Owner Stay" ? "Owner Stay" : "Maintenance";
   const price = body["price"] === null || body["price"] === undefined || body["price"] === "" ? null : num(body["price"], NaN);
+  const allowOverride = body["allowOverride"] === true;
 
   if (!PROPERTIES.some((p) => p.slug === property) || !ISO_DATE.test(start) || !ISO_DATE.test(end) || end < start) {
     return json({ error: "Invalid property or range" }, 400);
@@ -613,13 +659,22 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
   const nights = eachNight(start, addDaysISO(end, 1)); // end date is included
   if (nights.length > 120) return json({ error: "Range too long (max 120 days)" }, 400);
 
+  let overrodeReservedNights = false;
   if (action === "block") {
     const bookings = (await listBookings(sql)).filter((b) => b.property_id === property && b.status !== "cancelled");
     const held = new Set<string>();
     for (const b of bookings) for (const n of eachNight(b.check_in, b.check_out)) held.add(n);
     const clash = nights.filter((n) => held.has(n));
     if (clash.length > 0) {
-      return json({ error: `${clash.length} night${clash.length === 1 ? "" : "s"} in this range have a reservation (first: ${clash[0]}). Move or cancel it first.` }, 409);
+      if (!allowOverride) {
+        return json({ error: `${clash.length} night${clash.length === 1 ? "" : "s"} in this range have a reservation (first: ${clash[0]}). Move or cancel it first.` }, 409);
+      }
+      // Override acknowledged: the caller proceeds without a hard error, but
+      // the ON CONFLICT guard below still refuses to overwrite a "Booked"/
+      // "Manual booking" reason, so an active reservation's own block record
+      // is never silently clobbered — only genuinely free nights in the
+      // range actually get the new Maintenance/Owner Stay reason.
+      overrodeReservedNights = true;
     }
   }
 
@@ -649,8 +704,17 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
       RETURNING date`;
     opened = deleted.length;
   }
-  await audit(actor, "UPDATE", "inventory", property, { start, end, price, action, reason: action === "block" ? reason : undefined, blocked, opened });
-  return json({ success: true, nights: nights.length, priced: price !== null, blocked, opened });
+  await audit(actor, "UPDATE", "inventory", property, {
+    start,
+    end,
+    price,
+    action,
+    reason: action === "block" ? reason : undefined,
+    blocked,
+    opened,
+    ...(overrodeReservedNights ? { manualOverride: true } : {}),
+  });
+  return json({ success: true, nights: nights.length, priced: price !== null, blocked, opened, ...(overrodeReservedNights ? { overridden: true } : {}) });
 }
 
 const TX_COLUMNS = `id, type, property_id, category, amount, payment_mode, transfer_to, vendor_name, expense_date::text AS expense_date,
@@ -1228,6 +1292,8 @@ async function createVoucher(request: Request, actor: Actor): Promise<Response> 
   const agentName = str(body["agentName"]).slice(0, 150);
   const commissionType = str(body["commissionType"]) === "fixed" ? "fixed" : "percentage";
   const commissionValue = Math.max(0, num(body["commissionValue"]));
+  const allowOverride = body["allowOverride"] === true;
+  const overrideReasonInput = str(body["overrideReason"]).slice(0, 300) || null;
 
   if (!PROPERTIES.some((p) => p.slug === propertySlug)) return json({ error: "Select a property" }, 400);
   if (!canProperty(actor, propertySlug)) return json({ error: "You do not have access to this property" }, 403);
@@ -1263,17 +1329,19 @@ async function createVoucher(request: Request, actor: Actor): Promise<Response> 
 
   const outcome = await webDb.begin(async (tx) => {
     const conflict = await findStayConflict(tx as unknown as typeof webDb, propertySlug, checkIn, checkOut, rooms);
-    if (conflict) return { conflict } as const;
+    if (conflict && !allowOverride) return { conflict } as const;
+    const isManualOverride = Boolean(conflict) && allowOverride;
+    const overrideReason = isManualOverride ? overrideReasonInput || conflict : null;
     const [row] = await tx<{ id: string }[]>`
       INSERT INTO public.portal_bookings
         (property_id, guest_name, guest_phone, guest_email, check_in, check_out, nights, guests_count, adults_count, children_count, rooms_count,
-         booking_amount, advance_amount, payment_status, channel, notes, status, commission_pct, commission_amount)
+         booking_amount, advance_amount, payment_status, channel, notes, status, commission_pct, commission_amount, is_manual_override, override_reason)
       VALUES
         (${propertySlug}, ${guestName}, ${mobile}, ${email}, ${checkIn}, ${checkOut}, ${nights}, ${guests}, ${guests}, 0, ${rooms},
-         ${tariff}, ${advance}, ${paymentStatus}, ${channel}, ${notes}, 'confirmed', ${commissionPct}, ${commissionAmount})
+         ${tariff}, ${advance}, ${paymentStatus}, ${channel}, ${notes}, 'confirmed', ${commissionPct}, ${commissionAmount}, ${isManualOverride}, ${overrideReason})
       RETURNING id`;
     await syncManualBlocks(tx as unknown as typeof webDb, propertySlug, row!.id, checkIn, checkOut, true);
-    return { id: row!.id } as const;
+    return { id: row!.id, isManualOverride, overrideReason } as const;
   });
   if ("conflict" in outcome) return json({ error: outcome.conflict }, 409);
 
@@ -1289,6 +1357,7 @@ async function createVoucher(request: Request, actor: Actor): Promise<Response> 
     advance,
     source,
     ...(hasCommission ? { agent: agentName || null, commissionType, commissionValue, commissionAmount, netPayout: Math.round((tariff - commissionAmount) * 100) / 100 } : {}),
+    ...(outcome.isManualOverride ? { manualOverride: true, overrideReason: outcome.overrideReason } : {}),
   });
   // The reservation is already committed at this point; a failed re-read must
   // not turn a successful save into an error (a retry would only hit a conflict).

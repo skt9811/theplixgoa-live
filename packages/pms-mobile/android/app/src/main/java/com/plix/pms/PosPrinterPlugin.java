@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothSocket;
 import android.os.Build;
 import android.util.Base64;
 
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -17,6 +18,7 @@ import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
 import java.io.OutputStream;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -107,5 +109,55 @@ public class PosPrinterPlugin extends Plugin {
         JSObject ret = new JSObject();
         ret.put("available", BluetoothAdapter.getDefaultAdapter() != null);
         call.resolve(ret);
+    }
+
+    /**
+     * Already-paired classic-Bluetooth devices (Settings → Printers'
+     * "Find" list) — not a scan. The EC-58B and printers like it have to be
+     * paired once in the phone's system Bluetooth settings first; this just
+     * reads that bonded list so the operator can tap the right one instead
+     * of typing its MAC address by hand.
+     */
+    @PluginMethod
+    public void getPairedDevices(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= 31 && getPermissionState("bluetooth") != PermissionState.GRANTED) {
+            call.setKeepAlive(true);
+            saveCall(call);
+            requestPermissionForAlias("bluetooth", call, "getPairedDevicesAfterPermission");
+            return;
+        }
+        doGetPairedDevices(call);
+    }
+
+    @PermissionCallback
+    private void getPairedDevicesAfterPermission(PluginCall call) {
+        if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
+            call.reject("Bluetooth permission was not granted");
+            return;
+        }
+        doGetPairedDevices(call);
+    }
+
+    private void doGetPairedDevices(PluginCall call) {
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        if (adapter == null) {
+            call.reject("This device has no Bluetooth adapter");
+            return;
+        }
+        try {
+            Set<BluetoothDevice> pairedDevices = adapter.getBondedDevices();
+            JSArray devicesArray = new JSArray();
+            for (BluetoothDevice device : pairedDevices) {
+                JSObject dev = new JSObject();
+                dev.put("name", device.getName());
+                dev.put("address", device.getAddress());
+                devicesArray.put(dev);
+            }
+            JSObject ret = new JSObject();
+            ret.put("devices", devicesArray);
+            call.resolve(ret);
+        } catch (SecurityException e) {
+            call.reject("Bluetooth permission was not granted", e);
+        }
     }
 }

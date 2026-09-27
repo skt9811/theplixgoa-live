@@ -26,13 +26,41 @@ const PRINT_SERVICES = [
   EC58B.sppUuid,
 ];
 
-type NativePrinterPlugin = { write(opts: { mac: string; data: string }): Promise<void> };
+export type PairedBtDevice = { name: string | null; address: string };
+type NativePrinterPlugin = { write(opts: { mac: string; data: string }): Promise<void>; getPairedDevices(): Promise<{ devices: PairedBtDevice[] }> };
+
+const log = (...args: unknown[]) => console.info("[pms-pos-print]", ...args);
+const logErr = (...args: unknown[]) => console.error("[pms-pos-print]", ...args);
 
 /** The Android app's PosPrinterPlugin, when running inside that native shell — null in the browser or if the plugin isn't registered (an older app build). */
 function nativePrinter(): NativePrinterPlugin | null {
   if (!Capacitor.isNativePlatform()) return null;
   const plugins = (Capacitor as unknown as { Plugins?: Record<string, NativePrinterPlugin> }).Plugins;
   return plugins?.["PosPrinter"] ?? null;
+}
+
+/**
+ * Already-*paired* classic-Bluetooth devices (not a scan — the EC-58B and
+ * printers like it have to be paired once in the phone's system Bluetooth
+ * settings first). Null means there is no native bridge to ask (a browser,
+ * or an app build older than the plugin) — the Printer settings screen
+ * falls back to Web Bluetooth's scan-and-pick chooser, or typing a MAC by
+ * hand, in that case.
+ */
+export async function listPairedBluetoothDevices(): Promise<PairedBtDevice[] | null> {
+  const native = nativePrinter();
+  if (!native) return null;
+  try {
+    const res = await withTimeout(native.getPairedDevices().then((r) => ({ ok: true as const, devices: r.devices })).catch((err: unknown) => {
+      logErr("getPairedDevices failed:", err instanceof Error ? err.message : err);
+      return { ok: false as const, devices: [] };
+    }), 6000, { ok: false as const, devices: [] });
+    if (!res.ok) logErr("getPairedDevices timed out or failed — check Bluetooth is on and the app has permission");
+    return res.devices;
+  } catch (err) {
+    logErr("getPairedDevices threw unexpectedly:", err);
+    return [];
+  }
 }
 
 type Chr = { properties: { write: boolean; writeWithoutResponse: boolean }; writeValue: (v: BufferSource) => Promise<void>; writeValueWithoutResponse?: (v: BufferSource) => Promise<void> };
@@ -67,9 +95,6 @@ function toBase64(bytes: Uint8Array): string {
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin);
 }
-
-const log = (...args: unknown[]) => console.info("[pms-pos-print]", ...args);
-const logErr = (...args: unknown[]) => console.error("[pms-pos-print]", ...args);
 
 export async function printSlip(lines: SlipLine[], settings: PrinterSettings): Promise<PrintResult> {
   // No printer row at all — a configuration problem, not a connection failure. Say so

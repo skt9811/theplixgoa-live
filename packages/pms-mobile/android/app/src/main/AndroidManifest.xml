@@ -46,10 +46,14 @@
       PosPrinterPlugin.java). Pre-Android 12 uses BLUETOOTH/BLUETOOTH_ADMIN
       plus location (the platform ties classic-BT device access to location
       permission on those versions); Android 12+ uses the scoped
-      BLUETOOTH_CONNECT permission instead. The app only ever connects to an
-      already-paired MAC address typed into Printer settings — it never
-      scans for nearby devices — so BLUETOOTH_SCAN is declared for API
-      compatibility only and is never requested at runtime.
+      BLUETOOTH_CONNECT/BLUETOOTH_SCAN permissions instead. The app only
+      ever connects to an already-paired MAC address typed into Printer
+      settings — it never calls startDiscovery() to scan for nearby
+      devices — but BLUETOOTH_SCAN is still requested at runtime because
+      AdapterService.cancelDiscovery() (a courtesy call made before every
+      connect, in case a scan happens to be running) itself enforces that
+      permission on API 31+; usesPermissionFlags="neverForLocation" means
+      it does not also require ACCESS_FINE_LOCATION on those versions.
     -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />

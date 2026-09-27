@@ -35,7 +35,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @CapacitorPlugin(
     name = "PosPrinter",
-    permissions = { @Permission(strings = { Manifest.permission.BLUETOOTH_CONNECT }, alias = "bluetooth") }
+    // BLUETOOTH_CONNECT covers connect()/getBondedDevices(); BLUETOOTH_SCAN is also required at
+    // runtime on API 31+ because AdapterService.cancelDiscovery() itself enforces it (confirmed by
+    // "Need android.permission.BLUETOOTH_SCAN ... AdapterService cancelDiscovery" thrown from a real
+    // device even though this plugin never scans for new devices). Both are requested together under
+    // one alias so a single prompt covers connecting to an already-paired printer.
+    permissions = { @Permission(strings = { Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT }, alias = "bluetooth") }
 )
 public class PosPrinterPlugin extends Plugin {
     private static final String TAG = "PosPrinterPlugin";
@@ -91,7 +96,15 @@ public class PosPrinterPlugin extends Plugin {
             try {
                 BluetoothDevice device = adapter.getRemoteDevice(mac);
                 socket = device.createRfcommSocketToServiceRecord(SPP_UUID);
-                adapter.cancelDiscovery();
+                // cancelDiscovery() is a courtesy (an active scan can slow down or break a
+                // connect attempt) — it needs BLUETOOTH_SCAN on API 31+, and the reverse is
+                // also true: it is not worth failing the whole print job over, so a denied
+                // or otherwise-failing cancel is swallowed and we go straight to connect().
+                try {
+                    adapter.cancelDiscovery();
+                } catch (Exception cancelErr) {
+                    Log.i(TAG, "write(" + mac + "): cancelDiscovery() failed, continuing anyway: " + cancelErr.getMessage());
+                }
                 socket.connect();
                 sockets.put(mac, socket);
                 Log.i(TAG, "write(" + mac + "): socket connected");

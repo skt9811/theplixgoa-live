@@ -40,4 +40,20 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
+      Classic Bluetooth (RFCOMM/SPP) for the POS receipt printer (see
+      PosPrinterPlugin.java). Pre-Android 12 uses BLUETOOTH/BLUETOOTH_ADMIN
+      plus location (the platform ties classic-BT device access to location
+      permission on those versions); Android 12+ uses the scoped
+      BLUETOOTH_CONNECT permission instead. The app only ever connects to an
+      already-paired MAC address typed into Printer settings — it never
+      scans for nearby devices — so BLUETOOTH_SCAN is declared for API
+      compatibility only and is never requested at runtime.
+    -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 </manifest>

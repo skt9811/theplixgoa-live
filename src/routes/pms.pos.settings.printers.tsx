@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Printer, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { posConfigSave, type PosPrinterRow } from "@/lib/pms-pos-client";
+import { EC58B } from "@/lib/pms-escpos";
 import { testPrinter } from "@/lib/pms-pos-printer";
 import { usePos } from "@/components/pms/pos/pos-context";
 import { slipContext } from "@/components/pms/pos/pos-slip-context";
@@ -10,7 +11,7 @@ import { BackLink, Labeled, PageTitle, Sheet, Toggle, btnGhost, btnPrimary, fiel
 
 export const Route = createFileRoute("/pms/pos/settings/printers")({ component: Printers });
 
-const EMPTY = { printerName: "", connectionType: "Bluetooth", macAddress: "", ipAddress: "", stationNumber: "10", assignedRole: "Bill & KOT", paperSize: "58mm", destination: "all", isConnected: true };
+const EMPTY = { printerName: EC58B.name, connectionType: EC58B.connectionType as string, macAddress: "", ipAddress: "", stationNumber: "10", assignedRole: "Bill & KOT", paperSize: EC58B.paper as string, destination: "all", isConnected: true };
 const toForm = (p: PosPrinterRow) => ({ printerName: p.printer_name, connectionType: p.connection_type, macAddress: p.mac_address ?? "", ipAddress: p.ip_address ?? "", stationNumber: String(p.station_number), assignedRole: p.assigned_role, paperSize: p.paper_size, destination: p.destination, isConnected: p.is_connected });
 
 function Printers() {
@@ -54,7 +55,7 @@ function Printers() {
               <button type="button" onClick={() => open(p, true)} className="shrink-0 rounded-lg border border-emerald-600 px-3 py-1.5 text-xs font-bold text-emerald-700">Assign</button>
             </div>
             <div className="mt-2 flex justify-end gap-3 border-t border-slate-100 pt-2">
-              <button type="button" onClick={async () => { const r = await testPrinter(p, slipContext(propertyName, state), state?.config.general.leftMargin ?? 0); toast(r.message); }} className="flex items-center gap-1 text-xs font-semibold text-slate-600"><Printer className="size-3.5" aria-hidden /> Test</button>
+              <button type="button" onClick={async () => { const r = await testPrinter(p, slipContext(propertyName, state), state?.config.general.leftMargin ?? 0); toast(r.message); }} className="flex items-center gap-1 text-xs font-semibold text-slate-600"><Printer className="size-3.5" aria-hidden /> Print Test Slip</button>
               <button type="button" aria-label={`Remove ${p.printer_name}`} onClick={async () => { if (window.confirm(`Remove ${p.printer_name}?`) && (await run(() => posConfigSave("printer", { property, action: "delete", id: p.id }), "Printer removed"))) await reload(); }} className="flex items-center gap-1 text-xs font-semibold text-red-600"><Trash2 className="size-3.5" aria-hidden /> Remove</button>
             </div>
           </div>
@@ -69,7 +70,7 @@ function Printers() {
           <div className="grid gap-3">
             {!edit.assignOnly && (
               <>
-                <Labeled label="Printer name"><input className={field} value={f.printerName} onChange={(e) => setF({ ...f, printerName: e.target.value })} placeholder="e.g. Everycom (Bluetooth), Tsc Printer" /></Labeled>
+                <Labeled label="Printer name"><input className={field} value={f.printerName} onChange={(e) => setF({ ...f, printerName: e.target.value })} placeholder={EC58B.name} /></Labeled>
                 <div className="grid grid-cols-3 gap-2">{["Bluetooth", "Network", "USB"].map((t) => <button key={t} type="button" onClick={() => setF({ ...f, connectionType: t })} className={`rounded-lg border py-2 text-xs font-semibold ${f.connectionType === t ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-600"}`}>{t}</button>)}</div>
                 {f.connectionType === "Network" ? (
                   <Labeled label="IP address : port"><input className={field} value={f.ipAddress} onChange={(e) => setF({ ...f, ipAddress: e.target.value })} placeholder="192.168.1.50:9100" /></Labeled>
@@ -77,6 +78,7 @@ function Printers() {
                   <Labeled label="MAC address">
                     <div className="flex gap-2"><input className={field} value={f.macAddress} onChange={(e) => setF({ ...f, macAddress: e.target.value })} placeholder="00:11:22:33:44:55" />
                       {f.connectionType === "Bluetooth" && <button type="button" onClick={() => void find()} className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700"><Search className="size-3.5" aria-hidden /> Find</button>}</div>
+                    {f.connectionType === "Bluetooth" && <p className="mt-1 text-[11px] text-slate-400">Pair the printer in the phone&apos;s Bluetooth settings first, then paste its MAC address here. In the Plix PMS Android app this connects directly over classic Bluetooth (SPP); in a browser it needs Web Bluetooth or RawBT instead.</p>}
                   </Labeled>
                 )}
                 <Labeled label="Paper size"><select className={field} value={f.paperSize} onChange={(e) => setF({ ...f, paperSize: e.target.value })}>{["54mm", "58mm", "80mm"].map((s) => <option key={s}>{s}</option>)}</select></Labeled>

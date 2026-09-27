@@ -1,13 +1,21 @@
 // Delivers ESC/POS bytes to a thermal printer. Order of attempts:
-//  1. Web Bluetooth (Chrome / Android Chrome) to a BLE printer.
-//  2. RawBT (rawbt: URL scheme), which the Android WebView can hand to the
+//  1. The native Bluetooth bridge (Android app only — see PosPrinterPlugin in
+//     packages/pms-mobile). Classic-Bluetooth (SPP) printers like the
+//     Everycom EC-58B are RFCOMM devices, which the browser's Web Bluetooth
+//     API cannot reach at all (it is BLE/GATT-only), so this is the only path
+//     that works for them; it connects straight to the paired MAC address
+//     with no OS chooser dialog.
+//  2. Web Bluetooth (Chrome / Android Chrome) to a BLE printer.
+//  3. RawBT (rawbt: URL scheme), which the Android WebView can hand to the
 //     free RawBT app that owns the Bluetooth/USB/LAN connection.
-//  3. On-screen slip preview, so a bill is never lost when nothing prints.
+//  4. On-screen slip preview, so a bill is never lost when nothing prints.
 // Network / USB printers need a native plugin and are not driven from here.
-import { slipBytes, slipText, type PaperSize, type SlipLine } from "@/lib/pms-escpos";
+import { Capacitor } from "@capacitor/core";
+import { withTimeout } from "@/lib/capacitor-utils";
+import { EC58B, slipBytes, slipText, type PaperSize, type SlipLine } from "@/lib/pms-escpos";
 
 export type PrinterSettings = { printer_type?: string | null; printer_name?: string | null; mac_address?: string | null; left_margin?: number | null; paper_size?: string | null } | null;
-export type PrintResult = { mode: "bluetooth" | "rawbt" | "preview"; message: string };
+export type PrintResult = { mode: "native" | "bluetooth" | "rawbt" | "preview"; message: string };
 
 const PRINT_SERVICES = [
   "000018f0-0000-1000-8000-00805f9b34fb",
@@ -15,7 +23,17 @@ const PRINT_SERVICES = [
   "0000ff00-0000-1000-8000-00805f9b34fb",
   "49535343-fe7d-4ae5-8fa9-9fafd205e455",
   "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
+  EC58B.sppUuid,
 ];
+
+type NativePrinterPlugin = { write(opts: { mac: string; data: string }): Promise<void> };
+
+/** The Android app's PosPrinterPlugin, when running inside that native shell — null in the browser or if the plugin isn't registered (an older app build). */
+function nativePrinter(): NativePrinterPlugin | null {
+  if (!Capacitor.isNativePlatform()) return null;
+  const plugins = (Capacitor as unknown as { Plugins?: Record<string, NativePrinterPlugin> }).Plugins;
+  return plugins?.["PosPrinter"] ?? null;
+}
 
 type Chr = { properties: { write: boolean; writeWithoutResponse: boolean }; writeValue: (v: BufferSource) => Promise<void>; writeValueWithoutResponse?: (v: BufferSource) => Promise<void> };
 type Gatt = { connect: () => Promise<Gatt>; getPrimaryServices: () => Promise<{ getCharacteristics: () => Promise<Chr[]> }[]> };
@@ -54,7 +72,24 @@ export async function printSlip(lines: SlipLine[], settings: PrinterSettings): P
   const paper = paperOf(settings);
   const bytes = slipBytes(lines, paper, settings?.left_margin ?? 0);
   const type = settings?.printer_type ?? "Bluetooth";
+  const mac = settings?.mac_address?.trim();
 
+  if (type === "Bluetooth" && mac) {
+    const native = nativePrinter();
+    if (native) {
+      try {
+        // A hung/unlinked plugin call must never freeze the print button forever (see capacitor-utils.ts's withTimeout doc).
+        const ok = await withTimeout(
+          native.write({ mac, data: toBase64(bytes) }).then(() => true),
+          8000,
+          false,
+        );
+        if (ok) return { mode: "native", message: "Sent to printer" };
+      } catch {
+        // fall through to Web Bluetooth / RawBT / preview
+      }
+    }
+  }
   if (type === "Bluetooth" && typeof navigator !== "undefined" && (navigator as unknown as BtNav).bluetooth) {
     try {
       const chr = await connect(settings);

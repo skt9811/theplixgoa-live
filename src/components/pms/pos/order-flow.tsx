@@ -8,6 +8,7 @@ import { slipContext } from "@/components/pms/pos/pos-slip-context";
 import { kotFeedback } from "@/lib/pms-pos-feedback";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 import { usePos } from "@/components/pms/pos/pos-context";
+import { usePms } from "@/components/pms/pms-context";
 import { EMPTY_GUEST, GuestModal, type Guest } from "@/components/pms/pos/guest-modal";
 import { PaymentScreen } from "@/components/pms/pos/payment-screen";
 
@@ -129,6 +130,7 @@ function ItemAddSheet({ property, categories, defaultCategory, taxRules, onClose
 
 export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAtPayment, quick, onClose }: { tableId: string | null; tableName: string; orderId: string | null; startAtPayment?: boolean; quick?: boolean; onClose: (changed: boolean) => void }) {
   const { property, propertyName, state, reload } = usePos();
+  const { user } = usePms();
   const [orderId, setOrderId] = useState<string | null>(initialOrderId);
   const [data, setData] = useState<PosOrderData | null>(null);
   const [loading, setLoading] = useState(Boolean(initialOrderId));
@@ -257,7 +259,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
             const title = groups.length > 1 || g.d === "bar" ? `${g.d.toUpperCase()} ORDER TICKET` : undefined;
             try {
               if (!state) return;
-              const r = await printKot(state.config, slipCtx, getStation(), { ...(title ? { title } : {}), destination: g.d, table: res.order.table_name, kot: res.kotNumber!, orderNumber: res.order.order_number, items: g.lines.map((l) => ({ name: l.item_name, qty: l.quantity, notes: l.notes })) });
+              const r = await printKot(state.config, slipCtx, getStation(), { ...(title ? { title } : {}), destination: g.d, table: res.order.table_name, kot: res.kotNumber!, orderNumber: res.order.order_number, items: g.lines.map((l) => ({ name: l.item_name, qty: l.quantity, notes: l.notes })), by: user.name, remarks });
               if (r) toast(`${g.d === "bar" ? "Bar" : "Kitchen"}: ${r.message}`);
             } catch {
               toast.error("Could not print the KOT");
@@ -287,7 +289,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
   async function printPreBill() {
     if (!state) return;
     const res = await printBill(state.config, slipCtx, getStation(), {
-      orderNumber: data?.order.order_number ?? 0, table: tableName, at: new Date(), guest: guest.name || null,
+      orderNumber: data?.order.order_number ?? 0, table: tableName, at: new Date(), guest: guest.name || null, billedBy: user.name,
       items: [...sent.map((l) => ({ name: l.item_name, qty: l.quantity, rate: l.unit_price, amount: l.total_price })), ...drafts.map((d) => ({ name: d.name, qty: d.qty, rate: d.unitPrice, amount: d.qty * d.unitPrice }))],
       subtotal: totals.subtotal, discount: totals.discount, tax: totals.tax, other, roundOff: 0, total: totals.total, method: null,
       ...(state.config.general.showTaxSeparately ? { taxLines: totals.breakdown } : {}),

@@ -4,9 +4,39 @@
 export type PaperSize = "54mm" | "58mm" | "80mm";
 export const PAPER_COLUMNS: Record<PaperSize, number> = { "54mm": 30, "58mm": 32, "80mm": 48 };
 
+/** Hardware profile for the Everycom EC-58B (58mm Bluetooth ESC/POS): 48mm / 384 dots printable, 32 columns on Font A. */
+export const EC58B = {
+  name: "Everycom EC-58B",
+  paper: "58mm" as PaperSize,
+  columns: 32,
+  connectionType: "Bluetooth" as const,
+  leftMargin: 0,
+  /** Classic Bluetooth (RFCOMM) Serial Port Profile UUID this printer answers on. Not reachable over Web Bluetooth (BLE/GATT only) — see the native bridge in pms-pos-print.ts. */
+  sppUuid: "00001101-0000-1000-8000-00805f9b34fb",
+};
+
+/** Named ESC/POS byte sequences, kept as a reference table alongside the builders that use them. */
+export const ESC = {
+  init: [0x1b, 0x40],
+  alignLeft: [0x1b, 0x61, 0],
+  alignCenter: [0x1b, 0x61, 1],
+  alignRight: [0x1b, 0x61, 2],
+  boldOn: [0x1b, 0x45, 1],
+  boldOff: [0x1b, 0x45, 0],
+  /** Double height + width on/off (GS ! n). */
+  doubleOn: [0x1d, 0x21, 0x11],
+  doubleOff: [0x1d, 0x21, 0x00],
+  /** Feed 4 lines (ESC d n) before a cut, so the tear-off clears the last printed line. */
+  feed4: [0x1b, 0x64, 4],
+  /** Partial cut (GS V m). */
+  cut: [0x1d, 0x56, 0x42, 0x00],
+  /** RJ11 cash-drawer kick (ESC p m t1 t2). */
+  drawerKick: [0x1b, 0x70, 0x00, 0x19, 0xfa],
+} as const;
+
 export type SlipLine = { text: string; align?: "left" | "center" | "right"; bold?: boolean; big?: boolean; /** Print a QR code for this payload (native ESC/POS QR). */ qr?: string; /** Pulse the cash drawer. */ drawer?: boolean };
 
-const ascii = (s: string) => s.replace(/₹/g, "Rs.").replace(/[^\x20-\x7e]/g, "?");
+const ascii = (s: string) => s.replace(/₹/g, "Rs.").replace(/[^\x20-\x7e\n]/g, "?");
 
 export function twoCol(left: string, right: string, cols: number): string {
   const l = ascii(left);
@@ -15,6 +45,19 @@ export function twoCol(left: string, right: string, cols: number): string {
   if (gap >= 1) return l + " ".repeat(gap) + r;
   return l.slice(0, Math.max(1, cols - r.length - 1)) + " " + r;
 }
+
+/** `twoCol` with the EC-58B's 32-column default, for one-off lines outside a slip builder. */
+export const line = (left: string, right: string, totalWidth = EC58B.columns): string => twoCol(left, right, totalWidth);
+
+/** Centers text within `width` columns (32 by default) by padding whitespace, matching a printer's own centered-align mode for plain-text previews. */
+export function center(text: string, width = EC58B.columns): string {
+  const t = ascii(text);
+  const pad = Math.max(0, Math.floor((width - t.length) / 2));
+  return " ".repeat(pad) + t;
+}
+
+/** A repeating separator line filling `width` columns (32 by default). */
+export const divider = (char = "-", width = EC58B.columns): string => char.repeat(width);
 
 export function wrap(text: string, cols: number): string[] {
   const out: string[] = [];
@@ -37,7 +80,7 @@ const stamp = (d: Date) => d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata",
 
 export type SlipContext = { propertyName: string; hideName?: boolean; header?: string | null | undefined; address?: string | null | undefined; gstin?: string | null | undefined; footer?: string | null | undefined; paper: PaperSize };
 
-export function kotSlip(ctx: SlipContext, o: { title?: string; table: string; kot: number; orderNumber: number; items: { name: string; qty: number; notes?: string | null }[]; at?: Date; by?: string }): SlipLine[] {
+export function kotSlip(ctx: SlipContext, o: { title?: string; table: string; kot: number; orderNumber: number; items: { name: string; qty: number; notes?: string | null }[]; at?: Date; by?: string; remarks?: string | null }): SlipLine[] {
   const cols = PAPER_COLUMNS[ctx.paper];
   const lines: SlipLine[] = [
     { text: ctx.propertyName.toUpperCase(), align: "center", bold: true },
@@ -46,7 +89,7 @@ export function kotSlip(ctx: SlipContext, o: { title?: string; table: string; ko
     { text: `Table: ${o.table}`, bold: true, big: true },
     { text: twoCol(`KOT #${o.kot}`, `Order #${o.orderNumber}`, cols) },
     { text: stamp(o.at ?? new Date()) },
-    ...(o.by ? [{ text: `By: ${o.by}` }] : []),
+    ...(o.by ? [{ text: `Server: ${o.by}` }] : []),
     rule(cols),
     { text: twoCol("ITEM", "QTY", cols), bold: true },
     rule(cols),
@@ -55,6 +98,10 @@ export function kotSlip(ctx: SlipContext, o: { title?: string; table: string; ko
     for (const [i, part] of wrap(it.name, cols - 5).entries()) lines.push({ text: i === 0 ? twoCol(part, String(it.qty), cols) : part, bold: true });
     if (it.notes) for (const n of wrap(`>> ${it.notes}`, cols)) lines.push({ text: n });
   }
+  if (o.remarks) {
+    lines.push(rule(cols));
+    for (const n of wrap(`Special Instructions: ${o.remarks}`, cols)) lines.push({ text: n, bold: true });
+  }
   lines.push(rule(cols), { text: "" });
   return lines;
 }
@@ -62,7 +109,7 @@ export function kotSlip(ctx: SlipContext, o: { title?: string; table: string; ko
 export function billSlip(
   ctx: SlipContext,
   o: {
-    orderNumber: number; table: string; at: Date; guest?: string | null;
+    orderNumber: number; table: string; at: Date; guest?: string | null; billedBy?: string | null;
     items: { name: string; qty: number; rate: number; amount: number }[];
     subtotal: number; discount: number; tax: number; other: number; roundOff: number; total: number; method?: string | null;
     /** Per-rule tax (SGST, CGST, VAT...). When absent, one combined GST line is printed. */
@@ -79,6 +126,7 @@ export function billSlip(
     rule(cols),
     { text: twoCol(`Bill #${o.orderNumber}`, `Table ${o.table}`, cols) },
     { text: stamp(o.at) },
+    ...(o.billedBy ? [{ text: `Billed By: ${ascii(o.billedBy)}` }] : []),
     ...(o.guest ? [{ text: `Guest: ${ascii(o.guest)}` }] : []),
     rule(cols),
     { text: twoCol("ITEM", "AMT", cols), bold: true },
@@ -155,6 +203,6 @@ export function slipBytes(lines: SlipLine[], paper: PaperSize, leftMargin = 0): 
     for (let i = 0; i < t.length; i++) out.push(t.charCodeAt(i));
     out.push(0x0a);
   }
-  out.push(0x1b, 0x45, 0, 0x1d, 0x21, 0, 0x0a, 0x0a, 0x0a, 0x1d, 0x56, 0x42, 0x00); // reset, feed, partial cut
+  out.push(0x1b, 0x45, 0, 0x1d, 0x21, 0, ...ESC.feed4, ...ESC.cut); // reset, feed 4 lines, partial cut
   return Uint8Array.from(out);
 }

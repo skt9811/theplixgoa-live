@@ -1,7 +1,7 @@
 // POS print pipeline: picks the right printer(s) from the property's printer
 // matrix, builds the KOT / bill slips (ESC/POS, with an optional UPI QR code)
 // and hands each one to the transport in pms-pos-print.ts.
-import { billSlip, kotSlip, type SlipContext, type SlipLine } from "@/lib/pms-escpos";
+import { billSlip, kotSlip, testSlip, type SlipContext, type SlipLine } from "@/lib/pms-escpos";
 import { printSlip, type PrintResult, type PrinterSettings } from "@/lib/pms-pos-print";
 import type { PosConfig, PosPrinterRow } from "@/lib/pms-pos-client";
 
@@ -54,14 +54,9 @@ export async function printBill(config: PosConfig, ctx: SlipContext, station: st
   return last;
 }
 
-export const testLines = (ctx: SlipContext): SlipLine[] => [
-  { text: (ctx.propertyName || "PRINTER").toUpperCase(), align: "center", bold: true },
-  { text: "PRINTER TEST", align: "center", bold: true, big: true },
-  { text: "0123456789".repeat(5).slice(0, 30) },
-  { text: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) },
-  { text: "" },
-];
+/** A full-width test pattern (exactly the paper's column count) plus a paper-feed check, so a bad cut or short feed shows up immediately. */
+export const testLines = (ctx: SlipContext, paperSize: PaperSize): SlipLine[] => testSlip({ ...ctx, paper: paperSize });
 
 export async function testPrinter(p: PosPrinterRow, ctx: SlipContext, leftMargin: number): Promise<PrintResult> {
-  return printSlip(testLines(ctx), toTransport(p, leftMargin));
+  return printSlip(testLines(ctx, paper(p)), toTransport(p, leftMargin));
 }

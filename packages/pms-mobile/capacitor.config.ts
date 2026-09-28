@@ -34,6 +34,12 @@ const config: CapacitorConfig = {
       style: "DARK",
       backgroundColor: "#0E231D",
     },
+    // Android shows/plays notification channels on its own (see pms-push.ts's
+    // createChannel calls); this only matters for a future iOS build, where
+    // it controls whether a push while foregrounded still banners/chimes.
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"],
+    },
   },
 };
 

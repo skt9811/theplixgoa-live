@@ -16,6 +16,7 @@ import { PortalMenuTab } from "@/components/plix/portal-menu-tab";
 import { PortalPullToRefresh } from "@/components/plix/portal-pull-to-refresh";
 import { Skeleton } from "@/components/ui/skeleton";
 import { hidePortalSplash } from "@/lib/portal-splash";
+import { registerPushNotifications } from "@/lib/portal-push";
 
 export const Route = createFileRoute("/portal/dashboard")({
   head: () => ({
@@ -70,6 +71,7 @@ function PortalDashboardPage() {
   const [bannerAlert, setBannerAlert] = useState<PortalAlert | null>(null);
   const [focusBookingId, setFocusBookingId] = useState<string | null>(null);
   const seenBookingIds = useRef<Set<string> | null>(null);
+  const pushRegistered = useRef(false);
 
   useOnlineStatusToast();
 
@@ -137,8 +139,17 @@ function PortalDashboardPage() {
     const query = role === "admin" ? `?property=${encodeURIComponent(propertySlug)}` : "";
     portalFetch(`/api/portal/me${query}`)
       .then((res) => res.json())
-      .then((data: { propertyName?: string }) => {
+      .then((data: { propertyName?: string; phone?: string }) => {
         if (data.propertyName) setPropertyName(data.propertyName);
+        // Registers this device for push even when the login form was never
+        // submitted this app-launch — a cold launch with an already-valid
+        // stored session lands straight here (see routes/portal/index.tsx's
+        // auto-resume redirect), so this is the only place that flow ever
+        // learns the session is real and gets a chance to register.
+        if (!pushRegistered.current) {
+          pushRegistered.current = true;
+          void registerPushNotifications(data.phone);
+        }
       })
       .catch(() => {});
   }, [propertySlug, role]);

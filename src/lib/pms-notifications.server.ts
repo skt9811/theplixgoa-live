@@ -115,15 +115,21 @@ async function activeStaffTokens(): Promise<DeviceToken[]> {
   }
 }
 
-/** Every Plix Partner app (com.plix.partner) device registered for one property. */
+/**
+ * Every Plix Partner app (com.plix.partner) device registered for one
+ * property, plus every admin device (stored with property_id 'all' — see
+ * registerPartnerDevice) regardless of which property the booking is for.
+ * 'admin'/'*' are matched too in case an older row was written before 'all'
+ * became the one canonical value.
+ */
 async function partnerTokensForProperty(propertyId: string): Promise<DeviceToken[]> {
   const sql = getPmsDb();
   if (!sql) return [];
   try {
     await ensureInquiriesSchema(sql);
-    const rows = await sql<
-      { id: string; fcm_token: string }[]
-    >`SELECT id, fcm_token FROM pms_partner_devices WHERE property_id = ${propertyId}`;
+    const rows = await sql<{ id: string; fcm_token: string }[]>`
+      SELECT id, fcm_token FROM pms_partner_devices
+      WHERE property_id = ${propertyId} OR property_id IN ('all', '*', 'admin')`;
     return rows.map((r) => ({
       id: r.id,
       token: r.fcm_token,
@@ -280,9 +286,13 @@ export async function registerStaffDevice(request: Request, actor: Actor): Promi
 // Backs POST /api/partner/notifications/register-device (see src/server.ts).
 // Authenticated by the Plix Partner app's own portal session cookie/bearer
 // token, exactly like every other /api/portal/* endpoint — property_id is
-// always derived from that session (resolveEffectivePropertySlug), never
-// trusted from the request body, so one owner's device can never end up
-// registered against a different property just by editing the payload.
+// always derived from that session, never trusted from the request body, so
+// one owner's device can never end up registered against a different
+// property just by editing the payload. An admin session isn't bound to a
+// single property at all (resolveEffectivePropertySlug's "admin" branch just
+// reflects whatever the UI's property selector currently shows, which is the
+// wrong thing to pin a device registration to), so it's stored as 'all'
+// instead — partnerTokensForProperty matches that for every booking.
 export async function registerPartnerDevice(request: Request): Promise<Response> {
   const session = await getPortalSessionFromRequest(request);
   if (!session) return json({ error: "Not authenticated" }, 401);
@@ -297,15 +307,24 @@ export async function registerPartnerDevice(request: Request): Promise<Response>
   const platform = ["android", "ios", "web"].includes(str(body["platform"]))
     ? str(body["platform"])
     : "android";
-  const propertyId = resolveEffectivePropertySlug(request, session);
-  const owner = await findPortalOwnerBySlug(propertyId);
+  const resolvedSlug =
+    session.role === "admin" || !session.propertySlug
+      ? "all"
+      : resolveEffectivePropertySlug(request, session);
+  const owner = resolvedSlug === "all" ? undefined : await findPortalOwnerBySlug(resolvedSlug);
   const partnerPhone = owner?.phone ?? str(body["partnerPhone"]).slice(0, 50) ?? null;
+  console.log("[Partner-Register-Device]", {
+    slug: resolvedSlug,
+    phone: partnerPhone,
+    hasToken: Boolean(fcmToken),
+    tokenPrefix: fcmToken.slice(0, 10),
+  });
   const sql = getPmsDb();
   if (!sql) return json({ error: "PMS database not configured" }, 503);
   await ensureInquiriesSchema(sql);
   await sql`
     INSERT INTO pms_partner_devices (partner_phone, property_id, fcm_token, platform, last_seen)
-    VALUES (${partnerPhone}, ${propertyId}, ${fcmToken}, ${platform}, now())
-    ON CONFLICT (fcm_token) DO UPDATE SET property_id = ${propertyId}, partner_phone = ${partnerPhone}, platform = ${platform}, last_seen = now()`;
+    VALUES (${partnerPhone}, ${resolvedSlug}, ${fcmToken}, ${platform}, now())
+    ON CONFLICT (fcm_token) DO UPDATE SET property_id = ${resolvedSlug}, partner_phone = ${partnerPhone}, platform = ${platform}, last_seen = now()`;
   return json({ success: true, ok: true, registered: true });
 }

@@ -5,7 +5,7 @@ import { ArrowLeft, Loader as Loader2 } from "lucide-react";
 import { hasStoredPortalSessionSync, savePortalSession } from "@/lib/portal-native-session";
 import { hidePortalSplash } from "@/lib/portal-splash";
 import { apiUrl, withTimeout } from "@/lib/capacitor-utils";
-import { Capacitor } from "@capacitor/core";
+import { registerPushNotifications } from "@/lib/portal-push";
 
 export const Route = createFileRoute("/portal/login")({
   head: () => ({
@@ -19,81 +19,6 @@ export const Route = createFileRoute("/portal/login")({
 
 const PHONE_PATTERN = /^[0-9]{10}$/;
 const PIN_PATTERN = /^[0-9]{4}$/;
-
-// Client-side mirror of push-notifications.server.ts's FCM_SERVER_KEY gate:
-// @capacitor/push-notifications' register() calls into Firebase Messaging
-// on Android, which throws a native IllegalStateException (uncatchable from
-// JS — it crashes the Activity before the bridge can reject a promise) if
-// android/app/google-services.json isn't present, i.e. no Firebase project
-// has been linked yet. Requesting the OS notification permission first
-// doesn't avoid this: once a user grants it, "granted" is returned
-// immediately on every future call with no re-prompt, so if register()
-// crashes once, it crashes again on every subsequent login — the reported
-// "infinite loop". android/app/google-services.json is now in place (a real
-// Firebase project, "plixpms", shared with Plix PMS), so this can be flipped
-// on — but only once VITE_FCM_CONFIGURED=true is also set as a Vercel build
-// env var, since import.meta.env is inlined at build time and a gitignored
-// .env.local has no effect on what actually ships to production.
-const FCM_CONFIGURED = Boolean(import.meta.env["VITE_FCM_CONFIGURED"]);
-
-// Best-effort, native only — inert on web, and inert server-side until FCM
-// credentials exist (see push-notifications.server.ts), but wired up now so
-// the whole pipeline is exercised today. Registers by phone (the legacy
-// portal_push_tokens table) AND, separately, against whichever property this
-// session belongs to (pms_partner_devices — see pms-notifications.server.ts's
-// registerPartnerDevice), so a new booking can reach both the master admin
-// and the specific owner watching that property.
-async function registerPushNotifications(phone: string) {
-  if (!Capacitor.isNativePlatform() || !FCM_CONFIGURED) return;
-  try {
-    const { PushNotifications } = await import("@capacitor/push-notifications");
-    // Both native calls are timeout-raced, not just try/catch'd — a plugin
-    // bridge that never responds (no Firebase project configured yet, an
-    // unlinked plugin, etc.) leaves its promise permanently unsettled, which
-    // a plain try/catch does nothing for. This function is already
-    // fire-and-forget from handleSignIn below, but hardening it here means
-    // it can never turn into a dangling hang even if something later awaits it.
-    const permission = await withTimeout(PushNotifications.requestPermissions(), 2000, {
-      receive: "denied" as const,
-    });
-    if (permission.receive !== "granted") return;
-    await PushNotifications.createChannel({
-      id: "bookings_channel",
-      name: "Booking Updates",
-      importance: 5,
-      visibility: 1,
-      sound: "default",
-      vibration: true,
-    }).catch(() => undefined);
-    const registered = await withTimeout(
-      PushNotifications.register().then(() => true),
-      2000,
-      false,
-    );
-    if (!registered) return;
-    PushNotifications.addListener("registration", (token) => {
-      const platform = Capacitor.getPlatform();
-      fetch(apiUrl("/api/portal/register-push-token"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ phone, deviceToken: token.value, platform }),
-      }).catch(() => {
-        // best-effort; a missed registration just means no push until next login
-      });
-      fetch(apiUrl("/api/partner/notifications/register-device"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ fcmToken: token.value, partnerPhone: phone, platform }),
-      }).catch(() => {
-        // same — property-scoped registration is best-effort too
-      });
-    });
-  } catch {
-    // push plugin unavailable on this platform — silently skip
-  }
-}
 
 function PortalLoginPage() {
   const navigate = useNavigate();

@@ -7,7 +7,7 @@ import {
   Scripts,
   useRouterState,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { Capacitor } from "@capacitor/core";
 
 import appCss from "../styles.css?url";
@@ -15,12 +15,17 @@ import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/plix/site-header";
 import { SiteFooter } from "@/components/plix/site-footer";
 import { Toaster } from "@/components/ui/sonner";
+import { BrandSplashScreen } from "@/components/plix/brand-splash-screen";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { SITE_NAME, websiteJsonLd, jsonLdScript } from "@/lib/seo";
 import { chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
-import { hidePortalSplash } from "@/lib/portal-splash";
-import { hidePmsSplash } from "@/lib/pms-splash";
+import {
+  hidePortalSplash,
+  isPortalSplashReady,
+  subscribePortalSplashReady,
+} from "@/lib/portal-splash";
+import { hidePmsSplash, isPmsSplashReady, subscribePmsSplashReady } from "@/lib/pms-splash";
 
 // Runs synchronously while the raw HTML is still parsing, before React ever
 // mounts/hydrates — a signed-in user landing on the welcome or login screen
@@ -249,6 +254,22 @@ function RootComponent() {
   const isPortalRoute = useRouterState({
     select: (s) => s.location.pathname.startsWith("/portal") || s.location.pathname.startsWith("/pms"),
   });
+  const isPmsRoute = useRouterState({ select: (s) => s.location.pathname.startsWith("/pms") });
+
+  // Same "which screen is really correct" signal hidePortalSplash/hidePmsSplash
+  // already fire from every entry route — reused here (rather than a fresh
+  // hydration guess) so the animated brand splash below fades out in lockstep
+  // with the native one.
+  const portalSplashReady = useSyncExternalStore(
+    subscribePortalSplashReady,
+    isPortalSplashReady,
+    () => false,
+  );
+  const pmsSplashReady = useSyncExternalStore(
+    subscribePmsSplashReady,
+    isPmsSplashReady,
+    () => false,
+  );
 
   useEffect(() => {
     if (document.readyState === "complete") {
@@ -283,6 +304,7 @@ function RootComponent() {
         <div className="min-h-screen overflow-x-hidden bg-background">
           <Outlet />
         </div>
+        <BrandSplashScreen ready={isPmsRoute ? pmsSplashReady : portalSplashReady} />
         <Toaster position="top-center" richColors />
         <SpeedInsights />
         <Analytics />

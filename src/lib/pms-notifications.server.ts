@@ -311,14 +311,11 @@ export async function registerPartnerDevice(request: Request): Promise<Response>
     session.role === "admin" || !session.propertySlug
       ? "all"
       : resolveEffectivePropertySlug(request, session);
+  // resolvedSlug is "all" for admin before findPortalOwnerBySlug is ever
+  // reached, so an admin session never triggers the single-property owner
+  // lookup (which has no row to find for an admin phone) in the first place.
   const owner = resolvedSlug === "all" ? undefined : await findPortalOwnerBySlug(resolvedSlug);
   const partnerPhone = owner?.phone ?? str(body["partnerPhone"]).slice(0, 50) ?? null;
-  console.log("[Partner-Register-Device]", {
-    slug: resolvedSlug,
-    phone: partnerPhone,
-    hasToken: Boolean(fcmToken),
-    tokenPrefix: fcmToken.slice(0, 10),
-  });
   const sql = getPmsDb();
   if (!sql) return json({ error: "PMS database not configured" }, 503);
   await ensureInquiriesSchema(sql);
@@ -326,5 +323,6 @@ export async function registerPartnerDevice(request: Request): Promise<Response>
     INSERT INTO pms_partner_devices (partner_phone, property_id, fcm_token, platform, last_seen)
     VALUES (${partnerPhone}, ${resolvedSlug}, ${fcmToken}, ${platform}, now())
     ON CONFLICT (fcm_token) DO UPDATE SET property_id = ${resolvedSlug}, partner_phone = ${partnerPhone}, platform = ${platform}, last_seen = now()`;
+  console.log("[Partner Push Reg]", { role: session.role, slug: resolvedSlug, phone: partnerPhone, tokenPrefix: fcmToken.slice(0, 10), success: true });
   return json({ success: true, ok: true, registered: true });
 }

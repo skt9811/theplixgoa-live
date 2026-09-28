@@ -71,8 +71,9 @@ export async function registerPushNotifications(phone?: string): Promise<void> {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ phone, deviceToken: token.value, platform }),
-        }).catch(() => {
+        }).catch((error: unknown) => {
           // best-effort; a missed registration just means no push until next login
+          console.warn("[Partner Push Reg] Non-blocking push init failure:", error);
         });
       }
       fetch(apiUrl("/api/partner/notifications/register-device"), {
@@ -80,12 +81,20 @@ export async function registerPushNotifications(phone?: string): Promise<void> {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ fcmToken: token.value, partnerPhone: phone ?? "", platform }),
-      }).catch(() => {
+      }).catch((error: unknown) => {
         // same — property-scoped registration is best-effort too
+        console.warn("[Partner Push Reg] Non-blocking push init failure:", error);
       });
     });
-  } catch {
-    // push plugin unavailable on this platform — silently skip
+  } catch (error) {
+    // Anything that reaches here is a JS-catchable failure (plugin missing,
+    // a rejected promise, etc.) — NOT the native IllegalStateException
+    // documented above, which crashes the Android Activity before the
+    // bridge can even reject a promise and is invisible to this try/catch
+    // by definition. This log exists so a *recoverable* push failure is at
+    // least visible in the device/remote-debugging console instead of
+    // vanishing silently.
+    console.warn("[Partner Push Reg] Non-blocking push init failure:", error);
   } finally {
     registering = false;
   }

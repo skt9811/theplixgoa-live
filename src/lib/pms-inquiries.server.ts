@@ -11,6 +11,17 @@ import { json, str } from "@/lib/pms-pos-shared.server";
 import { allowedSlugs, isAllProps, type Actor } from "@/lib/pms-users.server";
 import { sendStaffPushNotification, stripSurroundingQuotes } from "@/lib/pms-notifications.server";
 
+/** Returns the first value that's a non-empty string once trimmed, trying
+ * each candidate field name in order — empty strings and non-string values
+ * (missing keys, null, numbers) are all skipped, not just missing keys. */
+function firstNonEmpty(...vals: unknown[]): string {
+  for (const v of vals) {
+    const s = str(v);
+    if (s) return s;
+  }
+  return "";
+}
+
 function safeEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a);
   const bb = Buffer.from(b);
@@ -272,19 +283,41 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
   const provided = request.headers.get("x-webhook-secret") ?? "";
   if (!safeEqual(provided, secret)) return json({ error: "Unauthorized" }, 401);
 
+  // Tolerant parsing: request.json() rejects outright on anything that isn't
+  // clean JSON, which previously turned a merely-unusual Make.com payload
+  // into a flat 400 with no way to see what was actually sent. Reading the
+  // raw text first means a JSON.parse failure can fall back to a
+  // form-encoded read instead of giving up, and the raw body is always
+  // available to log for diagnosing whatever Make.com's real shape turns
+  // out to be.
+  const rawText = await request.text();
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
+    body = rawText ? (JSON.parse(rawText) as Record<string, unknown>) : {};
   } catch {
-    return json({ error: "Invalid request" }, 400);
+    console.error("[airbnb-inquiry-webhook] non-JSON body, raw text:", rawText.slice(0, 5000));
+    try {
+      body = Object.fromEntries(new URLSearchParams(rawText));
+    } catch {
+      body = {};
+    }
   }
-  // Make.com's actual scenario posts {subject, sender, text, html, date};
-  // the from/bodyText/bodyHtml names are kept as a fallback for any other
-  // caller already using them.
-  const subject = str(body["subject"]);
-  const bodyText = str(body["text"] ?? body["bodyText"]);
-  const bodyHtml = str(body["html"] ?? body["bodyHtml"]);
-  const from = str(body["sender"] ?? body["from"]).slice(0, 150) || null;
+  console.log("[Airbnb Webhook Inbound Payload]", JSON.stringify(body));
+
+  // Make.com's actual scenario posts {subject, sender, text, html, date},
+  // but the exact shape of a forwarded-email payload isn't guaranteed, so
+  // every plausible alias is checked, in order, for each field.
+  const subject = firstNonEmpty(body["subject"], body["title"]);
+  const bodyText = firstNonEmpty(
+    body["text"],
+    body["bodyText"],
+    body["body"],
+    body["html"],
+    body["bodyHtml"],
+    body["content"],
+  );
+  const bodyHtml = firstNonEmpty(body["html"], body["bodyHtml"]);
+  const from = firstNonEmpty(body["sender"], body["from"]).slice(0, 150) || null;
   const combined = `${subject}\n${bodyText}`;
 
   // Administrative noise (payouts, reviews, policy updates...) is returned
@@ -422,5 +455,5 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
     });
   }
 
-  return json({ success: true, id, message: "Webhook processed" });
+  return json({ success: true, id, message: "Inquiry processed successfully" });
 }

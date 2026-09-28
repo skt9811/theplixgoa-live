@@ -29,17 +29,20 @@ const PIN_PATTERN = /^[0-9]{4}$/;
 // doesn't avoid this: once a user grants it, "granted" is returned
 // immediately on every future call with no re-prompt, so if register()
 // crashes once, it crashes again on every subsequent login — the reported
-// "infinite loop". Until a real Firebase project exists, skip the whole
-// permission+register attempt outright rather than relying on JS-side
-// error handling that can't catch a native crash. Flip this on (and add
-// google-services.json) once Firebase is actually configured.
+// "infinite loop". android/app/google-services.json is now in place (a real
+// Firebase project, "plixpms", shared with Plix PMS), so this can be flipped
+// on — but only once VITE_FCM_CONFIGURED=true is also set as a Vercel build
+// env var, since import.meta.env is inlined at build time and a gitignored
+// .env.local has no effect on what actually ships to production.
 const FCM_CONFIGURED = Boolean(import.meta.env["VITE_FCM_CONFIGURED"]);
 
 // Best-effort, native only — inert on web, and inert server-side until FCM
 // credentials exist (see push-notifications.server.ts), but wired up now so
-// the whole pipeline is exercised today. Registers by phone rather than the
-// portal session, so the master admin (no portal session — see
-// portal-auth.server.ts) can register a device too.
+// the whole pipeline is exercised today. Registers by phone (the legacy
+// portal_push_tokens table) AND, separately, against whichever property this
+// session belongs to (pms_partner_devices — see pms-notifications.server.ts's
+// registerPartnerDevice), so a new booking can reach both the master admin
+// and the specific owner watching that property.
 async function registerPushNotifications(phone: string) {
   if (!Capacitor.isNativePlatform() || !FCM_CONFIGURED) return;
   try {
@@ -50,18 +53,41 @@ async function registerPushNotifications(phone: string) {
     // a plain try/catch does nothing for. This function is already
     // fire-and-forget from handleSignIn below, but hardening it here means
     // it can never turn into a dangling hang even if something later awaits it.
-    const permission = await withTimeout(PushNotifications.requestPermissions(), 2000, { receive: "denied" as const });
+    const permission = await withTimeout(PushNotifications.requestPermissions(), 2000, {
+      receive: "denied" as const,
+    });
     if (permission.receive !== "granted") return;
-    const registered = await withTimeout(PushNotifications.register().then(() => true), 2000, false);
+    await PushNotifications.createChannel({
+      id: "bookings_channel",
+      name: "Booking Updates",
+      importance: 5,
+      visibility: 1,
+      sound: "default",
+      vibration: true,
+    }).catch(() => undefined);
+    const registered = await withTimeout(
+      PushNotifications.register().then(() => true),
+      2000,
+      false,
+    );
     if (!registered) return;
     PushNotifications.addListener("registration", (token) => {
+      const platform = Capacitor.getPlatform();
       fetch(apiUrl("/api/portal/register-push-token"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ phone, deviceToken: token.value, platform: Capacitor.getPlatform() }),
+        body: JSON.stringify({ phone, deviceToken: token.value, platform }),
       }).catch(() => {
         // best-effort; a missed registration just means no push until next login
+      });
+      fetch(apiUrl("/api/partner/notifications/register-device"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ fcmToken: token.value, partnerPhone: phone, platform }),
+      }).catch(() => {
+        // same — property-scoped registration is best-effort too
       });
     });
   } catch {

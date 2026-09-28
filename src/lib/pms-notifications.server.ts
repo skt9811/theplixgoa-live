@@ -9,6 +9,11 @@ import { ensureInquiriesSchema } from "@/lib/pms-schema.server";
 import { getPmsDb } from "@/lib/pms-db.server";
 import { json, str } from "@/lib/pms-pos-shared.server";
 import type { Actor } from "@/lib/pms-users.server";
+import {
+  getPortalSessionFromRequest,
+  resolveEffectivePropertySlug,
+} from "@/lib/portal-session.server";
+import { findPortalOwnerBySlug } from "@/lib/portal-pins.server";
 
 export type NotificationChannel = "bookings_channel" | "pos_channel" | "inquiries_channel";
 
@@ -89,7 +94,10 @@ async function getMessagingClient(): Promise<Messaging | null> {
   return messagingPromise;
 }
 
-async function activeTokens(): Promise<{ id: string; token: string }[]> {
+type DeviceTable = "pms_staff_devices" | "pms_partner_devices";
+type DeviceToken = { id: string; token: string; table: DeviceTable };
+
+async function activeStaffTokens(): Promise<DeviceToken[]> {
   const sql = getPmsDb();
   if (!sql) return [];
   try {
@@ -97,22 +105,91 @@ async function activeTokens(): Promise<{ id: string; token: string }[]> {
     const rows = await sql<
       { id: string; fcm_token: string }[]
     >`SELECT id, fcm_token FROM pms_staff_devices`;
-    return rows.map((r) => ({ id: r.id, token: r.fcm_token }));
+    return rows.map((r) => ({ id: r.id, token: r.fcm_token, table: "pms_staff_devices" as const }));
   } catch (err) {
-    console.error("[pms-notifications] activeTokens:", err instanceof Error ? err.message : err);
+    console.error(
+      "[pms-notifications] activeStaffTokens:",
+      err instanceof Error ? err.message : err,
+    );
     return [];
   }
 }
 
-async function pruneTokens(ids: string[]): Promise<void> {
-  if (ids.length === 0) return;
+/** Every Plix Partner app (com.plix.partner) device registered for one property. */
+async function partnerTokensForProperty(propertyId: string): Promise<DeviceToken[]> {
   const sql = getPmsDb();
-  if (!sql) return;
+  if (!sql) return [];
   try {
-    await sql`DELETE FROM pms_staff_devices WHERE id = ANY(${ids}::uuid[])`;
+    await ensureInquiriesSchema(sql);
+    const rows = await sql<
+      { id: string; fcm_token: string }[]
+    >`SELECT id, fcm_token FROM pms_partner_devices WHERE property_id = ${propertyId}`;
+    return rows.map((r) => ({
+      id: r.id,
+      token: r.fcm_token,
+      table: "pms_partner_devices" as const,
+    }));
+  } catch (err) {
+    console.error(
+      "[pms-notifications] partnerTokensForProperty:",
+      err instanceof Error ? err.message : err,
+    );
+    return [];
+  }
+}
+
+async function pruneTokens(devices: DeviceToken[]): Promise<void> {
+  const sql = getPmsDb();
+  if (!sql || devices.length === 0) return;
+  const staffIds = devices.filter((d) => d.table === "pms_staff_devices").map((d) => d.id);
+  const partnerIds = devices.filter((d) => d.table === "pms_partner_devices").map((d) => d.id);
+  try {
+    if (staffIds.length > 0)
+      await sql`DELETE FROM pms_staff_devices WHERE id = ANY(${staffIds}::uuid[])`;
+    if (partnerIds.length > 0)
+      await sql`DELETE FROM pms_partner_devices WHERE id = ANY(${partnerIds}::uuid[])`;
   } catch (err) {
     console.error("[pms-notifications] pruneTokens:", err instanceof Error ? err.message : err);
   }
+}
+
+/** The actual FCM call, shared by every audience — staff-only, or staff+partner merged. */
+async function dispatch(
+  devices: DeviceToken[],
+  title: string,
+  body: string,
+  channelId: NotificationChannel,
+  data: Record<string, string>,
+): Promise<{ successCount: number; failureCount: number }> {
+  const messaging = await getMessagingClient();
+  if (!messaging) {
+    console.log("[pms-notifications] Firebase not configured, skipping:", {
+      title,
+      body,
+      channelId,
+      data,
+    });
+    return { successCount: 0, failureCount: devices.length };
+  }
+  if (devices.length === 0) return { successCount: 0, failureCount: 0 };
+  const response = await messaging.sendEachForMulticast({
+    tokens: devices.map((d) => d.token),
+    notification: { title, body },
+    data: { channelId, ...data },
+    android: { notification: { channelId, sound: "default" }, priority: "high" },
+  });
+  console.log("[pms-notifications] FCM dispatch result:", {
+    successCount: response.successCount,
+    failureCount: response.failureCount,
+    errors: response.responses.filter((r) => !r.success).map((r) => r.error?.code),
+  });
+  const stale = devices.filter(
+    (_d, i) =>
+      !response.responses[i]!.success &&
+      response.responses[i]!.error?.code === "messaging/registration-token-not-registered",
+  );
+  await pruneTokens(stale);
+  return { successCount: response.successCount, failureCount: response.failureCount };
 }
 
 /**
@@ -134,38 +211,46 @@ export async function sendStaffPushNotification({
 }): Promise<void> {
   console.log("[pms-notifications] dispatching:", { title, channelId });
   try {
-    const messaging = await getMessagingClient();
-    if (!messaging) {
-      console.log("[pms-notifications] Firebase not configured, skipping:", {
-        title,
-        body,
-        channelId,
-        data,
-      });
-      return;
-    }
-    const devices = await activeTokens();
+    const devices = await activeStaffTokens();
     console.log("[pms-notifications] active devices:", devices.length);
-    if (devices.length === 0) return;
-    const response = await messaging.sendEachForMulticast({
-      tokens: devices.map((d) => d.token),
-      notification: { title, body },
-      data: { channelId, ...data },
-      android: { notification: { channelId, sound: "default" }, priority: "high" },
-    });
-    console.log("[pms-notifications] FCM dispatch result:", {
-      successCount: response.successCount,
-      failureCount: response.failureCount,
-      errors: response.responses.filter((r) => !r.success).map((r) => r.error?.code),
-    });
-    const stale: string[] = [];
-    response.responses.forEach((r, i) => {
-      if (!r.success && r.error?.code === "messaging/registration-token-not-registered")
-        stale.push(devices[i]!.id);
-    });
-    await pruneTokens(stale);
+    await dispatch(devices, title, body, channelId, data);
   } catch (err) {
     console.error("[pms-notifications] send failed:", err instanceof Error ? err.message : err);
+  }
+}
+
+/**
+ * A new booking's dual audience: every PMS staff device, plus the specific
+ * property's Plix Partner app device(s) — merged and deduplicated by token
+ * (the rare case where the same phone/device somehow ended up registered in
+ * both tables shouldn't double-buzz). Never throws, same rule as above.
+ */
+export async function sendBookingNotification(
+  propertyId: string,
+  { title, body, data = {} }: { title: string; body: string; data?: Record<string, string> },
+): Promise<void> {
+  console.log("[Push] dispatching booking notification:", { propertyId, title });
+  try {
+    const [staffTokens, partnerTokens] = await Promise.all([
+      activeStaffTokens(),
+      partnerTokensForProperty(propertyId),
+    ]);
+    const seen = new Set<string>();
+    const merged: DeviceToken[] = [];
+    for (const d of [...staffTokens, ...partnerTokens]) {
+      if (seen.has(d.token)) continue;
+      seen.add(d.token);
+      merged.push(d);
+    }
+    await dispatch(merged, title, body, "bookings_channel", data);
+    console.log(
+      `[Push] Sent booking notification to ${staffTokens.length} staff and ${partnerTokens.length} partner devices.`,
+    );
+  } catch (err) {
+    console.error(
+      "[pms-notifications] sendBookingNotification failed:",
+      err instanceof Error ? err.message : err,
+    );
   }
 }
 
@@ -189,5 +274,38 @@ export async function registerStaffDevice(request: Request, actor: Actor): Promi
     INSERT INTO pms_staff_devices (user_id, staff_name, fcm_token, platform, last_seen)
     VALUES (${actor.id}, ${staffName}, ${fcmToken}, ${platform}, now())
     ON CONFLICT (fcm_token) DO UPDATE SET user_id = ${actor.id}, staff_name = ${staffName}, platform = ${platform}, last_seen = now()`;
+  return json({ success: true, ok: true, registered: true });
+}
+
+// Backs POST /api/partner/notifications/register-device (see src/server.ts).
+// Authenticated by the Plix Partner app's own portal session cookie/bearer
+// token, exactly like every other /api/portal/* endpoint — property_id is
+// always derived from that session (resolveEffectivePropertySlug), never
+// trusted from the request body, so one owner's device can never end up
+// registered against a different property just by editing the payload.
+export async function registerPartnerDevice(request: Request): Promise<Response> {
+  const session = await getPortalSessionFromRequest(request);
+  if (!session) return json({ error: "Not authenticated" }, 401);
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const fcmToken = str(body["fcmToken"]);
+  if (!fcmToken) return json({ error: "fcmToken is required" }, 400);
+  const platform = ["android", "ios", "web"].includes(str(body["platform"]))
+    ? str(body["platform"])
+    : "android";
+  const propertyId = resolveEffectivePropertySlug(request, session);
+  const owner = await findPortalOwnerBySlug(propertyId);
+  const partnerPhone = owner?.phone ?? str(body["partnerPhone"]).slice(0, 50) ?? null;
+  const sql = getPmsDb();
+  if (!sql) return json({ error: "PMS database not configured" }, 503);
+  await ensureInquiriesSchema(sql);
+  await sql`
+    INSERT INTO pms_partner_devices (partner_phone, property_id, fcm_token, platform, last_seen)
+    VALUES (${partnerPhone}, ${propertyId}, ${fcmToken}, ${platform}, now())
+    ON CONFLICT (fcm_token) DO UPDATE SET property_id = ${propertyId}, partner_phone = ${partnerPhone}, platform = ${platform}, last_seen = now()`;
   return json({ success: true, ok: true, registered: true });
 }

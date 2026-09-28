@@ -28,6 +28,7 @@ import {
 import { portalPreflight, withPortalCors } from "./lib/portal-cors.server";
 import { handleAdminCreateBooking } from "./lib/admin-bookings-api.server";
 import { handlePmsApi } from "./lib/pms-api.server";
+import { registerPartnerDevice } from "./lib/pms-notifications.server";
 import { handleAdminUpdateBooking, handleAdminDeleteBooking } from "./lib/admin-bookings-crud.server";
 import { handleAdminListPortalOwners, handleAdminUpdatePortalOwner } from "./lib/admin-portal-owners-api.server";
 import { getAuthConfig } from "./lib/auth.server";
@@ -339,6 +340,36 @@ export default {
         console.error("[portal]", url.pathname, "unhandled error:", error);
         return withPortalCors(
           new Response(JSON.stringify({ error: "Internal error" }), { status: 500, headers: { "Content-Type": "application/json" } }),
+        );
+      }
+    }
+    // Plix Partner app (com.plix.partner) FCM device registry — a distinct
+    // namespace from /api/portal/* by request, but the same session/CORS
+    // model (a device is registered against whichever property the caller's
+    // own portal session resolves to, never a client-supplied one).
+    if (url.pathname.startsWith("/api/partner/")) {
+      const preflight = portalPreflight(request);
+      if (preflight) return preflight;
+      try {
+        if (
+          url.pathname === "/api/partner/notifications/register-device" &&
+          request.method === "POST"
+        ) {
+          return withPortalCors(await registerPartnerDevice(request));
+        }
+        return withPortalCors(
+          new Response(JSON.stringify({ error: "Not found" }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      } catch (error) {
+        console.error("[partner]", url.pathname, "unhandled error:", error);
+        return withPortalCors(
+          new Response(JSON.stringify({ error: "Internal error" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
         );
       }
     }

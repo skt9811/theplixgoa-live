@@ -270,6 +270,21 @@ export function ensureInquiriesSchema(sql: Sql): Promise<void> {
             last_seen timestamptz NOT NULL DEFAULT now()
           )`;
         await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_staff_devices_token_key ON pms_staff_devices (fcm_token)`;
+        // A property owner's device on the Plix Partner app (com.plix.partner)
+        // — keyed by property_id rather than phone, since a booking notification
+        // needs "everyone watching this property", not "everyone at this phone".
+        await sql`
+          CREATE TABLE IF NOT EXISTS pms_partner_devices (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            partner_phone varchar(50),
+            property_id varchar(100) NOT NULL,
+            fcm_token text NOT NULL,
+            platform varchar(20) NOT NULL DEFAULT 'android',
+            last_seen timestamptz NOT NULL DEFAULT now(),
+            created_at timestamptz NOT NULL DEFAULT now()
+          )`;
+        await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_partner_devices_token_key ON pms_partner_devices (fcm_token)`;
+        await sql`CREATE INDEX IF NOT EXISTS pms_partner_devices_property_idx ON pms_partner_devices (property_id)`;
       } catch (err) {
         // Postgres's CREATE TABLE/INDEX IF NOT EXISTS isn't safe under true
         // concurrency: every cold-started serverless instance starts with its

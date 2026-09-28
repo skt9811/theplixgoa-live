@@ -48,6 +48,13 @@ const config: CapacitorConfig = {
       style: "LIGHT",
       backgroundColor: "#F8F5EE",
     },
+    // Android shows/plays notification channels on its own (see
+    // registerPushNotifications in routes/portal/login.tsx); this only
+    // matters for a future iOS build, where it controls whether a push
+    // received while foregrounded still banners/chimes.
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"],
+    },
   },
 };
 

@@ -42,7 +42,7 @@ import { buildStayVoucherPdf } from "@/lib/pms-voucher-pdf.server";
 import { voucherDetails } from "@/lib/pms-voucher-content";
 import { PMS_COMPANY } from "@/lib/pms-company";
 import { audit } from "@/lib/pms-audit.server";
-import { sendStaffPushNotification, registerStaffDevice } from "@/lib/pms-notifications.server";
+import { sendBookingNotification, registerStaffDevice } from "@/lib/pms-notifications.server";
 import { handleInquiryWebhook, listInquiries, updateInquiry } from "@/lib/pms-inquiries.server";
 import {
   allowedSlugs,
@@ -482,10 +482,9 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
     checkIn,
     nights,
   );
-  await sendStaffPushNotification({
-    title: `🏨 New Booking: ${property?.name.split(" - ")[0] ?? propertySlug}`,
-    body: `${guestName} • ${checkIn} to ${checkOut} (${rooms} Room${rooms === 1 ? "" : "s"}) • By ${actor.name}`,
-    channelId: "bookings_channel",
+  await sendBookingNotification(propertySlug, {
+    title: "🏨 New Booking Received!",
+    body: `${guestName} • ${rooms} Room${rooms === 1 ? "" : "s"} • ${checkIn} to ${checkOut}`,
     data: {
       type: "booking",
       bookingId: row?.id ?? "",
@@ -1791,10 +1790,9 @@ async function createVoucher(request: Request, actor: Actor): Promise<Response> 
     checkIn,
     nights,
   );
-  await sendStaffPushNotification({
-    title: `🏨 New Booking: ${property?.name.split(" - ")[0] ?? propertySlug}`,
-    body: `${guestName} • ${checkIn} to ${checkOut} (${rooms} Room${rooms === 1 ? "" : "s"}) • By ${actor.name}`,
-    channelId: "bookings_channel",
+  await sendBookingNotification(propertySlug, {
+    title: "🏨 New Booking Received!",
+    body: `${guestName} • ${rooms} Room${rooms === 1 ? "" : "s"} • ${checkIn} to ${checkOut}`,
     data: { type: "booking", bookingId: outcome.id, url: `/pms/bookings?highlight=${outcome.id}` },
   });
   await audit(actor, "CREATE", "voucher", outcome.id, {

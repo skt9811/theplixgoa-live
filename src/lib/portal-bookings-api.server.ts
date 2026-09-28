@@ -44,11 +44,15 @@ export type PortalBooking = {
    * Inventory tab's "Tentative" status chip. null for manual bookings,
    * which have no online payment lifecycle at all. */
   payment_status: "pending" | "paid" | "simulated" | null;
-  /** Set only for manually punched-in bookings that recorded it (see the
-   * admin "+ Create Booking" flow) — null for online bookings and for any
-   * manual booking created before that field existed. The Home tab's
-   * Today's Operations card shows it "if available", not as a guarantee. */
+  /** Rooms booked. Sourced from bookings.rooms for an online (Razorpay)
+   * booking, portal_bookings.rooms_count for a manual one — null only for a
+   * manual booking that predates that column, or one that never recorded it. */
   rooms_count: number | null;
+  /** The first room allocation's category text (e.g. "Deluxe", "Sea View
+   * Room 1") for a manual booking that recorded per-room details — null for
+   * an online booking (a single whole-property reservation, no per-room
+   * category) and for a manual one with no allocations on file. */
+  room_type: string | null;
   /** The admin "+ Create Booking" flow's own payment tracking (paid/
    * partial/pending), distinct from `payment_status` above — that field is
    * the online-checkout lifecycle (always null for manual bookings); this
@@ -107,6 +111,7 @@ type OnlineRow = {
   payment_status: "pending" | "paid" | "simulated";
   commission_pct: string | number;
   commission_amount: string | number;
+  rooms: number | null;
 };
 
 type ManualRow = {
@@ -126,7 +131,22 @@ type ManualRow = {
   advance_amount: string | number | null;
   commission_pct: string | number;
   commission_amount: string | number;
+  room_allocations: unknown;
 };
+
+/** portal_bookings.room_allocations is a freeform jsonb array (see
+ * RoomAllocation in pms-client.ts) written by the PMS's per-room editor —
+ * read defensively here since this is a display-only derivation, never
+ * trust its shape. Returns the first row's category text, if any. */
+function firstRoomCategory(raw: unknown): string | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const first = raw[0];
+  if (first && typeof first === "object" && typeof (first as { category?: unknown }).category === "string") {
+    const category = (first as { category: string }).category.trim();
+    return category || null;
+  }
+  return null;
+}
 
 export async function handleGetPortalBookings(request: Request): Promise<Response> {
   const session = await getPortalSessionFromRequest(request);
@@ -142,7 +162,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         SELECT id, property_id, guest_name, guest_mobile AS guest_phone,
                check_in, check_out, nights, guests AS guests_count,
                total_amount AS booking_amount, created_at, payment_status,
-               commission_pct, commission_amount
+               commission_pct, commission_amount, rooms
         FROM public.bookings
         WHERE property_id = ${propertySlug}
           AND payment_status IN ('paid', 'simulated', 'pending')
@@ -151,7 +171,8 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         SELECT id, property_id, guest_name, guest_phone,
                check_in, check_out, nights, guests_count,
                booking_amount, status, created_at, rooms_count,
-               payment_status, advance_amount, commission_pct, commission_amount
+               payment_status, advance_amount, commission_pct, commission_amount,
+               room_allocations
         FROM public.portal_bookings
         WHERE property_id = ${propertySlug}
           AND status != 'cancelled'
@@ -176,7 +197,8 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         source: "online",
         created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
         payment_status: r.payment_status,
-        rooms_count: null,
+        rooms_count: r.rooms,
+        room_type: null,
         admin_payment_status: "paid",
         advance_amount: null,
         commission_pct: Number(r.commission_pct),
@@ -202,6 +224,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
         payment_status: null,
         rooms_count: r.rooms_count,
+        room_type: firstRoomCategory(r.room_allocations),
         admin_payment_status: r.payment_status,
         advance_amount: r.advance_amount === null ? null : Number(r.advance_amount),
         commission_pct: Number(r.commission_pct),

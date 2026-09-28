@@ -22,8 +22,12 @@ export type PortalBooking = {
   /** "pending" = an online checkout was started but not yet paid (the
    * Inventory tab's "Tentative" status). null for manual bookings. */
   payment_status: "pending" | "paid" | "simulated" | null;
-  /** Set only for manual bookings that recorded it — shown "if available", not guaranteed. */
+  /** Rooms booked. Sourced from bookings.rooms for an online booking,
+   * portal_bookings.rooms_count for a manual one — null only if neither recorded it. */
   rooms_count: number | null;
+  /** First room allocation's category text for a manual booking that recorded
+   * per-room details — null for an online booking or one with no allocations. */
+  room_type: string | null;
   /** The admin "+ Create Booking" flow's own payment tracking — distinct
    * from `payment_status` above (the online-checkout lifecycle, always
    * null for manual bookings). Always "paid" for an online booking. */

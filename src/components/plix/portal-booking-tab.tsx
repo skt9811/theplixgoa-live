@@ -303,8 +303,8 @@ export function PortalBookingTab({
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
-                        <span>Rooms: 1</span>
-                        <span>Type: Not specified</span>
+                        <span>Rooms: {b.rooms_count ?? 1}</span>
+                        <span>Type: {b.room_type ?? "Standard"}</span>
                         <span className="flex items-center gap-1">
                           <Users className="size-3" aria-hidden /> Adults: {b.guests_count}
                         </span>

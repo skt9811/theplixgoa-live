@@ -9,7 +9,7 @@ import { getPmsDb } from "@/lib/pms-db.server";
 import { ensureInquiriesSchema } from "@/lib/pms-schema.server";
 import { json, str } from "@/lib/pms-pos-shared.server";
 import { allowedSlugs, isAllProps, type Actor } from "@/lib/pms-users.server";
-import { sendStaffPushNotification } from "@/lib/pms-notifications.server";
+import { sendStaffPushNotification, stripSurroundingQuotes } from "@/lib/pms-notifications.server";
 
 function safeEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a);
@@ -259,11 +259,15 @@ function fmtShort(iso: string): string {
 }
 
 export async function handleInquiryWebhook(request: Request): Promise<Response> {
-  // No hardcoded fallback secret: a value baked into public source that
-  // nobody set in Vercel would be guessable by anyone who reads the repo,
-  // letting an attacker forge inquiries and staff push notifications. A
-  // 503 (config, not client, error) when unset is the safe failure mode.
-  const secret = process.env["AIRBNB_WEBHOOK_SECRET"];
+  // Still no hardcoded fallback secret — see the earlier commit's message
+  // for why a value baked into public source would let anyone who reads the
+  // repo forge inquiries and staff push notifications once deployed. What
+  // WAS a real, fixable gap: a value pasted into Vercel's dashboard with
+  // literal surrounding quotes would never equal the unquoted header Make.com
+  // sends, producing exactly this 503/401 confusion — the same class of bug
+  // already hit FIREBASE_CLIENT_EMAIL/FIREBASE_PROJECT_ID earlier, so the
+  // same fix applies here.
+  const secret = stripSurroundingQuotes(process.env["AIRBNB_WEBHOOK_SECRET"]);
   if (!secret) return json({ error: "Webhook not configured" }, 503);
   const provided = request.headers.get("x-webhook-secret") ?? "";
   if (!safeEqual(provided, secret)) return json({ error: "Unauthorized" }, 401);

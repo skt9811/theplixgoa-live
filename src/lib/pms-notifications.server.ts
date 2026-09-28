@@ -31,7 +31,7 @@ let messagingPromise: Promise<Messaging | null> | null = null;
 // stray quote on one end only, or mismatched quote characters is returned
 // untouched rather than guessed at, since guessing is exactly what silently
 // ate the leading "f" off a client email that never had quotes to begin with.
-function stripSurroundingQuotes(val: string | undefined): string | undefined {
+export function stripSurroundingQuotes(val: string | undefined): string | undefined {
   if (!val) return undefined;
   let s = val.trim();
   if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {

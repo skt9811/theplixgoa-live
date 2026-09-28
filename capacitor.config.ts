@@ -37,7 +37,10 @@ const config: CapacitorConfig = {
       // trip and reveal the WebView's in-progress content (the reported
       // homepage/login flash) before the app knew which screen to show.
       launchAutoHide: false,
-      backgroundColor: "#F8F5EE",
+      // Matches BrandSplashScreen's pastel gradient's first stop, so the
+      // handoff from this native splash to the animated web one has no
+      // visible color jump.
+      backgroundColor: "#F6F1EA",
       showSpinner: false,
       androidScaleType: "CENTER_CROP",
     },

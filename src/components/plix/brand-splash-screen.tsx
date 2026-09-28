@@ -16,7 +16,7 @@ type BrandSplashScreenProps = {
 // (a hung request, a screen that forgets to call hide*Splash()).
 const MIN_DISPLAY_MS = 1400;
 const MAX_DISPLAY_MS = 4000;
-const FADE_MS = 500;
+const FADE_MS = 300;
 
 /**
  * Shared animated brand launch screen, mounted once at the top of both the
@@ -68,7 +68,7 @@ export function BrandSplashScreen({ ready }: BrandSplashScreenProps) {
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden transition-opacity duration-500 ease-out ${
+      className={`fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden transition-opacity duration-300 ease-out ${
         fading ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
       style={{
@@ -83,7 +83,14 @@ export function BrandSplashScreen({ ready }: BrandSplashScreenProps) {
       <div className="absolute bottom-1/4 right-1/4 h-64 w-64 rounded-full bg-sand blur-3xl" />
 
       <div className="relative flex flex-col items-center px-6 animate-splash-in">
-        <div className="rounded-2xl bg-white px-10 py-6 shadow-2xl">
+        {/* Inline backgroundColor, not the bg-white utility class: PMS's dark
+            theme (pms-theme.css) globally rewrites `.bg-white` to a dark card
+            color on html[data-pms-theme="dark"] — a rule that has no idea
+            this splash exists and would otherwise flip the card dark with
+            already-dark text on top, exactly the "muddy box" reported. An
+            inline style always outranks a class selector, so this card stays
+            white regardless of which app's theme is active underneath. */}
+        <div className="rounded-2xl px-10 py-6 shadow-2xl" style={{ backgroundColor: "#ffffff" }}>
           <span className="font-display text-3xl font-bold tracking-[0.15em] text-navy">
             THE PLIX
           </span>

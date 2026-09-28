@@ -26,7 +26,13 @@ const config: CapacitorConfig = {
       // trip and reveal the WebView's in-progress content (un-hydrated text,
       // the wrong theme briefly) before the app knew which screen to show.
       launchAutoHide: false,
-      backgroundColor: "#0E231D",
+      // Matches BrandSplashScreen's pastel gradient's first stop. NOTE: this
+      // only controls the letterbox area around drawable/splash.png, not the
+      // image itself — see android/app/src/main/res/values/styles.xml and
+      // drawable/splash.png, which are a full-bleed "midnight emerald" brand
+      // asset this config value can't repaint. Flagged to the user; not
+      // changed here without a design decision on the icon's contrast.
+      backgroundColor: "#F6F1EA",
       showSpinner: false,
       androidScaleType: "CENTER_INSIDE",
     },

@@ -1,29 +1,51 @@
 import { useEffect, useRef, useState } from "react";
+import { revealPortalSplashScreen } from "@/lib/portal-splash";
+import { revealPmsSplashScreen } from "@/lib/pms-splash";
 
 type BrandSplashScreenProps = {
   /** Flip to true once the app has determined which real screen to show
-   * (auth check + critical hydration resolved) — fades the splash out early
-   * instead of waiting for the max-display safety net below. */
+   * (auth check + critical hydration resolved) — starts the fade-out,
+   * subject to the minimum display time below. */
   ready: boolean;
 };
 
-const MAX_DISPLAY_MS = 1800;
+// The animation must actually be seen, not just technically render for zero
+// visible frames because `ready` happened to flip true immediately (true for
+// the welcome/login screens, which have no data to wait on). MIN guarantees
+// it plays; MAX is an absolute ceiling in case `ready` never arrives at all
+// (a hung request, a screen that forgets to call hide*Splash()).
+const MIN_DISPLAY_MS = 1400;
+const MAX_DISPLAY_MS = 4000;
 const FADE_MS = 500;
 
 /**
  * Shared animated brand launch screen, mounted once at the top of both the
  * Partner portal (/portal) and Plix PMS (/pms) app shells in __root.tsx —
  * sits directly on top of each native app's own splash (capacitor.config.ts's
- * launchAutoHide: false; see portal-splash.ts / pms-splash.ts), so the
- * handoff from native splash to this animated one has no gap, and the fade to
- * real content is driven by the exact same "we know which screen to show now"
- * signal those helpers already fire from every entry route (welcome, login,
- * dashboard) — not a guess about how long hydration usually takes.
+ * launchAutoHide: false; see portal-splash.ts / pms-splash.ts).
+ *
+ * Two separate lifecycle moments are deliberately kept apart here:
+ *   1. Hiding the native splash — done unconditionally the instant this
+ *      mounts (revealPortal/PmsSplashScreen below), so the animated gradient
+ *      is the first thing a cold launch shows instead of a frozen native
+ *      frame.
+ *   2. Fading THIS splash out — gated on `ready` (the app knows which real
+ *      screen to show) AND MIN_DISPLAY_MS, so the animation is guaranteed to
+ *      actually play. Conflating these two into one signal was the original
+ *      bug: both used to fire from the same function at the same instant, so
+ *      the web splash was told to fade before its first frame ever painted.
  */
 export function BrandSplashScreen({ ready }: BrandSplashScreenProps) {
   const [mounted, setMounted] = useState(true);
   const [fading, setFading] = useState(false);
   const doneRef = useRef(false);
+  const mountedAtRef = useRef(0);
+
+  useEffect(() => {
+    mountedAtRef.current = Date.now();
+    void revealPortalSplashScreen();
+    void revealPmsSplashScreen();
+  }, []);
 
   useEffect(() => {
     function finish() {
@@ -34,8 +56,9 @@ export function BrandSplashScreen({ ready }: BrandSplashScreenProps) {
     }
 
     if (ready) {
-      finish();
-      return;
+      const elapsed = Date.now() - mountedAtRef.current;
+      const timer = window.setTimeout(finish, Math.max(0, MIN_DISPLAY_MS - elapsed));
+      return () => window.clearTimeout(timer);
     }
     const timer = window.setTimeout(finish, MAX_DISPLAY_MS);
     return () => window.clearTimeout(timer);

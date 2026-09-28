@@ -22,18 +22,8 @@ export function subscribePmsSplashReady(listener: () => void): () => void {
   return () => readyListeners.delete(listener);
 }
 
-/**
- * Idempotent and best-effort — a missing/unlinked plugin must never block the
- * UI. Called from every /pms entry screen (login, the authed shell) the exact
- * moment each has determined it's the right screen to reveal — the same
- * signal BrandSplashScreen uses to fade itself out, so the web/JS splash and
- * the native one always come down together.
- */
-export async function hidePmsSplash(): Promise<void> {
-  if (!ready) {
-    ready = true;
-    readyListeners.forEach((listener) => listener());
-  }
+/** Idempotent and best-effort — a missing/unlinked plugin must never block the UI. */
+async function hideNativeSplash(): Promise<void> {
   if (hidden || !Capacitor.isNativePlatform()) return;
   hidden = true;
   try {
@@ -42,4 +32,33 @@ export async function hidePmsSplash(): Promise<void> {
   } catch {
     // best-effort — inert on web, and non-fatal if the plugin bridge misbehaves
   }
+}
+
+/**
+ * Called by BrandSplashScreen the instant it mounts, deliberately NOT gated
+ * on app readiness — dropping the static native splash as early as possible
+ * is what actually lets the animated web splash be seen at all instead of a
+ * frozen native frame that only lifts once the real screen is already known.
+ */
+export async function revealPmsSplashScreen(): Promise<void> {
+  await hideNativeSplash();
+}
+
+/**
+ * Called from every /pms entry screen (login, the authed shell) the exact
+ * moment each has determined it's the right screen to reveal. Only marks
+ * BrandSplashScreen's readiness flag (it still enforces its own minimum
+ * display time before actually fading) — the native hide is intentionally
+ * NOT bundled in here anymore: bundling both together made them fire at the
+ * exact same instant, so the web splash was told to start fading before its
+ * first frame had even painted. hideNativeSplash() below still runs
+ * redundantly-but-harmlessly in case revealPmsSplashScreen() above never ran
+ * for some reason.
+ */
+export async function hidePmsSplash(): Promise<void> {
+  if (!ready) {
+    ready = true;
+    readyListeners.forEach((listener) => listener());
+  }
+  await hideNativeSplash();
 }

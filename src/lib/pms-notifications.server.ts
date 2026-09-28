@@ -15,22 +15,56 @@ export type NotificationChannel = "bookings_channel" | "pos_channel" | "inquirie
 type Messaging = ReturnType<Awaited<typeof import("firebase-admin/messaging")>["getMessaging"]>;
 let messagingPromise: Promise<Messaging | null> | null = null;
 
+// Vercel's env var UI doesn't strip characters a shell or dotenv parser
+// normally would: a value pasted in with its own surrounding quotes keeps
+// those quotes as literal characters in process.env. For the private key
+// that breaks PEM parsing outright; for project id / client email it's more
+// insidious — the value "looks right" in logs but doesn't match the real
+// project, so firebase-admin rejects the whole credential with the same
+// opaque "app/invalid-credential" rather than a field-specific error.
+function stripSurroundingQuotes(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+// Turns the \n escape sequences env vars are forced to use in place of real
+// newlines back into real ones, after quote-stripping.
+function formatPrivateKey(key: string | undefined): string | undefined {
+  if (!key) return undefined;
+  return stripSurroundingQuotes(key).replace(/\\n/g, "\n");
+}
+
 function parseServiceAccount(): Record<string, unknown> | null {
   const raw = process.env["FIREBASE_SERVICE_ACCOUNT_KEY"];
   if (raw) {
     try {
-      return JSON.parse(raw) as Record<string, unknown>;
+      return JSON.parse(stripSurroundingQuotes(raw)) as Record<string, unknown>;
     } catch {
       console.error("[pms-notifications] FIREBASE_SERVICE_ACCOUNT_KEY is not valid JSON");
       return null;
     }
   }
-  const projectId = process.env["FIREBASE_PROJECT_ID"];
-  const clientEmail = process.env["FIREBASE_CLIENT_EMAIL"];
-  const privateKey = process.env["FIREBASE_PRIVATE_KEY"];
+  const rawProjectId = process.env["FIREBASE_PROJECT_ID"];
+  const rawClientEmail = process.env["FIREBASE_CLIENT_EMAIL"];
+  const projectId = rawProjectId ? stripSurroundingQuotes(rawProjectId) : undefined;
+  const clientEmail = rawClientEmail ? stripSurroundingQuotes(rawClientEmail) : undefined;
+  const privateKey = formatPrivateKey(process.env["FIREBASE_PRIVATE_KEY"]);
+  console.log(
+    "[FirebaseAdmin] Initializing for project:",
+    projectId,
+    "Email:",
+    clientEmail,
+    "Key length:",
+    privateKey?.length,
+  );
   if (!projectId || !clientEmail || !privateKey) return null;
-  // Env vars can't hold a literal newline, so the key is stored with escaped \n.
-  return { projectId, clientEmail, privateKey: privateKey.replace(/\\n/g, "\n") };
+  return { projectId, clientEmail, privateKey };
 }
 
 async function getMessagingClient(): Promise<Messaging | null> {

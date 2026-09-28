@@ -127,9 +127,13 @@ async function partnerTokensForProperty(propertyId: string): Promise<DeviceToken
   if (!sql) return [];
   try {
     await ensureInquiriesSchema(sql);
-    const rows = await sql<{ id: string; fcm_token: string }[]>`
-      SELECT id, fcm_token FROM pms_partner_devices
+    const rows = await sql<{ id: string; fcm_token: string; partner_phone: string | null; property_id: string }[]>`
+      SELECT id, fcm_token, partner_phone, property_id FROM pms_partner_devices
       WHERE property_id = ${propertyId} OR property_id IN ('all', '*', 'admin')`;
+    console.log("[Push-Targeting]", {
+      targetProperty: propertyId,
+      recipientTokens: rows.map((r) => ({ phone: r.partner_phone, property: r.property_id })),
+    });
     return rows.map((r) => ({
       id: r.id,
       token: r.fcm_token,

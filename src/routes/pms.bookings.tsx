@@ -55,9 +55,10 @@ export const Route = createFileRoute("/pms/bookings")({
   component: PmsBookings,
 });
 
-type StatusFilter = "all" | "confirmed" | "pending";
+type StatusFilter = "all" | "upcoming" | "confirmed" | "pending";
 const STATUS_CHIPS: { id: StatusFilter; label: string }[] = [
   { id: "all", label: "All" },
+  { id: "upcoming", label: "Upcoming" },
   { id: "confirmed", label: "Confirmed" },
   { id: "pending", label: "Pending" },
 ];
@@ -167,9 +168,19 @@ function PmsBookings() {
       .filter(
         (b) =>
           (property === "all" || b.property_id === property) &&
-          (status === "all" || b.status === status) &&
+          // "upcoming" isn't one of PmsBooking's real statuses
+          // (confirmed/pending/cancelled) — it's the date-based check right
+          // below, so it's treated the same as "all" here.
+          (status === "all" || status === "upcoming" || b.status === status) &&
           (source === "all" || b.channel === source),
       )
+      // Historical bulk imports (see scripts/import-*.ts) mean this list can
+      // now hold thousands of already-departed stays going back over a
+      // year — without this, they'd swamp the current/future ones the "sorted
+      // by check-in date, upcoming first" subtitle above promises. Keeps
+      // anything not yet checked out: today's arrivals, in-house guests, and
+      // every future booking.
+      .filter((b) => status !== "upcoming" || (b.status !== "cancelled" && b.check_out >= today))
       .filter((b) => {
         if (view === "all") return true;
         if (b.status === "cancelled") return false;

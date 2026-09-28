@@ -22,38 +22,38 @@ let messagingPromise: Promise<Messaging | null> | null = null;
 // insidious — the value "looks right" in logs but doesn't match the real
 // project, so firebase-admin rejects the whole credential with the same
 // opaque "app/invalid-credential" rather than a field-specific error.
-function stripSurroundingQuotes(value: string): string {
-  const trimmed = value.trim();
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1);
+// Only ever removes ONE matching pair — a value with no quotes, a single
+// stray quote on one end only, or mismatched quote characters is returned
+// untouched rather than guessed at, since guessing is exactly what silently
+// ate the leading "f" off a client email that never had quotes to begin with.
+function stripSurroundingQuotes(val: string | undefined): string | undefined {
+  if (!val) return undefined;
+  let s = val.trim();
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1).trim();
   }
-  return trimmed;
+  return s;
 }
 
 // Turns the \n escape sequences env vars are forced to use in place of real
 // newlines back into real ones, after quote-stripping.
 function formatPrivateKey(key: string | undefined): string | undefined {
-  if (!key) return undefined;
-  return stripSurroundingQuotes(key).replace(/\\n/g, "\n");
+  const stripped = stripSurroundingQuotes(key);
+  return stripped ? stripped.replace(/\\n/g, "\n") : undefined;
 }
 
 function parseServiceAccount(): Record<string, unknown> | null {
   const raw = process.env["FIREBASE_SERVICE_ACCOUNT_KEY"];
   if (raw) {
     try {
-      return JSON.parse(stripSurroundingQuotes(raw)) as Record<string, unknown>;
+      return JSON.parse(stripSurroundingQuotes(raw) ?? raw) as Record<string, unknown>;
     } catch {
       console.error("[pms-notifications] FIREBASE_SERVICE_ACCOUNT_KEY is not valid JSON");
       return null;
     }
   }
-  const rawProjectId = process.env["FIREBASE_PROJECT_ID"];
-  const rawClientEmail = process.env["FIREBASE_CLIENT_EMAIL"];
-  const projectId = rawProjectId ? stripSurroundingQuotes(rawProjectId) : undefined;
-  const clientEmail = rawClientEmail ? stripSurroundingQuotes(rawClientEmail) : undefined;
+  const projectId = stripSurroundingQuotes(process.env["FIREBASE_PROJECT_ID"]);
+  const clientEmail = stripSurroundingQuotes(process.env["FIREBASE_CLIENT_EMAIL"]);
   const privateKey = formatPrivateKey(process.env["FIREBASE_PRIVATE_KEY"]);
   console.log(
     "[FirebaseAdmin] Initializing for project:",

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, MoreVertical, Minus, Pencil, Plus, Search, Trash2, UserRound, X } from "lucide-react";
-import { computeOrder, groupRate, round2, type DiscountType, type TaxGroup, type TaxRule } from "@/lib/pms-pos-calc";
+import { computeOrderByCategory, round2, type CategoryTaxType, type DiscountType } from "@/lib/pms-pos-calc";
 import { getStation, inr, type PosCategory, type PosItem, posAction, posMenu, posOrder, posSave, type PosLine, type PosOrderData } from "@/lib/pms-pos-client";
 import { toastPrintResult } from "@/lib/pms-pos-printer";
 import { printBill, printKot } from "@/lib/pms-pos-printer";
@@ -13,7 +13,7 @@ import { usePms } from "@/components/pms/pms-context";
 import { EMPTY_GUEST, GuestModal, type Guest } from "@/components/pms/pos/guest-modal";
 import { PaymentScreen } from "@/components/pms/pos/payment-screen";
 
-type Draft = { key: string; itemId: string | null; name: string; qty: number; unitPrice: number; group: TaxGroup; notes: string };
+type Draft = { key: string; itemId: string | null; name: string; qty: number; unitPrice: number; categoryName: string; taxPercent: number; taxType: CategoryTaxType; isTaxInclusive: boolean; notes: string };
 type View = "menu" | "review" | "payment";
 const PRICE_PRESETS = [20, 30, 50, 100, 200];
 const field = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-emerald-500";
@@ -67,7 +67,7 @@ function PricePrompt({ item, onSubmit, onClose }: { item: PosItem; onSubmit: (pr
   );
 }
 
-function ItemAddSheet({ property, categories, defaultCategory, taxRules, onClose, onSaved }: { property: string; categories: PosCategory[]; defaultCategory: string; taxRules: TaxRule[]; onClose: () => void; onSaved: () => Promise<void> }) {
+function ItemAddSheet({ property, categories, defaultCategory, onClose, onSaved }: { property: string; categories: PosCategory[]; defaultCategory: string; onClose: () => void; onSaved: () => Promise<void> }) {
   useBackDismiss(true, onClose);
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState(defaultCategory);
@@ -79,7 +79,13 @@ function ItemAddSheet({ property, categories, defaultCategory, taxRules, onClose
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const priceNum = Math.max(0, Number(price) || 0);
-  const withTax = round2(priceNum + (priceNum * groupRate(taxRules, "gst", priceNum)) / 100);
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+  // The category's tax is inherited by every item in it — see computeOrderByCategory.
+  // A tax-inclusive category's menu price already has tax baked in, so nothing is added on top here.
+  const withTax =
+    !selectedCategory || selectedCategory.tax_type === "EXEMPT" || selectedCategory.is_tax_inclusive
+      ? priceNum
+      : round2(priceNum + (priceNum * selectedCategory.tax_percent) / 100);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -88,7 +94,7 @@ function ItemAddSheet({ property, categories, defaultCategory, taxRules, onClose
     if (!categoryId) return setError("Choose a category");
     setBusy(true);
     try {
-      await posMenu({ property, entity: "item", name: name.trim(), price: priceNum, categoryId, taxGroup: "gst", isVeg: true, isAvailable: true, printerDestination: dest, trackProfit, costPrice: trackProfit ? Number(cost) || 0 : 0 });
+      await posMenu({ property, entity: "item", name: name.trim(), price: priceNum, categoryId, isVeg: true, isAvailable: true, printerDestination: dest, trackProfit, costPrice: trackProfit ? Number(cost) || 0 : 0 });
       await onSaved();
       toast.success(`${name.trim()} added to the menu`);
       onClose();
@@ -162,7 +168,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
     const o = d.order;
     setData(d);
     setOrderId(o.id);
-    setDrafts(d.lines.filter((l) => l.status === "active" && l.kot_number === 0).map((l) => ({ key: newKey(), itemId: l.item_id, name: l.item_name, qty: l.quantity, unitPrice: l.unit_price, group: l.tax_group, notes: l.notes ?? "" })));
+    setDrafts(d.lines.filter((l) => l.status === "active" && l.kot_number === 0).map((l) => ({ key: newKey(), itemId: l.item_id, name: l.item_name, qty: l.quantity, unitPrice: l.unit_price, categoryName: l.category_name ?? "Uncategorised", taxPercent: l.tax_rate, taxType: l.tax_type, isTaxInclusive: l.is_tax_inclusive, notes: l.notes ?? "" })));
     setGuest({ name: o.guest_name ?? "", count: o.guest_count || 1, phone: o.guest_phone ?? "", isCommercial: o.is_commercial === true, addressType: o.address_type ?? "Home", address: o.address ?? "", city: o.city ?? "", zip: o.zipcode ?? "" });
     setRemarks(o.remarks ?? "");
     setDiscountType(o.discount_type);
@@ -187,8 +193,17 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
 
   const sent = useMemo(() => (data?.lines ?? []).filter((l) => l.status === "active" && l.kot_number > 0), [data]);
   const totals = useMemo(
-    () => computeOrder([...sent.map((l) => ({ total: l.total_price, group: l.tax_group })), ...drafts.map((d) => ({ total: d.qty * d.unitPrice, group: d.group }))], state?.config.taxRules ?? [], discountType, discountValue, other),
-    [sent, drafts, state, discountType, discountValue, other],
+    () =>
+      computeOrderByCategory(
+        [
+          ...sent.map((l) => ({ total: l.total_price, categoryName: l.category_name ?? "Uncategorised", taxPercent: l.tax_rate, taxType: l.tax_type, isInclusive: l.is_tax_inclusive })),
+          ...drafts.map((d) => ({ total: d.qty * d.unitPrice, categoryName: d.categoryName, taxPercent: d.taxPercent, taxType: d.taxType, isInclusive: d.isTaxInclusive })),
+        ],
+        discountType,
+        discountValue,
+        other,
+      ),
+    [sent, drafts, discountType, discountValue, other],
   );
   const addedCount = drafts.reduce((s, d) => s + d.qty, 0);
   const slipCtx = slipContext(propertyName, state);
@@ -218,12 +233,27 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
   useBackDismiss(modal === null, () => (view === "menu" ? attemptClose() : setView(view === "payment" ? "review" : "menu")));
 
   const qtyOf = (itemId: string) => drafts.filter((d) => d.itemId === itemId && !d.notes).reduce((s, d) => s + d.qty, 0);
-  function put(item: { id: string; name: string; tax_group: TaxGroup }, unitPrice: number) {
+  function put(item: PosItem, unitPrice: number) {
+    const category = categories.find((c) => c.id === item.category_id);
     setDirty(true);
     setDrafts((prev) => {
       const at = prev.findIndex((d) => d.itemId === item.id && !d.notes && d.unitPrice === unitPrice);
       if (at >= 0) return prev.map((d, i) => (i === at ? { ...d, qty: d.qty + 1 } : d));
-      return [...prev, { key: newKey(), itemId: item.id, name: item.name, qty: 1, unitPrice, group: item.tax_group, notes: "" }];
+      return [
+        ...prev,
+        {
+          key: newKey(),
+          itemId: item.id,
+          name: item.name,
+          qty: 1,
+          unitPrice,
+          categoryName: category?.name ?? item.category_name ?? "Uncategorised",
+          taxPercent: category?.tax_percent ?? 5,
+          taxType: category?.tax_type ?? "GST",
+          isTaxInclusive: category?.is_tax_inclusive ?? false,
+          notes: "",
+        },
+      ];
     });
   }
   // Open-price items (catalog price 0) never go in at ₹0: the staff enters the price first.
@@ -241,7 +271,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
     put(item, price);
     if (!saveAsBase) return;
     try {
-      await posMenu({ property, entity: "item", id: item.id, name: item.name, price, categoryId: item.category_id, taxGroup: item.tax_group, imageUrl: item.image_url ?? "", isVeg: item.is_veg, isAvailable: item.is_available, brand: item.brand ?? "", printerDestination: item.printer_destination, stock: item.stock, trackProfit: item.track_profit === true, costPrice: item.cost_price ?? 0 });
+      await posMenu({ property, entity: "item", id: item.id, name: item.name, price, categoryId: item.category_id, imageUrl: item.image_url ?? "", isVeg: item.is_veg, isAvailable: item.is_available, brand: item.brand ?? "", printerDestination: item.printer_destination, stock: item.stock, trackProfit: item.track_profit === true, costPrice: item.cost_price ?? 0 });
       await reloadMenu();
       toast.success(`${item.name} menu price updated`);
     } catch (err) {
@@ -259,7 +289,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
       const res = await posSave({
         property, tableId: orderId ? undefined : tableId ?? undefined, orderId: orderId ?? undefined,
         guest, remarks, discountType, discountValue, otherCharges: other, kot,
-        drafts: drafts.map((d) => ({ itemId: d.itemId ?? undefined, name: d.name, qty: d.qty, unitPrice: d.unitPrice, taxGroup: d.group, notes: d.notes })),
+        drafts: drafts.map((d) => ({ itemId: d.itemId ?? undefined, name: d.name, qty: d.qty, unitPrice: d.unitPrice, notes: d.notes })),
       });
       setDirty(false);
       hydrate(res);
@@ -361,7 +391,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
 
   const modals = (
     <>
-      {modal === "newItem" && <ItemAddSheet property={property} categories={categories} defaultCategory={activeCat} taxRules={state?.config.taxRules ?? []} onClose={() => setModal(null)} onSaved={async () => { await reload(); }} />}
+      {modal === "newItem" && <ItemAddSheet property={property} categories={categories} defaultCategory={activeCat} onClose={() => setModal(null)} onSaved={async () => { await reload(); }} />}
       {modal === "newCategory" && <Prompt title="Add new category" label="Category name" confirm="Add" onClose={() => setModal(null)} onSubmit={(v) => { void (async () => { if (!v) return; try { await posMenu({ property, entity: "category", name: v }); await reloadMenu(); toast.success(`${v} category added`); setModal(null); } catch (err) { toast.error(err instanceof Error ? err.message : "Could not add the category"); } })(); }} />}
       {modal && typeof modal === "object" && "priceFor" in modal && <PricePrompt item={modal.priceFor} onClose={() => setModal(null)} onSubmit={(p, save) => void confirmPrice(modal.priceFor, p, save)} />}
       {modal === "guest" && (

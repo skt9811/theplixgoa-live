@@ -43,3 +43,71 @@ export function computeOrder(lines: { total: number; group: TaxGroup }[], rules:
   const tax = round2(Object.values(breakdown).reduce((s, v) => s + v, 0));
   return { subtotal: t.subtotal, discount: t.discount, tax, total: round2(t.subtotal - t.discount + tax + Math.max(0, other)), breakdown, rates: withRates.map((l) => l.rate) };
 }
+
+// --- Category-wise tax (each category carries its own rate, e.g. Food 5%,
+// Beverages 18%, instead of every item sharing one store-wide GST/VAT rate). ---
+
+export type CategoryTaxType = "GST" | "VAT" | "EXEMPT";
+export type CategoryLine = { total: number; categoryName: string; taxPercent: number; taxType: CategoryTaxType; isInclusive: boolean };
+/** One line per distinct category present in the cart — mirrors pms_pos_orders.tax_details.slabs. */
+export type TaxSlab = { category: string; rate: number; taxType: CategoryTaxType; taxableAmount: number; cgst: number; sgst: number; vat: number };
+export type CategoryOrderTotals = { subtotal: number; discount: number; tax: number; total: number; breakdown: Record<string, number>; slabs: TaxSlab[] };
+
+/**
+ * Totals for an order priced by each line's own category tax rate, discount
+ * spread proportionally the same way computeTotals/computeOrder do. Each
+ * category's combined GST rate is split evenly into CGST + SGST (the
+ * standard intra-state convention); VAT prints as a single line; EXEMPT
+ * contributes nothing. is_tax_inclusive means the category's price already
+ * has tax baked in, so it's extracted rather than added on top — the total
+ * charged for that line never changes, only how much of it is reported as tax.
+ */
+export function computeOrderByCategory(lines: CategoryLine[], discountType: DiscountType | string, discountValue: number, other: number): CategoryOrderTotals {
+  const subtotal = round2(lines.reduce((s, l) => s + l.total, 0));
+  const rawDiscount = discountType === "percent" ? (subtotal * discountValue) / 100 : discountType === "fixed" ? discountValue : 0;
+  const discount = round2(Math.min(Math.max(rawDiscount, 0), subtotal));
+  const ratio = subtotal > 0 ? (subtotal - discount) / subtotal : 0;
+
+  const byCategory = new Map<string, { taxPercent: number; taxType: CategoryTaxType; isInclusive: boolean; discountedTotal: number }>();
+  for (const l of lines) {
+    const key = l.categoryName || "Uncategorised";
+    const discountedTotal = l.total * ratio;
+    const existing = byCategory.get(key);
+    if (existing) existing.discountedTotal += discountedTotal;
+    else byCategory.set(key, { taxPercent: l.taxPercent, taxType: l.taxType, isInclusive: l.isInclusive, discountedTotal });
+  }
+
+  const slabs: TaxSlab[] = [];
+  const breakdown: Record<string, number> = {};
+  let exclusiveTaxSum = 0;
+  for (const [category, { taxPercent, taxType, isInclusive, discountedTotal }] of byCategory) {
+    if (taxType === "EXEMPT" || taxPercent <= 0) {
+      slabs.push({ category, rate: 0, taxType, taxableAmount: round2(discountedTotal), cgst: 0, sgst: 0, vat: 0 });
+      continue;
+    }
+    const base = isInclusive ? discountedTotal / (1 + taxPercent / 100) : discountedTotal;
+    const lineTax = isInclusive ? discountedTotal - base : (base * taxPercent) / 100;
+    if (!isInclusive) exclusiveTaxSum += lineTax;
+    const taxableAmount = round2(base);
+    if (taxType === "VAT") {
+      const vat = round2(lineTax);
+      slabs.push({ category, rate: taxPercent, taxType, taxableAmount, cgst: 0, sgst: 0, vat });
+      const k = `VAT @ ${taxPercent}%`;
+      breakdown[k] = round2((breakdown[k] ?? 0) + vat);
+    } else {
+      const half = round2(taxPercent / 2);
+      const cgst = round2(lineTax / 2);
+      const sgst = round2(lineTax - cgst);
+      slabs.push({ category, rate: taxPercent, taxType, taxableAmount, cgst, sgst, vat: 0 });
+      const ck = `CGST @ ${half}%`;
+      const sk = `SGST @ ${half}%`;
+      breakdown[ck] = round2((breakdown[ck] ?? 0) + cgst);
+      breakdown[sk] = round2((breakdown[sk] ?? 0) + sgst);
+    }
+  }
+  const tax = round2(Object.values(breakdown).reduce((s, v) => s + v, 0));
+  // Inclusive-category tax is already inside `subtotal - discount`, so only
+  // exclusive tax is ever added on top of the grand total.
+  const total = round2(subtotal - discount + round2(exclusiveTaxSum) + Math.max(0, other));
+  return { subtotal, discount, tax, total, breakdown, slabs };
+}

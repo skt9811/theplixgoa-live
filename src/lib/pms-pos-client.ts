@@ -52,13 +52,13 @@ export function posFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   return pms<T>(`pos/${path}`, { ...init, headers: { "X-Pos-Station": getStation(), ...(init.headers as Record<string, string> | undefined) } });
 }
 export const posPost = <T = { success: boolean }>(path: string, body: Record<string, unknown>) => posFetch<T>(path, { method: "POST", body: JSON.stringify(body) });
-import type { TaxGroup, TaxRule } from "@/lib/pms-pos-calc";
+import type { CategoryTaxType, TaxGroup, TaxRule, TaxSlab } from "@/lib/pms-pos-calc";
 
 export type PosTable = {
   id: string; name: string; table_type: string; group_name: string | null; status: "empty" | "running" | "billing";
   order: { id: string; order_number: number; total: number; guest_count: number; created_at: string; item_count: number } | null;
 };
-export type PosCategory = { id: string; name: string; sort_order: number; is_active: boolean; color: string | null };
+export type PosCategory = { id: string; name: string; sort_order: number; is_active: boolean; color: string | null; tax_percent: number; tax_type: CategoryTaxType; is_tax_inclusive: boolean };
 export type PosItem = {
   id: string; category_id: string | null; category_name: string | null; name: string; price: number; stock: number; brand: string | null;
   printer_destination: "kitchen" | "bar"; is_veg: boolean; tax_group: TaxGroup; image_url: string | null; is_available: boolean; track_profit?: boolean; cost_price?: number;
@@ -77,12 +77,22 @@ export type PosGeneral = {
 export type PosConfig = { store: PosStore | null; discounts: PosDiscountRow[]; printers: PosPrinterRow[]; stations: PosStationRow[]; taxRules: TaxRule[]; paymentMethods: PosPaymentMethod[]; general: PosGeneral };
 export type PosState = { tables: PosTable[]; categories: PosCategory[]; items: PosItem[]; config: PosConfig };
 
-export type PosLine = { id: string; kot_number: number; item_id: string | null; item_name: string; quantity: number; unit_price: number; total_price: number; notes: string | null; status: string; tax_rate: number; tax_group: TaxGroup };
+export type PosLine = {
+  id: string; kot_number: number; item_id: string | null; item_name: string; quantity: number; unit_price: number; total_price: number; notes: string | null; status: string;
+  /** The line's combined category tax rate, snapshotted when it was added — not a live lookup, so a bill keeps the tax it was charged with. */
+  tax_rate: number;
+  tax_type: CategoryTaxType;
+  is_tax_inclusive: boolean;
+  category_name: string | null;
+  /** @deprecated Legacy store-wide gst/vat/none bucket; no longer used to compute totals — see tax_rate/tax_type. */
+  tax_group: TaxGroup;
+};
 export type PosOrder = {
   id: string; order_number: number; property_id: string; table_id: string | null; table_name: string; guest_name: string | null; guest_phone: string | null; guest_count: number;
   status: "running" | "billing" | "completed" | "cancelled"; subtotal: number; tax_amount: number; discount_amount: number; discount_type: "fixed" | "percent" | null; discount_value: number;
   other_charges: number; total_amount: number; round_off: number; payment_method: string | null; remarks: string | null; created_at: string; settled_at: string | null;
   tax_breakdown: Record<string, number> | null;
+  tax_details: { slabs: TaxSlab[]; totalTax: number } | null;
   is_commercial: boolean | null; address_type: string | null; address: string | null; city: string | null; zipcode: string | null;
 };
 export type PosOrderData = { order: PosOrder; lines: PosLine[]; kotNumber?: number | null; change?: number; movedTo?: string };

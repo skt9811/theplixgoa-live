@@ -408,6 +408,23 @@ export function ensurePosSchema(sql: Sql): Promise<void> {
       await sql`ALTER TABLE pms_pos_items ADD COLUMN IF NOT EXISTS cost_price numeric(10, 2) NOT NULL DEFAULT 0`;
       await sql`ALTER TABLE pms_pos_order_items ADD COLUMN IF NOT EXISTS tax_group varchar(10) NOT NULL DEFAULT 'gst'`;
       await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS tax_breakdown jsonb`;
+      // Category-wise GST/VAT: each category carries its own combined rate
+      // (e.g. Food 5%, Beverages 18%) instead of every item sharing one
+      // store-wide rate — see pms-pos-calc.ts's computeOrderByCategory.
+      // Legacy pms_pos_items.tax_group + pms_pos_tax_rules stay in place
+      // (never dropped) but no longer drive real order totals.
+      await sql`ALTER TABLE pms_pos_categories ADD COLUMN IF NOT EXISTS tax_percent numeric(5, 2) NOT NULL DEFAULT 5.00`;
+      await sql`ALTER TABLE pms_pos_categories ADD COLUMN IF NOT EXISTS tax_type varchar(10) NOT NULL DEFAULT 'GST'`;
+      await sql`ALTER TABLE pms_pos_categories ADD COLUMN IF NOT EXISTS is_tax_inclusive boolean NOT NULL DEFAULT false`;
+      // Snapshotted onto each order line at add-time (same rationale as the
+      // existing tax_rate/tax_group snapshot) so a bill keeps the tax it was
+      // charged with even if the category's rate changes later.
+      await sql`ALTER TABLE pms_pos_order_items ADD COLUMN IF NOT EXISTS category_name varchar(100)`;
+      await sql`ALTER TABLE pms_pos_order_items ADD COLUMN IF NOT EXISTS tax_type varchar(10) NOT NULL DEFAULT 'GST'`;
+      await sql`ALTER TABLE pms_pos_order_items ADD COLUMN IF NOT EXISTS is_tax_inclusive boolean NOT NULL DEFAULT false`;
+      // Structured category-wise breakdown ({ slabs, totalTax }); tax_breakdown
+      // above stays the flattened CGST/SGST-line map the receipt printer reads.
+      await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS tax_details jsonb`;
       await sql`ALTER TABLE pms_pos_tables ADD COLUMN IF NOT EXISTS group_name varchar(100)`;
       await sql`
         CREATE TABLE IF NOT EXISTS pms_pos_store_profiles (

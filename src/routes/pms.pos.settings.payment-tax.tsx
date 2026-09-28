@@ -68,9 +68,10 @@ function PaymentTax() {
     <div className="mx-auto max-w-md">
       <BackLink to="/pms/pos/settings" label="Settings" />
       <PageTitle title="Payment & Tax" />
-      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Tax matrix</p>
+      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Tax matrix (legacy)</p>
+      <p className="mb-2 text-[11px] text-amber-700">Item tax now comes from each Category's own rate (Manage → Categories) — Food, Beverages and Alcohol can each carry a different GST/VAT %. The rules below are kept for reference only and no longer affect bill totals.</p>
       <div className="grid gap-2">{rules.map((r) => <TaxCard key={`${r.id}-${r.rate_percent}-${r.is_enabled}`} rule={r} property={property} reload={reload} />)}</div>
-      <p className="mt-2 text-[11px] text-slate-400">SGST and CGST apply to GST items; VAT applies to items marked VAT. Each item picks its tax in the Items catalog. Bills already settled keep the tax they were billed with.</p>
+      <p className="mt-2 text-[11px] text-slate-400">Bills already settled keep the tax they were billed with.</p>
       <p className="mb-1.5 mt-5 text-xs font-bold uppercase tracking-wide text-slate-500">Payment types</p>
       <div className="grid gap-2">{methods.map((m) => <MethodCard key={`${m.id}-${m.is_allowed}-${m.open_cash_drawer}-${m.receipt_copies}`} m={m} property={property} reload={reload} />)}</div>
     </div>

@@ -7,7 +7,7 @@ import { BackLink, Labeled, PageTitle, Sheet, Toggle, btnGhost, btnPrimary, fiel
 
 export const Route = createFileRoute("/pms/pos/manage/items")({ component: Items });
 
-type Form = { name: string; price: string; categoryId: string; taxGroup: string; imageUrl: string; isVeg: boolean; isAvailable: boolean; brand: string; printerDestination: "kitchen" | "bar"; stock: string };
+type Form = { name: string; price: string; categoryId: string; imageUrl: string; isVeg: boolean; isAvailable: boolean; brand: string; printerDestination: "kitchen" | "bar"; stock: string };
 
 function Items() {
   const { state, property, reload } = usePos();
@@ -30,11 +30,11 @@ function Items() {
 
   function open(item: Partial<PosItem>) {
     setEdit(item);
-    setF({ name: item.name ?? "", price: item.price !== undefined ? String(item.price) : "", categoryId: item.category_id ?? categories[0]?.id ?? "", taxGroup: item.tax_group ?? "gst", imageUrl: item.image_url ?? "", isVeg: item.is_veg ?? true, isAvailable: item.is_available ?? true, brand: item.brand ?? "", printerDestination: item.printer_destination ?? "kitchen", stock: item.stock !== undefined ? String(item.stock) : "0" });
+    setF({ name: item.name ?? "", price: item.price !== undefined ? String(item.price) : "", categoryId: item.category_id ?? categories[0]?.id ?? "", imageUrl: item.image_url ?? "", isVeg: item.is_veg ?? true, isAvailable: item.is_available ?? true, brand: item.brand ?? "", printerDestination: item.printer_destination ?? "kitchen", stock: item.stock !== undefined ? String(item.stock) : "0" });
   }
   async function save() {
     if (!f) return;
-    if (await run(() => posMenu({ property, entity: "item", id: edit?.id, name: f.name, price: Number(f.price), categoryId: f.categoryId, taxGroup: f.taxGroup, imageUrl: f.imageUrl, isVeg: f.isVeg, isAvailable: f.isAvailable, brand: f.brand, printerDestination: f.printerDestination, stock: Number(f.stock) || 0 }), "Item saved")) {
+    if (await run(() => posMenu({ property, entity: "item", id: edit?.id, name: f.name, price: Number(f.price), categoryId: f.categoryId, imageUrl: f.imageUrl, isVeg: f.isVeg, isAvailable: f.isAvailable, brand: f.brand, printerDestination: f.printerDestination, stock: Number(f.stock) || 0 }), "Item saved")) {
       setEdit(null);
       await reload();
     }
@@ -92,9 +92,18 @@ function Items() {
             <div className="grid grid-cols-2 gap-3">
               <Labeled label="Price (₹)"><input className={field} type="number" inputMode="decimal" min={0} value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></Labeled>
               <Labeled label={edit.id ? "Current stock" : "Initial stock"}><input className={field} type="number" inputMode="decimal" value={f.stock} onChange={(e) => setF({ ...f, stock: e.target.value })} /></Labeled>
-              <Labeled label="Tax"><select className={field} value={f.taxGroup} onChange={(e) => setF({ ...f, taxGroup: e.target.value })}><option value="gst">GST (SGST + CGST)</option><option value="vat">VAT</option><option value="none">No tax</option></select></Labeled>
+              <Labeled label="Tax">
+                <p className={`${field} flex items-center text-slate-600`}>
+                  {(() => {
+                    const c = categories.find((x) => x.id === f.categoryId);
+                    if (!c) return "Choose a category";
+                    return c.tax_type === "EXEMPT" ? "Exempt" : `${c.tax_type} ${c.tax_percent}%`;
+                  })()}
+                </p>
+              </Labeled>
               <Labeled label="Brand"><input className={field} value={f.brand} onChange={(e) => setF({ ...f, brand: e.target.value })} /></Labeled>
             </div>
+            <p className="-mt-1 text-[11px] text-slate-400">Tax is set on the category, not the item — edit it under Manage → Categories.</p>
             <div className="grid grid-cols-2 gap-2">
               {[true, false].map((v) => <button key={String(v)} type="button" onClick={() => setF({ ...f, isVeg: v })} className={`rounded-lg border py-2 text-sm font-semibold ${f.isVeg === v ? (v ? "border-green-600 bg-green-50 text-green-700" : "border-red-500 bg-red-50 text-red-700") : "border-slate-200 text-slate-500"}`}>{v ? "Veg" : "Non-veg"}</button>)}
             </div>

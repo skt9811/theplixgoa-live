@@ -10,7 +10,7 @@ import { isAllProps, type Actor } from "@/lib/pms-users.server";
 
 import { ISO_DATE, PosError, canManage, istToday, json, logPos, num, requireProperty, str, type Sql } from "@/lib/pms-pos-shared.server";
 import { PAYMENT_TYPE_NAMES, handleConfigApi, loadConfig, seedConfig } from "@/lib/pms-pos-config.server";
-import { computeOrder, type TaxGroup } from "@/lib/pms-pos-calc";
+import { computeOrderByCategory, type CategoryTaxType } from "@/lib/pms-pos-calc";
 import { handlePosAdminApi } from "@/lib/pms-pos-admin.server";
 
 
@@ -51,31 +51,51 @@ async function seedProperty(sql: Sql, property: string) {
   seededMenu.add(property);
 }
 
-type LineRow = { id: string; kot_number: number; item_id: string | null; item_name: string; quantity: number; unit_price: string; total_price: string; notes: string | null; status: string; tax_rate: string | null; tax_group: string };
+type LineRow = {
+  id: string; kot_number: number; item_id: string | null; item_name: string; quantity: number; unit_price: string; total_price: string; notes: string | null; status: string;
+  tax_rate: string | null; tax_group: string; category_name: string | null; tax_type: string | null; is_tax_inclusive: boolean | null;
+};
 type OrderRow = Record<string, unknown> & { id: string; property_id: string; table_id: string | null; table_name: string; status: string; subtotal: string; discount_type: string | null; discount_value: string | null; other_charges: string };
 
-const mapLine = (l: LineRow) => ({ id: l.id, kot_number: l.kot_number, item_id: l.item_id, item_name: l.item_name, quantity: l.quantity, unit_price: Number(l.unit_price), total_price: Number(l.total_price), notes: l.notes, status: l.status, tax_rate: Number(l.tax_rate ?? 0), tax_group: l.tax_group });
+const mapLine = (l: LineRow) => ({
+  id: l.id, kot_number: l.kot_number, item_id: l.item_id, item_name: l.item_name, quantity: l.quantity, unit_price: Number(l.unit_price), total_price: Number(l.total_price), notes: l.notes, status: l.status,
+  tax_rate: Number(l.tax_rate ?? 0), tax_group: l.tax_group, category_name: l.category_name, tax_type: (l.tax_type as CategoryTaxType) ?? "GST", is_tax_inclusive: l.is_tax_inclusive === true,
+});
 const mapOrder = (o: OrderRow) => ({ ...o, order_number: Number(o["order_number"]), subtotal: Number(o.subtotal), tax_amount: Number(o["tax_amount"]), discount_amount: Number(o["discount_amount"]), discount_value: Number(o.discount_value ?? 0), other_charges: Number(o.other_charges), total_amount: Number(o["total_amount"]), round_off: Number(o["round_off"] ?? 0) });
 
+// Each line's category tax rate/type is resolved once, when it's added (see
+// saveOrder) — not re-derived here — so a bill keeps the tax it was charged
+// with even if the category's rate changes later. recalc only re-totals.
 async function recalc(sql: Sql, orderId: string) {
   const [o] = await sql<OrderRow[]>`SELECT id, property_id, discount_type, discount_value, other_charges FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
-  const lines = await sql<{ id: string; total_price: string; tax_group: string }[]>`SELECT id, total_price, tax_group FROM pms_pos_order_items WHERE order_id = ${orderId} AND status = 'active'`;
-  const { taxRules } = await loadConfig(sql, o.property_id);
-  const t = computeOrder(lines.map((l) => ({ total: Number(l.total_price), group: (l.tax_group as TaxGroup) ?? "gst" })), taxRules, o.discount_type, Number(o.discount_value ?? 0), Number(o.other_charges));
-  for (const [k, l] of lines.entries()) await sql`UPDATE pms_pos_order_items SET tax_rate = ${t.rates[k] ?? 0} WHERE id = ${l.id}`;
-  await sql`UPDATE pms_pos_orders SET subtotal = ${t.subtotal}, discount_amount = ${t.discount}, tax_amount = ${t.tax}, total_amount = ${t.total}, tax_breakdown = ${sql.json(t.breakdown as never)} WHERE id = ${orderId}`;
+  const lines = await sql<{ total_price: string; category_name: string | null; tax_rate: string | null; tax_type: string | null; is_tax_inclusive: boolean | null }[]>`
+    SELECT total_price, category_name, tax_rate, tax_type, is_tax_inclusive FROM pms_pos_order_items WHERE order_id = ${orderId} AND status = 'active'`;
+  const t = computeOrderByCategory(
+    lines.map((l) => ({
+      total: Number(l.total_price),
+      categoryName: l.category_name ?? "Uncategorised",
+      taxPercent: Number(l.tax_rate ?? 0),
+      taxType: (l.tax_type as CategoryTaxType) ?? "GST",
+      isInclusive: l.is_tax_inclusive === true,
+    })),
+    o.discount_type,
+    Number(o.discount_value ?? 0),
+    Number(o.other_charges),
+  );
+  await sql`UPDATE pms_pos_orders SET subtotal = ${t.subtotal}, discount_amount = ${t.discount}, tax_amount = ${t.tax}, total_amount = ${t.total},
+    tax_breakdown = ${sql.json(t.breakdown as never)}, tax_details = ${sql.json({ slabs: t.slabs, totalTax: t.tax } as never)} WHERE id = ${orderId}`;
 }
 
 async function loadOrder(sql: Sql, orderId: string) {
-  const [o] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown FROM pms_pos_orders WHERE id = ${orderId}`;
+  const [o] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
-  const lines = await sql<LineRow[]>`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted, tax_group FROM pms_pos_order_items WHERE order_id = ${orderId} ORDER BY kot_number, ctid`;
+  const lines = await sql<LineRow[]>`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted, tax_group, category_name, tax_type, is_tax_inclusive FROM pms_pos_order_items WHERE order_id = ${orderId} ORDER BY kot_number, ctid`;
   return { order: mapOrder(o), lines: lines.map(mapLine) };
 }
 
 async function ownedOrder(sql: Sql, actor: Actor, orderId: string): Promise<OrderRow> {
-  const [o] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown FROM pms_pos_orders WHERE id = ${orderId}`;
+  const [o] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
   requireProperty(actor, o.property_id);
   return o;
@@ -113,7 +133,7 @@ async function getState(url: URL, actor: Actor, sql: Sql) {
         FROM pms_pos_tables t LEFT JOIN pms_pos_orders o ON o.id = t.current_order_id AND o.status IN ('running', 'billing')
         WHERE t.property_id = ${property}
         ORDER BY t.sort_order, CASE t.table_type WHEN 'open' THEN 0 WHEN 'villa' THEN 1 ELSE 2 END, length(t.name), t.name`,
-    sql`SELECT id, name, sort_order, is_active, color FROM pms_pos_categories WHERE property_id = ${property} ORDER BY sort_order, name`,
+    sql`SELECT id, name, sort_order, is_active, color, tax_percent::float AS tax_percent, tax_type, is_tax_inclusive FROM pms_pos_categories WHERE property_id = ${property} ORDER BY sort_order, name`,
     sql`SELECT id, category_id, category_name, name, price::float AS price, stock::float AS stock, brand, printer_destination, is_veg, tax_group, image_url, is_available, track_profit, cost_price::float AS cost_price FROM pms_pos_items WHERE property_id = ${property} ORDER BY name`,
     loadConfig(sql, property),
   ]);
@@ -163,7 +183,7 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
         created = true;
       }
     }
-    const [existing] = await tx<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown FROM pms_pos_orders WHERE id = ${orderId} FOR UPDATE`;
+    const [existing] = await tx<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details FROM pms_pos_orders WHERE id = ${orderId} FOR UPDATE`;
     if (!existing || existing.property_id !== property) throw new PosError("Order not found", 404);
     if (existing.status !== "running" && existing.status !== "billing") throw new PosError("This order is already closed", 409);
 
@@ -181,19 +201,32 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
       const qty = Math.max(1, Math.floor(num(d["qty"], 1)));
       let name = str(d["name"]).slice(0, 150);
       let price = Math.max(0, num(d["unitPrice"]));
-      let group: TaxGroup = d["taxGroup"] === "vat" || d["taxGroup"] === "none" ? (d["taxGroup"] as TaxGroup) : "gst";
+      // Tax is resolved from the item's category at add-time and snapshotted
+      // on the line (see computeOrderByCategory) — a menu item with no
+      // category, or a freeform line with no itemId at all, falls back to
+      // the same 5% GST default the store started with.
+      let categoryName = "Uncategorised";
+      let taxPercent = 5;
+      let taxType = "GST";
+      let isTaxInclusive = false;
       const itemId = str(d["itemId"]);
       if (itemId) {
-        const [item] = await tx<{ name: string; price: string; tax_group: string }[]>`SELECT name, price, tax_group FROM pms_pos_items WHERE id = ${itemId} AND property_id = ${property}`;
+        const [item] = await tx<{ name: string; price: string; category_name: string | null; tax_percent: string | null; tax_type: string | null; is_tax_inclusive: boolean | null }[]>`
+          SELECT i.name, i.price, c.name AS category_name, c.tax_percent, c.tax_type, c.is_tax_inclusive
+          FROM pms_pos_items i LEFT JOIN pms_pos_categories c ON c.id = i.category_id
+          WHERE i.id = ${itemId} AND i.property_id = ${property}`;
         if (!item) throw new PosError("A menu item no longer exists");
         name = item.name;
         // A catalog price of 0 marks an open-price item: the price the staff typed at the table is used.
         if (Number(item.price) > 0) price = Number(item.price);
-        group = (item.tax_group as TaxGroup) ?? "gst";
+        categoryName = item.category_name ?? "Uncategorised";
+        taxPercent = item.tax_percent !== null ? Number(item.tax_percent) : 5;
+        taxType = item.tax_type ?? "GST";
+        isTaxInclusive = item.is_tax_inclusive === true;
       }
       if (!name) throw new PosError("Every line needs a name");
-      await tx`INSERT INTO pms_pos_order_items (order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, tax_rate, tax_group, added_by)
-        VALUES (${orderId}, 0, ${itemId || null}, ${name}, ${qty}, ${price}, ${round2(price * qty)}, ${str(d["notes"]) || null}, 0, ${group}, ${actor.name})`;
+      await tx`INSERT INTO pms_pos_order_items (order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, tax_rate, category_name, tax_type, is_tax_inclusive, added_by)
+        VALUES (${orderId}, 0, ${itemId || null}, ${name}, ${qty}, ${price}, ${round2(price * qty)}, ${str(d["notes"]) || null}, ${taxPercent}, ${categoryName}, ${taxType}, ${isTaxInclusive}, ${actor.name})`;
     }
 
     let kotNumber: number | null = null;
@@ -349,7 +382,7 @@ async function settle(request: Request, actor: Actor, sql: Sql, station: string)
   const roundOff = round2(num(body["roundOff"]));
   const remark = str(body["remark"]);
   await recalc(sql, order.id);
-  const [fresh] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown FROM pms_pos_orders WHERE id = ${order.id}`;
+  const [fresh] = await sql<OrderRow[]>`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details FROM pms_pos_orders WHERE id = ${order.id}`;
   const total = round2(Number(fresh!["total_amount"]) + roundOff);
   const received = noPayment ? total : Math.max(0, num(body["received"], total));
   if (!noPayment && received < total) throw new PosError("Received amount is less than the bill total");
@@ -399,13 +432,18 @@ async function menuApi(request: Request, actor: Actor, sql: Sql, station: string
       const name = str(body["name"]).slice(0, 100);
       if (!name) throw new PosError("Category name is required");
       const color = /^#[0-9a-fA-F]{6}$/.test(str(body["color"])) ? str(body["color"]) : null;
+      const taxPercent = Math.min(100, Math.max(0, num(body["taxPercent"], 5)));
+      const taxType = body["taxType"] === "VAT" || body["taxType"] === "EXEMPT" ? (body["taxType"] as string) : "GST";
+      const isTaxInclusive = body["isTaxInclusive"] === true;
       if (id) {
-        await sql`UPDATE pms_pos_categories SET name = ${name}, color = ${color}, sort_order = ${Math.floor(num(body["sortOrder"]))}, is_active = ${body["isActive"] !== false} WHERE id = ${id} AND property_id = ${property}`;
+        await sql`UPDATE pms_pos_categories SET name = ${name}, color = ${color}, sort_order = ${Math.floor(num(body["sortOrder"]))}, is_active = ${body["isActive"] !== false},
+          tax_percent = ${taxPercent}, tax_type = ${taxType}, is_tax_inclusive = ${isTaxInclusive} WHERE id = ${id} AND property_id = ${property}`;
         await sql`UPDATE pms_pos_items SET category_name = ${name} WHERE category_id = ${id}`;
       }
       else {
         const [m] = await sql<{ k: number }[]>`SELECT COALESCE(max(sort_order), -1)::int + 1 AS k FROM pms_pos_categories WHERE property_id = ${property}`;
-        await sql`INSERT INTO pms_pos_categories (property_id, name, color, sort_order) VALUES (${property}, ${name}, ${color}, ${m!.k})`;
+        await sql`INSERT INTO pms_pos_categories (property_id, name, color, sort_order, tax_percent, tax_type, is_tax_inclusive)
+          VALUES (${property}, ${name}, ${color}, ${m!.k}, ${taxPercent}, ${taxType}, ${isTaxInclusive})`;
       }
     }
   } else if (entity === "item") {

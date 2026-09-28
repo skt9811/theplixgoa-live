@@ -41,15 +41,19 @@ export type BookingRow = {
   host_email: string | null;
   created_at: string;
   source: "online" | "manual";
+  commission_pct: number;
+  commission_amount: number;
 };
 
-type RawBookingRow = Omit<BookingRow, "subtotal" | "taxes" | "total_amount" | "created_at" | "check_in" | "check_out" | "source"> & {
+type RawBookingRow = Omit<BookingRow, "subtotal" | "taxes" | "total_amount" | "created_at" | "check_in" | "check_out" | "source" | "commission_pct" | "commission_amount"> & {
   subtotal: string | number;
   taxes: string | number;
   total_amount: string | number;
   created_at: string | Date;
   check_in: string | Date;
   check_out: string | Date;
+  commission_pct: string | number;
+  commission_amount: string | number;
 };
 
 // check_in/check_out are `date` columns — postgres.js parses those into
@@ -71,6 +75,8 @@ function normalizeRow(row: RawBookingRow): BookingRow {
     check_in: toDateString(row.check_in),
     check_out: toDateString(row.check_out),
     source: "online",
+    commission_pct: Number(row.commission_pct),
+    commission_amount: Number(row.commission_amount),
   };
 }
 
@@ -86,6 +92,8 @@ type ManualBookingRow = {
   booking_amount: string | number;
   status: "confirmed" | "checked_in" | "completed" | "blocked" | "cancelled";
   created_at: string | Date;
+  commission_pct: string | number;
+  commission_amount: string | number;
 };
 
 // portal_bookings has no payment lifecycle of its own (no online payment
@@ -121,6 +129,8 @@ function manualRowToBookingRow(row: ManualBookingRow): BookingRow | null {
     host_email: null,
     created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
     source: "manual",
+    commission_pct: Number(row.commission_pct),
+    commission_amount: Number(row.commission_amount),
   };
 }
 
@@ -145,7 +155,8 @@ export const fetchAllBookingsServerFn = createServerFn({ method: "GET" }).handle
         `,
         sql<ManualBookingRow[]>`
           SELECT id, property_id, guest_name, guest_phone, check_in, check_out,
-                 nights, guests_count, booking_amount, status, created_at
+                 nights, guests_count, booking_amount, status, created_at,
+                 commission_pct, commission_amount
           FROM public.portal_bookings
           WHERE status != 'cancelled'
           ORDER BY check_in DESC

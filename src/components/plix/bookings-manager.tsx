@@ -276,9 +276,16 @@ function EditBookingModal({
   const [checkIn, setCheckIn] = useState(booking.check_in);
   const [checkOut, setCheckOut] = useState(booking.check_out);
   const [amount, setAmount] = useState(String(booking.total_amount));
+  // 0 is indistinguishable from "never explicitly set" (this table's rows
+  // predate commission tracking, or came through a write path that doesn't
+  // set it) — 22 matches this same file's Create Booking form default
+  // rather than showing a misleading 0% here.
+  const [commissionPct, setCommissionPct] = useState(booking.commission_pct || 22);
   const [saving, setSaving] = useState(false);
 
   const nights = checkIn && checkOut ? Math.max(0, differenceInCalendarDays(new Date(checkOut), new Date(checkIn))) : 0;
+  const bookingAmountNum = Number(amount) || 0;
+  const commissionAmount = Math.round((bookingAmountNum * commissionPct) / 100);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -298,6 +305,7 @@ function EditBookingModal({
       checkIn,
       checkOut,
       bookingAmount,
+      commissionPct,
     });
     setSaving(false);
     if (error) {
@@ -370,6 +378,20 @@ function EditBookingModal({
             />
           </label>
           <p className="text-xs text-white/50">{nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "Check-out must be after check-in"}</p>
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-white/70">Commission %</span>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={commissionPct}
+              onChange={(e) => setCommissionPct(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+              className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-white outline-none focus:ring-2 focus:ring-bronze/50"
+            />
+          </label>
+          <p className="text-xs text-white/50">
+            {formatINR(commissionAmount)} commission · {formatINR(bookingAmountNum - commissionAmount)} net payout
+          </p>
           <button
             type="submit"
             disabled={saving}

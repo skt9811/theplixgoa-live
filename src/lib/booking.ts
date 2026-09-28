@@ -35,6 +35,8 @@ export type BookingRecord = {
   razorpay_signature?: string | null;
   payment_status: string;
   host_email?: string | null;
+  commission_pct: number;
+  commission_amount: number;
 };
 
 export type CreateOrderInput = {

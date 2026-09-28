@@ -55,6 +55,13 @@ export async function handleAdminUpdateBooking(request: Request, id: string): Pr
   const checkIn = get("checkIn");
   const checkOut = get("checkOut");
   const bookingAmount = typeof rawBody["bookingAmount"] === "number" ? rawBody["bookingAmount"] : 0;
+  // 22 matches this same ledger's Create Booking default (bookings-manager.tsx)
+  // when the client omits it or sends something invalid.
+  const commissionPct =
+    typeof rawBody["commissionPct"] === "number" && Number.isFinite(rawBody["commissionPct"])
+      ? Math.min(100, Math.max(0, rawBody["commissionPct"]))
+      : 22;
+  const commissionAmount = Math.round(bookingAmount * (commissionPct / 100) * 100) / 100;
 
   // Nights is always recomputed from the dates server-side — never trusted
   // from the client, same rule the punch-in endpoint follows.
@@ -80,7 +87,8 @@ export async function handleAdminUpdateBooking(request: Request, id: string): Pr
       await sql`
         UPDATE public.portal_bookings
         SET guest_name = ${guestName}, guest_phone = ${guestPhone}, check_in = ${checkIn},
-            check_out = ${checkOut}, nights = ${nights}, booking_amount = ${bookingAmount}
+            check_out = ${checkOut}, nights = ${nights}, booking_amount = ${bookingAmount},
+            commission_pct = ${commissionPct}, commission_amount = ${commissionAmount}
         WHERE id = ${id}
       `;
       await syncManualBlocks(sql, existing.property_id, id, checkIn, checkOut, existing.status !== "cancelled");
@@ -88,7 +96,8 @@ export async function handleAdminUpdateBooking(request: Request, id: string): Pr
       await sql`
         UPDATE public.bookings
         SET guest_name = ${guestName}, guest_mobile = ${guestPhone}, check_in = ${checkIn},
-            check_out = ${checkOut}, nights = ${nights}, total_amount = ${bookingAmount}
+            check_out = ${checkOut}, nights = ${nights}, total_amount = ${bookingAmount},
+            commission_pct = ${commissionPct}, commission_amount = ${commissionAmount}
         WHERE id = ${id}
       `;
     }

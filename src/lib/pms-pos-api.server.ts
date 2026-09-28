@@ -412,7 +412,7 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
       { orderId: result.orderId },
       station,
     );
-    void sendStaffPushNotification({
+    await sendStaffPushNotification({
       title: `🍽️ Table ${saved.order.table_name} Opened`,
       body: `Dine-in started (${Math.max(1, Math.floor(num(guest["count"], 1)))} Pax) • Handled by ${actor.name}`,
       channelId: "pos_channel",
@@ -528,7 +528,7 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
         reason,
         total: Number(order["total_amount"]),
       });
-      void sendStaffPushNotification({
+      await sendStaffPushNotification({
         title: `⚠️ Table ${order.table_name} Cancelled`,
         body: `Table was cancelled by ${actor.name}.${reason ? ` Reason: ${reason}` : ""}`,
         channelId: "pos_channel",
@@ -710,7 +710,7 @@ async function settle(request: Request, actor: Actor, sql: Sql, station: string)
     { orderId: order.id, method, total },
     station,
   );
-  void sendStaffPushNotification({
+  await sendStaffPushNotification({
     title: `💳 Table ${order.table_name} Settled`,
     body: `Bill: ₹${total.toLocaleString("en-IN")} settled via ${method}`,
     channelId: "pos_channel",

@@ -482,7 +482,7 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
     checkIn,
     nights,
   );
-  void sendStaffPushNotification({
+  await sendStaffPushNotification({
     title: `🏨 New Booking: ${property?.name.split(" - ")[0] ?? propertySlug}`,
     body: `${guestName} • ${checkIn} to ${checkOut} (${rooms} Room${rooms === 1 ? "" : "s"}) • By ${actor.name}`,
     channelId: "bookings_channel",
@@ -1791,7 +1791,7 @@ async function createVoucher(request: Request, actor: Actor): Promise<Response> 
     checkIn,
     nights,
   );
-  void sendStaffPushNotification({
+  await sendStaffPushNotification({
     title: `🏨 New Booking: ${property?.name.split(" - ")[0] ?? propertySlug}`,
     body: `${guestName} • ${checkIn} to ${checkOut} (${rooms} Room${rooms === 1 ? "" : "s"}) • By ${actor.name}`,
     channelId: "bookings_channel",

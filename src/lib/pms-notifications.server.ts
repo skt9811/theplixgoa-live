@@ -98,6 +98,7 @@ export async function sendStaffPushNotification({
   channelId?: NotificationChannel;
   data?: Record<string, string>;
 }): Promise<void> {
+  console.log("[pms-notifications] dispatching:", { title, channelId });
   try {
     const messaging = await getMessagingClient();
     if (!messaging) {
@@ -110,12 +111,18 @@ export async function sendStaffPushNotification({
       return;
     }
     const devices = await activeTokens();
+    console.log("[pms-notifications] active devices:", devices.length);
     if (devices.length === 0) return;
     const response = await messaging.sendEachForMulticast({
       tokens: devices.map((d) => d.token),
       notification: { title, body },
       data: { channelId, ...data },
       android: { notification: { channelId, sound: "default" }, priority: "high" },
+    });
+    console.log("[pms-notifications] FCM dispatch result:", {
+      successCount: response.successCount,
+      failureCount: response.failureCount,
+      errors: response.responses.filter((r) => !r.success).map((r) => r.error?.code),
     });
     const stale: string[] = [];
     response.responses.forEach((r, i) => {

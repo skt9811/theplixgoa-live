@@ -225,7 +225,7 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
 
   const datesLabel =
     checkIn && checkOut ? `${fmtShort(checkIn)} - ${fmtShort(checkOut)}` : "dates TBC";
-  void sendStaffPushNotification({
+  await sendStaffPushNotification({
     title: `🚨 New Airbnb Inquiry: ${property?.name ?? "Unknown property"}`,
     body: `${guestName} (${paxCount} guests) • ${datesLabel}`,
     channelId: "inquiries_channel",

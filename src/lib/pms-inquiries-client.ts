@@ -22,6 +22,8 @@ export type PmsInquiry = {
   booking_id: string | null;
   created_at: string;
   updated_at: string;
+  recipient_email: string | null;
+  listing_title: string | null;
 };
 
 export const STATUS_LABELS: Record<InquiryStatus, string> = {

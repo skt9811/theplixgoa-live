@@ -148,11 +148,16 @@ function Inquiries() {
             >
               <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
                 <span className="rounded-full bg-slate-900 px-2.5 py-1 text-white">
-                  {inq.property_name ?? "Unmatched property"}
+                  {inq.property_name ?? inq.listing_title ?? "Unmatched property"}
                 </span>
                 <span className={`rounded-full px-2.5 py-1 ${STATUS_STYLE[inq.status]}`}>
                   {STATUS_LABELS[inq.status]}
                 </span>
+                {inq.recipient_email && (
+                  <span className="rounded-full bg-sky-100 px-2.5 py-1 text-sky-700">
+                    Host: {inq.recipient_email}
+                  </span>
+                )}
                 <span className="ml-auto text-slate-400">
                   {new Date(inq.created_at).toLocaleString("en-IN", {
                     day: "numeric",
@@ -166,6 +171,11 @@ function Inquiries() {
               <div className="mt-2 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-slate-900">{inq.guest_name}</p>
+                  {inq.listing_title && (
+                    <p className="truncate text-xs font-medium text-bronze">
+                      Airbnb: {inq.listing_title}
+                    </p>
+                  )}
                   <p className="flex items-center gap-1 text-xs text-slate-500">
                     <Users className="size-3" aria-hidden /> {inq.pax_count} guest
                     {inq.pax_count === 1 ? "" : "s"}

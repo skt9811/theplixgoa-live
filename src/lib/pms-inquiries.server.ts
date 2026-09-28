@@ -19,7 +19,7 @@ function safeEqual(a: string, b: string): boolean {
 
 const INQUIRY_COLUMNS = `id, source, airbnb_account, property_id, property_name, guest_name, guest_phone,
   check_in::text AS check_in, check_out::text AS check_out, pax_count, inquiry_text, thread_url, email_type,
-  status, booking_id, created_at, updated_at`;
+  status, booking_id, created_at, updated_at, recipient_email, listing_title`;
 
 type InquiryRow = {
   id: string;
@@ -39,6 +39,8 @@ type InquiryRow = {
   booking_id: string | null;
   created_at: Date;
   updated_at: Date;
+  recipient_email: string | null;
+  listing_title: string | null;
 };
 const mapInquiry = (r: InquiryRow) => ({
   ...r,
@@ -51,13 +53,20 @@ export async function listInquiries(actor: Actor): Promise<Response> {
   if (!sql) return json({ inquiries: [] });
   await ensureInquiriesSchema(sql);
   const slugs = allowedSlugs(actor);
+  // Every row in this table is a lead, not a resource tied to one property's
+  // finances/operations — a property-restricted staff member still needs to
+  // see (and triage/reassign) an Airbnb inquiry that matched a DIFFERENT
+  // property, or none at all, rather than have it silently invisible to
+  // them. So source = 'airbnb' rows are always included regardless of the
+  // actor's allowed slugs; this table has no non-Airbnb source today, so in
+  // practice every staff member now sees the full inquiries list.
   const rows = isAllProps(actor)
     ? await sql<
         InquiryRow[]
       >`SELECT ${sql.unsafe(INQUIRY_COLUMNS)} FROM pms_inquiries ORDER BY created_at DESC LIMIT 300`
     : await sql<
         InquiryRow[]
-      >`SELECT ${sql.unsafe(INQUIRY_COLUMNS)} FROM pms_inquiries WHERE property_id = ANY(${slugs}) OR property_id IS NULL ORDER BY created_at DESC LIMIT 300`;
+      >`SELECT ${sql.unsafe(INQUIRY_COLUMNS)} FROM pms_inquiries WHERE property_id = ANY(${slugs}) OR property_id IS NULL OR source = 'airbnb' ORDER BY created_at DESC LIMIT 300`;
   return json({ inquiries: rows.map(mapInquiry) });
 }
 
@@ -205,6 +214,43 @@ function extractPayout(text: string): { amount: number | null; currency: string 
   return { amount: Number.isFinite(amount) ? amount : null, currency };
 }
 
+/** Which host Gmail inbox Airbnb actually delivered this to — Make.com's
+ * payload shape for this isn't guaranteed, so every plausible field name is
+ * checked. Best-effort: returns null rather than throwing on anything odd. */
+function extractRecipientEmail(body: Record<string, unknown>): string | null {
+  const headers = body["headers"];
+  const headerRecord =
+    headers && typeof headers === "object" ? (headers as Record<string, unknown>) : {};
+  const candidates = [
+    body["recipient"],
+    body["to"],
+    body["deliveredTo"],
+    body["delivered-to"],
+    headerRecord["to"],
+    headerRecord["delivered-to"],
+    headerRecord["Delivered-To"],
+  ];
+  for (const c of candidates) {
+    if (typeof c !== "string") continue;
+    const m = /[^\s<>"]+@[^\s<>"]+\.[^\s<>"]+/.exec(c);
+    if (m) return m[0].toLowerCase();
+  }
+  return null;
+}
+
+/** Always returns a non-empty string — even an unmatched listing must keep
+ * its raw title visible on the card instead of silently disappearing. */
+function extractListingTitle(subject: string, property: { name: string } | null): string {
+  if (property) return property.name;
+  const cleaned = subject
+    .replace(
+      /^(reservation confirmed|inquiry from|reservation request|new message from)\s*[-–—:]?\s*/i,
+      "",
+    )
+    .trim();
+  return cleaned || subject.trim() || "Unmatched listing";
+}
+
 function fmtShort(iso: string): string {
   return new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", {
     day: "numeric",
@@ -242,18 +288,52 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
   // a failure, it's just not something the CRM needs to track.
   if (!looksLikeGuestIntent(subject, bodyText)) return json({ ok: true, skipped: true });
 
-  const guestName = extractGuestName(subject, bodyText);
-  const { checkIn, checkOut } = parseAirbnbDateRange(combined);
-  const paxCount = extractPaxCount(combined);
-  const property = matchProperty(combined);
-  const threadUrl = extractThreadUrl(`${bodyText}\n${bodyHtml}`);
-  const confirmationCode = extractConfirmationCode(combined);
-  const { amount: payoutAmount, currency: payoutCurrency } = extractPayout(combined);
-  const emailType = /confirmed booking|reservation confirmed/i.test(combined)
-    ? "confirmed_booking"
-    : /sent (?:you )?a message/i.test(combined)
-      ? "message"
-      : "inquiry";
+  // Zero-drop: every extractor below is already individually defensive (regex
+  // miss -> null, never throw), but the whole block is wrapped anyway so any
+  // unexpected formatting can never turn a real lead into a 500 — it falls
+  // back to the safest generic values and the raw email is still saved.
+  let guestName: string;
+  let checkIn: string | null;
+  let checkOut: string | null;
+  let paxCount: number;
+  let property: { slug: string; name: string } | null;
+  let threadUrl: string | null;
+  let confirmationCode: string | null;
+  let payoutAmount: number | null;
+  let payoutCurrency: string | null;
+  let recipientEmail: string | null;
+  let listingTitle: string;
+  let emailType: string;
+  try {
+    guestName = extractGuestName(subject, bodyText);
+    ({ checkIn, checkOut } = parseAirbnbDateRange(combined));
+    paxCount = extractPaxCount(combined);
+    property = matchProperty(combined);
+    threadUrl = extractThreadUrl(`${bodyText}\n${bodyHtml}`);
+    confirmationCode = extractConfirmationCode(combined);
+    ({ amount: payoutAmount, currency: payoutCurrency } = extractPayout(combined));
+    recipientEmail = extractRecipientEmail(body);
+    listingTitle = extractListingTitle(subject, property);
+    emailType = /confirmed booking|reservation confirmed/i.test(combined)
+      ? "confirmed_booking"
+      : /sent (?:you )?a message/i.test(combined)
+        ? "message"
+        : "inquiry";
+  } catch (error) {
+    console.error("[airbnb-inquiry-webhook] parsing failed, falling back to raw email:", error);
+    guestName = "Airbnb Guest";
+    checkIn = null;
+    checkOut = null;
+    paxCount = 1;
+    property = null;
+    threadUrl = null;
+    confirmationCode = null;
+    payoutAmount = null;
+    payoutCurrency = null;
+    recipientEmail = null;
+    listingTitle = subject.trim() || "Unmatched listing";
+    emailType = "inquiry";
+  }
   const isConfirmedBooking = emailType === "confirmed_booking";
   const notes = `${subject}\n\n${bodyText.slice(0, 2000)}`.trim();
 
@@ -291,13 +371,15 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
         confirmation_code = COALESCE(${confirmationCode}, confirmation_code),
         payout_amount = COALESCE(${payoutAmount}, payout_amount),
         payout_currency = COALESCE(${payoutCurrency}, payout_currency),
+        recipient_email = COALESCE(${recipientEmail}, recipient_email),
+        listing_title = ${listingTitle},
         updated_at = now()
       WHERE id = ${id}::uuid`;
   } else {
     try {
       const [row] = await sql<{ id: string }[]>`
-        INSERT INTO pms_inquiries (source, airbnb_account, property_id, property_name, guest_name, check_in, check_out, pax_count, inquiry_text, thread_url, email_type, confirmation_code, payout_amount, payout_currency)
-        VALUES ('airbnb', ${from}, ${property?.slug ?? null}, ${property?.name ?? null}, ${guestName}, ${checkIn}, ${checkOut}, ${paxCount}, ${notes || null}, ${threadUrl}, ${emailType}, ${confirmationCode}, ${payoutAmount}, ${payoutCurrency})
+        INSERT INTO pms_inquiries (source, airbnb_account, property_id, property_name, guest_name, check_in, check_out, pax_count, inquiry_text, thread_url, email_type, confirmation_code, payout_amount, payout_currency, recipient_email, listing_title)
+        VALUES ('airbnb', ${from}, ${property?.slug ?? null}, ${property?.name ?? null}, ${guestName}, ${checkIn}, ${checkOut}, ${paxCount}, ${notes || null}, ${threadUrl}, ${emailType}, ${confirmationCode}, ${payoutAmount}, ${payoutCurrency}, ${recipientEmail}, ${listingTitle})
         RETURNING id`;
       id = row!.id;
       isNew = true;
@@ -321,7 +403,7 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
       checkIn && checkOut ? `${fmtShort(checkIn)} - ${fmtShort(checkOut)}` : "dates TBC";
     await sendStaffPushNotification({
       title: isConfirmedBooking ? "New Airbnb Reservation Confirmed!" : "New Airbnb Inquiry!",
-      body: `${guestName} • ${property?.name ?? "Unknown property"} (${datesLabel})`,
+      body: `${guestName} • ${listingTitle || property?.name || "Unknown property"} (Host: ${recipientEmail ?? "Primary"}) • ${datesLabel}`,
       channelId: "inquiries_channel",
       // type/inquiryId preserved exactly as pms-push.ts's deep-link
       // resolver already matches (resolveDeepLink) — renaming these to the

@@ -29,6 +29,7 @@ import { portalPreflight, withPortalCors } from "./lib/portal-cors.server";
 import { handleAdminCreateBooking } from "./lib/admin-bookings-api.server";
 import { handlePmsApi } from "./lib/pms-api.server";
 import { registerPartnerDevice } from "./lib/pms-notifications.server";
+import { handlePartnerVersionCheck } from "./lib/partner-version-check.server";
 import { handleAdminUpdateBooking, handleAdminDeleteBooking } from "./lib/admin-bookings-crud.server";
 import { handleAdminListPortalOwners, handleAdminUpdatePortalOwner } from "./lib/admin-portal-owners-api.server";
 import { getAuthConfig } from "./lib/auth.server";
@@ -356,6 +357,9 @@ export default {
           request.method === "POST"
         ) {
           return withPortalCors(await registerPartnerDevice(request));
+        }
+        if (url.pathname === "/api/partner/version-check" && request.method === "GET") {
+          return withPortalCors(handlePartnerVersionCheck());
         }
         return withPortalCors(
           new Response(JSON.stringify({ error: "Not found" }), {

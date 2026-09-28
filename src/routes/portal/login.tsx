@@ -70,7 +70,7 @@ function PortalLoginPage() {
         setPin("");
         return;
       }
-      if (data.role === "owner" && data.portal_token && data.propertySlug) {
+      if (data.portal_token && data.role) {
         // Durable native storage — survives Android killing the WebView,
         // unlike the HttpOnly cookie also set by this same response. Not
         // awaited: savePortalSession writes to localStorage synchronously
@@ -78,10 +78,20 @@ function PortalLoginPage() {
         // the background, but even that resolved promise is deliberately
         // not waited on here — nothing native-related may ever sit between
         // a successful auth response and navigating to the dashboard.
+        //
+        // Previously gated on `data.role === "owner"` — an admin login's
+        // response does carry a portal_token too (admin sessions just have
+        // no propertySlug of their own, unlike an owner's), so admin never
+        // got this native fallback saved. On a device where Android's
+        // WebView drops the HttpOnly cookie across the post-login
+        // navigation, an owner's session survived via this bearer-token
+        // fallback while admin's didn't — same symptom (indefinite
+        // dashboard skeleton) as a real 401, but silent, since no fallback
+        // token existed to even attempt.
         void savePortalSession({
           portal_token: data.portal_token,
-          propertySlug: data.propertySlug,
-          role: "owner",
+          propertySlug: data.propertySlug ?? "",
+          role: data.role,
           ownerPhone: data.ownerPhone,
         });
       }

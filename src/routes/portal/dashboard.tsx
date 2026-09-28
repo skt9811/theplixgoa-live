@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { ChevronDown, Lock, RotateCw, TriangleAlert, X } from "lucide-react";
 import type { PortalBooking } from "@/lib/portal-bookings-client";
 import { portalFetch } from "@/lib/portal-native-session";
+import { withTimeout } from "@/lib/capacitor-utils";
 import { useOnlineStatusToast } from "@/lib/use-online-status";
 import { PROPERTIES, formatINR } from "@/lib/plix";
 import { PortalBottomNav, type PortalTab } from "@/components/plix/portal-bottom-nav";
@@ -102,7 +103,19 @@ function PortalDashboardPage() {
     async (forProperty?: string) => {
       try {
         const query = forProperty ? `?property=${encodeURIComponent(forProperty)}` : "";
-        const res = await portalFetch(`/api/portal/bookings${query}`);
+        // Raced against a timeout, not just try/catch'd — a request that
+        // never settles at all (no response, no rejection; the failure mode
+        // a stripped/blocked cookie on Android's WebView produces) leaves a
+        // plain `await fetch(...)` suspended forever, which try/catch/finally
+        // does nothing for since neither branch is ever reached. Falls back
+        // to null, which is handled below exactly like a failed fetch: the
+        // retry screen (the `!propertySlug` branch further down), not an
+        // indefinite skeleton.
+        const res = await withTimeout<Response | null>(portalFetch(`/api/portal/bookings${query}`), 6000, null);
+        if (!res) {
+          toast.error("Dashboard is taking too long to load. Check your connection and try again.");
+          return;
+        }
         if (res.status === 401) {
           setAuthed(false);
           setLoaded(true);

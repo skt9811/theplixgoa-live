@@ -52,6 +52,7 @@ export function CreateReservationModal({
   const [totalOverride, setTotalOverride] = useState("");
   const [payment, setPayment] = useState<string>("paid");
   const [advance, setAdvance] = useState("");
+  const [commissionPct, setCommissionPct] = useState(20);
   const [notes, setNotes] = useState("");
   const [visibleOnPartnerApp, setVisibleOnPartnerApp] = useState(true);
   const [roomAllocations, setRoomAllocations] = useState<RoomAllocation[]>([]);
@@ -158,6 +159,7 @@ export function CreateReservationModal({
             notes,
             roomAllocations,
             visibleOnPartnerApp,
+            commissionPct,
             allowOverride: forceOverride,
             overrideReason: overrideReason.trim(),
           }),
@@ -408,6 +410,21 @@ export function CreateReservationModal({
               className={`${field} disabled:bg-slate-50`}
             />
           </label>
+
+          <label className={label}>
+            Commission (%)
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={commissionPct}
+              onChange={(e) => setCommissionPct(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+              className={field}
+            />
+          </label>
+          <p className="self-end text-xs text-slate-500">
+            {formatINR(Math.round((total * commissionPct) / 100))} commission · {formatINR(total - Math.round((total * commissionPct) / 100))} net payout
+          </p>
 
           <RoomAllocationEditor
             roomCount={rooms}

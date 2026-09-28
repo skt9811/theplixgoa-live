@@ -29,6 +29,12 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
   const [total, setTotal] = useState(String(booking.total));
   const [advance, setAdvance] = useState(String(booking.advance));
   const [paymentStatus, setPaymentStatus] = useState(booking.payment_status);
+  // 0 is indistinguishable from "never explicitly set" (createBooking used
+  // to hardcode 0/0 before this field existed) — same convention the
+  // Partner card already uses (effectiveCommissionPct in
+  // portal-booking-tab.tsx), just with 20 here instead of that surface's 22,
+  // matching this form's own Create Reservation default.
+  const [commissionPct, setCommissionPct] = useState(booking.commission_pct || 20);
   // portal_bookings.status is a strict enum (confirmed/checked_in/completed/blocked/cancelled) —
   // seeded from the raw column, not booking.status (a confirmed/pending/cancelled label derived
   // from payment status for display, which would silently downgrade a checked-in stay back to
@@ -75,6 +81,7 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
           notes,
           roomAllocations,
           visibleOnPartnerApp,
+          commissionPct,
           allowOverride: forceOverride,
           overrideReason: overrideReason.trim(),
         }),
@@ -189,6 +196,22 @@ export function EditBookingModal({ booking, onClose, onSaved }: { booking: PmsBo
             <input type="number" min={0} value={advance} onChange={(e) => setAdvance(e.target.value)} className={field} />
           </label>
           <p className="text-xs text-slate-500 sm:col-span-2">Balance: {formatINR(Math.max(0, (Number(total) || 0) - (Number(advance) || 0)))}</p>
+
+          <label className={label}>
+            Commission (%)
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={commissionPct}
+              onChange={(e) => setCommissionPct(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+              className={field}
+            />
+          </label>
+          <p className="self-end text-xs text-slate-500">
+            {formatINR(Math.round(((Number(total) || 0) * commissionPct) / 100))} commission ·{" "}
+            {formatINR((Number(total) || 0) - Math.round(((Number(total) || 0) * commissionPct) / 100))} net payout
+          </p>
 
           <label className={label}>
             Payment status

@@ -432,6 +432,12 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   );
   const total = Math.max(0, num(body["totalAmount"]));
   const advance = Math.max(0, num(body["advanceAmount"]));
+  // Defaults to 20 when omitted/invalid — this form's own default rate; the
+  // separate /admin ledger's "+ Create Booking" flow defaults to 22
+  // (portal-booking-tab.tsx), a deliberate difference between the two
+  // booking-creation surfaces, not an oversight.
+  const commissionPct = Math.min(100, Math.max(0, num(body["commissionPct"], 20)));
+  const commissionAmount = Math.round(total * (commissionPct / 100) * 100) / 100;
   const roomAllocations = parseRoomAllocations(body["roomAllocations"]);
   const visibleOnPartnerApp = body["visibleOnPartnerApp"] !== false;
   const allowOverride = body["allowOverride"] === true;
@@ -460,7 +466,7 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
     VALUES
       (${propertySlug}, ${guestName}, ${guestPhone}, ${guestEmail}, ${checkIn}, ${checkOut}, ${nights}, ${adults + children},
        ${adults}, ${children}, ${rooms}, ${total}, ${advance}, ${paymentStatus}, ${channel}, ${notes}, 'confirmed',
-       0, 0, ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null}, ${actor.name.slice(0, 150)}, ${visibleOnPartnerApp},
+       ${commissionPct}, ${commissionAmount}, ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null}, ${actor.name.slice(0, 150)}, ${visibleOnPartnerApp},
        ${isManualOverride}, ${overrideReason})
     RETURNING id
   `;
@@ -557,6 +563,8 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
   );
   const total = Math.max(0, num(body["totalAmount"]));
   const advance = Math.max(0, num(body["advanceAmount"]));
+  const commissionPct = Math.min(100, Math.max(0, num(body["commissionPct"], 20)));
+  const commissionAmount = Math.round(total * (commissionPct / 100) * 100) / 100;
   const roomAllocations = parseRoomAllocations(body["roomAllocations"]);
   const visibleOnPartnerApp = body["visibleOnPartnerApp"] !== false;
   const allowOverride = body["allowOverride"] === true;
@@ -583,6 +591,7 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
       guests_count = ${adults + children}, adults_count = ${adults}, children_count = ${children},
       rooms_count = ${rooms}, booking_amount = ${total}, advance_amount = ${advance},
       payment_status = ${paymentStatus}, channel = ${channel}, status = ${status}, notes = ${notes},
+      commission_pct = ${commissionPct}, commission_amount = ${commissionAmount},
       room_allocations = ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null},
       visible_on_partner_app = ${visibleOnPartnerApp},
       is_manual_override = ${isManualOverride},

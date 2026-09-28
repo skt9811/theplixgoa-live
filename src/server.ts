@@ -3,6 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { handleRazorpayWebhook } from "./lib/razorpay-webhook.server";
+import { handleInquiryWebhook } from "./lib/pms-inquiries.server";
 import { handleSubscribeRequest } from "./lib/subscribe-newsletter.server";
 import { handleContactEnquiryRequest } from "./lib/contact-enquiry.server";
 import { handleSitemapRequest } from "./lib/sitemap.server";
@@ -184,6 +185,20 @@ export default {
         return await handleRazorpayWebhook(request);
       } catch (error) {
         console.error("[razorpay-webhook] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    // Make.com forwards inbound Airbnb notification emails here as JSON —
+    // a server-to-server webhook, so no CORS/session handling needed, same
+    // reasoning as /api/razorpay-webhook above.
+    if (url.pathname === "/api/webhooks/airbnb-inquiry" && request.method === "POST") {
+      try {
+        return await handleInquiryWebhook(request);
+      } catch (error) {
+        console.error("[airbnb-inquiry-webhook] unhandled error:", error);
         return new Response(JSON.stringify({ error: "Internal error" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },

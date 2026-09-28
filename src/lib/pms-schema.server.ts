@@ -260,6 +260,13 @@ export function ensureInquiriesSchema(sql: Sql): Promise<void> {
             updated_at timestamptz NOT NULL DEFAULT now()
           )`;
         await sql`CREATE INDEX IF NOT EXISTS pms_inquiries_status_idx ON pms_inquiries (status, created_at DESC)`;
+        await sql`ALTER TABLE pms_inquiries ADD COLUMN IF NOT EXISTS confirmation_code varchar(20)`;
+        await sql`ALTER TABLE pms_inquiries ADD COLUMN IF NOT EXISTS payout_amount numeric(10, 2)`;
+        await sql`ALTER TABLE pms_inquiries ADD COLUMN IF NOT EXISTS payout_currency varchar(10)`;
+        // Confirmation codes are the reliable de-dup key for a re-delivered
+        // or Make.com-retried webhook; only enforced when present since a
+        // plain inquiry email never has one.
+        await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_inquiries_confirmation_code_key ON pms_inquiries (confirmation_code) WHERE confirmation_code IS NOT NULL`;
         await sql`
           CREATE TABLE IF NOT EXISTS pms_staff_devices (
             id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -238,37 +238,50 @@ let inquiriesReady: Promise<void> | null = null;
 export function ensureInquiriesSchema(sql: Sql): Promise<void> {
   if (!inquiriesReady) {
     inquiriesReady = (async () => {
-      await sql`
-        CREATE TABLE IF NOT EXISTS pms_inquiries (
-          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-          source varchar(50) NOT NULL DEFAULT 'airbnb',
-          airbnb_account varchar(150),
-          property_id varchar(100),
-          property_name varchar(150),
-          guest_name varchar(150) NOT NULL,
-          guest_phone varchar(50),
-          check_in date,
-          check_out date,
-          pax_count int NOT NULL DEFAULT 1,
-          inquiry_text text,
-          thread_url text,
-          email_type varchar(30),
-          status varchar(20) NOT NULL DEFAULT 'new',
-          booking_id uuid,
-          created_at timestamptz NOT NULL DEFAULT now(),
-          updated_at timestamptz NOT NULL DEFAULT now()
-        )`;
-      await sql`CREATE INDEX IF NOT EXISTS pms_inquiries_status_idx ON pms_inquiries (status, created_at DESC)`;
-      await sql`
-        CREATE TABLE IF NOT EXISTS pms_staff_devices (
-          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-          user_id varchar(100),
-          staff_name varchar(150),
-          fcm_token text NOT NULL,
-          platform varchar(20) NOT NULL DEFAULT 'android',
-          last_seen timestamptz NOT NULL DEFAULT now()
-        )`;
-      await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_staff_devices_token_key ON pms_staff_devices (fcm_token)`;
+      try {
+        await sql`
+          CREATE TABLE IF NOT EXISTS pms_inquiries (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            source varchar(50) NOT NULL DEFAULT 'airbnb',
+            airbnb_account varchar(150),
+            property_id varchar(100),
+            property_name varchar(150),
+            guest_name varchar(150) NOT NULL,
+            guest_phone varchar(50),
+            check_in date,
+            check_out date,
+            pax_count int NOT NULL DEFAULT 1,
+            inquiry_text text,
+            thread_url text,
+            email_type varchar(30),
+            status varchar(20) NOT NULL DEFAULT 'new',
+            booking_id uuid,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now()
+          )`;
+        await sql`CREATE INDEX IF NOT EXISTS pms_inquiries_status_idx ON pms_inquiries (status, created_at DESC)`;
+        await sql`
+          CREATE TABLE IF NOT EXISTS pms_staff_devices (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id varchar(100),
+            staff_name varchar(150),
+            fcm_token text NOT NULL,
+            platform varchar(20) NOT NULL DEFAULT 'android',
+            last_seen timestamptz NOT NULL DEFAULT now()
+          )`;
+        await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_staff_devices_token_key ON pms_staff_devices (fcm_token)`;
+      } catch (err) {
+        // Postgres's CREATE TABLE/INDEX IF NOT EXISTS isn't safe under true
+        // concurrency: every cold-started serverless instance starts with its
+        // own fresh, in-memory `inquiriesReady` cache, so a burst of requests
+        // right after deploy (e.g. every staff phone registering for push at
+        // once) can have several instances all pass the "IF NOT EXISTS" check
+        // and race to register the same implicit row type — the loser gets a
+        // bare unique_violation (23505) on pg_type_typname_nsp_index, not a
+        // real schema problem. Safe to swallow: by construction the table
+        // exists either way once one of the racers wins.
+        if ((err as { code?: string }).code !== "23505") throw err;
+      }
     })().catch((err) => {
       inquiriesReady = null;
       throw err;

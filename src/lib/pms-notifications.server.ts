@@ -148,5 +148,5 @@ export async function registerStaffDevice(request: Request, actor: Actor): Promi
     INSERT INTO pms_staff_devices (user_id, staff_name, fcm_token, platform, last_seen)
     VALUES (${actor.id}, ${staffName}, ${fcmToken}, ${platform}, now())
     ON CONFLICT (fcm_token) DO UPDATE SET user_id = ${actor.id}, staff_name = ${staffName}, platform = ${platform}, last_seen = now()`;
-  return json({ success: true });
+  return json({ success: true, ok: true, registered: true });
 }

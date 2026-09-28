@@ -39,8 +39,12 @@ export function PortalForceUpdateGate() {
     }
   }, []);
 
+  // Deferred a beat past mount — this is a background compliance check, not
+  // something the first paint depends on, so it shouldn't compete with the
+  // dashboard's own critical-path render/fetch on cold start.
   useEffect(() => {
-    void check();
+    const timer = window.setTimeout(() => void check(), 1000);
+    return () => window.clearTimeout(timer);
   }, [check]);
 
   // Re-check on resume too: a user who updated while the app was

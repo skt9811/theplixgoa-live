@@ -87,9 +87,14 @@ function PmsLayout() {
         // show, so the native splash (see capacitor.config.ts's
         // launchAutoHide: false) can come down now.
         void hidePmsSplash();
-        void setupPmsPushNotifications(
-          (nav) => void navigate({ to: nav.to, search: nav.search } as never),
-        );
+        // Deferred a beat so push setup (permission prompt, channel
+        // creation, device registration) never competes with the
+        // dashboard's own critical-path render/fetch on cold start.
+        window.setTimeout(() => {
+          void setupPmsPushNotifications(
+            (nav) => void navigate({ to: nav.to, search: nav.search } as never),
+          );
+        }, 1000);
         pms<{ settings: { theme?: string } }>("settings")
           .then((r) => {
             const t = r.settings.theme;

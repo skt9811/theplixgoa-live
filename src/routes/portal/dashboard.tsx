@@ -59,6 +59,43 @@ function greetingWord(): string {
   return "Evening";
 }
 
+const DASHBOARD_CACHE_KEY = "cached_dashboard_data";
+type CachedDashboard = {
+  bookings: PortalBooking[];
+  propertySlug: string;
+  propertyName: string;
+  role: "owner" | "admin";
+};
+
+// Cold-start perceived latency: rather than always showing the skeleton
+// until a real network round trip finishes, the last successfully-loaded
+// dashboard is kept in localStorage and shown immediately, with a fresh
+// fetch still running in the background to correct it. Read from a
+// useEffect, not a useState lazy initializer — this route is server-
+// rendered, and localStorage doesn't exist there, so a lazy initializer
+// would make the client's first render disagree with what the server sent
+// and produce exactly the hydration mismatch routes/portal/index.tsx's own
+// auto-resume logic already hit and had to avoid the same way.
+function readCachedDashboard(): CachedDashboard | null {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CachedDashboard>;
+    if (!Array.isArray(parsed.bookings) || !parsed.propertySlug || !parsed.role) return null;
+    return parsed as CachedDashboard;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedDashboard(data: CachedDashboard): void {
+  try {
+    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // storage full/unavailable — the cache is a perf convenience, not a requirement
+  }
+}
+
 function PortalDashboardPage() {
   const navigate = useNavigate();
   const [loaded, setLoaded] = useState(false);
@@ -85,6 +122,28 @@ function PortalDashboardPage() {
   useEffect(() => {
     void hidePortalSplash();
   }, []);
+
+  // Show the last known-good dashboard immediately (still followed by the
+  // real fetch below, which corrects it) rather than waiting on the network
+  // for a skeleton to clear — see readCachedDashboard's own comment for why
+  // this is a useEffect and not a lazy useState initializer.
+  useEffect(() => {
+    const cached = readCachedDashboard();
+    if (!cached) return;
+    setBookings(cached.bookings);
+    setPropertySlug(cached.propertySlug);
+    setPropertyName(cached.propertyName);
+    setRole(cached.role);
+    setLoaded(true);
+  }, []);
+
+  // Keeps the cache current after every real load, from whichever source
+  // (initial mount, pull-to-refresh, a property switch, the booking-tab
+  // "Create Reservation" refresh) produced it.
+  useEffect(() => {
+    if (!loaded || !propertySlug || !role) return;
+    writeCachedDashboard({ bookings, propertySlug, propertyName, role });
+  }, [loaded, bookings, propertySlug, propertyName, role]);
 
   // Admin isn't bound to one property — this is the client-side selector's
   // own state, sent as `?property=` on every portal API call. An owner's
@@ -158,10 +217,13 @@ function PortalDashboardPage() {
         // submitted this app-launch — a cold launch with an already-valid
         // stored session lands straight here (see routes/portal/index.tsx's
         // auto-resume redirect), so this is the only place that flow ever
-        // learns the session is real and gets a chance to register.
+        // learns the session is real and gets a chance to register. Deferred
+        // a beat so it never competes with the dashboard's own critical-path
+        // render/fetch for the main thread or the network on cold start —
+        // registration a second late is invisible, a slower first paint isn't.
         if (!pushRegistered.current) {
           pushRegistered.current = true;
-          void registerPushNotifications(data.phone);
+          window.setTimeout(() => void registerPushNotifications(data.phone), 1000);
         }
       })
       .catch(() => {});

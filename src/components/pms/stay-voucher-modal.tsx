@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Download, Mail, MessageCircle } from "lucide-react";
+import { Download, Mail, MessageCircle, Share2 } from "lucide-react";
 import { PROPERTIES, formatINR } from "@/lib/plix";
 import { PMS_COMPANY } from "@/lib/pms-company";
 import { getPropertyPmsConfig } from "@/lib/pms-properties-config";
 import { defaultRoomCategory } from "@/lib/pms-voucher-content";
 import { channelLabel, fmtDate, pms, waLink, type PmsBooking, type RoomAllocation } from "@/lib/pms-client";
-import { isNativeApp, isPluginMissingError, nativeFileErrorMessage, openVoucherInSystemBrowser, saveAndSharePdf } from "@/lib/pms-native-file";
+import { isNativeApp, isPluginMissingError, nativeFileErrorMessage, openPdfNative, openVoucherInSystemBrowser, sharePdfNative } from "@/lib/pms-native-file";
 import { PrintSheet } from "@/components/pms/print-sheet";
 import logo from "@/assets/plix-voucher-logo.png";
 
@@ -35,17 +35,19 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [sharingNative, setSharingNative] = useState(false);
   const pdfHref = `/api/pms/vouchers/pdf?booking=${booking.id}`;
+  const voucherFileName = `Stay-Voucher-${booking.ref}.pdf`;
 
-  async function downloadNative() {
-    setDownloading(true);
+  async function runNativePdfAction(action: () => Promise<void>, setBusy: (v: boolean) => void) {
+    setBusy(true);
     try {
-      await saveAndSharePdf(pdfHref, `Stay-Voucher-${booking.ref}.pdf`, "Stay Voucher");
+      await action();
     } catch (err) {
       if (isPluginMissingError(err)) {
-        // This install predates the Filesystem/Share plugins being linked in
-        // — fall back to a signed link opened in the system browser rather
-        // than dead-ending on an "update the app" message.
+        // This install predates the Filesystem/FileOpener/Share plugins
+        // being linked in — fall back to a signed link opened in the system
+        // browser rather than dead-ending on an "update the app" message.
         toast.message(nativeFileErrorMessage(err));
         try {
           await openVoucherInSystemBrowser(booking.id);
@@ -56,8 +58,19 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
         toast.error(nativeFileErrorMessage(err));
       }
     } finally {
-      setDownloading(false);
+      setBusy(false);
     }
+  }
+
+  // Opens straight in an installed PDF viewer (Android's ACTION_VIEW "Open
+  // with" chooser) — what a plain "Open PDF" tap should do, distinct from
+  // explicitly sharing the file below.
+  async function openNative() {
+    await runNativePdfAction(() => openPdfNative(pdfHref, voucherFileName), setDownloading);
+  }
+
+  async function shareNative() {
+    await runNativePdfAction(() => sharePdfNative(pdfHref, voucherFileName, "Stay Voucher"), setSharingNative);
   }
 
   async function sendEmail() {
@@ -131,14 +144,24 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
       actions={
         <>
         {isNativeApp() ? (
-          <button
-            type="button"
-            onClick={() => void downloadNative()}
-            disabled={downloading}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            <Download className="size-4" aria-hidden /> {downloading ? "Preparing..." : "Download PDF"}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => void openNative()}
+              disabled={downloading}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              <Download className="size-4" aria-hidden /> {downloading ? "Preparing..." : "Open PDF"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void shareNative()}
+              disabled={sharingNative}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              <Share2 className="size-4" aria-hidden /> {sharingNative ? "Preparing..." : "Share PDF"}
+            </button>
+          </>
         ) : (
           <a
             href={pdfHref}

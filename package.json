@@ -18,6 +18,7 @@
   "dependencies": {
     "@auth/core": "^0.41.3",
     "@auth/pg-adapter": "^1.11.3",
+    "@capacitor-community/file-opener": "^8.0.1",
     "@capacitor/android": "^8.5.2",
     "@capacitor/app": "^8.1.1",
     "@capacitor/cli": "^8.5.2",

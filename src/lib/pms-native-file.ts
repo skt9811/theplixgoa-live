@@ -16,10 +16,10 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 /**
- * Fetches a same-origin PDF endpoint and hands it to the OS via the native
- * Filesystem + Share sheet, so the user can save, open in a PDF viewer, or
- * print from there — all things Android's own chooser offers once a real
- * file exists on disk.
+ * Fetches a same-origin PDF endpoint and writes it to disk via the native
+ * Filesystem plugin, returning the file's own content URI — shared by both
+ * openPdfNative and sharePdfNative below so there's one place that does the
+ * fetch-and-write, not two copies that could drift.
  *
  * This deliberately does NOT fall back to opening the URL in the system
  * browser (`window.open(url, "_system")`) on failure, even though that
@@ -30,14 +30,33 @@ function bytesToBase64(bytes: Uint8Array): string {
  * which is worse than a clear error. Throws on failure; callers show a
  * message built from `nativeFileErrorMessage` below.
  */
-export async function saveAndSharePdf(url: string, fileName: string, title: string): Promise<void> {
+async function writePdfToDisk(url: string, fileName: string): Promise<string> {
   const { Filesystem, Directory } = await import("@capacitor/filesystem");
-  const { Share } = await import("@capacitor/share");
   const res = await fetch(apiUrl(url), { credentials: "same-origin" });
   if (!res.ok) throw new Error(`Could not fetch the PDF (${res.status})`);
   const bytes = new Uint8Array(await res.arrayBuffer());
   const written = await Filesystem.writeFile({ path: fileName, data: bytesToBase64(bytes), directory: Directory.Documents });
-  await Share.share({ title, url: written.uri, dialogTitle: title });
+  return written.uri;
+}
+
+/**
+ * Opens the PDF directly in an installed PDF viewer (Android's own
+ * ACTION_VIEW "Open with" chooser) rather than the Share sheet — what a
+ * "Download PDF" / "Show PDF" tap should actually do. `openWithDefault:
+ * false` is what forces the chooser instead of silently picking whichever
+ * app last handled a PDF.
+ */
+export async function openPdfNative(url: string, fileName: string): Promise<void> {
+  const { FileOpener } = await import("@capacitor-community/file-opener");
+  const uri = await writePdfToDisk(url, fileName);
+  await FileOpener.open({ filePath: uri, contentType: "application/pdf", openWithDefault: false });
+}
+
+/** The Share sheet (WhatsApp, Mail, etc.) — a separate, explicit action from openPdfNative, not what a plain "Download PDF" tap does anymore. */
+export async function sharePdfNative(url: string, fileName: string, title: string): Promise<void> {
+  const { Share } = await import("@capacitor/share");
+  const uri = await writePdfToDisk(url, fileName);
+  await Share.share({ title, url: uri, dialogTitle: title });
 }
 
 const PLUGIN_MISSING_RE = /not implemented/i;

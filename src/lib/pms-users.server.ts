@@ -6,7 +6,16 @@ import { getPmsDb } from "@/lib/pms-db.server";
 import { ensureAccessSchema } from "@/lib/pms-schema.server";
 import { getPmsSession } from "@/lib/pms-session.server";
 
-export const TABS = ["dashboard", "bookings", "expenses", "invoices", "vouchers", "pos", "settings"] as const;
+export const TABS = [
+  "dashboard",
+  "bookings",
+  "expenses",
+  "invoices",
+  "vouchers",
+  "pos",
+  "inquiries",
+  "settings",
+] as const;
 export type Tab = (typeof TABS)[number];
 export const ROLES = ["admin", "manager", "receptionist", "caretaker"] as const;
 
@@ -20,7 +29,14 @@ export type Actor = {
   isOwner: boolean;
 };
 
-export const OWNER: Actor = { id: null, name: "Owner", role: "admin", props: ["all"], tabs: [...TABS], isOwner: true };
+export const OWNER: Actor = {
+  id: null,
+  name: "Owner",
+  role: "admin",
+  props: ["all"],
+  tabs: [...TABS],
+  isOwner: true,
+};
 
 const SLUGS = new Set(PROPERTIES.map((p) => p.slug));
 export const isAllProps = (a: Actor) => a.props.includes("all");
@@ -29,7 +45,8 @@ export const canAnyTab = (a: Actor, tabs: Tab[]) => tabs.some((t) => canTab(a, t
 export const canProperty = (a: Actor, slug: string) => isAllProps(a) || a.props.includes(slug);
 export const isAdmin = (a: Actor) => a.role === "admin" && canTab(a, "settings");
 /** The properties this actor may see, as slugs. */
-export const allowedSlugs = (a: Actor): string[] => (isAllProps(a) ? PROPERTIES.map((p) => p.slug) : a.props.filter((s) => SLUGS.has(s)));
+export const allowedSlugs = (a: Actor): string[] =>
+  isAllProps(a) ? PROPERTIES.map((p) => p.slug) : a.props.filter((s) => SLUGS.has(s));
 
 export function hashPin(pin: string): string {
   const salt = randomBytes(16);
@@ -63,10 +80,23 @@ type UserRow = {
   pin_hash: string;
 };
 
-const toActor = (u: UserRow): Actor => ({ id: u.id, name: u.name, role: u.role, props: u.assigned_properties ?? [], tabs: u.role === "admin" && !(u.allowed_tabs ?? []).includes("pos") ? [...(u.allowed_tabs ?? []), "pos"] : (u.allowed_tabs ?? []), isOwner: false });
+const toActor = (u: UserRow): Actor => ({
+  id: u.id,
+  name: u.name,
+  role: u.role,
+  props: u.assigned_properties ?? [],
+  tabs:
+    u.role === "admin" && !(u.allowed_tabs ?? []).includes("pos")
+      ? [...(u.allowed_tabs ?? []), "pos"]
+      : (u.allowed_tabs ?? []),
+  isOwner: false,
+});
 
 /** Checks the identifier (name, email or phone) and PIN. Locks the account after repeated failures. */
-export async function loginWithPin(identifier: string, pin: string): Promise<{ actor: Actor } | { error: string; status: number }> {
+export async function loginWithPin(
+  identifier: string,
+  pin: string,
+): Promise<{ actor: Actor } | { error: string; status: number }> {
   const sql = getPmsDb();
   if (!sql) return { error: "PMS database not configured", status: 503 };
   await ensureAccessSchema(sql);
@@ -80,10 +110,12 @@ export async function loginWithPin(identifier: string, pin: string): Promise<{ a
   const generic = { error: "Incorrect name, phone or PIN", status: 401 } as const;
   if (rows.length !== 1) return generic;
   const user = rows[0]!;
-  if (user.locked_until && user.locked_until.getTime() > Date.now()) return { error: "Too many attempts. Try again in a few minutes.", status: 429 };
+  if (user.locked_until && user.locked_until.getTime() > Date.now())
+    return { error: "Too many attempts. Try again in a few minutes.", status: 429 };
   if (!verifyPin(pin, user.pin_hash)) {
     const fails = user.failed_attempts + 1;
-    if (fails >= MAX_FAILS) await sql`UPDATE pms_users SET failed_attempts = 0, locked_until = now() + ${LOCK_MINUTES + " minutes"}::interval WHERE id = ${user.id}::uuid`;
+    if (fails >= MAX_FAILS)
+      await sql`UPDATE pms_users SET failed_attempts = 0, locked_until = now() + ${LOCK_MINUTES + " minutes"}::interval WHERE id = ${user.id}::uuid`;
     else await sql`UPDATE pms_users SET failed_attempts = ${fails} WHERE id = ${user.id}::uuid`;
     return generic;
   }
@@ -106,13 +138,18 @@ export async function resolveActor(req: Request): Promise<Actor | null> {
   const sql = getPmsDb();
   if (!sql) return null;
   await ensureAccessSchema(sql);
-  const [row] = await sql<UserRow[]>`SELECT * FROM pms_users WHERE id = ${session.uid}::uuid AND is_active`;
+  const [row] = await sql<
+    UserRow[]
+  >`SELECT * FROM pms_users WHERE id = ${session.uid}::uuid AND is_active`;
   const actor = row ? toActor(row) : null;
   cache.set(session.uid, { at: Date.now(), actor });
   return actor;
 }
 
-export type PublicUser = Omit<UserRow, "pin_hash" | "failed_attempts" | "locked_until" | "created_at"> & { created_at: string };
+export type PublicUser = Omit<
+  UserRow,
+  "pin_hash" | "failed_attempts" | "locked_until" | "created_at"
+> & { created_at: string };
 
 export function publicUser(u: UserRow): PublicUser {
   const { pin_hash: _p, failed_attempts: _f, locked_until: _l, created_at, ...rest } = u;

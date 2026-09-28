@@ -15,7 +15,15 @@ export async function pms<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
-export type RoomAllocation = { category: string; adults: number; extraBed: number; children: number; infants: number; mealPlan: string; rate: number };
+export type RoomAllocation = {
+  category: string;
+  adults: number;
+  extraBed: number;
+  children: number;
+  infants: number;
+  mealPlan: string;
+  rate: number;
+};
 
 export type PmsBooking = {
   id: string;
@@ -58,9 +66,24 @@ export type PmsBooking = {
   override_reason: string | null;
 };
 
-export type PmsUser = { id: string | null; name: string; role: string; props: string[]; tabs: string[]; isOwner: boolean };
+export type PmsUser = {
+  id: string | null;
+  name: string;
+  role: string;
+  props: string[];
+  tabs: string[];
+  isOwner: boolean;
+};
 
-export type PmsTab = "dashboard" | "bookings" | "expenses" | "invoices" | "vouchers" | "pos" | "settings";
+export type PmsTab =
+  | "dashboard"
+  | "bookings"
+  | "expenses"
+  | "invoices"
+  | "vouchers"
+  | "pos"
+  | "inquiries"
+  | "settings";
 export const TAB_LABELS: Record<PmsTab, string> = {
   dashboard: "Dashboard",
   bookings: "Bookings",
@@ -68,9 +91,15 @@ export const TAB_LABELS: Record<PmsTab, string> = {
   invoices: "Invoices",
   vouchers: "Vouchers",
   pos: "Restaurant POS",
+  inquiries: "Inquiries",
   settings: "Settings",
 };
-export const ROLE_LABELS: Record<string, string> = { admin: "Admin", manager: "Manager", receptionist: "Receptionist", caretaker: "Caretaker" };
+export const ROLE_LABELS: Record<string, string> = {
+  admin: "Admin",
+  manager: "Manager",
+  receptionist: "Receptionist",
+  caretaker: "Caretaker",
+};
 
 // Which tab privilege a page needs. Rates & Inventory falls under Bookings,
 // System Health under Settings.
@@ -82,6 +111,7 @@ export function tabForPath(pathname: string): PmsTab | null {
   if (p.startsWith("/pms/expenses")) return "expenses";
   if (p.startsWith("/pms/invoices")) return "invoices";
   if (p.startsWith("/pms/vouchers")) return "vouchers";
+  if (p.startsWith("/pms/inquiries")) return "inquiries";
   if (p.startsWith("/pms/settings") || p.startsWith("/pms/system")) return "settings";
   return null;
 }
@@ -93,6 +123,7 @@ export const TAB_HOME: Record<PmsTab, string> = {
   invoices: "/pms/invoices",
   vouchers: "/pms/vouchers",
   pos: "/pms/pos",
+  inquiries: "/pms/inquiries",
   settings: "/pms/settings",
 };
 
@@ -117,11 +148,15 @@ export const PAYMENTS = [
 ] as const;
 
 export function channelLabel(value: string): string {
-  return CHANNELS.find((c) => c.value === value)?.label ?? (value === "walk_in" ? "Walk-in" : value);
+  return (
+    CHANNELS.find((c) => c.value === value)?.label ?? (value === "walk_in" ? "Walk-in" : value)
+  );
 }
 
 export function paymentLabel(value: string): string {
-  return PAYMENTS.find((p) => p.value === value)?.label ?? (value === "cancelled" ? "Cancelled" : value);
+  return (
+    PAYMENTS.find((p) => p.value === value)?.label ?? (value === "cancelled" ? "Cancelled" : value)
+  );
 }
 
 const IST = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" });
@@ -136,7 +171,11 @@ export function addDays(iso: string, days: number): string {
 }
 
 export function fmtDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 // wa.me needs digits only, country code included; a bare 10-digit number is
@@ -163,7 +202,14 @@ export type PmsTransaction = {
   created_at: string;
 };
 
-export type PmsCategory = { id: string; name: string; type: "expense" | "income"; icon: string; color: string; is_default: boolean };
+export type PmsCategory = {
+  id: string;
+  name: string;
+  type: "expense" | "income";
+  icon: string;
+  color: string;
+  is_default: boolean;
+};
 
 export const HQ_LABEL = "Company Overhead (HQ)";
 

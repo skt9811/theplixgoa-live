@@ -153,7 +153,9 @@ export function ensureInvoicesSchema(sql: Sql): Promise<void> {
       await sql`ALTER TABLE pms_invoices ADD COLUMN IF NOT EXISTS net_payout numeric(10, 2) DEFAULT 0.00`;
       await sql`CREATE TABLE IF NOT EXISTS pms_settings (key varchar(50) PRIMARY KEY, value text NOT NULL, updated_at timestamptz DEFAULT now())`;
 
-      const [legacy] = await sql<{ t: string | null }[]>`SELECT to_regclass('gst_invoices')::text AS t`;
+      const [legacy] = await sql<
+        { t: string | null }[]
+      >`SELECT to_regclass('gst_invoices')::text AS t`;
       if (legacy?.t) {
         await sql`
           INSERT INTO pms_invoices (invoice_number, invoice_date, booking_id, property_id, property_name, booking_source, guest_name, guest_phone, guest_email,
@@ -217,14 +219,62 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
         )`;
       await sql`CREATE INDEX IF NOT EXISTS pms_audit_logs_created_idx ON pms_audit_logs (created_at DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS pms_audit_logs_user_idx ON pms_audit_logs (user_id)`;
-      // Admins always have every module, including the Restaurant POS tab.
+      // Admins always have every module, including the Restaurant POS and Inquiries tabs.
       await sql`UPDATE pms_users SET allowed_tabs = array_append(allowed_tabs, 'pos') WHERE role = 'admin' AND NOT ('pos' = ANY(allowed_tabs))`;
+      await sql`UPDATE pms_users SET allowed_tabs = array_append(allowed_tabs, 'inquiries') WHERE role = 'admin' AND NOT ('inquiries' = ANY(allowed_tabs))`;
     })().catch((err) => {
       accessReady = null;
       throw err;
     });
   }
   return accessReady;
+}
+
+let inquiriesReady: Promise<void> | null = null;
+
+// Airbnb inquiry CRM + FCM staff device registry. Both PMS-internal (staff
+// facing), so they live in the PMS database alongside pms_users/pms_audit_logs
+// — never the website database, which only ever holds real bookings.
+export function ensureInquiriesSchema(sql: Sql): Promise<void> {
+  if (!inquiriesReady) {
+    inquiriesReady = (async () => {
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_inquiries (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          source varchar(50) NOT NULL DEFAULT 'airbnb',
+          airbnb_account varchar(150),
+          property_id varchar(100),
+          property_name varchar(150),
+          guest_name varchar(150) NOT NULL,
+          guest_phone varchar(50),
+          check_in date,
+          check_out date,
+          pax_count int NOT NULL DEFAULT 1,
+          inquiry_text text,
+          thread_url text,
+          email_type varchar(30),
+          status varchar(20) NOT NULL DEFAULT 'new',
+          booking_id uuid,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )`;
+      await sql`CREATE INDEX IF NOT EXISTS pms_inquiries_status_idx ON pms_inquiries (status, created_at DESC)`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_staff_devices (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id varchar(100),
+          staff_name varchar(150),
+          fcm_token text NOT NULL,
+          platform varchar(20) NOT NULL DEFAULT 'android',
+          last_seen timestamptz NOT NULL DEFAULT now()
+        )`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_staff_devices_token_key ON pms_staff_devices (fcm_token)`;
+    })().catch((err) => {
+      inquiriesReady = null;
+      throw err;
+    });
+  }
+  return inquiriesReady;
 }
 
 let posReady: Promise<void> | null = null;

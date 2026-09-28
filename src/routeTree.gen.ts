@@ -29,6 +29,7 @@ import { Route as LocationsSlugRouteImport } from './routes/locations.$slug'
 import { Route as PmsIndexRouteImport } from './routes/pms.index'
 import { Route as PmsBookingsRouteImport } from './routes/pms.bookings'
 import { Route as PmsExpensesRouteImport } from './routes/pms.expenses'
+import { Route as PmsInquiriesRouteImport } from './routes/pms.inquiries'
 import { Route as PmsInventoryRouteImport } from './routes/pms.inventory'
 import { Route as PmsInvoicesRouteImport } from './routes/pms.invoices'
 import { Route as PmsPosRouteImport } from './routes/pms.pos'
@@ -46,6 +47,7 @@ import { Route as PmsInvoicesNewRouteImport } from './routes/pms.invoices_.new'
 import { Route as PmsPosIndexRouteImport } from './routes/pms.pos.index'
 import { Route as PmsPosHelpRouteImport } from './routes/pms.pos.help'
 import { Route as PmsPosManageRouteImport } from './routes/pms.pos.manage'
+import { Route as PmsPosOrdersRouteImport } from './routes/pms.pos.orders'
 import { Route as PmsPosQuickRouteImport } from './routes/pms.pos.quick'
 import { Route as PmsPosReportsRouteImport } from './routes/pms.pos.reports'
 import { Route as PmsPosSettingsRouteImport } from './routes/pms.pos.settings'
@@ -169,6 +171,11 @@ const PmsExpensesRoute = PmsExpensesRouteImport.update({
   path: '/expenses',
   getParentRoute: () => PmsRoute,
 } as any)
+const PmsInquiriesRoute = PmsInquiriesRouteImport.update({
+  id: '/inquiries',
+  path: '/inquiries',
+  getParentRoute: () => PmsRoute,
+} as any)
 const PmsInventoryRoute = PmsInventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
@@ -252,6 +259,11 @@ const PmsPosHelpRoute = PmsPosHelpRouteImport.update({
 const PmsPosManageRoute = PmsPosManageRouteImport.update({
   id: '/manage',
   path: '/manage',
+  getParentRoute: () => PmsPosRoute,
+} as any)
+const PmsPosOrdersRoute = PmsPosOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
   getParentRoute: () => PmsPosRoute,
 } as any)
 const PmsPosQuickRoute = PmsPosQuickRouteImport.update({
@@ -388,6 +400,7 @@ export interface FileRoutesByFullPath {
   '/locations/$slug': typeof LocationsSlugRoute
   '/pms/bookings': typeof PmsBookingsRoute
   '/pms/expenses': typeof PmsExpensesRoute
+  '/pms/inquiries': typeof PmsInquiriesRoute
   '/pms/inventory': typeof PmsInventoryRoute
   '/pms/invoices': typeof PmsInvoicesRoute
   '/pms/pos': typeof PmsPosRouteWithChildren
@@ -406,6 +419,7 @@ export interface FileRoutesByFullPath {
   '/pms/invoices/new': typeof PmsInvoicesNewRoute
   '/pms/pos/help': typeof PmsPosHelpRoute
   '/pms/pos/manage': typeof PmsPosManageRouteWithChildren
+  '/pms/pos/orders': typeof PmsPosOrdersRoute
   '/pms/pos/quick': typeof PmsPosQuickRoute
   '/pms/pos/reports': typeof PmsPosReportsRoute
   '/pms/pos/settings': typeof PmsPosSettingsRouteWithChildren
@@ -447,6 +461,7 @@ export interface FileRoutesByTo {
   '/locations/$slug': typeof LocationsSlugRoute
   '/pms/bookings': typeof PmsBookingsRoute
   '/pms/expenses': typeof PmsExpensesRoute
+  '/pms/inquiries': typeof PmsInquiriesRoute
   '/pms/inventory': typeof PmsInventoryRoute
   '/pms/invoices': typeof PmsInvoicesRoute
   '/pms/settings': typeof PmsSettingsRoute
@@ -463,6 +478,7 @@ export interface FileRoutesByTo {
   '/portal': typeof PortalIndexRoute
   '/pms/invoices/new': typeof PmsInvoicesNewRoute
   '/pms/pos/help': typeof PmsPosHelpRoute
+  '/pms/pos/orders': typeof PmsPosOrdersRoute
   '/pms/pos/quick': typeof PmsPosQuickRoute
   '/pms/pos/reports': typeof PmsPosReportsRoute
   '/pms/settings/users': typeof PmsSettingsUsersRoute
@@ -506,6 +522,7 @@ export interface FileRoutesById {
   '/locations/$slug': typeof LocationsSlugRoute
   '/pms/bookings': typeof PmsBookingsRoute
   '/pms/expenses': typeof PmsExpensesRoute
+  '/pms/inquiries': typeof PmsInquiriesRoute
   '/pms/inventory': typeof PmsInventoryRoute
   '/pms/invoices': typeof PmsInvoicesRoute
   '/pms/pos': typeof PmsPosRouteWithChildren
@@ -524,6 +541,7 @@ export interface FileRoutesById {
   '/pms/invoices_/new': typeof PmsInvoicesNewRoute
   '/pms/pos/help': typeof PmsPosHelpRoute
   '/pms/pos/manage': typeof PmsPosManageRouteWithChildren
+  '/pms/pos/orders': typeof PmsPosOrdersRoute
   '/pms/pos/quick': typeof PmsPosQuickRoute
   '/pms/pos/reports': typeof PmsPosReportsRoute
   '/pms/pos/settings': typeof PmsPosSettingsRouteWithChildren
@@ -569,6 +587,7 @@ export interface FileRouteTypes {
     | '/locations/$slug'
     | '/pms/bookings'
     | '/pms/expenses'
+    | '/pms/inquiries'
     | '/pms/inventory'
     | '/pms/invoices'
     | '/pms/pos'
@@ -587,6 +606,7 @@ export interface FileRouteTypes {
     | '/pms/invoices/new'
     | '/pms/pos/help'
     | '/pms/pos/manage'
+    | '/pms/pos/orders'
     | '/pms/pos/quick'
     | '/pms/pos/reports'
     | '/pms/pos/settings'
@@ -628,6 +648,7 @@ export interface FileRouteTypes {
     | '/locations/$slug'
     | '/pms/bookings'
     | '/pms/expenses'
+    | '/pms/inquiries'
     | '/pms/inventory'
     | '/pms/invoices'
     | '/pms/settings'
@@ -644,6 +665,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/pms/invoices/new'
     | '/pms/pos/help'
+    | '/pms/pos/orders'
     | '/pms/pos/quick'
     | '/pms/pos/reports'
     | '/pms/settings/users'
@@ -686,6 +708,7 @@ export interface FileRouteTypes {
     | '/locations/$slug'
     | '/pms/bookings'
     | '/pms/expenses'
+    | '/pms/inquiries'
     | '/pms/inventory'
     | '/pms/invoices'
     | '/pms/pos'
@@ -704,6 +727,7 @@ export interface FileRouteTypes {
     | '/pms/invoices_/new'
     | '/pms/pos/help'
     | '/pms/pos/manage'
+    | '/pms/pos/orders'
     | '/pms/pos/quick'
     | '/pms/pos/reports'
     | '/pms/pos/settings'
@@ -895,6 +919,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PmsExpensesRouteImport
       parentRoute: typeof PmsRoute
     }
+    '/pms/inquiries': {
+      id: '/pms/inquiries'
+      path: '/inquiries'
+      fullPath: '/pms/inquiries'
+      preLoaderRoute: typeof PmsInquiriesRouteImport
+      parentRoute: typeof PmsRoute
+    }
     '/pms/inventory': {
       id: '/pms/inventory'
       path: '/inventory'
@@ -1012,6 +1043,13 @@ declare module '@tanstack/react-router' {
       path: '/manage'
       fullPath: '/pms/pos/manage'
       preLoaderRoute: typeof PmsPosManageRouteImport
+      parentRoute: typeof PmsPosRoute
+    }
+    '/pms/pos/orders': {
+      id: '/pms/pos/orders'
+      path: '/orders'
+      fullPath: '/pms/pos/orders'
+      preLoaderRoute: typeof PmsPosOrdersRouteImport
       parentRoute: typeof PmsPosRoute
     }
     '/pms/pos/quick': {
@@ -1230,6 +1268,7 @@ const PmsPosSettingsRouteWithChildren = PmsPosSettingsRoute._addFileChildren(
 interface PmsPosRouteChildren {
   PmsPosHelpRoute: typeof PmsPosHelpRoute
   PmsPosManageRoute: typeof PmsPosManageRouteWithChildren
+  PmsPosOrdersRoute: typeof PmsPosOrdersRoute
   PmsPosQuickRoute: typeof PmsPosQuickRoute
   PmsPosReportsRoute: typeof PmsPosReportsRoute
   PmsPosSettingsRoute: typeof PmsPosSettingsRouteWithChildren
@@ -1239,6 +1278,7 @@ interface PmsPosRouteChildren {
 const PmsPosRouteChildren: PmsPosRouteChildren = {
   PmsPosHelpRoute: PmsPosHelpRoute,
   PmsPosManageRoute: PmsPosManageRouteWithChildren,
+  PmsPosOrdersRoute: PmsPosOrdersRoute,
   PmsPosQuickRoute: PmsPosQuickRoute,
   PmsPosReportsRoute: PmsPosReportsRoute,
   PmsPosSettingsRoute: PmsPosSettingsRouteWithChildren,
@@ -1251,6 +1291,7 @@ const PmsPosRouteWithChildren =
 interface PmsRouteChildren {
   PmsBookingsRoute: typeof PmsBookingsRoute
   PmsExpensesRoute: typeof PmsExpensesRoute
+  PmsInquiriesRoute: typeof PmsInquiriesRoute
   PmsInventoryRoute: typeof PmsInventoryRoute
   PmsInvoicesRoute: typeof PmsInvoicesRoute
   PmsPosRoute: typeof PmsPosRouteWithChildren
@@ -1265,6 +1306,7 @@ interface PmsRouteChildren {
 const PmsRouteChildren: PmsRouteChildren = {
   PmsBookingsRoute: PmsBookingsRoute,
   PmsExpensesRoute: PmsExpensesRoute,
+  PmsInquiriesRoute: PmsInquiriesRoute,
   PmsInventoryRoute: PmsInventoryRoute,
   PmsInvoicesRoute: PmsInvoicesRoute,
   PmsPosRoute: PmsPosRouteWithChildren,

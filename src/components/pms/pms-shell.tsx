@@ -1,6 +1,21 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { BedDouble, CalendarRange, UtensilsCrossed, FileText, HeartPulse, LayoutDashboard, LogOut, Menu, Plus, Receipt, Settings, Ticket, X } from "lucide-react";
+import {
+  BedDouble,
+  CalendarRange,
+  UtensilsCrossed,
+  FileText,
+  HeartPulse,
+  Inbox,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Plus,
+  Receipt,
+  Settings,
+  Ticket,
+  X,
+} from "lucide-react";
 import { usePms } from "@/components/pms/pms-context";
 import { ScopeChip } from "@/components/pms/scope-chip";
 import { ThemeToggle } from "@/components/pms/theme-toggle";
@@ -9,11 +24,18 @@ import { useBackDismiss } from "@/lib/pms-back-stack";
 const NAV = [
   { to: "/pms", label: "Dashboard", icon: LayoutDashboard, exact: true, tab: "dashboard" },
   { to: "/pms/bookings", label: "Bookings", icon: BedDouble, exact: false, tab: "bookings" },
-  { to: "/pms/inventory", label: "Rates & Inventory", icon: CalendarRange, exact: false, tab: "bookings" },
+  {
+    to: "/pms/inventory",
+    label: "Rates & Inventory",
+    icon: CalendarRange,
+    exact: false,
+    tab: "bookings",
+  },
   { to: "/pms/pos", label: "Restaurant POS", icon: UtensilsCrossed, exact: false, tab: "pos" },
   { to: "/pms/expenses", label: "Expenses", icon: Receipt, exact: false, tab: "expenses" },
   { to: "/pms/invoices", label: "Invoices", icon: FileText, exact: false, tab: "invoices" },
   { to: "/pms/vouchers", label: "Vouchers", icon: Ticket, exact: false, tab: "vouchers" },
+  { to: "/pms/inquiries", label: "Inquiries", icon: Inbox, exact: false, tab: "inquiries" },
   { to: "/pms/system", label: "System Health", icon: HeartPulse, exact: false, tab: "settings" },
   { to: "/pms/settings", label: "Settings", icon: Settings, exact: false, tab: "settings" },
 ] as const;
@@ -36,7 +58,9 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
             activeOptions={{ exact: item.exact }}
             onClick={() => setDrawer(false)}
             className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-slate-600 hover:bg-slate-100`}
-            activeProps={{ className: `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-emerald-50 text-emerald-700` }}
+            activeProps={{
+              className: `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-emerald-50 text-emerald-700`,
+            }}
           >
             <Icon className="size-4" aria-hidden /> {item.label}
           </Link>
@@ -57,7 +81,9 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
 
   return (
     <div className={`fixed inset-0 z-[60] flex bg-slate-50 text-slate-900`}>
-      <aside className={`hidden w-64 shrink-0 flex-col overflow-y-auto border-r md:flex border-slate-200 bg-white`}>
+      <aside
+        className={`hidden w-64 shrink-0 flex-col overflow-y-auto border-r md:flex border-slate-200 bg-white`}
+      >
         <div className={`border-b px-5 py-4 border-slate-100`}>
           <p className="text-lg font-bold tracking-tight text-emerald-700">Plix PMS</p>
           <p className="text-xs text-slate-400">Property management</p>
@@ -66,8 +92,15 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className={`flex items-center justify-between gap-3 border-b px-4 py-3 border-slate-200 bg-white`}>
-          <button type="button" onClick={() => setDrawer(true)} aria-label="Open menu" className={`rounded-lg p-2 md:hidden text-slate-600 hover:bg-slate-100`}>
+        <header
+          className={`flex items-center justify-between gap-3 border-b px-4 py-3 border-slate-200 bg-white`}
+        >
+          <button
+            type="button"
+            onClick={() => setDrawer(true)}
+            aria-label="Open menu"
+            className={`rounded-lg p-2 md:hidden text-slate-600 hover:bg-slate-100`}
+          >
             <Menu className="size-5" aria-hidden />
           </button>
           <div className="min-w-0 flex-1">
@@ -77,16 +110,16 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
             <ThemeToggle />
           </div>
           {can("bookings") && (
-          <button
-            type="button"
-            onClick={openCreate}
-            aria-label="Create Reservation"
-            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 sm:px-4"
-          >
-            <Plus className="size-4" aria-hidden />
-            <span className="hidden sm:inline">Create Reservation</span>
-            <span className="sm:hidden">New</span>
-          </button>
+            <button
+              type="button"
+              onClick={openCreate}
+              aria-label="Create Reservation"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 sm:px-4"
+            >
+              <Plus className="size-4" aria-hidden />
+              <span className="hidden sm:inline">Create Reservation</span>
+              <span className="sm:hidden">New</span>
+            </button>
           )}
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
@@ -95,10 +128,20 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
       {drawer && (
         <div className="fixed inset-0 z-10 md:hidden" onClick={() => setDrawer(false)}>
           <div className="absolute inset-0 bg-black/40" />
-          <div className={`absolute inset-y-0 left-0 w-72 overflow-y-auto shadow-xl bg-white`} onClick={(e) => e.stopPropagation()}>
-            <div className={`flex items-center justify-between border-b px-5 py-4 border-slate-100`}>
+          <div
+            className={`absolute inset-y-0 left-0 w-72 overflow-y-auto shadow-xl bg-white`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className={`flex items-center justify-between border-b px-5 py-4 border-slate-100`}
+            >
               <p className="text-lg font-bold text-emerald-700">Plix PMS</p>
-              <button type="button" onClick={() => setDrawer(false)} aria-label="Close menu" className="text-slate-400">
+              <button
+                type="button"
+                onClick={() => setDrawer(false)}
+                aria-label="Close menu"
+                className="text-slate-400"
+              >
                 <X className="size-5" aria-hidden />
               </button>
             </div>

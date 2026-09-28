@@ -9,21 +9,44 @@ import { RoomCountInput } from "@/components/pms/room-count-input";
 import { usePms } from "@/components/pms/pms-context";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
-type Availability = { multiRoom: boolean; capacity: number; used: Record<string, number>; hardBlocked: string[] };
+type Availability = {
+  multiRoom: boolean;
+  capacity: number;
+  used: Record<string, number>;
+  hardBlocked: string[];
+};
+type Initial = {
+  property?: string;
+  guestName?: string;
+  checkIn?: string;
+  checkOut?: string;
+  adults?: number;
+  channel?: string;
+};
 
-export function CreateReservationModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+export function CreateReservationModal({
+  onClose,
+  onCreated,
+  initial,
+}: {
+  onClose: () => void;
+  onCreated: (bookingId?: string) => void;
+  initial?: Initial;
+}) {
   useBackDismiss(true, onClose);
   const { property: activeProperty } = usePms();
-  const [property, setProperty] = useState(activeProperty === "all" ? "" : activeProperty);
-  const [guestName, setGuestName] = useState("");
+  const [property, setProperty] = useState(
+    initial?.property ?? (activeProperty === "all" ? "" : activeProperty),
+  );
+  const [guestName, setGuestName] = useState(initial?.guestName ?? "");
   const [phone, setPhone] = useState("+91 ");
   const [email, setEmail] = useState("");
-  const [adults, setAdults] = useState(2);
+  const [adults, setAdults] = useState(initial?.adults ?? 2);
   const [children, setChildren] = useState(0);
   const [rooms, setRooms] = useState(1);
-  const [checkIn, setCheckIn] = useState(istToday());
-  const [checkOut, setCheckOut] = useState(addDays(istToday(), 1));
-  const [channel, setChannel] = useState<string>("direct");
+  const [checkIn, setCheckIn] = useState(initial?.checkIn ?? istToday());
+  const [checkOut, setCheckOut] = useState(initial?.checkOut ?? addDays(istToday(), 1));
+  const [channel, setChannel] = useState<string>(initial?.channel ?? "direct");
   const [rateEdit, setRateEdit] = useState("");
   const [autoRate, setAutoRate] = useState(0);
   const [totalOverride, setTotalOverride] = useState("");
@@ -39,7 +62,10 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
   const [overrideReason, setOverrideReason] = useState("");
 
   const p = PROPERTIES.find((x) => x.slug === property);
-  const nights = checkIn && checkOut ? Math.max(0, Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000)) : 0;
+  const nights =
+    checkIn && checkOut
+      ? Math.max(0, Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000))
+      : 0;
 
   useEffect(() => {
     if (!property) {
@@ -64,7 +90,9 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
       return;
     }
     let cancelled = false;
-    pms<{ basePrice: number; rates: Record<string, number> }>(`inventory?property=${property}&start=${checkIn}&end=${addDays(checkOut, -1)}`)
+    pms<{ basePrice: number; rates: Record<string, number> }>(
+      `inventory?property=${property}&start=${checkIn}&end=${addDays(checkOut, -1)}`,
+    )
       .then((g) => {
         if (cancelled) return;
         const list = eachNight(checkIn, checkOut).map((n) => g.rates[n] ?? g.basePrice);
@@ -105,36 +133,43 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
     if (!property) return setServerError("Select a property");
     if (!guestName.trim()) return setServerError("Guest name is required");
     if (nights <= 0) return setServerError("Check-out must be after check-in");
-    if (conflict && !forceOverride) return setServerError(`${conflict} Check "Force Manual Override" below to proceed anyway.`);
+    if (conflict && !forceOverride)
+      return setServerError(`${conflict} Check "Force Manual Override" below to proceed anyway.`);
     setSaving(true);
     try {
-      const result = await pms<{ warning?: string; overridden?: boolean }>("bookings", {
-        method: "POST",
-        body: JSON.stringify({
-          propertySlug: property,
-          guestName,
-          guestPhone: phone.replace(/^\+91\s*$/, ""),
-          guestEmail: email,
-          adultsCount: adults,
-          childrenCount: children,
-          roomsCount: rooms,
-          checkIn,
-          checkOut,
-          channel,
-          totalAmount: total,
-          paymentStatus: payment,
-          advanceAmount: payment === "paid" ? total : Number(advance) || 0,
-          notes,
-          roomAllocations,
-          visibleOnPartnerApp,
-          allowOverride: forceOverride,
-          overrideReason: overrideReason.trim(),
-        }),
-      });
+      const result = await pms<{ warning?: string; overridden?: boolean; id?: string }>(
+        "bookings",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            propertySlug: property,
+            guestName,
+            guestPhone: phone.replace(/^\+91\s*$/, ""),
+            guestEmail: email,
+            adultsCount: adults,
+            childrenCount: children,
+            roomsCount: rooms,
+            checkIn,
+            checkOut,
+            channel,
+            totalAmount: total,
+            paymentStatus: payment,
+            advanceAmount: payment === "paid" ? total : Number(advance) || 0,
+            notes,
+            roomAllocations,
+            visibleOnPartnerApp,
+            allowOverride: forceOverride,
+            overrideReason: overrideReason.trim(),
+          }),
+        },
+      );
       toast.success("Reservation Created Successfully");
       if (result.warning) toast.warning(result.warning);
-      if (result.overridden) toast.warning("Saved as a manual override — this booking overbooks an already-reserved unit.");
-      onCreated();
+      if (result.overridden)
+        toast.warning(
+          "Saved as a manual override — this booking overbooks an already-reserved unit.",
+        );
+      onCreated(result.id);
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Could not save reservation");
     } finally {
@@ -142,11 +177,15 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
     }
   }
 
-  const field = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40";
+  const field =
+    "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40";
   const label = "grid gap-1 text-xs font-medium text-slate-500";
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
       <form
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
@@ -154,7 +193,12 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
       >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold">Create Reservation</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-slate-400 hover:text-slate-600"
+          >
             <X className="size-5" aria-hidden />
           </button>
         </div>
@@ -185,47 +229,99 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
 
           <label className={label}>
             Guest name *
-            <input value={guestName} onChange={(e) => setGuestName(e.target.value)} className={field} required />
+            <input
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              className={field}
+              required
+            />
           </label>
           <label className={label}>
             Phone (with country code)
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={field} />
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className={field}
+            />
           </label>
           <label className={`${label} sm:col-span-2`}>
             Email
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={field}
+            />
           </label>
 
           <label className={label}>
             Adults
-            <RoomCountInput value={adults} min={1} onChange={setAdults} className={field} label="Adults" />
+            <RoomCountInput
+              value={adults}
+              min={1}
+              onChange={setAdults}
+              className={field}
+              label="Adults"
+            />
           </label>
           <label className={label}>
             Children
-            <RoomCountInput value={children} min={0} onChange={setChildren} className={field} label="Children" />
+            <RoomCountInput
+              value={children}
+              min={0}
+              onChange={setChildren}
+              className={field}
+              label="Children"
+            />
           </label>
 
           <label className={label}>
             Check-in
-            <input type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} className={field} required />
+            <input
+              type="date"
+              value={checkIn}
+              onChange={(e) => setCheckIn(e.target.value)}
+              className={field}
+              required
+            />
           </label>
           <label className={label}>
             Check-out
-            <input type="date" value={checkOut} min={checkIn} onChange={(e) => setCheckOut(e.target.value)} className={field} required />
+            <input
+              type="date"
+              value={checkOut}
+              min={checkIn}
+              onChange={(e) => setCheckOut(e.target.value)}
+              className={field}
+              required
+            />
           </label>
           <p className="text-xs sm:col-span-2">
             {conflict ? (
-              <span className="font-semibold text-red-600">{conflict} Choose different dates, or force a manual override below.</span>
+              <span className="font-semibold text-red-600">
+                {conflict} Choose different dates, or force a manual override below.
+              </span>
             ) : (
-              <span className="text-slate-500">{nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "Select valid dates"}</span>
+              <span className="text-slate-500">
+                {nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "Select valid dates"}
+              </span>
             )}
           </p>
 
           {conflict && (
             <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-xs sm:col-span-2">
-              <p className="font-semibold text-red-700">⚠️ Overriding Available Inventory (Date already booked/blocked). Proceeding will overbook this unit.</p>
+              <p className="font-semibold text-red-700">
+                ⚠️ Overriding Available Inventory (Date already booked/blocked). Proceeding will
+                overbook this unit.
+              </p>
               <label className="mt-2 flex items-center gap-2 font-semibold text-red-800">
-                <input type="checkbox" checked={forceOverride} onChange={(e) => setForceOverride(e.target.checked)} className="size-4 rounded border-red-400 text-red-600 focus:ring-red-500" />
+                <input
+                  type="checkbox"
+                  checked={forceOverride}
+                  onChange={(e) => setForceOverride(e.target.checked)}
+                  className="size-4 rounded border-red-400 text-red-600 focus:ring-red-500"
+                />
                 Force Manual Override
               </label>
               {forceOverride && (
@@ -242,7 +338,12 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
           {property && maxRoomsForProperty(property) > 1 && (
             <label className={label}>
               Rooms
-              <RoomCountInput value={rooms} max={maxRoomsForProperty(property)} onChange={setRooms} className={field} />
+              <RoomCountInput
+                value={rooms}
+                max={maxRoomsForProperty(property)}
+                onChange={setRooms}
+                className={field}
+              />
             </label>
           )}
           <label className={label}>
@@ -258,11 +359,24 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
 
           <label className={label}>
             Nightly rate (₹)
-            <input type="number" min={0} value={rateEdit !== "" ? rateEdit : autoRate} onChange={(e) => setRateEdit(e.target.value)} className={field} />
+            <input
+              type="number"
+              min={0}
+              value={rateEdit !== "" ? rateEdit : autoRate}
+              onChange={(e) => setRateEdit(e.target.value)}
+              className={field}
+            />
           </label>
           <label className={label}>
             Total price override (₹)
-            <input type="number" min={0} value={totalOverride} placeholder={String(calculated)} onChange={(e) => setTotalOverride(e.target.value)} className={field} />
+            <input
+              type="number"
+              min={0}
+              value={totalOverride}
+              placeholder={String(calculated)}
+              onChange={(e) => setTotalOverride(e.target.value)}
+              className={field}
+            />
           </label>
           <p className="text-xs text-slate-500 sm:col-span-2">
             Total {formatINR(total)}
@@ -295,15 +409,29 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
             />
           </label>
 
-          <RoomAllocationEditor roomCount={rooms} rooms={roomAllocations} onChange={setRoomAllocations} />
+          <RoomAllocationEditor
+            roomCount={rooms}
+            rooms={roomAllocations}
+            onChange={setRoomAllocations}
+          />
 
           <label className={`${label} sm:col-span-2`}>
             Internal notes / guest requests
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${field} resize-none`} />
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              className={`${field} resize-none`}
+            />
           </label>
 
           <label className="flex items-center gap-2 text-sm font-medium text-slate-600 sm:col-span-2">
-            <input type="checkbox" checked={visibleOnPartnerApp} onChange={(e) => setVisibleOnPartnerApp(e.target.checked)} className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+            <input
+              type="checkbox"
+              checked={visibleOnPartnerApp}
+              onChange={(e) => setVisibleOnPartnerApp(e.target.checked)}
+              className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+            />
             Show this booking on the Plix Partner app
           </label>
         </div>
@@ -311,17 +439,27 @@ export function CreateReservationModal({ onClose, onCreated }: { onClose: () => 
         {serverError && <p className="mt-3 text-sm font-semibold text-red-600">{serverError}</p>}
 
         <div className="mt-5 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving || (Boolean(conflict) && !forceOverride)}
             className={`rounded-lg px-5 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-60 ${
-              conflict && forceOverride ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"
+              conflict && forceOverride
+                ? "bg-red-600 hover:bg-red-700"
+                : "bg-emerald-600 hover:bg-emerald-700"
             }`}
           >
-            {saving ? "Saving..." : conflict && forceOverride ? "Create Reservation (Override)" : "Create Reservation"}
+            {saving
+              ? "Saving..."
+              : conflict && forceOverride
+                ? "Create Reservation (Override)"
+                : "Create Reservation"}
           </button>
         </div>
       </form>

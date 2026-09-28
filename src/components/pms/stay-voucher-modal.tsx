@@ -4,6 +4,7 @@ import { Download, Mail, MessageCircle } from "lucide-react";
 import { PROPERTIES, formatINR } from "@/lib/plix";
 import { PMS_COMPANY } from "@/lib/pms-company";
 import { getPropertyPmsConfig } from "@/lib/pms-properties-config";
+import { defaultRoomCategory } from "@/lib/pms-voucher-content";
 import { channelLabel, fmtDate, pms, waLink, type PmsBooking, type RoomAllocation } from "@/lib/pms-client";
 import { isNativeApp, isPluginMissingError, nativeFileErrorMessage, openVoucherInSystemBrowser, saveAndSharePdf } from "@/lib/pms-native-file";
 import { PrintSheet } from "@/components/pms/print-sheet";
@@ -15,7 +16,7 @@ function occupancyRows(booking: PmsBooking): RoomAllocation[] {
   if (booking.room_allocations.length > 0) return booking.room_allocations;
   return [
     {
-      category: booking.rooms > 1 ? `${booking.rooms} Rooms` : "Room",
+      category: defaultRoomCategory(booking.property_id, booking.rooms),
       adults: booking.adults,
       extraBed: 0,
       children: booking.children,
@@ -82,6 +83,27 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
 
   const rows = occupancyRows(booking);
   const sourceType = booking.source === "online" ? "Online" : "Offline / Manual";
+  const balanceDue = Math.max(0, Math.round((booking.total - booking.advance) * 100) / 100);
+
+  const guestDetailRows: [string, string][] = [
+    ["Guest Name", booking.guest_name],
+    ["Guest Mobile", booking.guest_phone || "—"],
+    ["Special Note", booking.notes || "—"],
+  ];
+  const bookingDetailRows: [string, string][] = [
+    ["Check In Date", fmtDate(booking.check_in)],
+    ["Check Out Date", fmtDate(booking.check_out)],
+    ["Number Of Nights", String(booking.nights)],
+    ["Number Of Rooms", String(rows.length)],
+    ["Total Amount", `${formatINR(booking.total)}/-`],
+    ["Created By", booking.created_by || "—"],
+  ];
+  const detailRows = Array.from({ length: Math.max(guestDetailRows.length, bookingDetailRows.length) }, (_, i) => ({
+    leftLabel: guestDetailRows[i]?.[0] ?? "",
+    leftValue: guestDetailRows[i]?.[1] ?? "",
+    rightLabel: bookingDetailRows[i]?.[0] ?? "",
+    rightValue: bookingDetailRows[i]?.[1] ?? "",
+  }));
 
   const message = [
     `Hello ${booking.guest_name}, greetings from ${PMS_COMPANY.brand}!`,
@@ -139,7 +161,12 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
     >
       {/* A. Header */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-emerald-700 pb-4">
-        <img src={logo} alt={PMS_COMPANY.brand} className="h-16 w-auto object-contain" />
+        <div>
+          <img src={logo} alt={PMS_COMPANY.brand} className="h-16 w-auto object-contain" />
+          <p className="mt-1.5 text-sm font-semibold text-slate-800">
+            {propertyName}{property?.location ? `, ${property.location}` : ""}
+          </p>
+        </div>
         <div className="text-right">
           <p className="text-lg font-bold text-emerald-800">Booking Confirmation</p>
           <p className="mt-1 text-xs text-slate-600">Booking Date: {fmtDate(booking.created_at.slice(0, 10))}</p>
@@ -157,29 +184,30 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
         Thank you for making a reservation with us for your upcoming holiday. We are pleased to confirm your booking based on below given booking details.
       </p>
 
-      {/* C. Master details */}
-      <div className="pms-avoid-break mt-4 grid gap-4 sm:grid-cols-2">
-        <section className="rounded-xl border border-slate-200 p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Guest Details</h3>
-          <dl className="mt-2 grid gap-1.5 text-sm">
-            <div className="flex justify-between gap-3"><dt className="text-slate-500">Guest Name</dt><dd className="text-right font-medium">{booking.guest_name}</dd></div>
-            <div className="flex justify-between gap-3"><dt className="text-slate-500">Guest Email</dt><dd className="text-right font-medium">{booking.guest_email || "—"}</dd></div>
-            <div className="flex justify-between gap-3"><dt className="text-slate-500">Guest Mobile</dt><dd className="text-right font-medium">{booking.guest_phone || "—"}</dd></div>
-            <div className="flex justify-between gap-3"><dt className="text-slate-500">Special Note</dt><dd className="text-right font-medium">{booking.notes || "—"}</dd></div>
-          </dl>
-        </section>
-        <section className="rounded-xl border border-slate-200 p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Booking Details</h3>
-          <dl className="mt-2 grid gap-1.5 text-sm">
-            <div className="flex justify-between gap-3"><dt className="text-slate-500">Check In Date</dt><dd className="text-right font-medium">{fmtDate(booking.check_in)}</dd></div>
-            <div className="flex justify-between gap-3"><dt className="text-slate-500">Check Out Date</dt><dd className="text-right font-medium">{fmtDate(booking.check_out)}</dd></div>
-            <div className="flex justify-between gap-3"><dt className="text-slate-500">Number Of Nights</dt><dd className="text-right font-medium">{booking.nights}</dd></div>
-            <div className="flex justify-between gap-3"><dt className="text-slate-500">Number Of Rooms</dt><dd className="text-right font-medium">{rows.length}</dd></div>
-            <div className="flex justify-between gap-3"><dt className="text-slate-500">Total Amount</dt><dd className="text-right font-medium">{formatINR(booking.total)}</dd></div>
-            <div className="flex justify-between gap-3"><dt className="text-slate-500">Created By</dt><dd className="text-right font-medium">{booking.created_by || "—"}</dd></div>
-          </dl>
-        </section>
-      </div>
+      {/* C. Master details — one grid table, guest columns left / booking
+          columns right, matching the Booking Summary table's own border
+          style below rather than the free-floating label/value pairs this
+          used to be. Guest Email is deliberately not one of these rows. */}
+      <section className="pms-avoid-break mt-4 overflow-x-auto rounded-xl border border-slate-200">
+        <table className="w-full min-w-[480px] border-collapse text-left text-sm">
+          <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+            <tr>
+              <th className="border-b border-slate-200 px-3 py-2" colSpan={2}>Guest Details</th>
+              <th className="border-b border-l border-slate-200 px-3 py-2" colSpan={2}>Booking Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {detailRows.map((r, i) => (
+              <tr key={i} className="border-b border-slate-100 last:border-0">
+                <td className="px-3 py-2 text-slate-500">{r.leftLabel}</td>
+                <td className="border-r border-slate-100 px-3 py-2 font-medium">{r.leftValue}</td>
+                <td className="px-3 py-2 text-slate-500">{r.rightLabel}</td>
+                <td className="px-3 py-2 font-medium">{r.rightValue}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
       {/* D. Booking summary table */}
       <section className="pms-avoid-break mt-4">
@@ -204,7 +232,7 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
                   <td className="px-3 py-2">{r.adults} + {r.extraBed}</td>
                   <td className="px-3 py-2">{r.children} + {r.infants}</td>
                   <td className="px-3 py-2">{r.mealPlan}</td>
-                  <td className="px-3 py-2 text-right">{formatINR(r.rate)}</td>
+                  <td className="px-3 py-2 text-right">{r.rate ? `${formatINR(r.rate)}/-` : "-"}</td>
                 </tr>
               ))}
             </tbody>
@@ -213,7 +241,13 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
         <div className="mt-2 flex justify-end">
           <div className="grid gap-1 text-right text-sm">
             <p>Grand Total: <span className="font-bold">{formatINR(booking.total)}/-</span></p>
-            <p>Paid Amount: <span className="font-bold text-emerald-700">{formatINR(booking.advance)}/-</span></p>
+            <p>Paid / Advance Amount: <span className="font-bold text-emerald-700">{formatINR(booking.advance)}/-</span></p>
+            <p>
+              Balance Due:{" "}
+              <span className={`font-bold ${balanceDue > 0 ? "text-red-600" : "text-emerald-700"}`}>
+                {balanceDue > 0 ? `${formatINR(balanceDue)}/-` : "Fully Paid"}
+              </span>
+            </p>
           </div>
         </div>
       </section>

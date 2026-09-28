@@ -6,7 +6,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { PMS_COMPANY } from "@/lib/pms-company";
 import { channelLabel } from "@/lib/pms-client";
-import { voucherDetails } from "@/lib/pms-voucher-content";
+import { defaultRoomCategory, voucherDetails } from "@/lib/pms-voucher-content";
 import { PLIX_VOUCHER_LOGO_PNG_BASE64 } from "@/lib/pms-voucher-logo";
 
 type RoomAllocation = { category: string; adults: number; extraBed: number; children: number; infants: number; mealPlan: string; rate: number };
@@ -51,7 +51,7 @@ const safe = (s: string) => s.replace(/[^\x20-\x7E -ÿ]/g, "?").replace(/₹/g, 
 
 function occupancyRows(b: VoucherBooking): RoomAllocation[] {
   if (b.room_allocations.length > 0) return b.room_allocations;
-  return [{ category: b.rooms > 1 ? `${b.rooms} Rooms` : "Room", adults: b.adults, extraBed: 0, children: b.children, infants: 0, mealPlan: "Room Only", rate: b.total }];
+  return [{ category: defaultRoomCategory(b.property_id, b.rooms), adults: b.adults, extraBed: 0, children: b.children, infants: 0, mealPlan: "Room Only", rate: b.total }];
 }
 
 const CANCELLATION_POLICY = "Advance paid is non-refundable. Any date change is subject to availability and must be requested at least 48 hours before check-in.";
@@ -92,12 +92,16 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
     // the logo instead of underneath it.
     y = headerTop - h - 12;
     text("Boutique Stays & Luxury Villas", M, 8.5, regular, GREY);
+    y -= 13;
+    text(`${d.propertyName}, ${d.location}`, M, 10.5, bold, INK);
     logoBottom = y - 4;
   } catch {
     y = headerTop;
     text(PMS_COMPANY.brand, M, 18, bold, GREEN);
     y -= 16;
     text("Boutique Stays & Luxury Villas", M, 9, regular, GREY);
+    y -= 13;
+    text(`${d.propertyName}, ${d.location}`, M, 10.5, bold, INK);
     logoBottom = y - 4;
   }
 
@@ -108,7 +112,9 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
   y -= 12;
   rightText(`Booking Date: ${fmt(b.created_at.slice(0, 10))}`, 9, regular, GREY);
   y -= 12;
-  rightText(`Source: ${channelLabel(b.channel)} (${b.source === "online" ? "Online" : "Offline"})`, 9, regular, GREY);
+  rightText(`Booking Source: ${channelLabel(b.channel)}`, 9, regular, GREY);
+  y -= 12;
+  rightText(`Source Type: ${b.source === "online" ? "Online" : "Offline / Manual"}`, 9, regular, GREY);
   const metaBottom = y - 4;
 
   y = Math.min(logoBottom, metaBottom) - 10;
@@ -151,7 +157,6 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
   };
   const guestRows: [string, string][] = [
     ["Guest Name", b.guest_name],
-    ["Guest Email", b.guest_email ?? "-"],
     ["Guest Mobile", b.guest_phone ?? "-"],
     ["Special Note", b.notes ?? "-"],
   ];
@@ -212,7 +217,7 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
   for (const [i, r] of rows.entries()) {
     const rowH = 18;
     if (i % 2 === 1) page.drawRectangle({ x: M, y: y - rowH, width: W, height: rowH, color: rgb(0.98, 0.98, 0.99) });
-    const cells = [String(i + 1), r.category || "Room", `${r.adults} + ${r.extraBed}`, `${r.children} + ${r.infants}`, r.mealPlan, money(r.rate)];
+    const cells = [String(i + 1), r.category || "Room", `${r.adults} + ${r.extraBed}`, `${r.children} + ${r.infants}`, r.mealPlan, r.rate ? money(r.rate) : "-"];
     cells.forEach((v, ci) => {
       const cw = cols[ci]!.w;
       const fitted = fitCell(v, cw);
@@ -226,7 +231,7 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
   const balanceDue = Math.max(0, Math.round((b.total - b.advance) * 100) / 100);
   rightText(`Grand Total: ${money(b.total)}`, 10.5, bold);
   y -= 14;
-  rightText(`Advance Paid: ${money(b.advance)}`, 10.5, bold, GREEN);
+  rightText(`Paid / Advance Amount: ${money(b.advance)}`, 10.5, bold, GREEN);
   y -= 15;
   rightText(balanceDue > 0 ? `Balance Due: ${money(balanceDue)}` : "Balance Due: Fully Paid", 11, bold, balanceDue > 0 ? RED : GREEN);
   y -= 22;

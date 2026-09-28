@@ -12,6 +12,9 @@ export const HOUSE_RULES = [
 
 export type VoucherDetails = {
   propertyName: string;
+  /** Just the locality (e.g. "Vagator"), for the "Harbor Court, Vagator"
+   * header line — distinct from `address`, which is the fuller postal line. */
+  location: string;
   address: string;
   mapUrl: string | null;
   hasCaretaker: boolean;
@@ -30,6 +33,7 @@ export function voucherDetails(propertyId: string): VoucherDetails {
   const showName = caretakerName !== "" && !/\(tbd\)/i.test(caretakerName);
   return {
     propertyName: config.name,
+    location: property?.location ?? "Goa",
     address: config.address.trim() || (property ? `${property.location}, ${property.region}` : "Goa"),
     mapUrl: config.mapsUrl.trim() || property?.google_maps_url || null,
     hasCaretaker,
@@ -38,4 +42,22 @@ export function voucherDetails(propertyId: string): VoucherDetails {
     conciergePhones: PMS_COMPANY.phones,
     contactLine: hasCaretaker ? `${showName ? caretakerName : "Caretaker"}: ${caretakerPhone}` : `Concierge: ${PMS_COMPANY.phones.join(" / ")}`,
   };
+}
+
+// Only used when a booking has no per-room breakdown of its own
+// (room_allocations/room_details) — one descriptive label for the whole
+// stay instead of the generic "Room" the voucher used to fall back to.
+// Only Harbor Court's real room-type name is confirmed by the business;
+// every other property uses its actual bedroom count instead of a guessed
+// brand name (e.g. "Luxury Suite") that has no source anywhere in this
+// codebase or from the business.
+const NAMED_ROOM_CATEGORY: Record<string, string> = {
+  "harbor-court": "Deluxe Room",
+};
+
+export function defaultRoomCategory(propertyId: string, roomsCount: number): string {
+  const named = NAMED_ROOM_CATEGORY[propertyId];
+  if (named) return roomsCount > 1 ? `${roomsCount} x ${named}` : named;
+  const property = PROPERTIES.find((p) => p.slug === propertyId);
+  return property?.bedrooms ? `${property.bedrooms}BHK Private Villa with Pool` : "Villa";
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { differenceInCalendarDays } from "date-fns";
-import { ChevronDown, Info, Loader as Loader2, MapPin, MessageCircle, Plus, Users, X } from "lucide-react";
+import { ArrowDown, ChevronDown, Info, Loader as Loader2, MapPin, MessageCircle, Plus, Users, X } from "lucide-react";
 import { formatINR, PROPERTIES, todayISO } from "@/lib/plix";
 import type { PortalBooking } from "@/lib/portal-bookings-client";
 import { portalFetch } from "@/lib/portal-native-session";
@@ -153,6 +153,25 @@ export function PortalBookingTab({
       .sort((a, b) => a.check_in.localeCompare(b.check_in));
   }, [sourceBookings]);
 
+  // The list is one long ascending feed (oldest stays first), so a property
+  // with a lot of history means scrolling past months of the past to reach
+  // what's actually coming up. This jumps straight to the first booking
+  // whose check-in is today or later, same as landing on a booking from the
+  // Home tab's Today's Operations card does (see the focusBookingId effect
+  // below) — falls back to the last (furthest-out) booking if every one on
+  // file has already checked out, rather than doing nothing.
+  const firstUpcoming = useMemo(() => {
+    const today = todayISO();
+    return sorted.find((b) => b.check_in >= today) ?? sorted[sorted.length - 1];
+  }, [sorted]);
+
+  function jumpToUpcoming() {
+    if (!firstUpcoming) return;
+    setHighlightId(firstUpcoming.id);
+    cardRefs.current.get(firstUpcoming.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => setHighlightId(null), 3000);
+  }
+
   const grouped = useMemo(() => {
     const groups: { key: string; label: string; items: PortalBooking[] }[] = [];
     for (const b of sorted) {
@@ -194,17 +213,28 @@ export function PortalBookingTab({
 
   return (
     <>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-xl font-semibold text-slate-900">Booking</h1>
-        {role === "admin" && (
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="flex items-center gap-1 rounded-full bg-bronze px-3.5 py-2 text-xs font-semibold text-bronze-foreground"
-          >
-            <Plus className="size-3.5" aria-hidden /> Create Reservation
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {sorted.length > 0 && (
+            <button
+              type="button"
+              onClick={jumpToUpcoming}
+              className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm"
+            >
+              <ArrowDown className="size-3.5" aria-hidden /> Upcoming
+            </button>
+          )}
+          {role === "admin" && (
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="flex items-center gap-1 rounded-full bg-bronze px-3.5 py-2 text-xs font-semibold text-bronze-foreground"
+            >
+              <Plus className="size-3.5" aria-hidden /> Create Reservation
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mt-4">

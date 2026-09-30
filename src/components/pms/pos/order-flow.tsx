@@ -1,6 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, MoreVertical, Minus, Pencil, Plus, Printer, Search, Trash2, UserRound, X } from "lucide-react";
+import {
+  ArrowLeft,
+  MoreVertical,
+  Minus,
+  Pencil,
+  Phone,
+  Plus,
+  Printer,
+  Save,
+  Search,
+  Trash2,
+  Users,
+  UserRound,
+  X,
+} from "lucide-react";
 import {
   computeOrderByCategory,
   groupItemsByDate,
@@ -30,18 +44,30 @@ function VegDot({ veg }: { veg: boolean }) {
   return <span className={`inline-flex size-3.5 shrink-0 items-center justify-center rounded-sm border ${veg ? "border-green-600" : "border-red-600"}`} aria-label={veg ? "Veg" : "Non-veg"}><span className={`size-1.5 rounded-full ${veg ? "bg-green-600" : "bg-red-600"}`} /></span>;
 }
 
-function SentLineRow({ l, onVoid }: { l: PosLine; onVoid: () => void }) {
+function SentLineRow({
+  l,
+  index,
+  isVeg,
+  onVoid,
+}: {
+  l: PosLine;
+  /** 1-based position within its own KOT card, matching a printed KOT's own numbering. */
+  index: number;
+  isVeg: boolean;
+  onVoid: () => void;
+}) {
   return (
     <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
+      <span className="w-4 shrink-0 text-right text-xs font-semibold text-slate-400">{index}</span>
+      <VegDot veg={isVeg} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-slate-900">{l.item_name}</p>
         <p className="text-xs text-slate-500">
-          {inr(l.unit_price)}
+          {l.quantity} X {l.unit_price.toFixed(2)} = {l.total_price.toFixed(2)}
           {l.notes ? ` · ${l.notes}` : ""}
         </p>
       </div>
-      <span className="text-sm font-semibold text-slate-700">×{l.quantity}</span>
-      <span className="w-20 text-right text-sm font-bold text-slate-900">{inr(l.total_price)}</span>
+      <span className="text-sm font-bold text-slate-900">{inr(l.total_price)}</span>
       <button
         type="button"
         onClick={onVoid}
@@ -236,6 +262,10 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
     }
     return [...map.entries()].sort(([a], [b]) => a - b);
   }, [sent]);
+  // Defaults to non-veg (the more conservative assumption for a guest's
+  // dietary choice) on the rare edge case where the ordered item was since
+  // removed from the menu and can no longer be looked up.
+  const isVegOf = (l: PosLine) => state?.items.find((i) => i.id === l.item_id)?.is_veg ?? false;
   const totals = useMemo(
     () =>
       computeOrderByCategory(
@@ -456,7 +486,11 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
 
   const search = query.trim().toLowerCase();
   const visible = items.filter((i) => (search ? i.name.toLowerCase().includes(search) : i.category_id === activeCat));
-  const title = `${propertyName} - ${tableName}`;
+  // The review screen (the actual "Table Order" view a staff member works
+  // from) names the table explicitly, matching the printed KOT/bill's own
+  // "Table X" framing — the menu-browsing screen keeps the more general
+  // "{property} - {table}" title, which reads better in that context.
+  const title = view === "review" ? `Table No: ${tableName}` : `${propertyName} - ${tableName}`;
 
   const header = (
     <div className="flex items-center gap-1 border-b border-slate-200 bg-white px-2 py-2">
@@ -468,6 +502,17 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
       )}
       {view === "menu" && (
         <button type="button" onClick={() => { setSearching((s) => !s); setQuery(""); }} aria-label="Search" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100">{searching ? <X className="size-5" aria-hidden /> : <Search className="size-5" aria-hidden />}</button>
+      )}
+      {view === "review" && !quick && (
+        <button
+          type="button"
+          disabled={busy || drafts.length + sent.length === 0}
+          onClick={requestSave}
+          aria-label="Save order"
+          className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"
+        >
+          <Save className="size-4" aria-hidden /> Save
+        </button>
       )}
       <button type="button" onClick={() => setModal("guest")} aria-label="Guest details" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><UserRound className="size-5" aria-hidden /></button>
       {view === "menu" && (
@@ -554,6 +599,22 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
     return (
       <div className="fixed inset-0 z-[80] flex flex-col bg-slate-50">
         {header}
+        <button
+          type="button"
+          onClick={() => setModal("guest")}
+          className="flex items-center gap-3 border-b border-slate-200 bg-white px-3 py-2 text-left text-xs font-medium text-slate-600"
+        >
+          <span className="flex items-center gap-1 truncate">
+            <UserRound className="size-3.5 shrink-0 text-slate-400" aria-hidden />{" "}
+            {guest.name || "Guest"}
+          </span>
+          <span className="flex items-center gap-1 shrink-0">
+            <Phone className="size-3.5 text-slate-400" aria-hidden /> {guest.phone || "-"}
+          </span>
+          <span className="flex items-center gap-1 shrink-0">
+            <Users className="size-3.5 text-slate-400" aria-hidden /> {guest.count}
+          </span>
+        </button>
         <div className="flex-1 overflow-y-auto p-3">
           <div className="mx-auto max-w-md">
             <div className="flex items-center justify-between">
@@ -581,8 +642,14 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
                       </button>
                     </div>
                     <div className="grid gap-2">
-                      {lines.map((l) => (
-                        <SentLineRow key={l.id} l={l} onVoid={() => setModal({ voidLine: l })} />
+                      {lines.map((l, i) => (
+                        <SentLineRow
+                          key={l.id}
+                          l={l}
+                          index={i + 1}
+                          isVeg={isVegOf(l)}
+                          onVoid={() => setModal({ voidLine: l })}
+                        />
                       ))}
                     </div>
                   </div>
@@ -607,15 +674,52 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
               ))}
               {sent.length + drafts.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Nothing added yet.</p>}
             </div>
-
-            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 text-sm">
-              <div className="flex justify-between py-1 text-slate-600"><span>Subtotal</span><span>{inr(totals.subtotal)}</span></div>
-              <button type="button" onClick={() => setModal("discount")} className="flex w-full justify-between py-1 text-emerald-700"><span className="font-semibold">+ Discount</span><span>{totals.discount > 0 ? `-${inr(totals.discount)}` : ""}</span></button>
-              <button type="button" onClick={() => setModal("charge")} className="flex w-full justify-between py-1 text-emerald-700"><span className="font-semibold">+ Add other charge</span><span>{other > 0 ? inr(other) : ""}</span></button>
-              {state?.config.general.showTaxSeparately && Object.values(totals.breakdown).some((v) => v > 0)
-                ? Object.entries(totals.breakdown).filter(([, v]) => v > 0).map(([k, v]) => <div key={k} className="flex justify-between py-1 text-slate-600"><span>{k}</span><span>{inr(v)}</span></div>)
-                : <div className="flex justify-between py-1 text-slate-600"><span>Tax</span><span>{inr(totals.tax)}</span></div>}
-              <div className="mt-1 flex justify-between border-t border-dashed border-slate-200 pt-2 text-base font-bold text-slate-900"><span>Grand Total</span><span>{inr(totals.total)}</span></div>
+          </div>
+        </div>
+        {/* Pinned above the action buttons instead of scrolling away with the
+            KOT blocks — a table with several KOT batches shouldn't require
+            scrolling past all of them just to see the running total. */}
+        <div className="border-t border-slate-200 bg-white p-3 text-sm">
+          <div className="mx-auto max-w-md">
+            <div className="flex justify-between py-1 text-slate-600">
+              <span>Subtotal</span>
+              <span>{inr(totals.subtotal)}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setModal("discount")}
+              className="flex w-full justify-between py-1 text-emerald-700"
+            >
+              <span className="font-semibold">+ Discount</span>
+              <span>{totals.discount > 0 ? `-${inr(totals.discount)}` : ""}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setModal("charge")}
+              className="flex w-full justify-between py-1 text-emerald-700"
+            >
+              <span className="font-semibold">+ Add other charge</span>
+              <span>{other > 0 ? inr(other) : ""}</span>
+            </button>
+            {state?.config.general.showTaxSeparately &&
+            Object.values(totals.breakdown).some((v) => v > 0) ? (
+              Object.entries(totals.breakdown)
+                .filter(([, v]) => v > 0)
+                .map(([k, v]) => (
+                  <div key={k} className="flex justify-between py-1 text-slate-600">
+                    <span>{k}</span>
+                    <span>{inr(v)}</span>
+                  </div>
+                ))
+            ) : (
+              <div className="flex justify-between py-1 text-slate-600">
+                <span>Tax</span>
+                <span>{inr(totals.tax)}</span>
+              </div>
+            )}
+            <div className="mt-1 flex justify-between border-t border-dashed border-slate-200 pt-2 text-base font-bold text-slate-900">
+              <span>Grand Total</span>
+              <span>{inr(totals.total)}</span>
             </div>
           </div>
         </div>

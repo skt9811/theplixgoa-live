@@ -5,7 +5,7 @@ import { ensureAccessSchema } from "@/lib/pms-schema.server";
 import type { Actor } from "@/lib/pms-users.server";
 
 export type AuditAction = "CREATE" | "UPDATE" | "DELETE" | "FINALIZE" | "LOGIN";
-export type AuditEntity = "pos" | "booking" | "invoice" | "expense" | "voucher" | "category" | "budget" | "inventory" | "user" | "setting";
+export type AuditEntity = "pos" | "booking" | "invoice" | "expense" | "voucher" | "category" | "budget" | "inventory" | "user" | "setting" | "inquiry";
 
 export async function audit(actor: Actor, action: AuditAction, entityType: AuditEntity, entityId: string, details: Record<string, unknown> = {}): Promise<void> {
   try {

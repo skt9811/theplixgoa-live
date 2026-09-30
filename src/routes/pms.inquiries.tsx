@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ExternalLink, Inbox, Users } from "lucide-react";
+import { ExternalLink, Inbox, Trash2, Users } from "lucide-react";
 import { fmtDate, istToday, addDays } from "@/lib/pms-client";
 import {
   listInquiries,
   updateInquiry,
+  deleteInquiries,
   STATUS_LABELS,
   type PmsInquiry,
   type InquiryStatus,
 } from "@/lib/pms-inquiries-client";
 import { PmsPullToRefresh } from "@/components/pms/pms-pull-to-refresh";
 import { CreateReservationModal } from "@/components/pms/create-reservation-modal";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export const Route = createFileRoute("/pms/inquiries")({
   validateSearch: (search: Record<string, unknown>): { id?: string | undefined } => ({
@@ -43,6 +45,9 @@ function Inquiries() {
   const [filter, setFilter] = useState<Filter>("all");
   const [converting, setConverting] = useState<PmsInquiry | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const highlightRef = useRef<HTMLDivElement | null>(null);
 
   async function load() {
@@ -68,6 +73,68 @@ function Inquiries() {
     () => (inquiries ?? []).filter((i) => filter === "all" || i.status === filter),
     [inquiries, filter],
   );
+
+  // Selection is scoped to whatever's currently visible — switching tabs
+  // with a stale selection from a different filter would be confusing (and
+  // "Select All" toggling a set of ids the user can no longer see).
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [filter]);
+
+  const visibleIds = useMemo(() => visible.map((i) => i.id), [visible]);
+  const selectedVisibleCount = visibleIds.filter((id) => selectedIds.has(id)).length;
+  const allVisibleSelected = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
+  const someVisibleSelected = selectedVisibleCount > 0 && !allVisibleSelected;
+
+  function toggleSelectAll() {
+    setSelectedIds(allVisibleSelected ? new Set() : new Set(visibleIds));
+  }
+
+  function toggleOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleDeleteOne(inq: PmsInquiry) {
+    if (!window.confirm(`Delete inquiry from ${inq.guest_name}?`)) return;
+    setDeletingId(inq.id);
+    try {
+      await deleteInquiries([inq.id]);
+      setSelectedIds((prev) => {
+        if (!prev.has(inq.id)) return prev;
+        const next = new Set(prev);
+        next.delete(inq.id);
+        return next;
+      });
+      toast.success("Inquiry deleted");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not delete the inquiry");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleDeleteSelected() {
+    const count = selectedIds.size;
+    if (count === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${count} selected inquiries?`)) return;
+    setBulkDeleting(true);
+    try {
+      const { deletedCount } = await deleteInquiries([...selectedIds]);
+      setSelectedIds(new Set());
+      toast.success(`${deletedCount} inquir${deletedCount === 1 ? "y" : "ies"} deleted`);
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not delete the selected inquiries");
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
 
   async function setStatus(inq: PmsInquiry, status: InquiryStatus) {
     setSavingId(inq.id);
@@ -139,6 +206,39 @@ function Inquiries() {
           </p>
         )}
 
+        {inquiries && visible.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5">
+            <Checkbox
+              aria-label="Select all inquiries"
+              checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+              onCheckedChange={toggleSelectAll}
+            />
+            <span className="text-xs font-semibold text-slate-600">
+              {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
+            </span>
+            {selectedIds.size > 0 && (
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  Deselect All
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkDeleting}
+                  onClick={() => void handleDeleteSelected()}
+                  className="flex items-center gap-1 rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                >
+                  <Trash2 className="size-3" aria-hidden />
+                  {bulkDeleting ? "Deleting..." : "Delete Selected"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mt-4 grid gap-3">
           {visible.map((inq) => (
             <article
@@ -147,6 +247,12 @@ function Inquiries() {
               className={`rounded-xl border bg-white p-4 transition-colors ${inq.id === highlightId ? "border-emerald-400 ring-2 ring-emerald-200" : "border-slate-200"}`}
             >
               <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
+                <Checkbox
+                  aria-label={`Select inquiry from ${inq.guest_name}`}
+                  checked={selectedIds.has(inq.id)}
+                  onCheckedChange={() => toggleOne(inq.id)}
+                  className="mr-0.5"
+                />
                 <span className="rounded-full bg-slate-900 px-2.5 py-1 text-white">
                   {inq.property_name ?? inq.listing_title ?? "Unmatched property"}
                 </span>
@@ -226,6 +332,15 @@ function Inquiries() {
                     Convert to Booking
                   </button>
                 )}
+                <button
+                  type="button"
+                  aria-label={`Delete inquiry from ${inq.guest_name}`}
+                  disabled={deletingId === inq.id}
+                  onClick={() => void handleDeleteOne(inq)}
+                  className={`flex items-center justify-center rounded-full border border-red-200 p-1.5 text-red-600 hover:bg-red-50 disabled:opacity-60 ${inq.status === "converted_offline" ? "ml-auto" : ""}`}
+                >
+                  <Trash2 className="size-3.5" aria-hidden />
+                </button>
               </div>
             </article>
           ))}

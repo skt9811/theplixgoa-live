@@ -43,7 +43,12 @@ import { voucherDetails } from "@/lib/pms-voucher-content";
 import { PMS_COMPANY } from "@/lib/pms-company";
 import { audit } from "@/lib/pms-audit.server";
 import { sendBookingNotification, registerStaffDevice } from "@/lib/pms-notifications.server";
-import { handleInquiryWebhook, listInquiries, updateInquiry } from "@/lib/pms-inquiries.server";
+import {
+  handleInquiryWebhook,
+  listInquiries,
+  updateInquiry,
+  deleteInquiries,
+} from "@/lib/pms-inquiries.server";
 import {
   allowedSlugs,
   canAnyTab,
@@ -2224,6 +2229,8 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     if (path === "notifications/register-device" && request.method === "POST")
       return await registerStaffDevice(request, actor);
     if (path === "inquiries" && request.method === "GET") return await listInquiries(actor);
+    if (path === "inquiries" && request.method === "DELETE")
+      return await deleteInquiries(request, url, actor);
     if (path === "inquiries/update" && request.method === "POST")
       return await updateInquiry(request, actor);
     if (path === "invoices" && request.method === "GET") return await listInvoices(url, actor);

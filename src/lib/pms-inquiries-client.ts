@@ -44,3 +44,10 @@ export async function updateInquiry(
 ): Promise<void> {
   await pms("inquiries/update", { method: "POST", body: JSON.stringify({ id, ...patch }) });
 }
+
+/** Single or bulk — pass one id or many; returns how many were actually
+ * deleted (can be fewer than requested if some were outside the caller's
+ * assigned properties, see deleteInquiries' server-side comment). */
+export async function deleteInquiries(ids: string[]): Promise<{ deletedCount: number }> {
+  return pms("inquiries", { method: "DELETE", body: JSON.stringify({ ids }) });
+}

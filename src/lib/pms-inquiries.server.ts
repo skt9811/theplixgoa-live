@@ -10,6 +10,7 @@ import { ensureInquiriesSchema } from "@/lib/pms-schema.server";
 import { json, str } from "@/lib/pms-pos-shared.server";
 import { allowedSlugs, isAllProps, type Actor } from "@/lib/pms-users.server";
 import { sendStaffPushNotification, stripSurroundingQuotes } from "@/lib/pms-notifications.server";
+import { audit } from "@/lib/pms-audit.server";
 
 /** Returns the first value that's a non-empty string once trimmed, trying
  * each candidate field name in order — empty strings and non-string values
@@ -117,6 +118,66 @@ export async function updateInquiry(request: Request, actor: Actor): Promise<Res
       updated_at = now()
     WHERE id = ${id}::uuid`;
   return json({ success: true });
+}
+
+const UUID_RE = /^[0-9a-f-]{36}$/i;
+
+/**
+ * Single or bulk delete: `{ ids: string[] }` in the request body, or a
+ * single `?id=` query param as a fallback (matching the query-param
+ * convention pms-api.server.ts's deleteInvoice already uses elsewhere).
+ * Property scoping mirrors updateInquiry above — a restricted staff member
+ * can delete an inquiry they can SEE (listInquiries shows every Airbnb lead
+ * to everyone) only if it also falls within their own assigned properties;
+ * rows outside that are silently skipped rather than failing the whole
+ * batch, since a bulk "select all" action from a restricted account should
+ * just apply to whatever in the selection is actually theirs.
+ */
+export async function deleteInquiries(request: Request, url: URL, actor: Actor): Promise<Response> {
+  let ids: string[] = [];
+  try {
+    const body = (await request.json()) as { ids?: unknown };
+    if (Array.isArray(body.ids)) {
+      ids = body.ids.filter((v): v is string => typeof v === "string");
+    }
+  } catch {
+    // No JSON body sent — fall through to the query-param form below.
+  }
+  if (ids.length === 0) {
+    const single = url.searchParams.get("id");
+    if (single) ids = [single];
+  }
+  ids = [...new Set(ids.filter((id) => UUID_RE.test(id)))];
+  if (ids.length === 0) return json({ error: "No valid inquiry id(s) provided" }, 400);
+
+  const sql = getPmsDb();
+  if (!sql) return json({ error: "PMS database not configured" }, 503);
+  await ensureInquiriesSchema(sql);
+
+  const rows = await sql<{ id: string; property_id: string | null; guest_name: string }[]>`
+    SELECT id, property_id, guest_name FROM pms_inquiries WHERE id = ANY(${ids}::uuid[])`;
+  const allowed = isAllProps(actor)
+    ? rows
+    : rows.filter((r) => !r.property_id || allowedSlugs(actor).includes(r.property_id));
+  if (allowed.length === 0) {
+    return json(
+      rows.length > 0
+        ? { error: "You do not have access to the selected inquiries" }
+        : { error: "No matching inquiries found" },
+      rows.length > 0 ? 403 : 404,
+    );
+  }
+
+  const allowedIds = allowed.map((r) => r.id);
+  const deleted = await sql<{ id: string }[]>`
+    DELETE FROM pms_inquiries WHERE id = ANY(${allowedIds}::uuid[]) RETURNING id`;
+
+  await audit(actor, "DELETE", "inquiry", allowedIds.slice(0, 5).join(","), {
+    count: deleted.length,
+    guestNames: allowed.map((r) => r.guest_name).slice(0, 20),
+  });
+
+  return json({ success: true, deletedCount: deleted.length });
 }
 
 // --- Airbnb inbound email parsing ---

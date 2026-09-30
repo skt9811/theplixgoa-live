@@ -4,7 +4,7 @@
 import { toast } from "sonner";
 import { billSlip, kotSlip, testSlip, type SlipContext, type SlipLine } from "@/lib/pms-escpos";
 import { printSlip, type PrintResult, type PrinterSettings } from "@/lib/pms-pos-print";
-import { getDeviceId, posCreatePrintJob, posMyPrintJobs, type PosConfig, type PosPrinterRow } from "@/lib/pms-pos-client";
+import type { PosConfig, PosPrinterRow } from "@/lib/pms-pos-client";
 
 export type PaperSize = "54mm" | "58mm" | "80mm";
 const paper = (p: PosPrinterRow | undefined): PaperSize => (p?.paper_size === "54mm" || p?.paper_size === "80mm" ? p.paper_size : "58mm");
@@ -52,70 +52,34 @@ async function dispatch(lines: SlipLine[], printers: PosPrinterRow[], leftMargin
 const NOTHING_PRINTED: PrintResult["mode"][] = ["preview", "native-error"];
 
 /**
- * Remote print fallback: this device has no working printer for the job, so
- * instead of just giving up, drop it in the queue for whichever device has
- * the property's POS screen open and a printer paired (see the poller in
- * print-job-poller.ts). Fire-and-forget from the caller's point of view —
- * it watches for the outcome itself and toasts when the job actually
- * finishes (or gives up after ~a minute of nobody picking it up).
+ * Printing is strictly on-demand: a job that can't reach a printer right now
+ * fails immediately and visibly instead of being queued in the background
+ * for some other device to pick up later. That remote-queue fallback used to
+ * exist here (see print-job-poller.ts, now removed) but let stale jobs pile
+ * up while a property's printer was down, then fire all at once — 5+
+ * receipts printing back-to-back — the moment it reconnected. The order/KOT
+ * itself is always already saved to the database by the time this runs
+ * (persist() in order-flow.tsx calls it after a successful save), so a
+ * failed print never loses the order — staff just reprint from the KOT
+ * card's own printer icon once the printer is back.
  */
-async function enqueueRemote(property: string, role: "bill" | "kot", ctx: SlipContext, o: unknown): Promise<PrintResult> {
-  const device = getDeviceId();
-  try {
-    const { id } = await posCreatePrintJob({ property, role, payload: { ctx, o }, device });
-    void watchRemoteJob(property, device, id);
-    return { mode: "queued", message: "No printer here — queued for the property's printer" };
-  } catch (err) {
-    return { mode: "preview", message: err instanceof Error ? err.message : "No printer here, and the remote queue is unavailable" };
-  }
+function offlineResult(role: "bill" | "kot"): PrintResult {
+  return {
+    mode: "native-error",
+    message: `Printer offline — ${role === "kot" ? "KOT" : "bill"} saved without printing`,
+  };
 }
 
-async function watchRemoteJob(property: string, device: string, id: string, triesLeft = 20): Promise<void> {
-  if (triesLeft <= 0) return;
-  await new Promise((r) => setTimeout(r, 3000));
-  try {
-    const { jobs } = await posMyPrintJobs(property, device);
-    const job = jobs.find((j) => j.id === id);
-    if (job?.status === "done") {
-      toast.success("Printed at the property");
-      return;
-    }
-    if (job?.status === "failed") {
-      toast.error(`Remote print failed: ${job.error ?? "unknown error"}`);
-      return;
-    }
-  } catch {
-    // network hiccup — keep watching
-  }
-  void watchRemoteJob(property, device, id, triesLeft - 1);
-}
-
-/** Replays a queued job on the device that picked it up, using its own printer config — see print-job-poller.ts. */
-export async function replayPrintJob(config: PosConfig, station: string, role: "bill" | "kot", payload: { ctx: SlipContext; o: Record<string, unknown> }): Promise<PrintResult> {
-  const ctx = payload.ctx;
-  if (role === "bill") {
-    const o = { ...payload.o, at: payload.o["at"] ? new Date(payload.o["at"] as string) : new Date() } as unknown as Parameters<typeof billSlip>[1];
-    const printers = printersFor(config, "bill", station);
-    const lines = billSlip({ ...ctx, paper: paper(printers[0]) }, o);
-    return dispatch(lines, printers, config.general.leftMargin);
-  }
-  const o = payload.o as unknown as Parameters<typeof kotSlip>[1] & { destination?: "kitchen" | "bar" };
-  const printers = printersFor(config, "kot", station, o.destination ?? "kitchen");
-  const lines = kotSlip({ ...ctx, paper: paper(printers[0]) }, o);
-  return dispatch(lines, printers, config.general.leftMargin);
-}
-
-export async function printKot(config: PosConfig, ctx: SlipContext, station: string, o: Parameters<typeof kotSlip>[1] & { destination: "kitchen" | "bar" }, property?: string): Promise<PrintResult | null> {
+export async function printKot(config: PosConfig, ctx: SlipContext, station: string, o: Parameters<typeof kotSlip>[1] & { destination: "kitchen" | "bar" }): Promise<PrintResult | null> {
   if (!config.general.defaultPrintKot) return null;
   if (config.general.printConfirmPopup && !window.confirm(`Print KOT #${o.kot}?`)) return null;
   const printers = printersFor(config, "kot", station, o.destination);
   const lines = kotSlip({ ...ctx, paper: paper(printers[0]) }, o);
   const result = await dispatch(lines, printers, config.general.leftMargin);
-  if (property && NOTHING_PRINTED.includes(result.mode)) return enqueueRemote(property, "kot", ctx, o);
-  return result;
+  return NOTHING_PRINTED.includes(result.mode) ? offlineResult("kot") : result;
 }
 
-export async function printBill(config: PosConfig, ctx: SlipContext, station: string, o: Parameters<typeof billSlip>[1], opts: { copies?: number; openDrawer?: boolean } = {}, property?: string): Promise<PrintResult | null> {
+export async function printBill(config: PosConfig, ctx: SlipContext, station: string, o: Parameters<typeof billSlip>[1], opts: { copies?: number; openDrawer?: boolean } = {}): Promise<PrintResult | null> {
   if (config.general.printConfirmPopup && !window.confirm("Print the bill?")) return null;
   const printers = printersFor(config, "bill", station);
   const upi = config.general.printQr && config.general.upiId.trim() ? upiPayload(config.general.upiId.trim(), ctx.propertyName, o.total) : undefined;
@@ -123,8 +87,7 @@ export async function printBill(config: PosConfig, ctx: SlipContext, station: st
   const lines = billSlip({ ...ctx, paper: paper(printers[0]) }, merged);
   let last: PrintResult | null = null;
   for (let i = 0; i < Math.max(1, opts.copies ?? 1); i++) last = await dispatch(lines, printers, config.general.leftMargin);
-  if (property && last && NOTHING_PRINTED.includes(last.mode)) return enqueueRemote(property, "bill", ctx, merged);
-  return last;
+  return last && NOTHING_PRINTED.includes(last.mode) ? offlineResult("bill") : last;
 }
 
 /** A full-width test pattern (exactly the paper's column count) plus a paper-feed check, so a bad cut or short feed shows up immediately. */

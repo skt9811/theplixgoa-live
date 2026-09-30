@@ -18,21 +18,6 @@ export function setStation(id: string) {
   }
 }
 
-const DEVICE_KEY = "plix_pos_device";
-/** A random id unique to this browser/app install, persisted in localStorage. Used only to tell a device's own remote print jobs apart from everyone else's when polling — nothing else reads it. */
-export function getDeviceId(): string {
-  try {
-    let id = window.localStorage.getItem(DEVICE_KEY);
-    if (!id) {
-      id = crypto.randomUUID();
-      window.localStorage.setItem(DEVICE_KEY, id);
-    }
-    return id;
-  } catch {
-    return "unknown-device";
-  }
-}
-
 /** Accepts "harbor_court", "Harbor Court" or "harbor-court" and returns the canonical property slug. */
 export function normalizePropertySlug(value: string): string {
   return value.trim().toLowerCase().replace(/[\s_]+/g, "-");
@@ -117,12 +102,6 @@ export const posSave = (body: Record<string, unknown>) => posPost<PosOrderData>(
 export const posAction = (body: Record<string, unknown>) => posPost<PosOrderData>("order/action", body);
 export const posSettle = (body: Record<string, unknown>) => posPost<PosOrderData>("order/settle", body);
 export const posMenu = (body: Record<string, unknown>) => posPost<{ success: boolean; note?: string }>("menu", body);
-
-export type PosPrintJob = { id: string; role: "bill" | "kot"; payload: unknown; status: string; error: string | null; createdBy: string };
-export const posCreatePrintJob = (body: { property: string; role: "bill" | "kot"; payload: unknown; device: string }) => posPost<{ id: string }>("print-jobs", body);
-export const posPendingPrintJobs = (property: string, device: string) => posFetch<{ jobs: PosPrintJob[] }>(`print-jobs?property=${encodeURIComponent(property)}&device=${encodeURIComponent(device)}`);
-export const posMyPrintJobs = (property: string, device: string) => posFetch<{ jobs: PosPrintJob[] }>(`print-jobs?property=${encodeURIComponent(property)}&device=${encodeURIComponent(device)}&mine=1`);
-export const posPrintJobAction = (body: { id: string; action: "claim" | "done" | "failed"; device: string; error?: string }) => posPost<{ success?: boolean; claimed?: boolean }>("print-jobs/action", body);
 
 export const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 

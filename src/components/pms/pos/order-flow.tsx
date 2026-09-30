@@ -392,7 +392,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
             const title = groups.length > 1 || g.d === "bar" ? `${g.d.toUpperCase()} ORDER TICKET` : undefined;
             try {
               if (!state) return;
-              const r = await printKot(state.config, slipCtx, getStation(), { ...(title ? { title } : {}), destination: g.d, table: res.order.table_name, kot: res.kotNumber!, orderNumber: res.order.order_number, items: g.lines.map((l) => ({ name: l.item_name, qty: l.quantity, notes: l.notes })), by: user.name, remarks }, property);
+              const r = await printKot(state.config, slipCtx, getStation(), { ...(title ? { title } : {}), destination: g.d, table: res.order.table_name, kot: res.kotNumber!, orderNumber: res.order.order_number, items: g.lines.map((l) => ({ name: l.item_name, qty: l.quantity, notes: l.notes })), by: user.name, remarks });
               if (r) toastPrintResult(r, g.d === "bar" ? "Bar" : "Kitchen");
             } catch {
               toast.error("Could not print the KOT");
@@ -421,7 +421,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
     for (const g of groups) {
       const title = groups.length > 1 || g.d === "bar" ? `${g.d.toUpperCase()} ORDER TICKET (REPRINT)` : "REPRINT";
       try {
-        const r = await printKot(state.config, slipCtx, getStation(), { title, destination: g.d, table: data.order.table_name, kot: kotNumber, orderNumber: data.order.order_number, items: g.lines.map((l) => ({ name: l.item_name, qty: l.quantity, notes: l.notes })), by: user.name, remarks }, property);
+        const r = await printKot(state.config, slipCtx, getStation(), { title, destination: g.d, table: data.order.table_name, kot: kotNumber, orderNumber: data.order.order_number, items: g.lines.map((l) => ({ name: l.item_name, qty: l.quantity, notes: l.notes })), by: user.name, remarks });
         if (r) toastPrintResult(r, g.d === "bar" ? "Bar" : "Kitchen");
       } catch {
         toast.error("Could not print the KOT");
@@ -481,7 +481,6 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
         ...(state.config.general.showTaxSeparately ? { taxLines: totals.breakdown } : {}),
       },
       {},
-      property,
     );
     if (res) toastPrintResult(res);
   }

@@ -645,9 +645,12 @@ export function ensurePosSchema(sql: Sql): Promise<void> {
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_orders_prop_idx ON pms_pos_orders (property_id, created_at)`;
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_order_items_order_idx ON pms_pos_order_items (order_id)`;
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_tables_prop_idx ON pms_pos_tables (property_id)`;
-      // Remote print queue: a device with no local printer (e.g. an operator away from the
-      // property) drops a job here instead of failing; any device with the POS screen open
-      // for that property polls for pending jobs and prints them on its own paired printer.
+      // Retired: this table backed a remote print queue (a device with no
+      // local printer dropped a job here for another device to pick up),
+      // removed because stale jobs piled up while a printer was offline and
+      // all fired at once on reconnect — printing is now strictly on-demand
+      // (see pms-pos-printer.ts). The table is kept, empty/unused, rather
+      // than dropped outright on the live production database.
       await sql`
         CREATE TABLE IF NOT EXISTS pms_pos_print_jobs (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

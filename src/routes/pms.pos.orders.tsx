@@ -18,7 +18,7 @@ export const Route = createFileRoute("/pms/pos/orders")({
 /** A single settled (or open) order's receipt — the landing page for the "Table Settled" push notification's deep link, which otherwise has nowhere to point since this POS has no standalone orders list. */
 function OrderDetail() {
   const { orderId } = Route.useSearch();
-  const { property, propertyName, state } = usePos();
+  const { propertyName, state } = usePos();
   const [data, setData] = useState<PosOrderData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,13 +32,7 @@ function OrderDetail() {
   async function print() {
     if (!state || !data) return;
     try {
-      const res = await printOrder(
-        state,
-        propertyName,
-        data,
-        data.order.status === "completed",
-        property,
-      );
+      const res = await printOrder(state, propertyName, data, data.order.status === "completed");
       if (res) toastPrintResult(res);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not print");

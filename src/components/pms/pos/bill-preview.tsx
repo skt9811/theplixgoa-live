@@ -39,7 +39,7 @@ function fmtDateTime(iso: string): string {
 export function BillPreview({ data, onClose }: { data: PosOrderData; onClose: () => void }) {
   useBackDismiss(true, onClose);
   const navigate = useNavigate();
-  const { property, propertyName, state } = usePos();
+  const { propertyName, state } = usePos();
   const [busy, setBusy] = useState(false);
   const order = data.order;
   const store = state?.config.store ?? null;
@@ -60,7 +60,7 @@ export function BillPreview({ data, onClose }: { data: PosOrderData; onClose: ()
     if (!state) return;
     setBusy(true);
     try {
-      const r = await printOrder(state, propertyName, data, order.status === "completed", property);
+      const r = await printOrder(state, propertyName, data, order.status === "completed");
       if (r) toastPrintResult(r);
     } catch {
       toast.error("Could not print");

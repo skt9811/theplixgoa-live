@@ -27,7 +27,7 @@ const FILTERS: { id: Filter; label: string }[] = [
 type Flow = { table: PosTable; payment: boolean } | null;
 
 function DineIn() {
-  const { property, propertyName, state, reload } = usePos();
+  const { propertyName, state, reload } = usePos();
   const { tableId: deepLinkTableId } = Route.useSearch();
   const [filter, setFilter] = useState<Filter>("all");
   const [flow, setFlow] = useState<Flow>(null);
@@ -77,13 +77,7 @@ function DineIn() {
   async function printTable(t: PosTable) {
     if (!t.order || !state) return;
     try {
-      const res = await printOrder(
-        state,
-        propertyName,
-        await posOrder(t.order.id),
-        false,
-        property,
-      );
+      const res = await printOrder(state, propertyName, await posOrder(t.order.id), false);
       if (res) toastPrintResult(res);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not print");

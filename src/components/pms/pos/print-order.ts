@@ -20,7 +20,7 @@ export function billData(d: PosOrderData, state: PosState | null, at?: Date): Pa
   };
 }
 
-export async function printOrder(state: PosState, propertyName: string, d: PosOrderData, settled = false, property?: string) {
+export async function printOrder(state: PosState, propertyName: string, d: PosOrderData, settled = false) {
   const method = settled ? state.config.paymentMethods.find((m) => m.payment_type === d.order.payment_method) : undefined;
-  return printBill(state.config, slipContext(propertyName, state), getStation(), billData(d, state), { copies: method?.receipt_copies ?? 1, openDrawer: method?.open_cash_drawer === true }, property);
+  return printBill(state.config, slipContext(propertyName, state), getStation(), billData(d, state), { copies: method?.receipt_copies ?? 1, openDrawer: method?.open_cash_drawer === true });
 }

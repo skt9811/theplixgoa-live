@@ -1014,112 +1014,6 @@ async function reports(url: URL, actor: Actor, sql: Sql) {
   return json({ type, from, to, rows: await rows() });
 }
 
-const MAX_PRINT_ATTEMPTS = 3;
-
-type PrintJobRow = {
-  id: string;
-  property_id: string;
-  role: string;
-  payload: unknown;
-  status: string;
-  attempts: number;
-  claimed_by: string | null;
-  created_by: string;
-  created_by_device: string | null;
-  error: string | null;
-  created_at: Date;
-  updated_at: Date;
-};
-
-/**
- * Remote print queue. A device with no local printer for its property (an
- * operator somewhere else entirely, or just a device that isn't the one
- * near the printer) drops a job here instead of only failing; any device
- * with a POS screen open for that property polls the pending list and, if
- * it manages to claim one, prints it on its own paired printer and reports
- * back. There is no push/background delivery — a job only gets picked up
- * while some device has the POS open, which is the deliberately-chosen
- * scope (see the pms-mobile Bluetooth-bridge work this sits on top of).
- */
-async function printJobsApi(request: Request, url: URL, actor: Actor, sql: Sql): Promise<Response> {
-  if (request.method === "POST" && !url.pathname.endsWith("/action")) {
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const property = str(body["property"]);
-    requireProperty(actor, property);
-    const role = str(body["role"]);
-    if (role !== "bill" && role !== "kot") throw new PosError("Invalid print job role");
-    const device = str(body["device"]).slice(0, 100) || null;
-    const payload = body["payload"];
-    if (!payload || typeof payload !== "object") throw new PosError("Missing print payload");
-    const [row] = await sql<{ id: string }[]>`
-      INSERT INTO pms_pos_print_jobs (property_id, role, payload, created_by, created_by_device)
-      VALUES (${property}, ${role}, ${sql.json(payload as never)}, ${actor.name.slice(0, 100)}, ${device})
-      RETURNING id`;
-    return json({ id: row!.id });
-  }
-
-  if (request.method === "GET") {
-    const property = str(url.searchParams.get("property"));
-    requireProperty(actor, property);
-    const device = str(url.searchParams.get("device")).slice(0, 100);
-    const mine = url.searchParams.get("mine") === "1";
-    const rows = mine
-      ? await sql<
-          PrintJobRow[]
-        >`SELECT * FROM pms_pos_print_jobs WHERE property_id = ${property} AND created_by_device = ${device} AND status <> 'pending' AND updated_at > now() - interval '10 minutes' ORDER BY updated_at DESC LIMIT 20`
-      : await sql<
-          PrintJobRow[]
-        >`SELECT * FROM pms_pos_print_jobs WHERE property_id = ${property} AND status = 'pending' AND (created_by_device IS DISTINCT FROM ${device}) AND created_at > now() - interval '30 minutes' ORDER BY created_at LIMIT 10`;
-    return json({
-      jobs: rows.map((r) => ({
-        id: r.id,
-        role: r.role,
-        payload: r.payload,
-        status: r.status,
-        error: r.error,
-        createdBy: r.created_by,
-      })),
-    });
-  }
-
-  if (request.method === "POST" && url.pathname.endsWith("/action")) {
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const id = str(body["id"]);
-    const action = str(body["action"]);
-    const device = str(body["device"]).slice(0, 100) || null;
-    if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid job id" }, 400);
-    const [job] = await sql<
-      { property_id: string }[]
-    >`SELECT property_id FROM pms_pos_print_jobs WHERE id = ${id}::uuid`;
-    if (!job) return json({ error: "Job not found" }, 404);
-    requireProperty(actor, job.property_id);
-
-    if (action === "claim") {
-      const [row] = await sql<{ id: string }[]>`
-        UPDATE pms_pos_print_jobs SET status = 'claimed', claimed_by = ${device}, claimed_at = now(), updated_at = now()
-        WHERE id = ${id}::uuid AND status = 'pending' RETURNING id`;
-      return json({ claimed: Boolean(row) });
-    }
-    if (action === "done") {
-      await sql`UPDATE pms_pos_print_jobs SET status = 'done', error = NULL, updated_at = now() WHERE id = ${id}::uuid AND status = 'claimed' AND claimed_by = ${device}`;
-      return json({ success: true });
-    }
-    if (action === "failed") {
-      const error = str(body["error"]).slice(0, 500) || "Could not print";
-      await sql`
-        UPDATE pms_pos_print_jobs SET
-          attempts = attempts + 1,
-          status = CASE WHEN attempts + 1 >= ${MAX_PRINT_ATTEMPTS} THEN 'failed' ELSE 'pending' END,
-          claimed_by = NULL, claimed_at = NULL, error = ${error}, updated_at = now()
-        WHERE id = ${id}::uuid AND status = 'claimed' AND claimed_by = ${device}`;
-      return json({ success: true });
-    }
-    return json({ error: "Unknown action" }, 400);
-  }
-
-  return json({ error: "Not found" }, 404);
-}
-
 export async function handlePosApi(
   sub: string,
   request: Request,
@@ -1148,8 +1042,6 @@ export async function handlePosApi(
       return await menuApi(request, actor, sql, station);
     }
     if (sub === "reports" && request.method === "GET") return await reports(url, actor, sql);
-    if (sub === "print-jobs" || sub === "print-jobs/action")
-      return await printJobsApi(request, url, actor, sql);
     if (sub === "guest-history" && request.method === "GET") {
       const property = str(url.searchParams.get("property"));
       requireProperty(actor, property);

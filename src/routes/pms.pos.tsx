@@ -8,7 +8,6 @@ import { usePms } from "@/components/pms/pms-context";
 import { propertyDisplayName } from "@/components/pms/property-selector";
 import { PosContext } from "@/components/pms/pos/pos-context";
 import { SlipPreviewHost } from "@/components/pms/pos/slip-preview";
-import { usePrintJobPoller } from "@/components/pms/pos/print-job-poller";
 
 export const Route = createFileRoute("/pms/pos")({ component: PosLayout });
 
@@ -45,8 +44,6 @@ function PosLayout() {
     setState(null);
     void reload();
   }, [reload]);
-
-  usePrintJobPoller(property, state);
 
   const ctx = useMemo(() => ({ property, propertyName: propertyDisplayName(property), state, reload }), [property, state, reload]);
 

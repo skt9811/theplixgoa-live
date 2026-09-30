@@ -210,6 +210,11 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
   const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // Set once a KOT round is committed while staying on the review screen
+  // (see the KOT button below) — attemptClose still needs to tell the table
+  // grid a reload is due even though dirty itself was already reset to
+  // false by persist() at that point.
+  const [hasChanged, setHasChanged] = useState(false);
   const [modal, setModal] = useState<null | "guest" | "discount" | "charge" | "remarks" | "newItem" | "newCategory" | { noteFor: string } | { voidLine: PosLine } | { priceFor: PosItem }>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [pendingSave, setPendingSave] = useState(false);
@@ -237,7 +242,14 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
     posOrder(initialOrderId)
       .then((d) => {
         hydrate(d);
+        // Reopening a table that already has at least one saved KOT round
+        // should land straight on the Table Order view (the stacked KOT
+        // cards below), matching the reference POS — not the item picker,
+        // which is only the right default for a brand-new/empty table or
+        // one where every item is still an unsent draft.
+        const hasSentKot = d.lines.some((l) => l.status === "active" && l.kot_number > 0);
         if (startAtPayment) setView("payment");
+        else if (hasSentKot) setView("review");
       })
       .catch((err) => {
         toast.error(err instanceof Error ? err.message : "Could not open the order");
@@ -287,7 +299,7 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
 
   function attemptClose() {
     if (dirty && drafts.length > 0 && !window.confirm("Discard the items you added?")) return;
-    onClose(dirty);
+    onClose(dirty || hasChanged);
   }
 
   // The blue Save button prompts for the guest's name/persons/mobile the first
@@ -724,11 +736,56 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
           </div>
         </div>
         <div className="border-t border-slate-200 bg-white p-3">
-          <div className="mx-auto grid max-w-md grid-cols-4 gap-2">
-            <button type="button" disabled={busy} onClick={() => void printPreBill()} className="rounded-lg border border-slate-200 py-3 text-xs font-semibold text-slate-700 disabled:opacity-50">Print</button>
-            {quick ? <span /> : <button type="button" disabled={busy || drafts.length + sent.length === 0} onClick={requestSave} className="rounded-lg border border-emerald-600 py-3 text-sm font-bold text-emerald-700 disabled:opacity-50">Save</button>}
-            <button type="button" disabled={busy || drafts.length === 0} onClick={async () => { const r = await persist(true); if (r) onClose(true); }} className="rounded-lg bg-emerald-600 py-3 text-sm font-bold text-white disabled:opacity-50">KOT</button>
-            <button type="button" disabled={busy || drafts.length + sent.length === 0} onClick={async () => { const r = await persist(false); if (r) setView("payment"); }} className="rounded-lg bg-slate-900 py-3 text-xs font-bold text-white disabled:opacity-50">Settle</button>
+          <div className="mx-auto grid max-w-md grid-cols-5 gap-1.5">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void printPreBill()}
+              className="rounded-lg border border-slate-200 py-3 text-xs font-semibold text-slate-700 disabled:opacity-50"
+            >
+              Print
+            </button>
+            {quick ? (
+              <span />
+            ) : (
+              <button
+                type="button"
+                disabled={busy || drafts.length + sent.length === 0}
+                onClick={requestSave}
+                className="rounded-lg border border-emerald-600 py-3 text-xs font-bold text-emerald-700 disabled:opacity-50"
+              >
+                Save
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setView("menu")}
+              className="flex items-center justify-center gap-0.5 rounded-lg border border-emerald-600 py-3 text-xs font-bold text-emerald-700"
+            >
+              <Plus className="size-3.5" aria-hidden /> Items
+            </button>
+            <button
+              type="button"
+              disabled={busy || drafts.length === 0}
+              onClick={async () => {
+                const r = await persist(true);
+                if (r) setHasChanged(true);
+              }}
+              className="rounded-lg bg-emerald-600 py-3 text-xs font-bold text-white disabled:opacity-50"
+            >
+              KOT
+            </button>
+            <button
+              type="button"
+              disabled={busy || drafts.length + sent.length === 0}
+              onClick={async () => {
+                const r = await persist(false);
+                if (r) setView("payment");
+              }}
+              className="rounded-lg bg-slate-900 py-3 text-xs font-bold text-white disabled:opacity-50"
+            >
+              Settle
+            </button>
           </div>
         </div>
         {modals}
@@ -740,7 +797,12 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
     <div className="fixed inset-0 z-[80] flex flex-col bg-slate-50">
       {header}
       <div className="flex gap-1 bg-white px-3 pt-2">
-        {([["all", "All Items"], ["added", `Added (${addedCount + sent.reduce((s, l) => s + l.quantity, 0)})`]] as const).map(([t, l]) => (
+        {(
+          [
+            ["all", "All Items"],
+            ["added", `Added (${addedCount})`],
+          ] as const
+        ).map(([t, l]) => (
           <button key={t} type="button" onClick={() => setTab(t)} className={`flex-1 border-b-2 py-2 text-sm font-semibold ${tab === t ? "border-emerald-600 text-emerald-700" : "border-transparent text-slate-500"}`}>{l}</button>
         ))}
       </div>
@@ -776,11 +838,10 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
                 </div>
               );
             })
-          ) : sent.length + drafts.length === 0 ? (
-            <p className="col-span-full py-10 text-center text-sm text-slate-400">No items added yet.</p>
+          ) : drafts.length === 0 ? (
+            <p className="col-span-full py-10 text-center text-sm text-slate-400">No items added yet this round.</p>
           ) : (
             <>
-              {sent.map((l) => <div key={l.id} className="flex justify-between rounded-xl border border-slate-200 bg-white p-3 text-sm"><span className="text-slate-700">{l.item_name} ×{l.quantity} <span className="text-xs text-slate-400">KOT #{l.kot_number}</span></span><span className="font-semibold text-slate-900">{inr(l.total_price)}</span></div>)}
               {drafts.map((d) => (
                 <div key={d.key} className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white p-3 text-sm">
                   <span className="min-w-0 flex-1 truncate text-slate-800">{d.name}{d.notes ? <span className="text-xs text-slate-400"> · {d.notes}</span> : null}</span>

@@ -262,7 +262,13 @@ export async function sendBookingNotification(
   console.log("[Push] dispatching booking notification:", { propertyId, title });
   try {
     const [staffTokens, partnerTokens] = await Promise.all([
-      activeStaffTokens(),
+      // POS-only staff (allowed_tabs: ['pos'], no 'bookings' tab) must never
+      // get a room-booking alert — this is the fix for the reported bug:
+      // this call used to omit requireTab entirely, so activeStaffTokens()
+      // fell through to its unfiltered branch and sent to every staff
+      // device regardless of role/tabs, same as pms-inquiries.server.ts
+      // already avoids for Airbnb lead alerts via requireTab: "inquiries".
+      activeStaffTokens("bookings"),
       partnerTokensForProperty(propertyId),
     ]);
     const seen = new Set<string>();

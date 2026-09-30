@@ -420,6 +420,10 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
       title: `🍽️ Table ${saved.order.table_name} Opened`,
       body: `Dine-in started (${Math.max(1, Math.floor(num(guest["count"], 1)))} Pax) • Handled by ${actor.name}`,
       channelId: "pos_channel",
+      // Front-desk-only staff (no 'pos' in allowed_tabs) shouldn't get a
+      // stream of table-opened/cancelled/settled pings — same symmetric
+      // scoping as sendBookingNotification's requireTab: "bookings".
+      requireTab: "pos",
       data: {
         type: "pos_open",
         tableId: String(saved.order.table_id ?? ""),
@@ -540,6 +544,7 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
         title: `⚠️ Table ${order.table_name} Cancelled`,
         body: `Table was cancelled by ${actor.name}.${reason ? ` Reason: ${reason}` : ""}`,
         channelId: "pos_channel",
+        requireTab: "pos",
         data: {
           type: "pos_cancel",
           tableId: String(order.table_id ?? ""),
@@ -813,6 +818,7 @@ async function settle(request: Request, actor: Actor, sql: Sql, station: string)
     title: `💳 Table ${order.table_name} Settled`,
     body: `Bill: ₹${total.toLocaleString("en-IN")} settled via ${method}`,
     channelId: "pos_channel",
+    requireTab: "pos",
     data: { type: "pos_bill", orderId: order.id, url: `/pms/pos/orders?orderId=${order.id}` },
   });
   return json({

@@ -206,6 +206,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // Staff/internal traffic (PMS, the partner portal, the admin dashboard)
+  // must never reach the Google Ads tag: it's a marketing measurement/
+  // remarketing surface for the public site and booking funnel, and a
+  // logged-in team member reloading /pms all day would otherwise register as
+  // repeat "visits" polluting that account's real traffic and conversion
+  // data. Checked by pathname (not an auth check) since staff-only content
+  // only ever lives under these three prefixes — nothing gated further in.
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isInternalRoute =
+    pathname.startsWith("/pms") || pathname.startsWith("/portal") || pathname.startsWith("/admin");
   return (
     <html lang="en">
       <head>
@@ -221,16 +231,23 @@ function RootShell({ children }: { children: ReactNode }) {
             removed entirely). Hardcoded directly in the static shell, not
             via the dynamic head() scripts config below, so it's present on
             the raw response body of every GET request independent of the
-            per-route head-config mechanism. */}
-        <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18001047926" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `window.dataLayer = window.dataLayer || [];
+            per-route head-config mechanism — except on internal routes,
+            where it's omitted from the response entirely rather than loaded
+            and then suppressed client-side, so staff traffic never reaches
+            Google Ads' servers at all. */}
+        {!isInternalRoute && (
+          <>
+            <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18001047926" />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
 gtag('config', 'AW-18001047926');`,
-          }}
-        />
+              }}
+            />
+          </>
+        )}
         <HeadContent />
         <noscript>
           <link rel="stylesheet" href={GOOGLE_FONTS_HREF} />

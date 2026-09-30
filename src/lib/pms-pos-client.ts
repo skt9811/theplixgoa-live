@@ -103,6 +103,11 @@ export type PosOrder = {
   /** Server-defaults to false for a real order; independent of `status`, so a table can be
    * held mid-service without disturbing the running/billing/completed/cancelled lifecycle. */
   is_held: boolean;
+  /** Set only on the ~100 historical bills backfilled from a pre-migration
+   * POS (bill-level only, no line items) — see legacy_bill_no's own comment
+   * in pms-schema.server.ts. Absence of any active lines (not this field
+   * directly) is what actually triggers BillPreview's summary-only fallback. */
+  legacy_bill_no: string | null;
 };
 export type PosOrderData = { order: PosOrder; lines: PosLine[]; kotNumber?: number | null; change?: number; movedTo?: string };
 

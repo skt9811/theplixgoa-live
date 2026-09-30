@@ -569,6 +569,13 @@ export function ensurePosSchema(sql: Sql): Promise<void> {
           is_active boolean DEFAULT true
         )`;
       await sql`ALTER TABLE pms_pos_store_profiles ADD COLUMN IF NOT EXISTS fax varchar(50)`;
+      // pms_pos_customers already exists (see line ~461 above, with its own
+      // CRUD in pms-pos-admin.server.ts's "customers" endpoints) — total_
+      // orders/last_order_at are new columns on that SAME table, an
+      // ordinary evolution, not a second competing table.
+      await sql`ALTER TABLE pms_pos_customers ADD COLUMN IF NOT EXISTS total_orders int NOT NULL DEFAULT 0`;
+      await sql`ALTER TABLE pms_pos_customers ADD COLUMN IF NOT EXISTS last_order_at timestamptz`;
+      await sql`CREATE INDEX IF NOT EXISTS pms_pos_customers_name_idx ON pms_pos_customers (property_id, lower(name) text_pattern_ops)`;
       await sql`
         CREATE TABLE IF NOT EXISTS pms_pos_discounts (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -43,8 +43,18 @@ export function BillPreview({ data, onClose }: { data: PosOrderData; onClose: ()
   const [busy, setBusy] = useState(false);
   const order = data.order;
   const store = state?.config.store ?? null;
+  // Live off the same active settings the thermal receipt already reads
+  // (see print-order.ts's billData) — a General Setup change takes effect
+  // here immediately on the next reload(), no separate cache to invalidate.
+  const showTaxSeparately = state?.config.general.showTaxSeparately ?? true;
   const groups = groupItemsByDate(data.lines.filter((l) => l.status === "active"));
   const multiDay = groups.length > 1;
+  // The ~100 historical bills backfilled from a pre-migration POS are
+  // bill-level only (see legacy_bill_no's comment) — no line items exist to
+  // show. Detected by absence of items rather than legacy_bill_no directly,
+  // so any other order that somehow has zero lines gets the same safe
+  // fallback instead of a broken, empty items table.
+  const isSummaryOnly = groups.length === 0;
 
   async function print() {
     if (!state) return;
@@ -149,7 +159,7 @@ export function BillPreview({ data, onClose }: { data: PosOrderData; onClose: ()
           <div className="space-y-0.5">
             <p>Date &amp; Time: {fmtDateTime(order.settled_at ?? order.created_at)}</p>
             <p>
-              Bill No: {order.order_number}
+              Bill No: {order.legacy_bill_no || order.order_number}
               {order.daily_number != null ? ` | Daily#: ${order.daily_number}` : ""}
             </p>
             <p>Guest Name: {order.guest_name || "Guest"}</p>
@@ -161,39 +171,49 @@ export function BillPreview({ data, onClose }: { data: PosOrderData; onClose: ()
           </div>
           <div className="my-2 border-t border-dashed border-slate-300" />
 
-          {/* Items table */}
-          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-2 font-bold">
-            <span>Name</span>
-            <span className="text-right">Price</span>
-            <span className="text-right">Qty</span>
-            <span className="text-right">Total</span>
-          </div>
-          {groups.map((g) => (
-            <div key={g.dateKey}>
-              {multiDay && (
-                <p className="mt-1.5 font-bold text-emerald-700">
-                  DATE: {g.dateLabel.toUpperCase()}
-                </p>
-              )}
-              {g.items.map((it) => (
-                <div
-                  key={`${g.dateKey}-${it.name}-${it.unitPrice}`}
-                  className="grid grid-cols-[1fr_auto_auto_auto] gap-x-2 border-t border-slate-100 py-1"
-                >
-                  <span className="truncate">{it.name}</span>
-                  <span className="text-right">{it.unitPrice.toFixed(2)}</span>
-                  <span className="text-right">{it.qty}</span>
-                  <span className="text-right font-semibold">{it.totalPrice.toFixed(2)}</span>
+          {/* Items table — or, for a bill-level-only historical import with
+              no line items on record, a clear "summary record" badge instead
+              of a broken, empty table. */}
+          {isSummaryOnly ? (
+            <div className="rounded-lg bg-amber-50 px-3 py-2 text-center font-sans text-[11px] font-semibold text-amber-800">
+              Historical Bill — Summary Record
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-2 font-bold">
+                <span>Name</span>
+                <span className="text-right">Price</span>
+                <span className="text-right">Qty</span>
+                <span className="text-right">Total</span>
+              </div>
+              {groups.map((g) => (
+                <div key={g.dateKey}>
+                  {multiDay && (
+                    <p className="mt-1.5 font-bold text-emerald-700">
+                      DATE: {g.dateLabel.toUpperCase()}
+                    </p>
+                  )}
+                  {g.items.map((it) => (
+                    <div
+                      key={`${g.dateKey}-${it.name}-${it.unitPrice}`}
+                      className="grid grid-cols-[1fr_auto_auto_auto] gap-x-2 border-t border-slate-100 py-1"
+                    >
+                      <span className="truncate">{it.name}</span>
+                      <span className="text-right">{it.unitPrice.toFixed(2)}</span>
+                      <span className="text-right">{it.qty}</span>
+                      <span className="text-right font-semibold">{it.totalPrice.toFixed(2)}</span>
+                    </div>
+                  ))}
+                  {multiDay && (
+                    <div className="flex justify-between border-t border-slate-100 py-1 font-semibold text-slate-500">
+                      <span>Day subtotal</span>
+                      <span>{inr(g.subtotal)}</span>
+                    </div>
+                  )}
                 </div>
               ))}
-              {multiDay && (
-                <div className="flex justify-between border-t border-slate-100 py-1 font-semibold text-slate-500">
-                  <span>Day subtotal</span>
-                  <span>{inr(g.subtotal)}</span>
-                </div>
-              )}
-            </div>
-          ))}
+            </>
+          )}
           <div className="my-2 border-t border-dashed border-slate-300" />
 
           {/* Calculation */}
@@ -208,7 +228,9 @@ export function BillPreview({ data, onClose }: { data: PosOrderData; onClose: ()
                 <span>-{inr(order.discount_amount)}</span>
               </div>
             )}
-            {order.tax_breakdown && Object.values(order.tax_breakdown).some((v) => v > 0) ? (
+            {showTaxSeparately &&
+            order.tax_breakdown &&
+            Object.values(order.tax_breakdown).some((v) => v > 0) ? (
               Object.entries(order.tax_breakdown)
                 .filter(([, v]) => v > 0)
                 .map(([k, v]) => (

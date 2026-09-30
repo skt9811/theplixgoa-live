@@ -196,7 +196,7 @@ async function recalc(sql: Sql, orderId: string) {
 async function loadOrder(sql: Sql, orderId: string) {
   const [o] = await sql<
     OrderRow[]
-  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held FROM pms_pos_orders WHERE id = ${orderId}`;
+  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held, legacy_bill_no FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
   const lines = await sql<
     LineRow[]
@@ -207,7 +207,7 @@ async function loadOrder(sql: Sql, orderId: string) {
 async function ownedOrder(sql: Sql, actor: Actor, orderId: string): Promise<OrderRow> {
   const [o] = await sql<
     OrderRow[]
-  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held FROM pms_pos_orders WHERE id = ${orderId}`;
+  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held, legacy_bill_no FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
   requireProperty(actor, o.property_id);
   return o;
@@ -326,7 +326,7 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
     }
     const [existing] = await tx<
       OrderRow[]
-    >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held FROM pms_pos_orders WHERE id = ${orderId} FOR UPDATE`;
+    >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held, legacy_bill_no FROM pms_pos_orders WHERE id = ${orderId} FOR UPDATE`;
     if (!existing || existing.property_id !== property) throw new PosError("Order not found", 404);
     if (existing.status !== "running" && existing.status !== "billing")
       throw new PosError("This order is already closed", 409);
@@ -708,17 +708,31 @@ async function settle(request: Request, actor: Actor, sql: Sql, station: string)
   const pm = cfg.paymentMethods.find((m) => m["payment_type"] === method);
   if (pm && pm["is_allowed"] === false)
     throw new PosError(`${method} is turned off in Payment & Tax settings`);
-  if (!cfg.general.customerPhoneOptional && !order["guest_phone"])
-    throw new PosError(
-      "Add the customer's mobile number before billing (Customer phone is required in General Setup)",
-    );
+  // Customer name + phone are mandatory unless "Customer Details Not
+  // Required" (customerPhoneOptional, the same toggle — one switch for both
+  // fields, not two confusingly-similar ones) is on. Enforced here rather
+  // than at table/order creation: this is the one place a bill can't be
+  // finalized without a payment method already chosen anyway, so it's the
+  // natural last checkpoint — moving it to table creation would block the
+  // single highest-traffic action in the whole POS (opening a table) on a
+  // brand-new, unproven validation path in a live restaurant.
+  if (!cfg.general.customerPhoneOptional) {
+    if (!order["guest_phone"])
+      throw new PosError(
+        "Add the customer's mobile number before billing (Customer details are required in General Setup)",
+      );
+    if (!order["guest_name"])
+      throw new PosError(
+        "Add the customer's name before billing (Customer details are required in General Setup)",
+      );
+  }
   const noPayment = method === "Account" || method === "NC";
   const roundOff = round2(num(body["roundOff"]));
   const remark = str(body["remark"]);
   await recalc(sql, order.id);
   const [fresh] = await sql<
     OrderRow[]
-  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held FROM pms_pos_orders WHERE id = ${order.id}`;
+  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held, legacy_bill_no FROM pms_pos_orders WHERE id = ${order.id}`;
   const total = round2(Number(fresh!["total_amount"]) + roundOff);
   const received = noPayment ? total : Math.max(0, num(body["received"], total));
   if (!noPayment && received < total)
@@ -759,6 +773,27 @@ async function settle(request: Request, actor: Actor, sql: Sql, station: string)
       total_amount = ${total}, remarks = ${note || null}, booking_id = ${bookingId || null}, settled_at = now(), billed_by_user = ${actor.name}, daily_number = ${dn!.n} WHERE id = ${order.id}`;
     await deductStock(tx, order.id, false);
     await freeTable(tx, order.table_id);
+    // Guest CRM upsert into the EXISTING pms_pos_customers table (already
+    // used by the Customers management screen — mobile, not phone, is its
+    // real column name) — keyed on mobile, the only field that reliably
+    // identifies a returning guest; skipped when it's blank (allowed when
+    // customerPhoneOptional is on) since pms_pos_customers_mobile_key has no
+    // partial WHERE clause and would collide on a second blank-mobile guest.
+    // Only name/total_orders/last_order_at are touched on conflict — an
+    // existing customer's persons/is_commercial/address fields (managed from
+    // the Customers screen) are left exactly as they were.
+    const guestName = str(order["guest_name"]);
+    const guestPhone = str(order["guest_phone"]);
+    if (guestPhone) {
+      await tx`
+        INSERT INTO pms_pos_customers (property_id, name, mobile, total_orders, last_order_at)
+        VALUES (${order.property_id}, ${guestName || "Guest"}, ${guestPhone}, 1, now())
+        ON CONFLICT (property_id, mobile)
+        DO UPDATE SET
+          name = CASE WHEN ${guestName} <> '' THEN ${guestName} ELSE pms_pos_customers.name END,
+          total_orders = pms_pos_customers.total_orders + 1,
+          last_order_at = now()`;
+    }
   });
   await audit(actor, "FINALIZE", "pos", order.id, {
     kind: "settle",

@@ -6,13 +6,39 @@ import { useBackDismiss } from "@/lib/pms-back-stack";
 export type Guest = { name: string; count: number; phone: string; isCommercial: boolean; addressType: string; address: string; city: string; zip: string };
 export const EMPTY_GUEST: Guest = { name: "", count: 1, phone: "", isCommercial: false, addressType: "Home", address: "", city: "", zip: "" };
 
+/** Matches the Customer type in pms.pos.manage.customers.tsx — not exported
+ * from there, so declared locally here too; same pms_pos_customers table. */
+type CustomerSuggestion = { id: string; name: string; mobile: string };
+
 const field = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-emerald-500";
 
 export function GuestModal({ property, guest, onChange, onClose }: { property: string; guest: Guest; onChange: (g: Guest) => void; onClose: () => void }) {
   useBackDismiss(true, onClose);
   const [tab, setTab] = useState<"basic" | "extra" | "history">("basic");
   const [history, setHistory] = useState<{ order_number: number; table_name: string; total: number; payment_method: string | null; settled_at: string }[] | null>(null);
+  const [suggestions, setSuggestions] = useState<CustomerSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const set = (patch: Partial<Guest>) => onChange({ ...guest, ...patch });
+
+  // Debounced CRM autocomplete against the SAME pms_pos_customers table (and
+  // the same GET customers?property=&q= endpoint, which already matches
+  // name OR mobile) the Customers management screen already uses — this
+  // just surfaces it while actually taking an order, not a separate search.
+  useEffect(() => {
+    const q = guest.name.trim();
+    if (q.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      posFetch<{ customers: CustomerSuggestion[] }>(
+        `customers?property=${encodeURIComponent(property)}&q=${encodeURIComponent(q)}`,
+      )
+        .then((r) => setSuggestions(r.customers.slice(0, 8)))
+        .catch(() => setSuggestions([]));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [guest.name, property]);
 
   useEffect(() => {
     if (tab !== "history") return;
@@ -36,7 +62,36 @@ export function GuestModal({ property, guest, onChange, onClose }: { property: s
         </div>
         {tab === "basic" && (
           <div className="mt-3 grid gap-3">
-            <label className="grid gap-1 text-xs font-medium text-slate-500">Guest name<input className={field} value={guest.name} onChange={(e) => set({ name: e.target.value })} /></label>
+            <label className="relative grid gap-1 text-xs font-medium text-slate-500">
+              Guest name
+              <input
+                className={field}
+                value={guest.name}
+                onChange={(e) => set({ name: e.target.value })}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => window.setTimeout(() => setShowSuggestions(false), 150)}
+                autoComplete="off"
+              />
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                  {suggestions.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        set({ name: c.name, phone: c.mobile });
+                        setShowSuggestions(false);
+                      }}
+                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
+                    >
+                      <span className="font-medium text-slate-800">{c.name}</span>
+                      <span className="text-xs text-slate-400">{c.mobile}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </label>
             <label className="grid gap-1 text-xs font-medium text-slate-500">#Persons<input className={field} type="number" min={1} value={guest.count} onChange={(e) => set({ count: Math.max(1, Number(e.target.value) || 1) })} /></label>
             <label className="grid gap-1 text-xs font-medium text-slate-500">Mobile number<input className={field} type="tel" inputMode="tel" value={guest.phone} onChange={(e) => set({ phone: e.target.value })} /></label>
             <label className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700">

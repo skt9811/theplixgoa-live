@@ -97,6 +97,12 @@ export type PosOrder = {
   tax_breakdown: Record<string, number> | null;
   tax_details: { slabs: TaxSlab[]; totalTax: number } | null;
   is_commercial: boolean | null; address_type: string | null; address: string | null; city: string | null; zipcode: string | null;
+  /** "dine_in" | "room_service" — the only two values this ever actually takes. */
+  order_type: string;
+  daily_number: number | null;
+  /** Server-defaults to false for a real order; independent of `status`, so a table can be
+   * held mid-service without disturbing the running/billing/completed/cancelled lifecycle. */
+  is_held: boolean;
 };
 export type PosOrderData = { order: PosOrder; lines: PosLine[]; kotNumber?: number | null; change?: number; movedTo?: string };
 

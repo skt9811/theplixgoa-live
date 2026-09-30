@@ -196,7 +196,7 @@ async function recalc(sql: Sql, orderId: string) {
 async function loadOrder(sql: Sql, orderId: string) {
   const [o] = await sql<
     OrderRow[]
-  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details FROM pms_pos_orders WHERE id = ${orderId}`;
+  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
   const lines = await sql<
     LineRow[]
@@ -207,7 +207,7 @@ async function loadOrder(sql: Sql, orderId: string) {
 async function ownedOrder(sql: Sql, actor: Actor, orderId: string): Promise<OrderRow> {
   const [o] = await sql<
     OrderRow[]
-  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details FROM pms_pos_orders WHERE id = ${orderId}`;
+  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
   requireProperty(actor, o.property_id);
   return o;
@@ -326,7 +326,7 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
     }
     const [existing] = await tx<
       OrderRow[]
-    >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details FROM pms_pos_orders WHERE id = ${orderId} FOR UPDATE`;
+    >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held FROM pms_pos_orders WHERE id = ${orderId} FOR UPDATE`;
     if (!existing || existing.property_id !== property) throw new PosError("Order not found", 404);
     if (existing.status !== "running" && existing.status !== "billing")
       throw new PosError("This order is already closed", 409);
@@ -488,7 +488,11 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
   const action = str(body["action"]);
   const order = await ownedOrder(sql, actor, str(body["orderId"]));
   const open = order.status === "running" || order.status === "billing";
-  if (!open) throw new PosError("This order is already closed", 409);
+  // reopen/cancel_settled/change_payment are the one exception: they exist
+  // specifically to act on an already-completed (settled) order — the
+  // opposite precondition from every other case here.
+  const actsOnSettledOrder = ["reopen", "cancel_settled", "change_payment"].includes(action);
+  if (!open && !actsOnSettledOrder) throw new PosError("This order is already closed", 409);
   const ids = Array.isArray(body["lineIds"])
     ? (body["lineIds"] as unknown[]).filter((x): x is string => typeof x === "string")
     : [];
@@ -623,6 +627,62 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
       );
       return json({ ...(await loadOrder(sql, order.id)), movedTo: targetId });
     }
+    // "Rebilling" — reopens a settled order back onto the active billing
+    // pad for a correction. Deliberately doesn't try to reverse
+    // daily_number or any stock already deducted when the items were
+    // kot'd — those stay as the historical facts they were at settlement;
+    // only the order's own status/settled_at move.
+    case "reopen": {
+      if (order.status !== "completed")
+        throw new PosError("Only a completed order can be reopened for rebilling");
+      await sql`UPDATE pms_pos_orders SET status = 'running', settled_at = NULL WHERE id = ${order.id}`;
+      await audit(actor, "UPDATE", "pos", order.id, { kind: "reopen", table: order.table_name });
+      break;
+    }
+    // Voids a PAID invoice — distinct from the "cancel" case above, which
+    // only ever runs on a still-open (running/billing) order and also
+    // restores stock/frees the table. A settled order's stock and table are
+    // already resolved, so this only flips status; it never touches either.
+    case "cancel_settled": {
+      if (order.status !== "completed")
+        throw new PosError("Only a completed order can be cancelled this way");
+      const reason = str(body["reason"]) || "Cancelled after settlement";
+      await sql`UPDATE pms_pos_orders SET status = 'cancelled', cancel_reason = ${reason} WHERE id = ${order.id}`;
+      await audit(actor, "DELETE", "pos", order.id, {
+        kind: "cancel_settled_order",
+        table: order.table_name,
+        reason,
+        total: Number(order["total_amount"]),
+      });
+      break;
+    }
+    // Switches a settled order's recorded payment mode (e.g. it was logged
+    // as Cash but the guest actually paid UPI) without touching items,
+    // totals, or settled_at.
+    case "change_payment": {
+      if (order.status !== "completed")
+        throw new PosError("Only a completed order's payment method can be changed this way");
+      const method = str(body["paymentMethod"]);
+      if (!method) throw new PosError("Choose a payment method");
+      await sql`UPDATE pms_pos_orders SET payment_method = ${method} WHERE id = ${order.id}`;
+      await audit(actor, "UPDATE", "pos", order.id, {
+        kind: "change_payment",
+        from: order["payment_method"],
+        to: method,
+      });
+      break;
+    }
+    // Parks/un-parks a running or billing tab — independent of `status`, so
+    // it never interferes with the running/billing/completed/cancelled
+    // lifecycle those other actions drive.
+    case "toggle_hold": {
+      await sql`UPDATE pms_pos_orders SET is_held = NOT is_held WHERE id = ${order.id}`;
+      await audit(actor, "UPDATE", "pos", order.id, {
+        kind: "toggle_hold",
+        table: order.table_name,
+      });
+      break;
+    }
     default:
       throw new PosError("Unknown action");
   }
@@ -658,7 +718,7 @@ async function settle(request: Request, actor: Actor, sql: Sql, station: string)
   await recalc(sql, order.id);
   const [fresh] = await sql<
     OrderRow[]
-  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details FROM pms_pos_orders WHERE id = ${order.id}`;
+  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held FROM pms_pos_orders WHERE id = ${order.id}`;
   const total = round2(Number(fresh!["total_amount"]) + roundOff);
   const received = noPayment ? total : Math.max(0, num(body["received"], total));
   if (!noPayment && received < total)

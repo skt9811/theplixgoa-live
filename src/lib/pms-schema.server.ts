@@ -394,6 +394,10 @@ export function ensurePosSchema(sql: Sql): Promise<void> {
       await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS booking_id varchar(100)`;
       await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS created_by varchar(100)`;
       await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS cancel_reason text`;
+      // Independent of `status` — a table can be parked mid-service (staff
+      // steps away, waiting on a guest) without touching the running/
+      // billing/completed/cancelled lifecycle those other columns drive.
+      await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS is_held boolean NOT NULL DEFAULT false`;
       // Reference-only: the bill number a pre-migration POS system (or a
       // historical paper/export backfill) already used. Deliberately NOT
       // daily_number — that column is a per-property, per-calendar-day

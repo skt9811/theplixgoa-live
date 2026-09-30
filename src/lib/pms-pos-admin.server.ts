@@ -154,7 +154,8 @@ export async function handlePosAdminApi(sub: string, request: Request, url: URL,
     requireProperty(actor, propertyQ);
     const { from, to } = range(url);
     const type = ["dine_in", "room_service"].includes(str(url.searchParams.get("type"))) ? str(url.searchParams.get("type")) : "all";
-    const rows = await sql`SELECT id, order_number, daily_number, table_name, order_type, status, payment_method, total_amount::float AS total, created_at, settled_at,
+    const rows =
+      await sql`SELECT id, order_number, daily_number, table_name, order_type, status, is_held, payment_method, total_amount::float AS total, created_at, settled_at,
         COALESCE(billed_by_user, created_by) AS bill_by FROM pms_pos_orders
       WHERE property_id = ${propertyQ} AND status IN ('running', 'billing', 'completed') AND (${type} = 'all' OR order_type = ${type})
         AND ${sql.unsafe(dayOf("created_at"))} BETWEEN ${from} AND ${to} ORDER BY created_at DESC LIMIT 300`;

@@ -39,10 +39,10 @@ import {
 import { PMS_PROPERTIES_CONFIG } from "@/lib/pms-properties-config";
 import { handlePosApi } from "@/lib/pms-pos-api.server";
 import { buildStayVoucherPdf } from "@/lib/pms-voucher-pdf.server";
-import { voucherDetails } from "@/lib/pms-voucher-content";
+import { defaultRoomCategory, voucherDetails } from "@/lib/pms-voucher-content";
 import { PMS_COMPANY } from "@/lib/pms-company";
 import { audit } from "@/lib/pms-audit.server";
-import { sendBookingNotification, registerStaffDevice } from "@/lib/pms-notifications.server";
+import { sendBookingAuditNotification, sendBookingNotification, registerStaffDevice } from "@/lib/pms-notifications.server";
 import {
   handleInquiryWebhook,
   listInquiries,
@@ -521,6 +521,64 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   });
 }
 
+const shortDate = (iso: string) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+
+/**
+ * Fire-and-forget audit push for an edited booking — only when something a
+ * manager would actually care about changed (dates, rooms, amount, status,
+ * or the guest's own name); a save that only touched e.g. notes or
+ * payment_status stays quiet. Never awaited by the caller (updateBooking):
+ * a notification failure must not slow down or fail the edit itself, same
+ * rule sendBookingNotification already follows for new bookings.
+ */
+async function notifyBookingModified(
+  before: {
+    guest_name: string;
+    check_in: string;
+    check_out: string;
+    rooms_count: number | null;
+    booking_amount: string | number;
+    status: string;
+  },
+  after: {
+    id: string;
+    propertySlug: string;
+    guestName: string;
+    checkIn: string;
+    checkOut: string;
+    rooms: number;
+    total: number;
+    status: string;
+    actorName: string;
+  },
+): Promise<void> {
+  const parts: string[] = [];
+  if (before.check_in !== after.checkIn || before.check_out !== after.checkOut) {
+    parts.push(`Dates shifted: ${shortDate(after.checkIn)} - ${shortDate(after.checkOut)}`);
+  }
+  if ((before.rooms_count ?? 1) !== after.rooms) {
+    parts.push(`Rooms: ${before.rooms_count ?? 1} → ${after.rooms}`);
+  }
+  if (Math.round(Number(before.booking_amount)) !== Math.round(after.total)) {
+    parts.push(
+      `Amount: ₹${Number(before.booking_amount).toLocaleString("en-IN")} → ₹${after.total.toLocaleString("en-IN")}`,
+    );
+  }
+  if (before.status !== after.status) parts.push(`Status: ${before.status} → ${after.status}`);
+  if (before.guest_name !== after.guestName) parts.push(`Guest: ${before.guest_name} → ${after.guestName}`);
+  if (parts.length === 0) return;
+
+  const property = PROPERTIES.find((p) => p.slug === after.propertySlug);
+  const propertyName = property?.name.split(" - ")[0] ?? after.propertySlug;
+  const roomName = defaultRoomCategory(after.propertySlug, after.rooms);
+  await sendBookingAuditNotification(after.propertySlug, {
+    title: `⚠️ Booking Modified — ${propertyName}`,
+    body: `${after.guestName} • ${roomName} | ${parts.join(", ")} (by ${after.actorName})`,
+    data: { bookingId: after.id, action: "modified", url: `/pms/bookings?highlight=${after.id}` },
+  });
+}
+
 // Only offline/manual bookings (portal_bookings — admin-created reservations
 // and offline vouchers) are editable here. An online booking is a real,
 // gateway-paid Razorpay transaction; changing its amounts or dates has
@@ -536,9 +594,19 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const id = str(body["id"]);
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid booking id" }, 400);
   const [existing] = await sql<
-    { property_id: string; status: string; is_manual_override: boolean }[]
+    {
+      property_id: string;
+      status: string;
+      is_manual_override: boolean;
+      guest_name: string;
+      check_in: string;
+      check_out: string;
+      rooms_count: number | null;
+      booking_amount: string | number;
+    }[]
   >`
-    SELECT property_id, status, is_manual_override FROM public.portal_bookings WHERE id = ${id}::uuid`;
+    SELECT property_id, status, is_manual_override, guest_name, check_in::text AS check_in, check_out::text AS check_out, rooms_count, booking_amount
+    FROM public.portal_bookings WHERE id = ${id}::uuid`;
   if (!existing)
     return json({ error: "Booking not found, or it isn't an editable offline booking" }, 404);
   if (!canProperty(actor, existing.property_id))
@@ -621,6 +689,17 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
     status,
     ...(conflict && allowOverride ? { manualOverride: true, overrideReason } : {}),
   });
+  void notifyBookingModified(existing, {
+    id,
+    propertySlug: existing.property_id,
+    guestName,
+    checkIn,
+    checkOut,
+    rooms,
+    total,
+    status,
+    actorName: actor.name,
+  });
   return json({
     success: true,
     ...(warning ? { warning } : {}),
@@ -666,6 +745,26 @@ async function toggleBookingPartnerVisibility(
 // PmsBooking's status field and the admin dashboard's own delete=cancel
 // behavior): booking history is never hard-deleted, only marked cancelled,
 // and its blocked_dates rows released so the website can resell those nights.
+/** Fire-and-forget audit push for a cancelled/deleted booking — same rule as notifyBookingModified, never awaited by the caller. */
+async function notifyBookingDeleted(b: {
+  id: string;
+  propertySlug: string;
+  guestName: string;
+  checkIn: string;
+  checkOut: string;
+  roomsCount: number | null;
+  actorName: string;
+}): Promise<void> {
+  const property = PROPERTIES.find((p) => p.slug === b.propertySlug);
+  const propertyName = property?.name.split(" - ")[0] ?? b.propertySlug;
+  const roomName = defaultRoomCategory(b.propertySlug, b.roomsCount ?? 1);
+  await sendBookingAuditNotification(b.propertySlug, {
+    title: `🚨 Booking Cancelled/Deleted — ${propertyName}`,
+    body: `${b.guestName} • ${roomName} (${shortDate(b.checkIn)} to ${shortDate(b.checkOut)}) removed by ${b.actorName}`,
+    data: { bookingId: b.id, action: "deleted" },
+  });
+}
+
 async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<Response> {
   let body: Record<string, unknown>;
   try {
@@ -679,8 +778,8 @@ async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<
 
   if (source === "manual") {
     const [existing] = await sql<
-      { property_id: string; guest_name: string; status: string }[]
-    >`SELECT property_id, guest_name, status FROM public.portal_bookings WHERE id = ${id}::uuid`;
+      { property_id: string; guest_name: string; status: string; check_in: string; check_out: string; rooms_count: number | null }[]
+    >`SELECT property_id, guest_name, status, check_in::text AS check_in, check_out::text AS check_out, rooms_count FROM public.portal_bookings WHERE id = ${id}::uuid`;
     if (!existing) return json({ error: "Booking not found" }, 404);
     if (!canProperty(actor, existing.property_id))
       return json({ error: "You do not have access to this property" }, 403);
@@ -692,6 +791,15 @@ async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<
       guest: existing.guest_name,
       source: "manual",
     });
+    void notifyBookingDeleted({
+      id,
+      propertySlug: existing.property_id,
+      guestName: existing.guest_name,
+      checkIn: existing.check_in,
+      checkOut: existing.check_out,
+      roomsCount: existing.rooms_count,
+      actorName: actor.name,
+    });
     return json({ success: true });
   }
   if (source === "online") {
@@ -702,9 +810,10 @@ async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<
         check_in: string;
         check_out: string;
         payment_status: string;
+        rooms: number | null;
       }[]
     >`
-      SELECT property_id, guest_name, check_in::text AS check_in, check_out::text AS check_out, payment_status FROM public.bookings WHERE id = ${id}::uuid`;
+      SELECT property_id, guest_name, check_in::text AS check_in, check_out::text AS check_out, payment_status, rooms FROM public.bookings WHERE id = ${id}::uuid`;
     if (!existing) return json({ error: "Booking not found" }, 404);
     if (!canProperty(actor, existing.property_id))
       return json({ error: "You do not have access to this property" }, 403);
@@ -722,6 +831,15 @@ async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<
       property: existing.property_id,
       guest: existing.guest_name,
       source: "online",
+    });
+    void notifyBookingDeleted({
+      id,
+      propertySlug: existing.property_id,
+      guestName: existing.guest_name,
+      checkIn: existing.check_in,
+      checkOut: existing.check_out,
+      roomsCount: existing.rooms,
+      actorName: actor.name,
     });
     return json({ success: true });
   }

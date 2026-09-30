@@ -290,6 +290,69 @@ export async function sendBookingNotification(
   }
 }
 
+/**
+ * Role-scoped, unlike activeStaffTokens (which is tab-scoped) — an audit
+ * alert for an *edited or deleted* booking is about management oversight,
+ * not "can open the Bookings tab": a receptionist has that tab (and gets
+ * new-booking pushes) but isn't who needs to know someone else altered a
+ * reservation. Owner (no pms_users row, user_id IS NULL) always included,
+ * same convention as activeStaffTokens.
+ */
+async function auditStaffTokens(roles: string[]): Promise<DeviceToken[]> {
+  const sql = getPmsDb();
+  if (!sql) return [];
+  try {
+    await ensureInquiriesSchema(sql);
+    const rows = await sql<{ id: string; fcm_token: string }[]>`
+      SELECT sd.id, sd.fcm_token
+      FROM pms_staff_devices sd
+      LEFT JOIN pms_users u ON u.id::text = sd.user_id
+      WHERE sd.user_id IS NULL OR u.role = ANY(${roles})`;
+    return rows.map((r) => ({ id: r.id, token: r.fcm_token, table: "pms_staff_devices" as const }));
+  } catch (err) {
+    console.error("[pms-notifications] auditStaffTokens:", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+/**
+ * A booking that already existed being modified or cancelled/deleted —
+ * distinct from sendBookingNotification (a brand-new reservation), and
+ * deliberately narrower on the staff side: admin/manager only, not every
+ * receptionist with Bookings-tab access (see auditStaffTokens). Still
+ * reaches the property's own Partner-app owner device, same as a new
+ * booking does, since "property owners... need immediate visibility" per
+ * this feature's own brief.
+ */
+export async function sendBookingAuditNotification(
+  propertyId: string,
+  { title, body, data = {} }: { title: string; body: string; data?: Record<string, string> },
+): Promise<void> {
+  console.log("[Push] dispatching booking audit notification:", { propertyId, title });
+  try {
+    const [staffTokens, partnerTokens] = await Promise.all([
+      auditStaffTokens(["admin", "manager"]),
+      partnerTokensForProperty(propertyId),
+    ]);
+    const seen = new Set<string>();
+    const merged: DeviceToken[] = [];
+    for (const d of [...staffTokens, ...partnerTokens]) {
+      if (seen.has(d.token)) continue;
+      seen.add(d.token);
+      merged.push(d);
+    }
+    await dispatch(merged, title, body, "bookings_channel", data);
+    console.log(
+      `[Push] Sent booking audit notification to ${staffTokens.length} staff and ${partnerTokens.length} partner devices.`,
+    );
+  } catch (err) {
+    console.error(
+      "[pms-notifications] sendBookingAuditNotification failed:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
+
 export async function registerStaffDevice(request: Request, actor: Actor): Promise<Response> {
   let body: Record<string, unknown>;
   try {

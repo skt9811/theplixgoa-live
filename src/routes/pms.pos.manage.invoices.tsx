@@ -4,6 +4,7 @@ import { Printer } from "lucide-react";
 import { toast } from "sonner";
 import { printOrder } from "@/components/pms/pos/print-order";
 import { inr, posFetch, posOrder, type PosOrderData } from "@/lib/pms-pos-client";
+import { groupItemsByDate } from "@/lib/pms-pos-calc";
 import { usePos } from "@/components/pms/pos/pos-context";
 import { BackLink, PageTitle, RangeInputs, Sheet, btnPrimary, field, useRange } from "@/components/pms/pos/pos-ui";
 
@@ -64,7 +65,36 @@ function Invoices() {
         <Sheet title={`Receipt #${open.order.order_number}`} onClose={() => setOpen(null)}>
           <p className="text-xs text-slate-500">{open.order.table_name} · {STATUS[open.order.status] ?? open.order.status}{open.order.payment_method ? ` · ${open.order.payment_method}` : ""}</p>
           <div className="mt-2 divide-y divide-slate-100 text-sm">
-            {open.lines.filter((l) => l.status === "active").map((l) => <div key={l.id} className="flex justify-between py-1.5"><span className="text-slate-700">{l.item_name} ×{l.quantity}</span><span className="text-slate-900">{inr(l.total_price)}</span></div>)}
+            {(() => {
+              const groups = groupItemsByDate(open.lines.filter((l) => l.status === "active"));
+              const multiDay = groups.length > 1;
+              return groups.map((g) => (
+                <div key={g.dateKey} className="py-1.5">
+                  {multiDay && (
+                    <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+                      {g.dateLabel}
+                    </p>
+                  )}
+                  {g.items.map((it) => (
+                    <div
+                      key={`${g.dateKey}-${it.name}-${it.unitPrice}`}
+                      className="flex justify-between py-0.5"
+                    >
+                      <span className="text-slate-700">
+                        {it.name} ×{it.qty}
+                      </span>
+                      <span className="text-slate-900">{inr(it.totalPrice)}</span>
+                    </div>
+                  ))}
+                  {multiDay && (
+                    <div className="mt-0.5 flex justify-between text-xs font-semibold text-slate-500">
+                      <span>Day subtotal</span>
+                      <span>{inr(g.subtotal)}</span>
+                    </div>
+                  )}
+                </div>
+              ));
+            })()}
           </div>
           <div className="mt-2 space-y-0.5 border-t border-dashed border-slate-200 pt-2 text-xs text-slate-600">
             <div className="flex justify-between"><span>Subtotal</span><span>{inr(open.order.subtotal)}</span></div>

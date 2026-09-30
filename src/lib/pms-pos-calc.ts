@@ -111,3 +111,74 @@ export function computeOrderByCategory(lines: CategoryLine[], discountType: Disc
   const total = round2(subtotal - discount + round2(exclusiveTaxSum) + Math.max(0, other));
   return { subtotal, discount, tax, total, breakdown, slabs };
 }
+
+// --- Date-wise grouping for a multi-day open tab (a table/room bill left
+// running across several days before settlement) ---
+
+export type DateGroupedItem = { name: string; qty: number; unitPrice: number; totalPrice: number };
+export type DateGroup = {
+  dateKey: string;
+  dateLabel: string;
+  items: DateGroupedItem[];
+  subtotal: number;
+};
+
+const IST_DATE_KEY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" });
+const IST_DATE_LABEL = new Intl.DateTimeFormat("en-IN", {
+  timeZone: "Asia/Kolkata",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+/**
+ * Buckets an order's line items by the IST calendar date each was added,
+ * consolidating identical items (same name + unit price) ordered on the
+ * same day into one row — e.g. 2 beers at lunch + 2 at dinner becomes a
+ * single "4x Budweiser" line for that day, matching how a guest actually
+ * reads a bill. Purely a display/print-time transformation: the underlying
+ * rows stay distinct (each keeps its own id) for stock/void tracking.
+ */
+export function groupItemsByDate(
+  lines: {
+    item_name: string;
+    unit_price: number;
+    total_price: number;
+    quantity: number;
+    created_at: string;
+  }[],
+): DateGroup[] {
+  const byDate = new Map<string, Map<string, DateGroupedItem>>();
+  for (const l of lines) {
+    const dateKey = IST_DATE_KEY.format(new Date(l.created_at));
+    let items = byDate.get(dateKey);
+    if (!items) {
+      items = new Map();
+      byDate.set(dateKey, items);
+    }
+    const itemKey = `${l.item_name}\u0000${l.unit_price}`;
+    const existing = items.get(itemKey);
+    if (existing) {
+      existing.qty += l.quantity;
+      existing.totalPrice = round2(existing.totalPrice + l.total_price);
+    } else {
+      items.set(itemKey, {
+        name: l.item_name,
+        qty: l.quantity,
+        unitPrice: l.unit_price,
+        totalPrice: round2(l.total_price),
+      });
+    }
+  }
+  return [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([dateKey, items]) => {
+      const itemList = [...items.values()];
+      return {
+        dateKey,
+        dateLabel: IST_DATE_LABEL.format(new Date(`${dateKey}T00:00:00`)),
+        items: itemList,
+        subtotal: round2(itemList.reduce((s, i) => s + i.totalPrice, 0)),
+      };
+    });
+}

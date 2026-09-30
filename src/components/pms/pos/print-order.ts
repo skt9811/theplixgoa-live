@@ -2,6 +2,7 @@ import { billSlip } from "@/lib/pms-escpos";
 import { printBill } from "@/lib/pms-pos-printer";
 import { getStation, type PosOrderData, type PosState } from "@/lib/pms-pos-client";
 import { slipContext } from "@/components/pms/pos/pos-slip-context";
+import { groupItemsByDate } from "@/lib/pms-pos-calc";
 
 /** Slip data for an order as it stands (a pre-bill for an open order, the receipt for a settled one). */
 export function billData(d: PosOrderData, state: PosState | null, at?: Date): Parameters<typeof billSlip>[1] {
@@ -9,7 +10,11 @@ export function billData(d: PosOrderData, state: PosState | null, at?: Date): Pa
   const separate = state?.config.general.showTaxSeparately ?? true;
   return {
     orderNumber: o.order_number, table: o.table_name, at: at ?? new Date(o.settled_at ?? Date.now()), guest: o.guest_name,
-    items: d.lines.filter((l) => l.status === "active").map((l) => ({ name: l.item_name, qty: l.quantity, rate: l.unit_price, amount: l.total_price })),
+    // A table/room tab left open across several days (the whole point of
+    // groupItemsByDate) prints its items under each day they were actually
+    // ordered — a normal same-day bill still prints as one flat list, see
+    // billSlip's multiDay check.
+    items: groupItemsByDate(d.lines.filter((l) => l.status === "active")),
     subtotal: o.subtotal, discount: o.discount_amount, tax: o.tax_amount, other: o.other_charges, roundOff: o.round_off, total: o.total_amount, method: o.payment_method,
     ...(separate && o.tax_breakdown ? { taxLines: o.tax_breakdown } : {}),
   };

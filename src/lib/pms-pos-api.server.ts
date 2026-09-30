@@ -114,6 +114,7 @@ type LineRow = {
   category_name: string | null;
   tax_type: string | null;
   is_tax_inclusive: boolean | null;
+  created_at: Date;
 };
 type OrderRow = Record<string, unknown> & {
   id: string;
@@ -142,6 +143,7 @@ const mapLine = (l: LineRow) => ({
   category_name: l.category_name,
   tax_type: (l.tax_type as CategoryTaxType) ?? "GST",
   is_tax_inclusive: l.is_tax_inclusive === true,
+  created_at: l.created_at,
 });
 const mapOrder = (o: OrderRow) => ({
   ...o,
@@ -196,7 +198,7 @@ async function loadOrder(sql: Sql, orderId: string) {
   if (!o) throw new PosError("Order not found", 404);
   const lines = await sql<
     LineRow[]
-  >`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted, tax_group, category_name, tax_type, is_tax_inclusive FROM pms_pos_order_items WHERE order_id = ${orderId} ORDER BY kot_number, ctid`;
+  >`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted, tax_group, category_name, tax_type, is_tax_inclusive, created_at FROM pms_pos_order_items WHERE order_id = ${orderId} ORDER BY kot_number, ctid`;
   return { order: mapOrder(o), lines: lines.map(mapLine) };
 }
 

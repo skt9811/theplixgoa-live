@@ -1,6 +1,7 @@
 // ESC/POS slip builders for the POS. A slip is a list of styled lines; the
 // same list renders both the raw printer bytes and a plain-text preview, so
 // what the screen shows is exactly what the printer gets.
+import type { DateGroup } from "@/lib/pms-pos-calc";
 export type PaperSize = "54mm" | "58mm" | "80mm";
 export const PAPER_COLUMNS: Record<PaperSize, number> = { "54mm": 30, "58mm": 32, "80mm": 48 };
 
@@ -110,7 +111,10 @@ export function billSlip(
   ctx: SlipContext,
   o: {
     orderNumber: number; table: string; at: Date; guest?: string | null; billedBy?: string | null;
-    items: { name: string; qty: number; rate: number; amount: number }[];
+    /** Pre-grouped by day (see groupItemsByDate) so a table/room tab left
+     * running across several days prints its items under each day they were
+     * actually ordered instead of one flattened list. */
+    items: DateGroup[];
     subtotal: number; discount: number; tax: number; other: number; roundOff: number; total: number; method?: string | null;
     /** Per-rule tax (SGST, CGST, VAT...). When absent, one combined GST line is printed. */
     taxLines?: Record<string, number>; qr?: string; drawer?: boolean;
@@ -131,9 +135,21 @@ export function billSlip(
     rule(cols),
     { text: twoCol("ITEM", "AMT", cols), bold: true },
   );
-  for (const it of o.items) {
-    for (const part of wrap(it.name, cols)) lines.push({ text: part });
-    lines.push({ text: twoCol(`  ${it.qty} x ${money(it.rate)}`, money(it.amount), cols) });
+  // A same-day bill (the common case) prints exactly as before — the date
+  // header only earns its place on paper when there's more than one day to
+  // actually tell apart, so a normal dine-in ticket doesn't grow a line for
+  // no reason.
+  const multiDay = o.items.length > 1;
+  for (const group of o.items) {
+    if (multiDay)
+      lines.push(rule(cols), { text: `DATE: ${group.dateLabel.toUpperCase()}`, bold: true });
+    for (const it of group.items) {
+      for (const part of wrap(it.name, cols)) lines.push({ text: part });
+      lines.push({
+        text: twoCol(`  ${it.qty} x ${money(it.unitPrice)}`, money(it.totalPrice), cols),
+      });
+    }
+    if (multiDay) lines.push({ text: twoCol("Day subtotal", money(group.subtotal), cols) });
   }
   lines.push(rule(cols), { text: twoCol("Subtotal", money(o.subtotal), cols) });
   if (o.discount > 0) lines.push({ text: twoCol("Discount", `-${money(o.discount)}`, cols) });

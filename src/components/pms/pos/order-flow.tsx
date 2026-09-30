@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, MoreVertical, Minus, Pencil, Plus, Search, Trash2, UserRound, X } from "lucide-react";
-import { computeOrderByCategory, round2, type CategoryTaxType, type DiscountType } from "@/lib/pms-pos-calc";
+import {
+  computeOrderByCategory,
+  groupItemsByDate,
+  round2,
+  type CategoryTaxType,
+  type DiscountType,
+} from "@/lib/pms-pos-calc";
 import { getStation, inr, type PosCategory, type PosItem, posAction, posMenu, posOrder, posSave, type PosLine, type PosOrderData } from "@/lib/pms-pos-client";
 import { toastPrintResult } from "@/lib/pms-pos-printer";
 import { printBill, printKot } from "@/lib/pms-pos-printer";
@@ -22,6 +28,30 @@ const newKey = () => `d${++seq}`;
 
 function VegDot({ veg }: { veg: boolean }) {
   return <span className={`inline-flex size-3.5 shrink-0 items-center justify-center rounded-sm border ${veg ? "border-green-600" : "border-red-600"}`} aria-label={veg ? "Veg" : "Non-veg"}><span className={`size-1.5 rounded-full ${veg ? "bg-green-600" : "bg-red-600"}`} /></span>;
+}
+
+function SentLineRow({ l, onVoid }: { l: PosLine; onVoid: () => void }) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-slate-900">{l.item_name}</p>
+        <p className="text-xs text-slate-500">
+          {inr(l.unit_price)} · KOT #{l.kot_number}
+          {l.notes ? ` · ${l.notes}` : ""}
+        </p>
+      </div>
+      <span className="text-sm font-semibold text-slate-700">×{l.quantity}</span>
+      <span className="w-20 text-right text-sm font-bold text-slate-900">{inr(l.total_price)}</span>
+      <button
+        type="button"
+        onClick={onVoid}
+        aria-label={`Void ${l.item_name}`}
+        className="text-slate-400 hover:text-red-600"
+      >
+        <Trash2 className="size-4" aria-hidden />
+      </button>
+    </div>
+  );
 }
 
 function Prompt({ title, label, confirm, onSubmit, onClose, initial = "", multiline = false }: { title: string; label: string; confirm: string; onSubmit: (v: string) => void; onClose: () => void; initial?: string; multiline?: boolean }) {
@@ -192,6 +222,20 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
   }, [initialOrderId]);
 
   const sent = useMemo(() => (data?.lines ?? []).filter((l) => l.status === "active" && l.kot_number > 0), [data]);
+  // Grouped (not consolidated — void needs a specific line's id, so each
+  // line stays its own row) by the IST day it was added, so a table/room
+  // tab left running across several days shows "today's orders" separately
+  // from earlier days at a glance instead of one flat list.
+  const sentByDate = useMemo(() => {
+    const map = new Map<string, PosLine[]>();
+    for (const l of sent) {
+      const key = new Date(l.created_at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+      const arr = map.get(key);
+      if (arr) arr.push(l);
+      else map.set(key, [l]);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [sent]);
   const totals = useMemo(
     () =>
       computeOrderByCategory(
@@ -335,12 +379,48 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
 
   async function printPreBill() {
     if (!state) return;
-    const res = await printBill(state.config, slipCtx, getStation(), {
-      orderNumber: data?.order.order_number ?? 0, table: tableName, at: new Date(), guest: guest.name || null, billedBy: user.name,
-      items: [...sent.map((l) => ({ name: l.item_name, qty: l.quantity, rate: l.unit_price, amount: l.total_price })), ...drafts.map((d) => ({ name: d.name, qty: d.qty, rate: d.unitPrice, amount: d.qty * d.unitPrice }))],
-      subtotal: totals.subtotal, discount: totals.discount, tax: totals.tax, other, roundOff: 0, total: totals.total, method: null,
-      ...(state.config.general.showTaxSeparately ? { taxLines: totals.breakdown } : {}),
-    }, {}, property);
+    // Drafts aren't persisted yet (no real created_at), so they're treated
+    // as added right now — correct either way, since a draft can only ever
+    // exist on today's session, never a past day's.
+    const nowIso = new Date().toISOString();
+    const res = await printBill(
+      state.config,
+      slipCtx,
+      getStation(),
+      {
+        orderNumber: data?.order.order_number ?? 0,
+        table: tableName,
+        at: new Date(),
+        guest: guest.name || null,
+        billedBy: user.name,
+        items: groupItemsByDate([
+          ...sent.map((l) => ({
+            item_name: l.item_name,
+            quantity: l.quantity,
+            unit_price: l.unit_price,
+            total_price: l.total_price,
+            created_at: l.created_at,
+          })),
+          ...drafts.map((d) => ({
+            item_name: d.name,
+            quantity: d.qty,
+            unit_price: d.unitPrice,
+            total_price: round2(d.qty * d.unitPrice),
+            created_at: nowIso,
+          })),
+        ]),
+        subtotal: totals.subtotal,
+        discount: totals.discount,
+        tax: totals.tax,
+        other,
+        roundOff: 0,
+        total: totals.total,
+        method: null,
+        ...(state.config.general.showTaxSeparately ? { taxLines: totals.breakdown } : {}),
+      },
+      {},
+      property,
+    );
     if (res) toastPrintResult(res);
   }
 
@@ -462,17 +542,26 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
             </div>
             {remarks && <p className="mt-1 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{remarks}</p>}
             <div className="mt-2 grid gap-2">
-              {sent.map((l) => (
-                <div key={l.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-slate-900">{l.item_name}</p>
-                    <p className="text-xs text-slate-500">{inr(l.unit_price)} · KOT #{l.kot_number}{l.notes ? ` · ${l.notes}` : ""}</p>
-                  </div>
-                  <span className="text-sm font-semibold text-slate-700">×{l.quantity}</span>
-                  <span className="w-20 text-right text-sm font-bold text-slate-900">{inr(l.total_price)}</span>
-                  <button type="button" onClick={() => setModal({ voidLine: l })} aria-label={`Void ${l.item_name}`} className="text-slate-400 hover:text-red-600"><Trash2 className="size-4" aria-hidden /></button>
-                </div>
-              ))}
+              {sentByDate.length > 1
+                ? sentByDate.map(([dateKey, lines]) => (
+                    <div key={dateKey}>
+                      <p className="mb-1.5 mt-3 text-xs font-bold uppercase tracking-wide text-slate-500 first:mt-0">
+                        {new Date(`${dateKey}T00:00:00`).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </p>
+                      <div className="grid gap-2">
+                        {lines.map((l) => (
+                          <SentLineRow key={l.id} l={l} onVoid={() => setModal({ voidLine: l })} />
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                : sent.map((l) => (
+                    <SentLineRow key={l.id} l={l} onVoid={() => setModal({ voidLine: l })} />
+                  ))}
               {drafts.map((d) => (
                 <div key={d.key} className="rounded-xl border border-emerald-200 bg-white p-3">
                   <div className="flex items-center gap-2">

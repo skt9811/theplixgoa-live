@@ -532,6 +532,19 @@ export function ensurePosSchema(sql: Sql): Promise<void> {
       await sql`ALTER TABLE pms_pos_order_items ADD COLUMN IF NOT EXISTS category_name varchar(100)`;
       await sql`ALTER TABLE pms_pos_order_items ADD COLUMN IF NOT EXISTS tax_type varchar(10) NOT NULL DEFAULT 'GST'`;
       await sql`ALTER TABLE pms_pos_order_items ADD COLUMN IF NOT EXISTS is_tax_inclusive boolean NOT NULL DEFAULT false`;
+      // When each line was actually added — needed to bucket a multi-day open
+      // table/room tab's items by the day they were ordered, instead of one
+      // flat list. Backfilled from kot_at (set when the line's KOT was sent,
+      // the closest real historical signal available) rather than `now()`,
+      // since a straight `now()` default would wrongly cluster every
+      // pre-existing item from an ALREADY-multi-day-open tab onto this
+      // migration's run date. Only items added going forward get a fully
+      // accurate timestamp; there's no way to recover the true add-time of
+      // an already-existing draft line (kot_number = 0) that predates this
+      // column.
+      await sql`ALTER TABLE pms_pos_order_items ADD COLUMN IF NOT EXISTS created_at timestamptz`;
+      await sql`UPDATE pms_pos_order_items SET created_at = COALESCE(kot_at, now()) WHERE created_at IS NULL`;
+      await sql`ALTER TABLE pms_pos_order_items ALTER COLUMN created_at SET DEFAULT now()`;
       // Structured category-wise breakdown ({ slabs, totalTax }); tax_breakdown
       // above stays the flattened CGST/SGST-line map the receipt printer reads.
       await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS tax_details jsonb`;

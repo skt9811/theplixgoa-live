@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ArrowLeft, Printer } from "lucide-react";
 import { inr, posOrder, type PosOrderData } from "@/lib/pms-pos-client";
+import { groupItemsByDate } from "@/lib/pms-pos-calc";
 import { printOrder } from "@/components/pms/pos/print-order";
 import { toastPrintResult } from "@/lib/pms-pos-printer";
 import { usePos } from "@/components/pms/pos/pos-context";
@@ -78,16 +79,36 @@ function OrderDetail() {
             </button>
           </div>
           <div className="mt-3 grid gap-1 border-t border-slate-100 pt-3 text-sm">
-            {data.lines
-              .filter((l) => l.status === "active")
-              .map((l) => (
-                <div key={l.id} className="flex justify-between text-slate-700">
-                  <span>
-                    {l.item_name} ×{l.quantity}
-                  </span>
-                  <span>{inr(l.total_price)}</span>
+            {(() => {
+              const groups = groupItemsByDate(data.lines.filter((l) => l.status === "active"));
+              const multiDay = groups.length > 1;
+              return groups.map((g) => (
+                <div key={g.dateKey}>
+                  {multiDay && (
+                    <p className="mb-1 mt-2 text-xs font-bold uppercase tracking-wide text-slate-500 first:mt-0">
+                      {g.dateLabel}
+                    </p>
+                  )}
+                  {g.items.map((it) => (
+                    <div
+                      key={`${g.dateKey}-${it.name}-${it.unitPrice}`}
+                      className="flex justify-between text-slate-700"
+                    >
+                      <span>
+                        {it.name} ×{it.qty}
+                      </span>
+                      <span>{inr(it.totalPrice)}</span>
+                    </div>
+                  ))}
+                  {multiDay && (
+                    <div className="flex justify-between border-t border-dotted border-slate-200 pt-1 text-xs font-semibold text-slate-500">
+                      <span>Day subtotal</span>
+                      <span>{inr(g.subtotal)}</span>
+                    </div>
+                  )}
                 </div>
-              ))}
+              ));
+            })()}
           </div>
           <div className="mt-3 grid gap-1 border-t border-dashed border-slate-200 pt-3 text-sm text-slate-600">
             <div className="flex justify-between">

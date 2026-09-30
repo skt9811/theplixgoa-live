@@ -152,6 +152,16 @@ function extractGuestName(subject: string, bodyText: string): string {
   return "Airbnb Guest";
 }
 
+/** The guest's own inquiry text sits between the "Booker" role label and the
+ * "Review inquiry" link in Airbnb's raw-text template. Best-effort: null
+ * (never a fabricated placeholder) when those markers aren't present, e.g.
+ * a plain confirmed-booking email that never had a guest message at all. */
+function extractGuestMessage(bodyText: string): string | null {
+  const m = /Booker\s*\n+([\s\S]*?)\n+Review inquiry/i.exec(bodyText);
+  const msg = m?.[1]?.trim();
+  return msg ? msg.slice(0, 500) : null;
+}
+
 const MONTHS: Record<string, number> = {
   jan: 0,
   feb: 1,
@@ -168,17 +178,36 @@ const MONTHS: Record<string, number> = {
 };
 
 /** "Sep 28 – Sep 30, 2026" or "Sep 28 – 30, 2026" (same month). Returns nulls when unparseable — a missing date must never block saving the inquiry. */
+function isoDate(monthKey: string, day: string, year: string): string | null {
+  const month = MONTHS[monthKey.slice(0, 3).toLowerCase()];
+  if (month === undefined) return null;
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(Number(day)).padStart(2, "0")}`;
+}
+
 function parseAirbnbDateRange(text: string): { checkIn: string | null; checkOut: string | null } {
   const re = /([A-Za-z]{3,9})\s+(\d{1,2})\s*[-–—]\s*(?:([A-Za-z]{3,9})\s+)?(\d{1,2}),?\s*(\d{4})/;
   const m = re.exec(text);
-  if (!m) return { checkIn: null, checkOut: null };
-  const [, mon1, d1, mon2, d2, year] = m;
-  const month1 = MONTHS[mon1!.slice(0, 3).toLowerCase()];
-  const month2 = mon2 ? MONTHS[mon2.slice(0, 3).toLowerCase()] : month1;
-  if (month1 === undefined || month2 === undefined) return { checkIn: null, checkOut: null };
-  const iso = (mo: number, d: string) =>
-    `${year}-${String(mo + 1).padStart(2, "0")}-${String(Number(d)).padStart(2, "0")}`;
-  return { checkIn: iso(month1, d1!), checkOut: iso(month2, d2!) };
+  if (m) {
+    const [, mon1, d1, mon2, d2, year] = m;
+    const checkIn = isoDate(mon1!, d1!, year!);
+    const checkOut = isoDate(mon2 ?? mon1!, d2!, year!);
+    if (checkIn && checkOut) return { checkIn, checkOut };
+  }
+  // Airbnb's own booking-detail card (present in the raw forwarded-email
+  // text of both inquiries and confirmed bookings) instead lists "Check-in"
+  // and "Checkout" as separate labeled lines, each with its own full date —
+  // not a single compact range. Tried second since the compact range above
+  // is a plain, common-case match with less room for a false positive.
+  const checkInMatch = /check-?in\s*[\s\S]{0,60}?([A-Za-z]{3,9})\s+(\d{1,2}),\s*(\d{4})/i.exec(
+    text,
+  );
+  const checkOutMatch = /check-?out\s*[\s\S]{0,60}?([A-Za-z]{3,9})\s+(\d{1,2}),\s*(\d{4})/i.exec(
+    text,
+  );
+  const checkIn = checkInMatch && isoDate(checkInMatch[1]!, checkInMatch[2]!, checkInMatch[3]!);
+  const checkOut =
+    checkOutMatch && isoDate(checkOutMatch[1]!, checkOutMatch[2]!, checkOutMatch[3]!);
+  return { checkIn: checkIn ?? null, checkOut: checkOut ?? null };
 }
 
 function extractPaxCount(text: string): number {
@@ -283,17 +312,46 @@ function extractFromLine(bodyText: string): string | null {
  * extraction a second time here, which would only drift from the primary
  * path over time.
  */
+/**
+ * Make.com's real malformed payload turned out to be a JSON-escaped "text"
+ * value's CONTENT (real newlines already turned into literal backslash-n
+ * pairs, as valid JSON requires) wrapped in a structure that was never
+ * actually valid JSON — `"subject":` and other keys have no surrounding
+ * quotes around their values at all, so JSON.parse fails before it ever
+ * gets to un-escape anything. The result: every downstream extractor that
+ * looks for a real newline character (guest name, guest message, dates)
+ * silently fails against literal "\n" two-character sequences instead.
+ * Confirmed against a real captured raw_payload, not assumed.
+ */
+function unescapeJsonLikeText(s: string): string {
+  return s
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\n")
+    .replace(/\\t/g, " ")
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, "\\");
+}
+
+/** Grabs a JSON-object-ish field's value whether or not it's actually
+ * quoted — Make.com's real payload has been observed sending `"subject":
+ * <unquoted text>,` with no opening quote at all. Bounded by the next real
+ * newline followed by another `"word":` key, or end of string, since (unlike
+ * the "text" field's internal content) the outer keys are separated by real
+ * newlines even in the broken payload. */
+function extractLooseField(text: string, key: string): string {
+  const re = new RegExp(
+    `"${key}"\\s*:\\s*"?([^\\n]*?)"?\\s*,?\\s*(?=\\n\\s*"[a-zA-Z]+"\\s*:|$)`,
+    "i",
+  );
+  return re.exec(text)?.[1]?.trim() ?? "";
+}
+
 function recoverBodyFromRawText(raw: string): Record<string, unknown> {
-  const subjectMatch = /"subject"\s*:\s*"([^"\r\n]+)"/i.exec(raw);
-  const toMatch =
-    /"?(?:to|recipient)"?\s*:\s*"?<?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i.exec(raw);
-  const fromMatch =
-    /"?(?:from|sender)"?\s*:\s*"?<?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i.exec(raw);
+  const subject = extractLooseField(raw, "subject");
   return {
-    subject: subjectMatch?.[1] ?? "",
-    text: raw,
-    recipient: toMatch?.[1] ?? null,
-    sender: fromMatch?.[1] ?? null,
+    subject,
+    text: unescapeJsonLikeText(raw),
   };
 }
 
@@ -304,12 +362,25 @@ function recoverBodyFromRawText(raw: string): Record<string, unknown> {
  * usually more specific about which exact unit/variant is being asked
  * about, and property_id/property_name (set separately from matchProperty)
  * already carry the normalized short name for filtering/access control. */
-function extractListingTitle(subject: string, property: { name: string } | null): string {
+function extractListingTitle(
+  subject: string,
+  bodyText: string,
+  property: { name: string } | null,
+): string {
+  // Airbnb's own booking-detail card in the raw text renders the listing's
+  // photo alt text immediately before a link to that exact listing — the
+  // cleanest, least noisy source available (no "Fwd:"/"Inquiry for" prefix
+  // or trailing date fragment the way the subject line often has).
+  const cardMatch = /\[image:\s*([^\]]+)\]\s*\n\s*<https:\/\/www\.airbnb\.[a-z.]+\/rooms\//i.exec(
+    bodyText,
+  );
+  if (cardMatch?.[1]) return cardMatch[1].trim();
   const cleaned = subject
     .replace(
-      /^(reservation confirmed|inquiry from|reservation request|new message from)\s*[-–—:]?\s*/i,
+      /^(fwd:|reservation confirmed|inquiry (?:for|from)|reservation request|new message from)\s*[-–—:]?\s*/i,
       "",
     )
+    .replace(/,?\s*[A-Za-z]{3,9}\s+\d{1,2}\s*[-–—]\s*\d{1,2}\s*$/, "")
     .trim();
   return cleaned || property?.name || subject.trim() || "Unmatched listing";
 }
@@ -413,6 +484,7 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
   let recipientEmail: string | null;
   let listingTitle: string;
   let emailType: string;
+  let guestMessage: string | null;
   try {
     guestName = extractGuestName(subject, bodyText);
     ({ checkIn, checkOut } = parseAirbnbDateRange(combined));
@@ -422,7 +494,8 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
     confirmationCode = extractConfirmationCode(combined);
     ({ amount: payoutAmount, currency: payoutCurrency } = extractPayout(combined));
     recipientEmail = extractRecipientEmail(body, bodyText);
-    listingTitle = extractListingTitle(subject, property);
+    listingTitle = extractListingTitle(subject, bodyText, property);
+    guestMessage = extractGuestMessage(bodyText);
     emailType = /confirmed booking|reservation confirmed/i.test(combined)
       ? "confirmed_booking"
       : /sent (?:you )?a message/i.test(combined)
@@ -441,16 +514,24 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
     payoutCurrency = null;
     recipientEmail = null;
     listingTitle = subject.trim() || "Unmatched listing";
+    guestMessage = null;
     emailType = "inquiry";
   }
   const isConfirmedBooking = emailType === "confirmed_booking";
-  // Flagged in the notes themselves, not just a DB column, so it's visible
-  // to whoever's actually triaging the lead in the CRM tab: fields on a
-  // recovered record came from best-effort regex scraping of a malformed
-  // payload, not a clean parse, and are worth a second look against
-  // raw_payload if anything looks off.
-  const notes =
-    `${usedRawRecovery ? "[RECOVERED FROM MALFORMED PAYLOAD — verify against raw_payload]\n" : ""}${subject}\n\n${bodyText.slice(0, 2000)}`.trim();
+  // A clean, scannable summary for the CRM card instead of dumping the raw
+  // subject+body (or, on the recovery path, the raw JSON-ish payload) into
+  // the visible notes field — the actual original request is preserved in
+  // full in raw_payload for whoever needs to double-check a field.
+  const datesSummary = checkIn && checkOut ? `${fmtShort(checkIn)} - ${fmtShort(checkOut)}` : null;
+  const notes = [
+    guestMessage ? `Guest message: "${guestMessage}"` : null,
+    datesSummary ? `Dates: ${datesSummary}` : null,
+    paxCount ? `Guests: ${paxCount}` : null,
+    recipientEmail ? `Host: ${recipientEmail}` : null,
+    usedRawRecovery ? "[Recovered from malformed payload — see raw_payload]" : null,
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join("\n");
 
   const sql = getPmsDb();
   if (!sql) return json({ error: "PMS database not configured" }, 503);
@@ -488,14 +569,14 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
         payout_currency = COALESCE(${payoutCurrency}, payout_currency),
         recipient_email = COALESCE(${recipientEmail}, recipient_email),
         listing_title = ${listingTitle},
-        raw_payload = COALESCE(${usedRawRecovery ? rawText : null}, raw_payload),
+        raw_payload = ${rawText},
         updated_at = now()
       WHERE id = ${id}::uuid`;
   } else {
     try {
       const [row] = await sql<{ id: string }[]>`
         INSERT INTO pms_inquiries (source, airbnb_account, property_id, property_name, guest_name, check_in, check_out, pax_count, inquiry_text, thread_url, email_type, confirmation_code, payout_amount, payout_currency, recipient_email, listing_title, raw_payload)
-        VALUES ('airbnb', ${from}, ${property?.slug ?? null}, ${property?.name ?? null}, ${guestName}, ${checkIn}, ${checkOut}, ${paxCount}, ${notes || null}, ${threadUrl}, ${emailType}, ${confirmationCode}, ${payoutAmount}, ${payoutCurrency}, ${recipientEmail}, ${listingTitle}, ${usedRawRecovery ? rawText : null})
+        VALUES ('airbnb', ${from}, ${property?.slug ?? null}, ${property?.name ?? null}, ${guestName}, ${checkIn}, ${checkOut}, ${paxCount}, ${notes || null}, ${threadUrl}, ${emailType}, ${confirmationCode}, ${payoutAmount}, ${payoutCurrency}, ${recipientEmail}, ${listingTitle}, ${rawText})
         RETURNING id`;
       id = row!.id;
       isNew = true;

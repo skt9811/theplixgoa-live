@@ -394,6 +394,18 @@ export function ensurePosSchema(sql: Sql): Promise<void> {
       await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS booking_id varchar(100)`;
       await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS created_by varchar(100)`;
       await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS cancel_reason text`;
+      // Reference-only: the bill number a pre-migration POS system (or a
+      // historical paper/export backfill) already used. Deliberately NOT
+      // daily_number — that column is a per-property, per-calendar-day
+      // counter recomputed at settlement time (see settle() in
+      // pms-pos-api.server.ts), so writing an imported system's own
+      // globally-sequential bill number into it would corrupt its meaning
+      // for every order settled afterward. Nullable and unique only where
+      // set, so real orders created going forward (which never populate
+      // this) are unaffected, and it doubles as a stable idempotency key
+      // for re-running a historical import.
+      await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS legacy_bill_no varchar(20)`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_pos_orders_legacy_bill_no_key ON pms_pos_orders (property_id, legacy_bill_no) WHERE legacy_bill_no IS NOT NULL`;
       await sql`
         CREATE TABLE IF NOT EXISTS pms_pos_order_items (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, MoreVertical, Minus, Pencil, Plus, Search, Trash2, UserRound, X } from "lucide-react";
+import { ArrowLeft, MoreVertical, Minus, Pencil, Plus, Printer, Search, Trash2, UserRound, X } from "lucide-react";
 import {
   computeOrderByCategory,
   groupItemsByDate,
@@ -36,7 +36,7 @@ function SentLineRow({ l, onVoid }: { l: PosLine; onVoid: () => void }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-slate-900">{l.item_name}</p>
         <p className="text-xs text-slate-500">
-          {inr(l.unit_price)} · KOT #{l.kot_number}
+          {inr(l.unit_price)}
           {l.notes ? ` · ${l.notes}` : ""}
         </p>
       </div>
@@ -222,19 +222,19 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
   }, [initialOrderId]);
 
   const sent = useMemo(() => (data?.lines ?? []).filter((l) => l.status === "active" && l.kot_number > 0), [data]);
-  // Grouped (not consolidated — void needs a specific line's id, so each
-  // line stays its own row) by the IST day it was added, so a table/room
-  // tab left running across several days shows "today's orders" separately
-  // from earlier days at a glance instead of one flat list.
-  const sentByDate = useMemo(() => {
-    const map = new Map<string, PosLine[]>();
+  // Staff see what was actually sent to the kitchen, grouped by KOT batch —
+  // the dispatch unit that matters for kitchen ops — not by calendar date
+  // (that grouping is for the guest-facing bill/receipt instead; see
+  // groupItemsByDate/billSlip). Not consolidated across lines: void needs a
+  // specific line's id, so each stays its own row within its KOT's card.
+  const sentByKot = useMemo(() => {
+    const map = new Map<number, PosLine[]>();
     for (const l of sent) {
-      const key = new Date(l.created_at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-      const arr = map.get(key);
+      const arr = map.get(l.kot_number);
       if (arr) arr.push(l);
-      else map.set(key, [l]);
+      else map.set(l.kot_number, [l]);
     }
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+    return [...map.entries()].sort(([a], [b]) => a - b);
   }, [sent]);
   const totals = useMemo(
     () =>
@@ -364,6 +364,26 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
       return null;
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Re-dispatches an already-sent KOT batch to the kitchen/bar printers —
+  // same per-destination grouping persist() uses when a KOT is first
+  // punched, just sourced from that batch's already-persisted lines instead
+  // of a fresh save. For a lost ticket or a printer that jammed the first
+  // time, not for editing what was ordered.
+  async function reprintKot(kotNumber: number, lines: PosLine[]) {
+    if (!state || !data) return;
+    const dest = (l: PosLine) => state.items.find((i) => i.id === l.item_id)?.printer_destination ?? "kitchen";
+    const groups = (["kitchen", "bar"] as const).map((d) => ({ d, lines: lines.filter((l) => dest(l) === d) })).filter((g) => g.lines.length > 0);
+    for (const g of groups) {
+      const title = groups.length > 1 || g.d === "bar" ? `${g.d.toUpperCase()} ORDER TICKET (REPRINT)` : "REPRINT";
+      try {
+        const r = await printKot(state.config, slipCtx, getStation(), { title, destination: g.d, table: data.order.table_name, kot: kotNumber, orderNumber: data.order.order_number, items: g.lines.map((l) => ({ name: l.item_name, qty: l.quantity, notes: l.notes })), by: user.name, remarks }, property);
+        if (r) toastPrintResult(r, g.d === "bar" ? "Bar" : "Kitchen");
+      } catch {
+        toast.error("Could not print the KOT");
+      }
     }
   }
 
@@ -542,26 +562,32 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
             </div>
             {remarks && <p className="mt-1 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{remarks}</p>}
             <div className="mt-2 grid gap-2">
-              {sentByDate.length > 1
-                ? sentByDate.map(([dateKey, lines]) => (
-                    <div key={dateKey}>
-                      <p className="mb-1.5 mt-3 text-xs font-bold uppercase tracking-wide text-slate-500 first:mt-0">
-                        {new Date(`${dateKey}T00:00:00`).toLocaleDateString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
+              {sentByKot.map(([kotNumber, lines]) => {
+                const at = lines[0]!.kot_at ?? lines[0]!.created_at;
+                const time = new Date(at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
+                return (
+                  <div key={kotNumber}>
+                    <div className="mb-1.5 mt-3 flex items-center justify-between first:mt-0">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        KOT NO: {kotNumber} ({time})
                       </p>
-                      <div className="grid gap-2">
-                        {lines.map((l) => (
-                          <SentLineRow key={l.id} l={l} onVoid={() => setModal({ voidLine: l })} />
-                        ))}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void reprintKot(kotNumber, lines)}
+                        aria-label={`Reprint KOT ${kotNumber}`}
+                        className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-slate-500 hover:bg-slate-50"
+                      >
+                        <Printer className="size-3.5" aria-hidden />
+                      </button>
                     </div>
-                  ))
-                : sent.map((l) => (
-                    <SentLineRow key={l.id} l={l} onVoid={() => setModal({ voidLine: l })} />
-                  ))}
+                    <div className="grid gap-2">
+                      {lines.map((l) => (
+                        <SentLineRow key={l.id} l={l} onVoid={() => setModal({ voidLine: l })} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
               {drafts.map((d) => (
                 <div key={d.key} className="rounded-xl border border-emerald-200 bg-white p-3">
                   <div className="flex items-center gap-2">

@@ -87,6 +87,8 @@ export type PosLine = {
   /** @deprecated Legacy store-wide gst/vat/none bucket; no longer used to compute totals — see tax_rate/tax_type. */
   tax_group: TaxGroup;
   created_at: string;
+  /** When this line's KOT was actually sent to the kitchen — null for a still-staged draft (kot_number 0). */
+  kot_at: string | null;
 };
 export type PosOrder = {
   id: string; order_number: number; property_id: string; table_id: string | null; table_name: string; guest_name: string | null; guest_phone: string | null; guest_count: number;

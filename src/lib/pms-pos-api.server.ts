@@ -115,6 +115,7 @@ type LineRow = {
   tax_type: string | null;
   is_tax_inclusive: boolean | null;
   created_at: Date;
+  kot_at: Date | null;
 };
 type OrderRow = Record<string, unknown> & {
   id: string;
@@ -144,6 +145,7 @@ const mapLine = (l: LineRow) => ({
   tax_type: (l.tax_type as CategoryTaxType) ?? "GST",
   is_tax_inclusive: l.is_tax_inclusive === true,
   created_at: l.created_at,
+  kot_at: l.kot_at,
 });
 const mapOrder = (o: OrderRow) => ({
   ...o,

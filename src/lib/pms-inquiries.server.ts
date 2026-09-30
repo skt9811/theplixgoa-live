@@ -137,6 +137,11 @@ function extractGuestName(subject: string, bodyText: string): string {
     /(?:^|\n)(?:Reservation )?Inquiry from\s+(.+?)(?:[:\n]|$)/i,
     /^(.+?)\s+sent (?:you )?a message/i,
     /reservation confirmed\s*[-–—:]\s*(.+?)(?:[:\n]|$)/i,
+    // Airbnb's raw forwarded-email text (not the HTML) renders the guest's
+    // profile photo alt text, then their name again on its own line, then
+    // the "Booker" role label: "[image: Rohan]\nRohan\nBooker".
+    /\[image:\s*([A-Za-z][A-Za-z\s]{0,40}?)\]\s*\n\s*\1\s*\n\s*Booker/i,
+    /Booker\s*\n\s*([A-Za-z][A-Za-z\s]{1,50}?)\s*\n/i,
   ];
   for (const text of [subject, bodyText]) {
     for (const re of patterns) {
@@ -227,8 +232,11 @@ function extractPayout(text: string): { amount: number | null; currency: string 
 
 /** Which host Gmail inbox Airbnb actually delivered this to — Make.com's
  * payload shape for this isn't guaranteed, so every plausible field name is
- * checked. Best-effort: returns null rather than throwing on anything odd. */
-function extractRecipientEmail(body: Record<string, unknown>): string | null {
+ * checked first. bodyText is checked last: Make.com forwards raw email
+ * content, which often carries a literal "To: <email>" header line even when
+ * no structured recipient field was sent at all. Best-effort: returns null
+ * rather than throwing on anything odd. */
+function extractRecipientEmail(body: Record<string, unknown>, bodyText: string): string | null {
   const headers = body["headers"];
   const headerRecord =
     headers && typeof headers === "object" ? (headers as Record<string, unknown>) : {};
@@ -246,20 +254,64 @@ function extractRecipientEmail(body: Record<string, unknown>): string | null {
     const m = /[^\s<>"]+@[^\s<>"]+\.[^\s<>"]+/.exec(c);
     if (m) return m[0].toLowerCase();
   }
-  return null;
+  const toLine = /^to:\s*.*?<?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})>?/im.exec(bodyText);
+  return toLine?.[1]?.toLowerCase() ?? null;
+}
+
+/** Companion to extractRecipientEmail: the guest's own email from a literal
+ * "From: <email>" header line in raw forwarded-email text. Airbnb inquiry
+ * notifications never expose the guest's real address (it's a privacy
+ * relay), so this is null in practice for inquiries and only meaningful as
+ * a last-resort sender attribution when nothing else is present. */
+function extractFromLine(bodyText: string): string | null {
+  const fromLine = /^from:\s*.*?<?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})>?/im.exec(
+    bodyText,
+  );
+  return fromLine?.[1]?.toLowerCase() ?? null;
+}
+
+/**
+ * Last resort when the request body is JSON-shaped but not valid JSON (raw
+ * newlines/quotes inside a string value with no way to know where it truly
+ * ends). Only `subject` is pulled out directly — it's reliably short and
+ * single-line, so `"subject": "..."` can be matched safely. Everything else
+ * is left to the existing free-text extractors (extractGuestName,
+ * matchProperty, parseAirbnbDateRange, etc.) by handing them the ENTIRE raw
+ * text as bodyText: they already scan for patterns wherever they occur, so
+ * leftover JSON punctuation elsewhere in the string doesn't stop a real
+ * match — deliberately not reimplementing guest-name/date/property
+ * extraction a second time here, which would only drift from the primary
+ * path over time.
+ */
+function recoverBodyFromRawText(raw: string): Record<string, unknown> {
+  const subjectMatch = /"subject"\s*:\s*"([^"\r\n]+)"/i.exec(raw);
+  const toMatch =
+    /"?(?:to|recipient)"?\s*:\s*"?<?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i.exec(raw);
+  const fromMatch =
+    /"?(?:from|sender)"?\s*:\s*"?<?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i.exec(raw);
+  return {
+    subject: subjectMatch?.[1] ?? "",
+    text: raw,
+    recipient: toMatch?.[1] ?? null,
+    sender: fromMatch?.[1] ?? null,
+  };
 }
 
 /** Always returns a non-empty string — even an unmatched listing must keep
- * its raw title visible on the card instead of silently disappearing. */
+ * its raw title visible on the card instead of silently disappearing. The
+ * raw subject (e.g. "Harbor Court |4 Cozy Room + Pool |Thalassa| Anjuna") is
+ * preferred over the matched property's short name when available — it's
+ * usually more specific about which exact unit/variant is being asked
+ * about, and property_id/property_name (set separately from matchProperty)
+ * already carry the normalized short name for filtering/access control. */
 function extractListingTitle(subject: string, property: { name: string } | null): string {
-  if (property) return property.name;
   const cleaned = subject
     .replace(
       /^(reservation confirmed|inquiry from|reservation request|new message from)\s*[-–—:]?\s*/i,
       "",
     )
     .trim();
-  return cleaned || subject.trim() || "Unmatched listing";
+  return cleaned || property?.name || subject.trim() || "Unmatched listing";
 }
 
 function fmtShort(iso: string): string {
@@ -292,17 +344,36 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
   // out to be.
   const rawText = await request.text();
   let body: Record<string, unknown>;
+  let usedRawRecovery = false;
   try {
     body = rawText ? (JSON.parse(rawText) as Record<string, unknown>) : {};
   } catch {
     console.error("[airbnb-inquiry-webhook] non-JSON body, raw text:", rawText.slice(0, 5000));
+    // Almost always Make.com string-templating raw, unescaped newlines/quotes
+    // from the forwarded email straight into a "text": "..." value — no JSON
+    // parser can unambiguously recover from that (there's no way to know
+    // where such a string legitimately ends). Try a form-encoded read first
+    // in case the body is actually that instead; if it doesn't yield any of
+    // the fields this endpoint actually looks for, fall through to scraping
+    // individual fields out of the raw text via regex rather than silently
+    // dropping a real lead as unparseable noise.
+    let form: Record<string, unknown> = {};
     try {
-      body = Object.fromEntries(new URLSearchParams(rawText));
+      form = Object.fromEntries(new URLSearchParams(rawText));
     } catch {
-      body = {};
+      form = {};
+    }
+    const formHasUsefulField = ["subject", "title", "text", "body", "content"].some(
+      (k) => typeof form[k] === "string" && (form[k] as string).trim(),
+    );
+    if (formHasUsefulField) {
+      body = form;
+    } else {
+      body = recoverBodyFromRawText(rawText);
+      usedRawRecovery = true;
     }
   }
-  console.log("[Airbnb Webhook Inbound Payload]", JSON.stringify(body));
+  console.log("[Airbnb Webhook Inbound Payload]", JSON.stringify(body).slice(0, 5000));
 
   // Make.com's actual scenario posts {subject, sender, text, html, date},
   // but the exact shape of a forwarded-email payload isn't guaranteed, so
@@ -317,7 +388,8 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
     body["content"],
   );
   const bodyHtml = firstNonEmpty(body["html"], body["bodyHtml"]);
-  const from = firstNonEmpty(body["sender"], body["from"]).slice(0, 150) || null;
+  const from =
+    firstNonEmpty(body["sender"], body["from"]).slice(0, 150) || extractFromLine(bodyText) || null;
   const combined = `${subject}\n${bodyText}`;
 
   // Administrative noise (payouts, reviews, policy updates...) is returned
@@ -349,7 +421,7 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
     threadUrl = extractThreadUrl(`${bodyText}\n${bodyHtml}`);
     confirmationCode = extractConfirmationCode(combined);
     ({ amount: payoutAmount, currency: payoutCurrency } = extractPayout(combined));
-    recipientEmail = extractRecipientEmail(body);
+    recipientEmail = extractRecipientEmail(body, bodyText);
     listingTitle = extractListingTitle(subject, property);
     emailType = /confirmed booking|reservation confirmed/i.test(combined)
       ? "confirmed_booking"
@@ -372,7 +444,13 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
     emailType = "inquiry";
   }
   const isConfirmedBooking = emailType === "confirmed_booking";
-  const notes = `${subject}\n\n${bodyText.slice(0, 2000)}`.trim();
+  // Flagged in the notes themselves, not just a DB column, so it's visible
+  // to whoever's actually triaging the lead in the CRM tab: fields on a
+  // recovered record came from best-effort regex scraping of a malformed
+  // payload, not a clean parse, and are worth a second look against
+  // raw_payload if anything looks off.
+  const notes =
+    `${usedRawRecovery ? "[RECOVERED FROM MALFORMED PAYLOAD — verify against raw_payload]\n" : ""}${subject}\n\n${bodyText.slice(0, 2000)}`.trim();
 
   const sql = getPmsDb();
   if (!sql) return json({ error: "PMS database not configured" }, 503);
@@ -410,13 +488,14 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
         payout_currency = COALESCE(${payoutCurrency}, payout_currency),
         recipient_email = COALESCE(${recipientEmail}, recipient_email),
         listing_title = ${listingTitle},
+        raw_payload = COALESCE(${usedRawRecovery ? rawText : null}, raw_payload),
         updated_at = now()
       WHERE id = ${id}::uuid`;
   } else {
     try {
       const [row] = await sql<{ id: string }[]>`
-        INSERT INTO pms_inquiries (source, airbnb_account, property_id, property_name, guest_name, check_in, check_out, pax_count, inquiry_text, thread_url, email_type, confirmation_code, payout_amount, payout_currency, recipient_email, listing_title)
-        VALUES ('airbnb', ${from}, ${property?.slug ?? null}, ${property?.name ?? null}, ${guestName}, ${checkIn}, ${checkOut}, ${paxCount}, ${notes || null}, ${threadUrl}, ${emailType}, ${confirmationCode}, ${payoutAmount}, ${payoutCurrency}, ${recipientEmail}, ${listingTitle})
+        INSERT INTO pms_inquiries (source, airbnb_account, property_id, property_name, guest_name, check_in, check_out, pax_count, inquiry_text, thread_url, email_type, confirmation_code, payout_amount, payout_currency, recipient_email, listing_title, raw_payload)
+        VALUES ('airbnb', ${from}, ${property?.slug ?? null}, ${property?.name ?? null}, ${guestName}, ${checkIn}, ${checkOut}, ${paxCount}, ${notes || null}, ${threadUrl}, ${emailType}, ${confirmationCode}, ${payoutAmount}, ${payoutCurrency}, ${recipientEmail}, ${listingTitle}, ${usedRawRecovery ? rawText : null})
         RETURNING id`;
       id = row!.id;
       isNew = true;
@@ -455,5 +534,12 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
     });
   }
 
-  return json({ success: true, id, message: "Inquiry processed successfully" });
+  if (usedRawRecovery) {
+    console.log("[Airbnb Ingestion] Successfully saved recovered inquiry ID:", id);
+  }
+  return json({
+    success: true,
+    id,
+    message: usedRawRecovery ? "Parsed and saved via fallback" : "Inquiry processed successfully",
+  });
 }

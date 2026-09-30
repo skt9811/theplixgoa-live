@@ -270,6 +270,11 @@ export function ensureInquiriesSchema(sql: Sql): Promise<void> {
         // the known property short names.
         await sql`ALTER TABLE pms_inquiries ADD COLUMN IF NOT EXISTS recipient_email varchar(255)`;
         await sql`ALTER TABLE pms_inquiries ADD COLUMN IF NOT EXISTS listing_title varchar(255)`;
+        // Only populated when the webhook's normal JSON parse fails and a
+        // regex-based recovery is used instead — the full original request
+        // body, kept for manual review since the recovered fields above are
+        // best-effort, not a guaranteed-accurate parse.
+        await sql`ALTER TABLE pms_inquiries ADD COLUMN IF NOT EXISTS raw_payload text`;
         // Confirmation codes are the reliable de-dup key for a re-delivered
         // or Make.com-retried webhook; only enforced when present since a
         // plain inquiry email never has one.

@@ -11,6 +11,7 @@ import { json, str } from "@/lib/pms-pos-shared.server";
 import { allowedSlugs, isAllProps, type Actor } from "@/lib/pms-users.server";
 import { sendStaffPushNotification, stripSurroundingQuotes } from "@/lib/pms-notifications.server";
 import { audit } from "@/lib/pms-audit.server";
+import { getHostDisplayName, HOST_NAME_MAP } from "@/lib/pms-host-names";
 
 /** Returns the first value that's a non-empty string once trimmed, trying
  * each candidate field name in order — empty strings and non-string values
@@ -192,8 +193,55 @@ function looksLikeGuestIntent(subject: string, bodyText: string): boolean {
   return INTENT_RE.test(`${subject}\n${bodyText}`);
 }
 
+// Discarded as false-positive extracted "names" — either an Airbnb/app-store
+// system string that leaked into a body-text match, or one of the hosts'
+// own first names (see HOST_NAME_MAP), which means a text-position-based
+// pattern most likely grabbed the host's own signature/label text instead
+// of the actual guest. Confirmed against 5 real "Airbnb Guest" rows pulled
+// from production: none of them happen to be a guest genuinely named after
+// a host, so this trade-off (a guest coincidentally sharing a host's first
+// name would fall back to "Airbnb Guest" instead) is accepted deliberately
+// rather than guessed at. NOT applied to the RESPOND-TO header patterns
+// below — Airbnb's own subject phrasing always names the guest addressing
+// the host, never the host themself, so those are trusted even on a
+// same-name coincidence.
+const SYSTEM_NAME_BLACKLIST = new Set([
+  "airbnb",
+  "app store",
+  "google play",
+  "instagram",
+  "twitter",
+  "tiktok",
+  "youtube",
+]);
+const HOST_FIRST_NAMES = new Set(Object.values(HOST_NAME_MAP).map((n) => n.toLowerCase()));
+
+function isBlacklistedName(name: string): boolean {
+  const lower = name.trim().toLowerCase();
+  return SYSTEM_NAME_BLACKLIST.has(lower) || HOST_FIRST_NAMES.has(lower);
+}
+
+// Airbnb's own template renders these two card labels in ALL CAPS
+// ("PRASANNA", "RESPOND TO SHALINI'S..."); title-cased for display, without
+// touching names already in mixed case from the other patterns below.
+function titleCaseIfShouting(name: string): string {
+  if (name !== name.toUpperCase()) return name;
+  return name.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
+
 function extractGuestName(subject: string, bodyText: string): string {
-  const patterns = [
+  // Airbnb's booking-request email leads with "RESPOND TO <GUEST>’S
+  // REQUEST"/"...’S INQUIRY" (curly or straight apostrophe) — confirmed
+  // against real production rows where every other pattern below missed.
+  const headerPatterns = [/RESPOND TO\s+([A-Za-z][A-Za-z\s]{1,40}?)[’']S\s+(?:REQUEST|INQUIRY)/i];
+  for (const text of [subject, bodyText]) {
+    for (const re of headerPatterns) {
+      const m = re.exec(text.trim());
+      if (m?.[1]) return titleCaseIfShouting(m[1].trim().slice(0, 150));
+    }
+  }
+
+  const bodyPatterns = [
     /^(.+?)\s+is interested in/i,
     /(?:^|\n)(?:Reservation )?Inquiry from\s+(.+?)(?:[:\n]|$)/i,
     /^(.+?)\s+sent (?:you )?a message/i,
@@ -203,11 +251,16 @@ function extractGuestName(subject: string, bodyText: string): string {
     // the "Booker" role label: "[image: Rohan]\nRohan\nBooker".
     /\[image:\s*([A-Za-z][A-Za-z\s]{0,40}?)\]\s*\n\s*\1\s*\n\s*Booker/i,
     /Booker\s*\n\s*([A-Za-z][A-Za-z\s]{1,50}?)\s*\n/i,
+    // Airbnb's inquiry-reply card instead puts the name directly ABOVE the
+    // "Booker" label ("PRASANNA\n\nBooker") — the opposite order from the
+    // pattern above. Confirmed against real rows the older pattern missed.
+    /\n\s*([A-Z][A-Za-z]+(?:\s[A-Za-z]+){0,3})\s*\n\s*Booker\b/,
   ];
   for (const text of [subject, bodyText]) {
-    for (const re of patterns) {
+    for (const re of bodyPatterns) {
       const m = re.exec(text.trim());
-      if (m?.[1]) return m[1].trim().slice(0, 150);
+      const name = m?.[1]?.trim();
+      if (name && !isBlacklistedName(name)) return titleCaseIfShouting(name.slice(0, 150));
     }
   }
   return "Airbnb Guest";
@@ -588,7 +641,7 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
     guestMessage ? `Guest message: "${guestMessage}"` : null,
     datesSummary ? `Dates: ${datesSummary}` : null,
     paxCount ? `Guests: ${paxCount}` : null,
-    recipientEmail ? `Host: ${recipientEmail}` : null,
+    recipientEmail ? `Host: ${getHostDisplayName(recipientEmail) ?? recipientEmail}` : null,
     usedRawRecovery ? "[Recovered from malformed payload — see raw_payload]" : null,
   ]
     .filter((line): line is string => Boolean(line))
@@ -661,8 +714,11 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
       checkIn && checkOut ? `${fmtShort(checkIn)} - ${fmtShort(checkOut)}` : "dates TBC";
     await sendStaffPushNotification({
       title: isConfirmedBooking ? "New Airbnb Reservation Confirmed!" : "New Airbnb Inquiry!",
-      body: `${guestName} • ${listingTitle || property?.name || "Unknown property"} (Host: ${recipientEmail ?? "Primary"}) • ${datesLabel}`,
+      body: `${guestName} • ${listingTitle || property?.name || "Unknown property"} (Host: ${getHostDisplayName(recipientEmail) ?? recipientEmail ?? "Primary"}) • ${datesLabel}`,
       channelId: "inquiries_channel",
+      // Kitchen/POS-only staff (allowed_tabs: ['pos'], no 'inquiries' access)
+      // must not get Airbnb lead alerts — see activeStaffTokens' requireTab.
+      requireTab: "inquiries",
       // type/inquiryId preserved exactly as pms-push.ts's deep-link
       // resolver already matches (resolveDeepLink) — renaming these to the
       // ticket's literal `type: 'inquiry', id` would silently break tap-to-

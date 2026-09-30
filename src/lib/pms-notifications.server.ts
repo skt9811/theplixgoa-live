@@ -97,14 +97,31 @@ async function getMessagingClient(): Promise<Messaging | null> {
 type DeviceTable = "pms_staff_devices" | "pms_partner_devices";
 type DeviceToken = { id: string; token: string; table: DeviceTable };
 
-async function activeStaffTokens(): Promise<DeviceToken[]> {
+/**
+ * requireTab, when given, drops any device whose owning pms_users row
+ * doesn't have that tab in allowed_tabs — e.g. POS-only floor/kitchen staff
+ * registered with allowed_tabs: ['pos'] shouldn't get inquiries_channel
+ * pushes. A device with no linked user (user_id IS NULL — the Owner login,
+ * which never creates a pms_users row) and any role='admin' user are always
+ * included regardless of requireTab, since both already have implicit full
+ * access in the real permission model (pms-users.server.ts's Actor/OWNER).
+ * No requireTab means the original unfiltered behavior every other caller
+ * (bookings, POS) still relies on.
+ */
+async function activeStaffTokens(requireTab?: string): Promise<DeviceToken[]> {
   const sql = getPmsDb();
   if (!sql) return [];
   try {
     await ensureInquiriesSchema(sql);
-    const rows = await sql<
-      { id: string; fcm_token: string }[]
-    >`SELECT id, fcm_token FROM pms_staff_devices`;
+    const rows = requireTab
+      ? await sql<{ id: string; fcm_token: string }[]>`
+          SELECT sd.id, sd.fcm_token
+          FROM pms_staff_devices sd
+          LEFT JOIN pms_users u ON u.id::text = sd.user_id
+          WHERE sd.user_id IS NULL
+             OR u.role = 'admin'
+             OR ${requireTab} = ANY(u.allowed_tabs)`
+      : await sql<{ id: string; fcm_token: string }[]>`SELECT id, fcm_token FROM pms_staff_devices`;
     return rows.map((r) => ({ id: r.id, token: r.fcm_token, table: "pms_staff_devices" as const }));
   } catch (err) {
     console.error(
@@ -213,15 +230,18 @@ export async function sendStaffPushNotification({
   body,
   channelId = "bookings_channel",
   data = {},
+  requireTab,
 }: {
   title: string;
   body: string;
   channelId?: NotificationChannel;
   data?: Record<string, string>;
+  /** Restrict to staff whose role/allowed_tabs grant this tab — see activeStaffTokens. */
+  requireTab?: string;
 }): Promise<void> {
-  console.log("[pms-notifications] dispatching:", { title, channelId });
+  console.log("[pms-notifications] dispatching:", { title, channelId, requireTab });
   try {
-    const devices = await activeStaffTokens();
+    const devices = await activeStaffTokens(requireTab);
     console.log("[pms-notifications] active devices:", devices.length);
     await dispatch(devices, title, body, channelId, data);
   } catch (err) {

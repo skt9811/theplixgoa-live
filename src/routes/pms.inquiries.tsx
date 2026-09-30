@@ -14,6 +14,7 @@ import {
 import { PmsPullToRefresh } from "@/components/pms/pms-pull-to-refresh";
 import { CreateReservationModal } from "@/components/pms/create-reservation-modal";
 import { Checkbox } from "@/components/ui/checkbox";
+import { getHostDisplayName } from "@/lib/pms-host-names";
 
 export const Route = createFileRoute("/pms/inquiries")({
   validateSearch: (search: Record<string, unknown>): { id?: string | undefined } => ({
@@ -261,7 +262,7 @@ function Inquiries() {
                 </span>
                 {inq.recipient_email && (
                   <span className="rounded-full bg-sky-100 px-2.5 py-1 text-sky-700">
-                    Host: {inq.recipient_email}
+                    Host: {getHostDisplayName(inq.recipient_email) ?? inq.recipient_email}
                   </span>
                 )}
                 <span className="ml-auto text-slate-400">

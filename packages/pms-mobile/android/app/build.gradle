@@ -34,6 +34,15 @@ android {
                 storePassword keystoreProperties['storePassword']
                 keyAlias keystoreProperties['keyAlias']
                 keyPassword keystoreProperties['keyPassword']
+                // v2 was already on by AGP default (confirmed via apksigner
+                // verify before this change) — v1 added explicitly too,
+                // belt-and-suspenders, though it's very unlikely to be the
+                // actual cause of an install rejection on minSdkVersion 24+
+                // (v2-only signing is valid and installable there; v1 only
+                // matters for pre-Lollipop devices this app can't target
+                // anyway).
+                v1SigningEnabled true
+                v2SigningEnabled true
             }
         }
     }

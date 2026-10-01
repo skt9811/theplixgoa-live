@@ -48,15 +48,22 @@ export const OWNER: Actor = {
   organizationId: DEFAULT_ORG_ID,
 };
 
-const SLUGS = new Set(PROPERTIES.map((p) => p.slug));
 export const isAllProps = (a: Actor) => a.props.includes("all");
 export const canTab = (a: Actor, tab: Tab) => a.tabs.includes(tab);
 export const canAnyTab = (a: Actor, tabs: Tab[]) => tabs.some((t) => canTab(a, t));
 export const canProperty = (a: Actor, slug: string) => isAllProps(a) || a.props.includes(slug);
 export const isAdmin = (a: Actor) => a.role === "admin" && canTab(a, "settings");
-/** The properties this actor may see, as slugs. */
+/** The properties this actor may see, as slugs (or a dynamically signed-up
+ * tenant's own pms_properties id — assigned_properties is only ever written
+ * by this codebase itself, either the admin user-management form picking
+ * from PROPERTIES, or signup provisioning its own new property id, so it's
+ * trusted as-is here rather than re-filtered against the static array —
+ * canProperty above already trusts it the same way. A filter here used to
+ * re-validate against PROPERTIES, which silently hid every booking/expense/
+ * invoice/inquiry a dynamic tenant's own admin had just created from their
+ * own list — not a safety net, a bug once a second organization existed. */
 export const allowedSlugs = (a: Actor): string[] =>
-  isAllProps(a) ? PROPERTIES.map((p) => p.slug) : a.props.filter((s) => SLUGS.has(s));
+  isAllProps(a) ? PROPERTIES.map((p) => p.slug) : a.props;
 
 export function hashPin(pin: string): string {
   const salt = randomBytes(16);

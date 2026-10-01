@@ -2401,9 +2401,12 @@ async function auditApi(url: URL, actor: Actor): Promise<Response> {
   >`
     SELECT id, user_id, user_name, action, entity_type, entity_id, details, created_at FROM pms_audit_logs ${where}
     ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
-  const names = await pmsDb<
-    { user_name: string }[]
-  >`SELECT DISTINCT user_name FROM pms_audit_logs ORDER BY user_name`;
+  // Same leak as the log rows above, just for the filter dropdown's name
+  // list — this returned every organization's staff names (Plix's own
+  // included) regardless of who was asking.
+  const names = await pmsDb<{ user_name: string }[]>`
+    SELECT DISTINCT user_name FROM pms_audit_logs
+    WHERE organization_id = ${actor.organizationId} ORDER BY user_name`;
   return json({
     logs: rows.map((r) => ({ ...r, created_at: r.created_at.toISOString() })),
     total: count?.n ?? 0,

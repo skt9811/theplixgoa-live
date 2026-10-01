@@ -19,7 +19,7 @@ import {
 import { PmsThemeProvider, type ThemePreference } from "@/components/pms/pms-theme";
 import { pmsHead, usePmsBrandedHead } from "@/components/pms/pms-head";
 import { hidePmsSplash } from "@/lib/pms-splash";
-import { setupPmsPushNotifications } from "@/lib/pms-push";
+import { PmsPushRequiredGate } from "@/components/pms/pms-push-required-gate";
 
 // Standalone Plix PMS shell for every /pms/* route except /pms/login (which
 // opts out of this layout via the pms_ prefix). Gated by its own PMS session.
@@ -115,14 +115,6 @@ function PmsLayout() {
         // show, so the native splash (see capacitor.config.ts's
         // launchAutoHide: false) can come down now.
         void hidePmsSplash();
-        // Deferred a beat so push setup (permission prompt, channel
-        // creation, device registration) never competes with the
-        // dashboard's own critical-path render/fetch on cold start.
-        window.setTimeout(() => {
-          void setupPmsPushNotifications(
-            (nav) => void navigate({ to: nav.to, search: nav.search } as never),
-          );
-        }, 1000);
         pms<{ settings: { theme?: string } }>("settings")
           .then((r) => {
             const t = r.settings.theme;
@@ -196,39 +188,43 @@ function PmsLayout() {
 
   return (
     <PmsThemeProvider initialFromServer={serverTheme} onChange={saveTheme}>
-      <PmsContext.Provider
-        value={{
-          openCreate: () => setCreating(true),
-          refreshKey,
-          property,
-          setProperty,
-          user,
-          can: (tab: PmsTab) => user.tabs.includes(tab),
-          allowedProperties,
-          allProperties,
-          properties: allProperties
-            ? properties
-            : properties.filter((p) => allowedProperties.includes(p.id)),
-        }}
+      <PmsPushRequiredGate
+        onNavigate={(nav) => void navigate({ to: nav.to, search: nav.search } as never)}
       >
-        <PmsBackButton />
-        <PmsShell onLogout={() => void logout()}>
-          {posDenied ? null : needTab && !user.tabs.includes(needTab) ? (
-            <NoAccess tab={needTab} tabs={user.tabs as PmsTab[]} />
-          ) : (
-            <Outlet />
+        <PmsContext.Provider
+          value={{
+            openCreate: () => setCreating(true),
+            refreshKey,
+            property,
+            setProperty,
+            user,
+            can: (tab: PmsTab) => user.tabs.includes(tab),
+            allowedProperties,
+            allProperties,
+            properties: allProperties
+              ? properties
+              : properties.filter((p) => allowedProperties.includes(p.id)),
+          }}
+        >
+          <PmsBackButton />
+          <PmsShell onLogout={() => void logout()}>
+            {posDenied ? null : needTab && !user.tabs.includes(needTab) ? (
+              <NoAccess tab={needTab} tabs={user.tabs as PmsTab[]} />
+            ) : (
+              <Outlet />
+            )}
+          </PmsShell>
+          {creating && (
+            <CreateReservationModal
+              onClose={() => setCreating(false)}
+              onCreated={() => {
+                setCreating(false);
+                setRefreshKey((k) => k + 1);
+              }}
+            />
           )}
-        </PmsShell>
-        {creating && (
-          <CreateReservationModal
-            onClose={() => setCreating(false)}
-            onCreated={() => {
-              setCreating(false);
-              setRefreshKey((k) => k + 1);
-            }}
-          />
-        )}
-      </PmsContext.Provider>
+        </PmsContext.Provider>
+      </PmsPushRequiredGate>
     </PmsThemeProvider>
   );
 }

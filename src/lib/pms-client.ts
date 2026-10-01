@@ -79,6 +79,20 @@ export type PmsUser = {
   props: string[];
   tabs: string[];
   isOwner: boolean;
+  /** Phase 4 (public signup, pms-signup.server.ts) — this login's
+   * organization subscription/trial state, for the trial banner and the
+   * Airbnb Spaces upgrade prompt. Always "active" + isInternal: true for
+   * every pre-Phase-4 login (the Plix Hospitality org). */
+  organizationStatus: string;
+  trialEndsAt: string | null;
+  isInternal: boolean;
+  features: {
+    pms_enabled: boolean;
+    pos_enabled: boolean;
+    airbnb_spaces_enabled: boolean;
+    whatsapp_bot_enabled: boolean;
+    audit_notifications_enabled: boolean;
+  };
 };
 
 export type PmsTab =

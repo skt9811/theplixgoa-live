@@ -1,22 +1,27 @@
 // Server-only. Phase 1 multi-tenant hardening: resolves which organization
-// a PMS request belongs to. No session/JWT in this codebase carries an
-// organization_id yet (there is only ever one business using the PMS
-// today), so this always resolves to DEFAULT_ORG_ID unless a caller
-// explicitly sends the x-organization-id header — which nothing currently
-// does. That's deliberate: this is the seam future multi-org auth plugs
-// into, not an active tenant switch. Every domain table defaults its own
-// organization_id column to the exact same constant (see ensureAccessSchema,
-// ensurePosSchema, ensureInquiriesSchema, ensureExpensesSchema in
-// pms-schema.server.ts, and the phase1 migration for portal_bookings/
-// bookings), so a query filtered by getTenantId(request) today is filtering
-// by the one value every existing row already has — a no-op in practice
-// until a second organization and real tenant-aware auth exist.
+// a PMS request belongs to. Every domain table's organization_id column
+// defaults to DEFAULT_ORG_ID (see ensureAccessSchema, ensurePosSchema,
+// ensureInquiriesSchema, ensureExpensesSchema in pms-schema.server.ts, and
+// the phase1 migration for portal_bookings/bookings), so for every login
+// that existed before Phase 4 (public signup), this resolves to the exact
+// value every existing row already has — unchanged, zero-regression.
+//
+// Phase 4 (pms-signup.server.ts) makes a second, real organization possible
+// for the first time, so this now genuinely matters: getTenantId prefers the
+// AUTHENTICATED ACTOR's own organizationId (resolveActor re-reads it fresh
+// from pms_users on every request — see pms-users.server.ts) over the
+// x-organization-id header, which nothing in this codebase's own client ever
+// sends and existed only as a seam for a future that has now arrived. Every
+// call site already has `actor` in scope — passing it is what makes a new
+// tenant's writes land under their own organization instead of silently
+// defaulting into Plix's real internal one.
 import { PROPERTIES } from "@/lib/plix";
 import { isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates";
 
 export const DEFAULT_ORG_ID = "org_plix_internal";
 
-export function getTenantId(request: Request): string {
+export function getTenantId(request: Request, actor?: { organizationId: string } | null): string {
+  if (actor?.organizationId) return actor.organizationId;
   const header = request.headers.get("x-organization-id");
   if (header && header.trim()) return header.trim();
   return DEFAULT_ORG_ID;

@@ -1,8 +1,10 @@
-// Server-only. Phase 2 multi-tenant hierarchy: 7-day trial and property-limit
-// enforcement for write routes (bookings, POS orders, rate/inventory
-// updates). The `internal_enterprise` plan (the Plix Hospitality org every
-// current login belongs to — see pms-schema.server.ts's ensureAccessSchema)
-// always bypasses this: this gate exists for a future paying tenant, never
+// Server-only. Centralized subscription & feature-flag guard for every
+// /api/pms/* request (this codebase has no separate /api/pos/* — POS lives
+// at /api/pms/pos/*, reached through the same dispatcher, so one check in
+// handlePmsApi covers both). The `internal_enterprise`/`is_internal` org
+// (the Plix Hospitality org every pre-Phase-4 login belongs to — see
+// pms-schema.server.ts's ensureAccessSchema) and the Owner's master identity
+// always bypass this: it exists for a future paying, non-owner tenant, never
 // for the live business this PMS actually runs today.
 import type postgres from "postgres";
 import { ensureAccessSchema } from "@/lib/pms-schema.server";
@@ -32,29 +34,43 @@ export async function getOrganization(
   return row ?? null;
 }
 
+const READ_GRACE_DAYS = 15;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 // The "not ok" shape doubles as the response body every call site sends
 // straight to json(...) — `error`/`code` are the machine-readable pair the
 // task's client banner branches on, `message` is the human sentence this
 // codebase's existing toast()-based error handling already expects.
 export type SubscriptionCheck =
   | { ok: true }
-  | { ok: false; status: 402; error: "subscription_expired"; code: "TRIAL_ENDED"; message: string };
+  | {
+      ok: false;
+      status: 402;
+      error: "subscription_expired";
+      code: "TRIAL_ENDED";
+      message: string;
+    }
+  | { ok: false; status: 403; error: "account_suspended"; message: string };
 
-function blocked(message: string): SubscriptionCheck {
+function expired(message: string): SubscriptionCheck {
   return { ok: false, status: 402, error: "subscription_expired", code: "TRIAL_ENDED", message };
 }
+function suspended(message: string): SubscriptionCheck {
+  return { ok: false, status: 403, error: "account_suspended", message };
+}
 
-/** Called once, early, for write routes on bookings / POS orders / rate &
- * inventory updates. Fails OPEN (allows the write) if the organization can't
- * be resolved at all — an enforcement gate must never be the reason a real,
- * paid-up business can't take a booking because of an unrelated lookup
- * hiccup; the one case it actively blocks is the one the task asked for:
- * a trial (or a super-admin-suspended account) that has genuinely run out. */
+/** Called once, centrally, for every authenticated /api/pms/* request
+ * (handlePmsApi, right after the per-route permission check). Fails OPEN
+ * (allows the request) if the organization can't be resolved at all — this
+ * gate must never be the reason a real, paid-up business loses access
+ * because of an unrelated lookup hiccup. `isOwner` and the internal org both
+ * bypass unconditionally, per the task's own bypass rules. */
 export async function assertSubscriptionActive(
   sql: Sql,
   organizationId: string,
+  options: { isOwner: boolean; isWrite: boolean },
 ): Promise<SubscriptionCheck> {
-  if (organizationId === DEFAULT_ORG_ID) return { ok: true };
+  if (options.isOwner || organizationId === DEFAULT_ORG_ID) return { ok: true };
   let org: OrganizationRow | null;
   try {
     org = await getOrganization(sql, organizationId);
@@ -73,16 +89,56 @@ export async function assertSubscriptionActive(
   // second, redundant safety net for any row written before is_internal
   // existed.
   if (org.is_internal || org.plan_tier === "internal_enterprise") return { ok: true };
+  // Suspended blocks everything, reads included — the kill-switch means kill.
   if (org.subscription_status === "suspended")
-    return blocked("This account has been suspended. Contact Plix support to reactivate it.");
-  if (org.subscription_status === "expired")
-    return blocked("Your 7-day trial has ended. Please subscribe to continue.");
-  if (
-    org.subscription_status === "trialing" &&
-    org.trial_ends_at &&
-    org.trial_ends_at.getTime() < Date.now()
-  ) {
-    return blocked("Your 7-day trial has ended. Please subscribe to continue.");
+    return suspended(
+      "Your organization account has been suspended. Please contact platform support.",
+    );
+  if (org.subscription_status === "active") return { ok: true };
+
+  // Anything else (trialing, past_due, or a legacy "expired" row) is judged
+  // purely on trial_ends_at: no date yet means the trial hasn't started
+  // counting down, so let it through rather than blocking on an absence.
+  if (!org.trial_ends_at) return { ok: true };
+  const msSinceExpiry = Date.now() - org.trial_ends_at.getTime();
+  if (msSinceExpiry <= 0) return { ok: true };
+
+  if (options.isWrite) {
+    return expired(
+      "Your 7-day free trial has expired. Upgrade your plan to continue punching bookings and orders.",
+    );
+  }
+  // Read-only grace policy: historical reports/guest records stay readable
+  // for 15 days past expiry, then reads block too — a grace period that
+  // never ends isn't a grace period, it's just free.
+  if (msSinceExpiry <= READ_GRACE_DAYS * DAY_MS) return { ok: true };
+  return expired(
+    "Your trial's read-only grace period has ended. Upgrade your plan to regain access.",
+  );
+}
+
+export type FeatureCheck =
+  { ok: true } | { ok: false; status: 403; error: "feature_not_included"; message: string };
+
+/** /api/pms/pos/* feature-flag gate — `organization.features.pos_enabled`.
+ * Called alongside assertSubscriptionActive, not instead of it: a tenant can
+ * be on an active subscription with POS simply turned off by plan/flag. */
+export async function assertFeatureEnabled(
+  sql: Sql,
+  organizationId: string,
+  feature: string,
+  label: string,
+): Promise<FeatureCheck> {
+  if (organizationId === DEFAULT_ORG_ID) return { ok: true };
+  const org = await getOrganization(sql, organizationId).catch(() => null);
+  if (!org || org.is_internal) return { ok: true };
+  if (org.features[feature] === false) {
+    return {
+      ok: false,
+      status: 403,
+      error: "feature_not_included",
+      message: `${label} isn't included in your current plan. Upgrade to enable it.`,
+    };
   }
   return { ok: true };
 }

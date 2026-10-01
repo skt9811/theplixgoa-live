@@ -16,7 +16,24 @@ type PmsContextValue = {
   allProperties: boolean;
 };
 
-const OWNER: PmsUser = { id: null, name: "Owner", role: "admin", props: ["all"], tabs: ["dashboard", "bookings", "expenses", "invoices", "vouchers", "settings"], isOwner: true };
+const OWNER: PmsUser = {
+  id: null,
+  name: "Owner",
+  role: "admin",
+  props: ["all"],
+  tabs: ["dashboard", "bookings", "expenses", "invoices", "vouchers", "settings"],
+  isOwner: true,
+  organizationStatus: "active",
+  trialEndsAt: null,
+  isInternal: true,
+  features: {
+    pms_enabled: true,
+    pos_enabled: true,
+    airbnb_spaces_enabled: true,
+    whatsapp_bot_enabled: false,
+    audit_notifications_enabled: true,
+  },
+};
 
 export const PmsContext = createContext<PmsContextValue>({
   openCreate: () => undefined,

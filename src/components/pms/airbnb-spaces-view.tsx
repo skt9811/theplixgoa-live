@@ -22,6 +22,7 @@ import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import { ArrowLeft, Calendar, Home, Inbox, MoreVertical, Plus, X } from "lucide-react";
 import { useBackDismiss } from "@/lib/pms-back-stack";
+import { usePms } from "@/components/pms/pms-context";
 import {
   CALENDAR_URL,
   HOSTING_URL,
@@ -38,6 +39,7 @@ export type { AirbnbSpaceInstance } from "@/lib/airbnb-spaces";
 const CORAL = "#FF385C";
 
 export function AirbnbSpacesView() {
+  const { user } = usePms();
   // Loaded in an effect, not a useState lazy initializer — this route is
   // server-rendered and localStorage doesn't exist there, so a lazy
   // initializer would make the client's first render disagree with the
@@ -67,7 +69,13 @@ export function AirbnbSpacesView() {
     const nextIndex = Math.max(0, ...spaces.map((s) => s.indexNumber)) + 1;
     persist([
       ...spaces,
-      { id: newId(), indexNumber: nextIndex, name: trimmed, createdAt: Date.now(), partitionKey: newId() },
+      {
+        id: newId(),
+        indexNumber: nextIndex,
+        name: trimmed,
+        createdAt: Date.now(),
+        partitionKey: newId(),
+      },
     ]);
     toast.success(`${trimmed} added`);
   }
@@ -88,6 +96,30 @@ export function AirbnbSpacesView() {
     return <SpaceLauncher space={openSpace} onClose={() => setOpenSpace(null)} />;
   }
 
+  if (!user.features.airbnb_spaces_enabled) {
+    return (
+      <div className="mx-auto max-w-lg py-16 text-center">
+        <Home className="mx-auto size-10 text-slate-300" aria-hidden />
+        <h1 className="mt-3 text-xl font-bold">Airbnb Spaces isn&apos;t on your plan</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          This feature isn&apos;t included in your current plan. Upgrade to enable the multi-account
+          Airbnb host launcher.
+        </p>
+        <button
+          type="button"
+          onClick={() =>
+            toast.message("Ready to upgrade?", {
+              description: "Contact Plix support to move onto a paid plan.",
+            })
+          }
+          className="mt-4 rounded-lg bg-[#FF385C] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+        >
+          Upgrade Plan
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 text-white shadow-sm">
@@ -98,8 +130,8 @@ export function AirbnbSpacesView() {
         {Capacitor.isNativePlatform() ? (
           <p className="mt-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
             Opens in a dedicated in-app screen, not the Airbnb app. Each Space gets its own login
-            kept separate when your device's WebView supports it — on an older device they may
-            still share one session.
+            kept separate when your device's WebView supports it — on an older device they may still
+            share one session.
           </p>
         ) : (
           <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
@@ -244,7 +276,10 @@ function Prompt({
   useBackDismiss(true, onClose);
   const [value, setValue] = useState(initial);
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -255,7 +290,12 @@ function Prompt({
       >
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-slate-900">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-slate-400 hover:text-slate-600"
+          >
             <X className="size-5" aria-hidden />
           </button>
         </div>
@@ -291,8 +331,14 @@ function ConfirmDelete({
 }) {
   useBackDismiss(true, onCancel);
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onCancel}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+      >
         <h2 className="text-base font-bold text-slate-900">Delete "{space.name}"?</h2>
         <p className="mt-1.5 text-sm text-slate-600">
           This only removes the bookmark tile from this device — it doesn't touch anything in your
@@ -324,7 +370,12 @@ function SpaceLauncher({ space, onClose }: { space: AirbnbSpaceInstance; onClose
   return (
     <div className="mx-auto max-w-3xl">
       <div className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 text-white">
-        <button type="button" onClick={onClose} aria-label="Back to spaces" className="text-slate-300 hover:text-white">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Back to spaces"
+          className="text-slate-300 hover:text-white"
+        >
           <ArrowLeft className="size-5" aria-hidden />
         </button>
         <div className="min-w-0 flex-1">
@@ -332,7 +383,9 @@ function SpaceLauncher({ space, onClose }: { space: AirbnbSpaceInstance; onClose
             {space.name} (Airbnb #{space.indexNumber})
           </p>
           <p className="text-xs text-slate-400">
-            {Capacitor.isNativePlatform() ? "Opens in an in-app screen, not the Airbnb app." : "Opens in your browser — shared session, not isolated."}
+            {Capacitor.isNativePlatform()
+              ? "Opens in an in-app screen, not the Airbnb app."
+              : "Opens in your browser — shared session, not isolated."}
           </p>
         </div>
       </div>
@@ -343,7 +396,10 @@ function SpaceLauncher({ space, onClose }: { space: AirbnbSpaceInstance; onClose
           onClick={() => void openSpaceUrl(space, HOSTING_URL)}
           className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-50"
         >
-          <span className="flex size-10 items-center justify-center rounded-xl text-white" style={{ backgroundColor: CORAL }}>
+          <span
+            className="flex size-10 items-center justify-center rounded-xl text-white"
+            style={{ backgroundColor: CORAL }}
+          >
             <Home className="size-5" aria-hidden />
           </span>
           <span>

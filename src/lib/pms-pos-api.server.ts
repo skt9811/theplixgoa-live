@@ -5,7 +5,6 @@ import { PROPERTIES } from "@/lib/plix";
 import { getPmsDb } from "@/lib/pms-db.server";
 import { ensureInvoicesSchema, ensurePosSchema } from "@/lib/pms-schema.server";
 import { getTenantId } from "@/lib/tenant-context.server";
-import { assertSubscriptionActive } from "@/lib/pms-billing.server";
 import { audit } from "@/lib/pms-audit.server";
 import { round2 } from "@/lib/pms-pos-calc";
 import { isAllProps, type Actor } from "@/lib/pms-users.server";
@@ -67,7 +66,11 @@ const DEFAULT_MENU: Record<string, [string, number, boolean][]> = {
 };
 
 const seededMenu = new Set<string>();
-async function seedProperty(sql: Sql, property: string) {
+// Exported for pms-signup.server.ts: a brand-new self-serve tenant's
+// property gets the same starter POS tables/categories/items a brand-new
+// Plix property would — this is the real, already-working seeding this
+// codebase has, not a new "default room types" concept invented for signup.
+export async function seedProperty(sql: Sql, property: string) {
   if (seededMenu.has(property)) return;
   // Sample data is created once per property; deleting everything later must not bring it back.
   const [done] =
@@ -280,7 +283,7 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const property = str(body["property"]);
   requireProperty(actor, property);
-  const tenantId = getTenantId(request);
+  const tenantId = getTenantId(request, actor);
   const guest = (body["guest"] ?? {}) as Record<string, unknown>;
   const drafts = Array.isArray(body["drafts"]) ? (body["drafts"] as Record<string, unknown>[]) : [];
   const wantKot = body["kot"] === true;
@@ -707,7 +710,7 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
 
 async function settle(request: Request, actor: Actor, sql: Sql, station: string) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-  const tenantId = getTenantId(request);
+  const tenantId = getTenantId(request, actor);
   const order = await ownedOrder(sql, actor, str(body["orderId"]));
   if (order.status !== "running" && order.status !== "billing")
     throw new PosError("This order is already closed", 409);
@@ -835,7 +838,7 @@ async function menuApi(request: Request, actor: Actor, sql: Sql, station: string
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const property = str(body["property"]);
   requireProperty(actor, property);
-  const tenantId = getTenantId(request);
+  const tenantId = getTenantId(request, actor);
   const entity = str(body["entity"]);
   const del = body["action"] === "delete";
   const id = str(body["id"]);
@@ -1033,17 +1036,9 @@ export async function handlePosApi(
 ): Promise<Response> {
   const sql = getPmsDb();
   if (!sql) return json({ error: "PMS database not configured" }, 503);
-  const tenantId = getTenantId(request);
+  const tenantId = getTenantId(request, actor);
   try {
     await ensurePosSchema(sql);
-    if (request.method !== "GET") {
-      const subscription = await assertSubscriptionActive(sql, actor.organizationId);
-      if (!subscription.ok)
-        return json(
-          { error: subscription.error, code: subscription.code, message: subscription.message },
-          subscription.status,
-        );
-    }
     if (sub === "state" && request.method === "GET")
       return json(await getState(url, actor, sql, tenantId));
     if (sub === "order" && request.method === "GET") {

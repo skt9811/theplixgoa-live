@@ -145,7 +145,9 @@ async function partnerTokensForProperty(propertyId: string): Promise<DeviceToken
   if (!sql) return [];
   try {
     await ensureInquiriesSchema(sql);
-    const rows = await sql<{ id: string; fcm_token: string; partner_phone: string | null; property_id: string }[]>`
+    const rows = await sql<
+      { id: string; fcm_token: string; partner_phone: string | null; property_id: string }[]
+    >`
       SELECT id, fcm_token, partner_phone, property_id FROM pms_partner_devices
       WHERE property_id = ${propertyId} OR property_id IN ('all', '*', 'admin')`;
     console.log("[Push-Targeting]", {
@@ -311,7 +313,10 @@ async function auditStaffTokens(roles: string[]): Promise<DeviceToken[]> {
       WHERE sd.user_id IS NULL OR u.role = ANY(${roles})`;
     return rows.map((r) => ({ id: r.id, token: r.fcm_token, table: "pms_staff_devices" as const }));
   } catch (err) {
-    console.error("[pms-notifications] auditStaffTokens:", err instanceof Error ? err.message : err);
+    console.error(
+      "[pms-notifications] auditStaffTokens:",
+      err instanceof Error ? err.message : err,
+    );
     return [];
   }
 }
@@ -370,7 +375,7 @@ export async function registerStaffDevice(request: Request, actor: Actor): Promi
   const sql = getPmsDb();
   if (!sql) return json({ error: "PMS database not configured" }, 503);
   await ensureInquiriesSchema(sql);
-  const tenantId = getTenantId(request);
+  const tenantId = getTenantId(request, actor);
   await sql`
     INSERT INTO pms_staff_devices (user_id, staff_name, fcm_token, platform, last_seen, organization_id)
     VALUES (${actor.id}, ${staffName}, ${fcmToken}, ${platform}, now(), ${tenantId})
@@ -418,6 +423,12 @@ export async function registerPartnerDevice(request: Request): Promise<Response>
     INSERT INTO pms_partner_devices (partner_phone, property_id, fcm_token, platform, last_seen)
     VALUES (${partnerPhone}, ${resolvedSlug}, ${fcmToken}, ${platform}, now())
     ON CONFLICT (fcm_token) DO UPDATE SET property_id = ${resolvedSlug}, partner_phone = ${partnerPhone}, platform = ${platform}, last_seen = now()`;
-  console.log("[Partner Push Reg]", { role: session.role, slug: resolvedSlug, phone: partnerPhone, tokenPrefix: fcmToken.slice(0, 10), success: true });
+  console.log("[Partner Push Reg]", {
+    role: session.role,
+    slug: resolvedSlug,
+    phone: partnerPhone,
+    tokenPrefix: fcmToken.slice(0, 10),
+    success: true,
+  });
   return json({ success: true, ok: true, registered: true });
 }

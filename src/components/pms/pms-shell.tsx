@@ -25,6 +25,7 @@ import { PROPERTIES } from "@/lib/plix";
 import { usePms } from "@/components/pms/pms-context";
 import { PropertySelector, propertyDisplayName } from "@/components/pms/property-selector";
 import { ThemeToggle } from "@/components/pms/theme-toggle";
+import { TrialBanner } from "@/components/pms/trial-banner";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
 const NAV = [
@@ -315,6 +316,7 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
         <p className="border-b border-slate-200 bg-white px-4 py-1.5 text-xs text-slate-400 md:hidden">
           {propertyDisplayName(property)}
         </p>
+        <TrialBanner />
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
 

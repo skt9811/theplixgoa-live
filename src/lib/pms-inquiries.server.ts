@@ -66,7 +66,7 @@ export async function listInquiries(request: Request, actor: Actor): Promise<Res
   const sql = getPmsDb();
   if (!sql) return json({ inquiries: [] });
   await ensureInquiriesSchema(sql);
-  const tenantId = getTenantId(request);
+  const tenantId = getTenantId(request, actor);
   const slugs = allowedSlugs(actor);
   // Every row in this table is a lead, not a resource tied to one property's
   // finances/operations — a property-restricted staff member still needs to

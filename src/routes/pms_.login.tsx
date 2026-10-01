@@ -134,6 +134,9 @@ function PmsLogin() {
           >
             Login
           </button>
+          <a href="/signup" className="mt-4 text-xs font-semibold text-blue-700 hover:underline">
+            New to Plix? Start a 7-day free trial
+          </a>
         </div>
         <p className="text-center text-xs text-slate-400">
           Secure sign-in for Plix Property Teams &bull; Version {APP_VERSION}

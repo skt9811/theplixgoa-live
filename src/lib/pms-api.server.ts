@@ -20,9 +20,14 @@ import { notifyNewBooking } from "@/lib/push-notifications.server";
 import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
 import { ensureExpensesSchema, ensureInvoicesSchema } from "@/lib/pms-schema.server";
 import { DEFAULT_ORG_ID, getTenantId } from "@/lib/tenant-context.server";
-import { assertSubscriptionActive } from "@/lib/pms-billing.server";
+import {
+  assertFeatureEnabled,
+  assertSubscriptionActive,
+  getOrganization,
+} from "@/lib/pms-billing.server";
 import { slugForPropertyCode } from "@/lib/property-codes";
 import { handleSuperAdminApi } from "@/lib/pms-super-admin.server";
+import { handleSignupApi } from "@/lib/pms-signup.server";
 import {
   COLOR_PALETTE,
   HEX_COLOR,
@@ -442,18 +447,6 @@ async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promis
 }
 
 async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<Response> {
-  // organizations lives in the PMS database (NEON_PMS_DATABASE_URL), never
-  // the web `sql` connection this function otherwise uses — see
-  // pms-billing.server.ts and pms-schema.server.ts's own file-header note.
-  const pmsDbForBilling = getPmsDb();
-  if (pmsDbForBilling) {
-    const subscription = await assertSubscriptionActive(pmsDbForBilling, actor.organizationId);
-    if (!subscription.ok)
-      return json(
-        { error: subscription.error, code: subscription.code, message: subscription.message },
-        subscription.status,
-      );
-  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -504,7 +497,7 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   if (conflict && !allowOverride) return json({ error: conflict }, 409);
   const isManualOverride = Boolean(conflict) && allowOverride;
   const overrideReason = isManualOverride ? overrideReasonInput || conflict : null;
-  const tenantId = getTenantId(request);
+  const tenantId = getTenantId(request, actor);
 
   const [row] = await sql<{ id: string }[]>`
     INSERT INTO public.portal_bookings
@@ -630,15 +623,6 @@ async function notifyBookingModified(
 // payment-reconciliation implications well outside this form's scope, so it
 // is only ever cancellable (see cancelBooking), never edited.
 async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<Response> {
-  const pmsDbForBilling = getPmsDb();
-  if (pmsDbForBilling) {
-    const subscription = await assertSubscriptionActive(pmsDbForBilling, actor.organizationId);
-    if (!subscription.ok)
-      return json(
-        { error: subscription.error, code: subscription.code, message: subscription.message },
-        subscription.status,
-      );
-  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -990,15 +974,6 @@ async function getInventory(url: URL, sql: Sql, actor: Actor): Promise<Response>
 }
 
 async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise<Response> {
-  const pmsDbForBilling = getPmsDb();
-  if (pmsDbForBilling) {
-    const subscription = await assertSubscriptionActive(pmsDbForBilling, actor.organizationId);
-    if (!subscription.ok)
-      return json(
-        { error: subscription.error, code: subscription.code, message: subscription.message },
-        subscription.status,
-      );
-  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -1187,7 +1162,7 @@ function shapeTx(r: TxRow) {
 async function listTransactions(request: Request, url: URL, actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
-  const tenantId = getTenantId(request);
+  const tenantId = getTenantId(request, actor);
   const property = url.searchParams.get("property") ?? "all";
   const start = url.searchParams.get("start") ?? "";
   const end = url.searchParams.get("end") ?? "";
@@ -1268,7 +1243,7 @@ async function createTransaction(request: Request, actor: Actor): Promise<Respon
     if (found.length === 0) return json({ error: "Select a category" }, 400);
   }
 
-  const tenantId = getTenantId(request);
+  const tenantId = getTenantId(request, actor);
   const [row] = await pmsDb<{ id: string }[]>`
     INSERT INTO expenses (type, property_id, category, amount, payment_mode, transfer_to, vendor_name, expense_date, "time", receipt_url, tags, organization_id)
     VALUES (${type}, ${property === "hq" ? null : property}, ${category}, ${Math.round(amount * 100) / 100}, ${paymentMode},
@@ -1941,15 +1916,6 @@ async function saveSetting(request: Request, actor: Actor): Promise<Response> {
 async function createVoucher(request: Request, actor: Actor): Promise<Response> {
   const webDb = getWebDb();
   if (!webDb) return json({ error: "Database not configured" }, 503);
-  const pmsDbForBilling = getPmsDb();
-  if (pmsDbForBilling) {
-    const subscription = await assertSubscriptionActive(pmsDbForBilling, actor.organizationId);
-    if (!subscription.ok)
-      return json(
-        { error: subscription.error, code: subscription.code, message: subscription.message },
-        subscription.status,
-      );
-  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -2029,7 +1995,7 @@ async function createVoucher(request: Request, actor: Actor): Promise<Response> 
     .filter(Boolean)
     .join(" · ");
 
-  const tenantId = getTenantId(request);
+  const tenantId = getTenantId(request, actor);
   const outcome = await webDb.begin(async (tx) => {
     const conflict = await findStayConflict(
       tx as unknown as typeof webDb,
@@ -2441,15 +2407,47 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "owner" |
   }
 }
 
-function sessionInfo(actor: Actor) {
-  return {
+// Subscription/trial/feature info for the client-side trial banner and the
+// Airbnb Spaces upgrade prompt (pms-shell.tsx, airbnb-spaces-view.tsx). Fails
+// soft to "everything on, internal" on any lookup error — a banner that
+// fails to render is a cosmetic miss, not a reason to break the session
+// endpoint every other page's auth check depends on.
+async function sessionInfo(actor: Actor) {
+  const fallback = {
     id: actor.id,
     name: actor.name,
     role: actor.role,
     props: actor.props,
     tabs: actor.tabs,
     isOwner: actor.isOwner,
+    organizationStatus: "active" as string,
+    trialEndsAt: null as string | null,
+    isInternal: true,
+    features: {
+      pms_enabled: true,
+      pos_enabled: true,
+      airbnb_spaces_enabled: true,
+      whatsapp_bot_enabled: false,
+      audit_notifications_enabled: true,
+    },
   };
+  if (actor.organizationId === DEFAULT_ORG_ID) return fallback;
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return fallback;
+  try {
+    const org = await getOrganization(pmsDb, actor.organizationId);
+    if (!org) return fallback;
+    return {
+      ...fallback,
+      organizationStatus: org.subscription_status,
+      trialEndsAt: org.trial_ends_at ? org.trial_ends_at.toISOString() : null,
+      isInternal: org.is_internal,
+      features: { ...fallback.features, ...org.features },
+    };
+  } catch (err) {
+    console.error("[pms] sessionInfo org lookup:", err instanceof Error ? err.message : err);
+    return fallback;
+  }
 }
 
 export async function handlePmsApi(request: Request): Promise<Response> {
@@ -2460,6 +2458,15 @@ export async function handlePmsApi(request: Request): Promise<Response> {
   if (path === "logout" && request.method === "POST") {
     return json({ success: true }, 200, { "Set-Cookie": clearPmsSessionCookie(request) });
   }
+  // Public self-serve signup — no session exists yet, same as login/logout
+  // above. The task's own naming was /api/auth/signup; this codebase has one
+  // dispatcher for everything PMS-related, so it lives here as auth/signup
+  // and auth/check-property-code instead of a separate route group.
+  if (path.startsWith("auth/")) {
+    const pmsDb = getPmsDb();
+    if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+    return handleSignupApi(path.slice(5), request, pmsDb);
+  }
   let actor: Actor | null;
   try {
     actor = await resolveActor(request);
@@ -2469,7 +2476,7 @@ export async function handlePmsApi(request: Request): Promise<Response> {
   }
   if (path === "session")
     return actor
-      ? json({ ok: true, user: sessionInfo(actor) })
+      ? json({ ok: true, user: await sessionInfo(actor) })
       : json({ error: "Not authenticated" }, 401);
   // The one route a signed, booking-scoped token can satisfy without a PMS
   // session at all — see pms-voucher-link.server.ts for why this exists.
@@ -2496,6 +2503,36 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     (need === "admin" ? !isAdmin(actor) : need !== "any" && !canAnyTab(actor, need))
   )
     return json({ error: "You do not have permission to do this" }, 403);
+
+  // Centralized subscription + feature-flag guard — every authenticated
+  // /api/pms/* request (POS included: this codebase has no separate
+  // /api/pos/*, it's /api/pms/pos/* through this same dispatcher) passes
+  // through here before reaching any route-specific handler. assertSubscriptionActive
+  // itself bypasses instantly for actor.isOwner and the internal org, so this
+  // is a no-op for every login that existed before Phase 4 signup.
+  const pmsDbForGate = getPmsDb();
+  if (pmsDbForGate) {
+    const subscription = await assertSubscriptionActive(pmsDbForGate, actor.organizationId, {
+      isOwner: actor.isOwner,
+      isWrite: request.method !== "GET",
+    });
+    if (!subscription.ok) {
+      const { ok: _ok, status, ...rest } = subscription;
+      return json(rest, status);
+    }
+    if (path.startsWith("pos/")) {
+      const feature = await assertFeatureEnabled(
+        pmsDbForGate,
+        actor.organizationId,
+        "pos_enabled",
+        "Restaurant POS",
+      );
+      if (!feature.ok) {
+        const { ok: _ok, status, ...rest } = feature;
+        return json(rest, status);
+      }
+    }
+  }
 
   const sql = getWebDb();
   try {
@@ -2544,7 +2581,7 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     if (path === "budgets" && request.method === "POST") return await saveBudget(request, actor);
     if (!sql) return json({ error: "Database not configured" }, 500);
     if (path === "bookings" && request.method === "GET") {
-      const all = await listBookings(sql, getTenantId(request));
+      const all = await listBookings(sql, getTenantId(request, actor));
       const slugs = new Set(allowedSlugs(actor));
       return json({
         bookings: isAllProps(actor) ? all : all.filter((b) => slugs.has(b.property_id)),

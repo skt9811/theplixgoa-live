@@ -318,6 +318,30 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
         SELECT 'org_plix_internal', id, CASE WHEN role = 'admin' THEN 'admin' ELSE 'staff' END
         FROM pms_users
         ON CONFLICT (organization_id, user_id) DO NOTHING`;
+      // Phase 4 (public signup — pms-signup.server.ts): REAL dynamically
+      // created properties for a self-serve tenant. This is new ground, not
+      // a stand-in for PROPERTIES (src/lib/plix.ts) — the 10 real Plix
+      // villas/hotels stay exactly as they are, read from that static array
+      // everywhere they always have been (booking creation, rates,
+      // inventory, the public website, POS). Nothing already shipped reads
+      // this table; it exists so a brand-new tenant's signup has somewhere
+      // real to land. See pms-signup.server.ts's own header for the
+      // deliberate, disclosed gap this leaves (a new tenant's property isn't
+      // yet recognized by the existing booking-creation validation, which
+      // still only knows the static array).
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_properties (
+          id text PRIMARY KEY,
+          organization_id text NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+          name text NOT NULL,
+          code text NOT NULL,
+          property_type text NOT NULL DEFAULT 'hotel',
+          total_rooms integer NOT NULL DEFAULT 1,
+          is_active boolean NOT NULL DEFAULT true,
+          created_at timestamptz DEFAULT now()
+        )`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_properties_code_key ON pms_properties (upper(code))`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_pms_properties_org_id ON pms_properties (organization_id)`;
     })().catch((err) => {
       accessReady = null;
       throw err;

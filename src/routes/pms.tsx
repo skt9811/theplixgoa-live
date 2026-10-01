@@ -122,8 +122,24 @@ function PmsLayout() {
 
   const logout = useCallback(async () => {
     await pms("logout", { method: "POST" }).catch(() => undefined);
-    void navigate({ to: "/pms/login" });
-  }, [navigate]);
+    // Drop the in-memory session immediately, before anything else — a
+    // stale `user` would let PmsShell/Outlet render authed content for one
+    // more tick even after the cookie is gone.
+    setUser(null);
+    try {
+      window.localStorage.removeItem(PROPERTY_KEY);
+    } catch {
+      // best-effort — the cookie clear above is what actually ends the session
+    }
+    // A hard navigation, not the SPA router: this clears every bit of JS
+    // memory state in one step, so there is nothing left for a backgrounded
+    // app to resume into. See MainActivity.java's onPause/onStop for the
+    // other half of this fix (the Android WebView's on-disk cookie jar can
+    // lag an in-memory Set-Cookie clear by several seconds — a force-close
+    // from the task switcher right after logout could resurrect the old
+    // cookie from disk before Android ever flushed the deletion).
+    window.location.assign("/pms/login");
+  }, []);
 
   const needTab = tabForPath(pathname);
   const posDenied = user !== null && needTab === "pos" && !user.tabs.includes("pos");

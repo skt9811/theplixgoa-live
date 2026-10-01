@@ -5,7 +5,7 @@ import { Building2, Eye, EyeOff, Lock, User } from "lucide-react";
 import { pms, PMS_PROPERTY_STORAGE_KEY } from "@/lib/pms-client";
 import { pmsHead, usePmsBrandedHead } from "@/components/pms/pms-head";
 import { PmsEmblem } from "@/components/pms/pms-emblem";
-import { slugForPropertyCode } from "@/components/pms/property-selector";
+import { slugForPropertyCode } from "@/lib/property-codes";
 import { hidePmsSplash } from "@/lib/pms-splash";
 
 export const Route = createFileRoute("/pms_/login")({
@@ -82,16 +82,24 @@ function PmsLogin() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!propertyCode.trim()) {
+      setError("Property Code is required.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       await pms("login", {
         method: "POST",
-        body: JSON.stringify(ownerMode ? { password } : { identifier, pin: password }),
+        body: JSON.stringify({
+          ...(ownerMode ? { password } : { identifier, pin: password }),
+          propertyCode: propertyCode.trim(),
+        }),
       });
-      // Optional, non-gating: a recognized Property Code just pre-selects
-      // the dashboard's property scope — see slugForPropertyCode's own note
-      // on why this never affects authentication itself.
+      // The server already validated this code resolves to a real property
+      // this account can access (handleLogin, pms-api.server.ts) — this just
+      // carries that same resolved property into the dashboard's own scope
+      // state, the same mechanism PropertySelector itself writes to.
       const slug = slugForPropertyCode(propertyCode);
       if (slug) {
         try {
@@ -198,24 +206,35 @@ function PmsLogin() {
               )}
             </button>
           </label>
-          <label className={fieldWrap}>
-            <Building2 className="size-4 shrink-0 text-slate-400" aria-hidden />
-            <input
-              type="text"
-              value={propertyCode}
-              onChange={(e) => setPropertyCode(e.target.value)}
-              autoComplete="off"
-              placeholder="Property Code (optional)"
-              aria-label="Property code, optional"
-              className={`${fieldInput} uppercase placeholder:normal-case`}
-            />
-          </label>
+          <div className="grid gap-1">
+            <span className="text-xs font-semibold text-slate-500">
+              Property Code <span className="text-red-600">*</span>
+            </span>
+            <label className={fieldWrap}>
+              <Building2 className="size-4 shrink-0 text-slate-400" aria-hidden />
+              <input
+                type="text"
+                required
+                value={propertyCode}
+                onChange={(e) => {
+                  setPropertyCode(e.target.value);
+                  if (error === "Property Code is required.") setError(null);
+                }}
+                autoComplete="off"
+                placeholder="Enter property code (e.g. VIVENDA, HARBOR)"
+                aria-label="Property code, required"
+                className={`${fieldInput} uppercase placeholder:normal-case`}
+              />
+            </label>
+          </div>
 
           {error && <p className="text-sm font-medium text-red-600">{error}</p>}
 
           <button
             type="submit"
-            disabled={busy || !password || (!ownerMode && !identifier.trim())}
+            disabled={
+              busy || !password || !propertyCode.trim() || (!ownerMode && !identifier.trim())
+            }
             className="mt-1.5 w-full rounded-xl bg-blue-700 px-4 py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-700/15 transition-colors active:scale-[0.99] disabled:opacity-50 hover:bg-blue-800"
           >
             {busy ? "Signing in..." : "Sign In"}

@@ -17,35 +17,6 @@ export function propertyDisplayName(slug: string): string {
   );
 }
 
-// Short memorable codes for the login screen's optional "Property Code"
-// field — a pure UX convenience (pre-selects the dashboard's property scope,
-// same as picking it from PropertySelector) and NOT an access boundary: an
-// unrecognized or blank code never blocks sign-in, and this never reaches
-// the server. There is exactly one organization in this codebase today (see
-// tenant-context.server.ts) — these codes identify a PROPERTY within it, not
-// a separate tenant.
-const PROPERTY_CODES: Record<string, string> = {
-  HARBOR: "harbor-court",
-  MORJIM: "morjim-pride",
-  MORJIMRESORT: "the-plix-resort-morjim",
-  CHICO: "vivenda-chico",
-  MARINA: "casa-marina",
-  MOANA: "casa-moana",
-  MEADOWS: "casa-meadows",
-  PLIXVILLA: "the-plix-villa",
-  MADERA: "villa-madera",
-  SERENITA: "casa-serenita",
-};
-
-export function slugForPropertyCode(code: string): string | null {
-  const key = code
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z]/g, "");
-  if (!key) return null;
-  return PROPERTY_CODES[key] ?? null;
-}
-
 // Desktop: dropdown under the trigger. Mobile: bottom sheet that slides up
 // and closes as soon as a property is picked. Same list either way.
 export function PropertySelector() {

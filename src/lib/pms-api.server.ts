@@ -21,6 +21,7 @@ import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
 import { ensureExpensesSchema, ensureInvoicesSchema } from "@/lib/pms-schema.server";
 import { DEFAULT_ORG_ID, getTenantId } from "@/lib/tenant-context.server";
 import { assertSubscriptionActive } from "@/lib/pms-billing.server";
+import { slugForPropertyCode } from "@/lib/property-codes";
 import {
   COLOR_PALETTE,
   HEX_COLOR,
@@ -190,6 +191,18 @@ async function handleLogin(request: Request): Promise<Response> {
   const identifier =
     typeof body["identifier"] === "string" ? (body["identifier"] as string).trim() : "";
   const pin = typeof body["pin"] === "string" ? (body["pin"] as string) : "";
+  const propertyCodeRaw =
+    typeof body["propertyCode"] === "string" ? (body["propertyCode"] as string) : "";
+
+  // Property Code is mandatory for every login, staff and owner alike — it
+  // identifies which property the session is for (see property-codes.ts).
+  if (!propertyCodeRaw.trim()) {
+    return json({ error: "Property code is required" }, 400);
+  }
+  const propertySlug = slugForPropertyCode(propertyCodeRaw);
+  if (!propertySlug) {
+    return json({ error: "Enter a valid property code" }, 400);
+  }
 
   // Staff sign in with their name, phone or email and a 4 to 6 digit PIN.
   if (identifier || pin) {
@@ -202,8 +215,12 @@ async function handleLogin(request: Request): Promise<Response> {
       recordLoginAttempt(request, false);
       return json({ error: result.error }, result.status);
     }
+    if (!canProperty(result.actor, propertySlug)) {
+      recordLoginAttempt(request, false);
+      return json({ error: "You do not have access to this property" }, 403);
+    }
     recordLoginAttempt(request, true);
-    await audit(result.actor, "LOGIN", "setting", "session", { via: "pin" });
+    await audit(result.actor, "LOGIN", "setting", "session", { via: "pin", propertySlug });
     return json({ success: true }, 200, {
       "Set-Cookie": await buildPmsSessionCookie(request, result.actor.id),
     });

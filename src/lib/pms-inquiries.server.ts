@@ -728,6 +728,11 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
         inquiryId: id,
         source: "airbnb",
         url: `/pms/inquiries?id=${id}`,
+        // Lets a tap on this notification jump straight into that host's
+        // own logged-in Airbnb Space (pms-push.ts) instead of only landing
+        // on the Inquiries list — "" (not omitted) when the recipient inbox
+        // has no mapped name, which the client treats as "no host match".
+        hostName: getHostDisplayName(recipientEmail) ?? "",
       },
     });
   }

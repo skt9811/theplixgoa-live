@@ -6,6 +6,7 @@
 import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import { pms } from "@/lib/pms-client";
+import { createSpaceForHost, findSpaceByHostName, INBOX_URL, nativeAirbnbHost, openSpaceUrl } from "@/lib/airbnb-spaces";
 
 export type PmsPushNav = { to: string; search?: Record<string, string> };
 
@@ -25,6 +26,29 @@ function resolveDeepLink(data: Record<string, string>): PmsPushNav | null {
     return { to: to || "/pms", search };
   }
   return null;
+}
+
+/**
+ * An Airbnb inquiry push names which host inbox it's for (hostName, from
+ * pms-host-names.ts's HOST_NAME_MAP — see pms-inquiries.server.ts). When
+ * that matches (or can be turned into) one of this device's own Airbnb
+ * Spaces, tapping the notification should land straight inside that host's
+ * own logged-in inbox instead of just the Inquiries list — this is the
+ * whole reason the Spaces grid tracks a name per tile at all. Returns true
+ * when it handled the tap (caller should NOT also call resolveDeepLink/
+ * onNavigate); false for every other notification type, or if there's no
+ * native Airbnb Space screen to hand off to at all (an app build older
+ * than that feature) — falls through to the normal in-app navigation.
+ */
+async function tryOpenAirbnbSpaceForNotification(data: Record<string, string>): Promise<boolean> {
+  if (data["type"] !== "airbnb_inquiry") return false;
+  const hostName = data["hostName"];
+  if (!hostName || !nativeAirbnbHost()) return false;
+  const space = findSpaceByHostName(hostName) ?? createSpaceForHost(hostName);
+  // openSpaceUrl never rejects (it falls back to the system browser
+  // internally on any native failure) — this always counts as "handled".
+  await openSpaceUrl(space, INBOX_URL);
+  return true;
 }
 
 // Android deliberately suppresses the system heads-up banner/sound for a
@@ -138,8 +162,11 @@ export async function setupPmsPushNotifications(
 
     await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
       const data = (action.notification.data ?? {}) as Record<string, string>;
-      const nav = resolveDeepLink(data);
-      if (nav) onNavigate(nav);
+      void tryOpenAirbnbSpaceForNotification(data).then((handled) => {
+        if (handled) return;
+        const nav = resolveDeepLink(data);
+        if (nav) onNavigate(nav);
+      });
     });
 
     // Tapping the local (foreground-banner) notification is a separate event
@@ -148,8 +175,11 @@ export async function setupPmsPushNotifications(
       const { LocalNotifications } = await import("@capacitor/local-notifications");
       await LocalNotifications.addListener("localNotificationActionPerformed", (action) => {
         const data = (action.notification.extra ?? {}) as Record<string, string>;
-        const nav = resolveDeepLink(data);
-        if (nav) onNavigate(nav);
+        void tryOpenAirbnbSpaceForNotification(data).then((handled) => {
+          if (handled) return;
+          const nav = resolveDeepLink(data);
+          if (nav) onNavigate(nav);
+        });
       });
     } catch {
       // Local notifications are a foreground nicety, not required for setup to succeed.

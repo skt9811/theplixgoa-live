@@ -22,90 +22,20 @@ import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import { ArrowLeft, Calendar, Home, Inbox, MoreVertical, Plus, X } from "lucide-react";
 import { useBackDismiss } from "@/lib/pms-back-stack";
+import {
+  CALENDAR_URL,
+  HOSTING_URL,
+  INBOX_URL,
+  loadSpaces,
+  newId,
+  openSpaceUrl,
+  saveSpaces,
+  type AirbnbSpaceInstance,
+} from "@/lib/airbnb-spaces";
 
-export type AirbnbSpaceInstance = {
-  id: string;
-  indexNumber: number;
-  name: string;
-  createdAt: number;
-  /** Reserved for when real per-instance cookie isolation is built (a
-   * native WebView data-directory suffix) — unused today, every space
-   * shares the one system browser session. Kept in the stored shape now so
-   * that future change doesn't need a data migration. */
-  partitionKey: string;
-};
+export type { AirbnbSpaceInstance } from "@/lib/airbnb-spaces";
 
-const STORAGE_KEY = "plix_pms_airbnb_spaces";
 const CORAL = "#FF385C";
-
-function newId(): string {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `space_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function seedDefaults(): AirbnbSpaceInstance[] {
-  const now = Date.now();
-  return [
-    { id: newId(), indexNumber: 1, name: "Rohit", createdAt: now, partitionKey: newId() },
-    { id: newId(), indexNumber: 2, name: "Abhishek", createdAt: now, partitionKey: newId() },
-  ];
-}
-
-function loadSpaces(): AirbnbSpaceInstance[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return seedDefaults();
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed) || parsed.length === 0) return seedDefaults();
-    return parsed as AirbnbSpaceInstance[];
-  } catch {
-    return seedDefaults();
-  }
-}
-
-function saveSpaces(spaces: AirbnbSpaceInstance[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(spaces));
-  } catch {
-    // localStorage full/unavailable — the grid still works for this
-    // session, it just won't persist across a restart.
-  }
-}
-
-const HOSTING_URL = "https://www.airbnb.com/hosting";
-const INBOX_URL = "https://www.airbnb.com/hosting/inbox";
-const CALENDAR_URL = "https://www.airbnb.com/multicalendar";
-
-type NativeAirbnbHostPlugin = {
-  openSpace(opts: { spaceId: string; spaceName: string; url: string }): Promise<{ launched: boolean }>;
-};
-
-/** Same access pattern pms-pos-print.ts's nativePrinter() uses for PosPrinterPlugin — null in the browser or an app build older than this plugin. */
-function nativeAirbnbHost(): NativeAirbnbHostPlugin | null {
-  if (!Capacitor.isNativePlatform()) return null;
-  const plugins = (Capacitor as unknown as { Plugins?: Record<string, NativeAirbnbHostPlugin> }).Plugins;
-  return plugins?.["AirbnbHost"] ?? null;
-}
-
-/** spaceId is the space's own partitionKey, not its id — that's the field AirbnbHostActivity keys its (best-effort) per-Space cookie profile on. */
-async function openSpaceUrl(space: AirbnbSpaceInstance, url: string): Promise<void> {
-  const plugin = nativeAirbnbHost();
-  if (plugin) {
-    try {
-      await plugin.openSpace({ spaceId: space.partitionKey, spaceName: space.name, url });
-      return;
-    } catch (err) {
-      console.warn("[airbnb-spaces] native openSpace failed, falling back to system browser:", err);
-    }
-  }
-  // Same convention pms-native-file.ts's openVoucherInSystemBrowser uses —
-  // "_system" is what actually leaves the Capacitor WebView for the real
-  // system browser on Android; a plain "_blank" would try (and fail) to
-  // open a new tab inside the app's own WebView instead. Also the only
-  // path at all in a plain browser.
-  window.open(url, "_system");
-}
 
 export function AirbnbSpacesView() {
   // Loaded in an effect, not a useState lazy initializer — this route is

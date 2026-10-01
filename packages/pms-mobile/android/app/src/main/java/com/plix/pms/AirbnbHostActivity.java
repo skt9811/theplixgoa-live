@@ -5,7 +5,9 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
@@ -13,6 +15,10 @@ import android.webkit.WebViewClient;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.webkit.ProfileStore;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
@@ -45,6 +51,8 @@ public class AirbnbHostActivity extends Activity {
     public static final String EXTRA_SPACE_ID = "extra_space_id";
     public static final String EXTRA_SPACE_NAME = "extra_space_name";
     private static final String DEFAULT_URL = "https://www.airbnb.com/hosting";
+    private static final String INBOX_URL = "https://www.airbnb.com/hosting/inbox";
+    private static final String CALENDAR_URL = "https://www.airbnb.com/multicalendar";
     // No "; wv" WebView marker, no app package token — Airbnb's own
     // client-side code also uses the UA to decide whether to show its
     // "open in the app" interstitial, a second path to the same hijack
@@ -57,6 +65,13 @@ public class AirbnbHostActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Draws edge-to-edge and hands the status-bar/nav-bar insets to the
+        // listeners below instead of letting the OS pick where content
+        // starts — without this, Android 15+ (API 35, this app's own
+        // targetSdk) enforces edge-to-edge by default, which is exactly
+        // what put the toolbar's text under the status bar/clock/battery
+        // icons before this fix.
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
         String url = getIntent().getStringExtra(EXTRA_URL);
         if (TextUtils.isEmpty(url)) url = DEFAULT_URL;
@@ -66,8 +81,11 @@ public class AirbnbHostActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(Color.WHITE);
         root.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        root.addView(buildHeader(spaceName));
+
+        LinearLayout header = buildHeader(spaceName);
+        root.addView(header);
 
         webView = new WebView(this);
         // setProfile (when supported) must be the very first call made on a
@@ -109,6 +127,19 @@ public class AirbnbHostActivity extends Activity {
         webView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         root.addView(webView);
 
+        // Status bar inset becomes top padding on the header (its colored
+        // background still extends up behind the status bar; only its
+        // content — back arrow/title/icons — moves below the clock/battery
+        // icons). Bottom inset (gesture nav bar / 3-button bar) becomes
+        // padding on the WebView so the page content isn't drawn under it
+        // either.
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            header.setPadding(header.getPaddingLeft(), bars.top, header.getPaddingRight(), header.getPaddingBottom());
+            webView.setPadding(webView.getPaddingLeft(), webView.getPaddingTop(), webView.getPaddingRight(), bars.bottom);
+            return insets;
+        });
+
         setContentView(root);
         webView.loadUrl(url);
     }
@@ -117,50 +148,64 @@ public class AirbnbHostActivity extends Activity {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setBackgroundColor(Color.parseColor("#0E231D"));
-        int pad = dp(10);
-        header.setPadding(pad, pad, pad, pad);
-        header.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        header.setBackgroundColor(Color.parseColor("#0E231D")); // pms_midnight_emerald, same brand color as the launch splash
+        int sidePad = dp(4);
+        header.setPadding(sidePad, 0, sidePad, 0);
+        // 56dp content height (the window-insets listener above adds the
+        // status bar's own height as extra top padding on top of this).
+        header.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)));
 
-        TextView back = textButton("←"); // ←
-        back.setOnClickListener(v -> finish());
-        header.addView(back);
+        header.addView(iconButton("←", "Back", v -> finish())); // ←
+
+        LinearLayout titleBlock = new LinearLayout(this);
+        titleBlock.setOrientation(LinearLayout.VERTICAL);
+        titleBlock.setGravity(Gravity.CENTER_VERTICAL);
+        titleBlock.setPadding(dp(4), 0, dp(4), 0);
+        titleBlock.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView title = new TextView(this);
-        title.setText(spaceName + " - Hosting");
+        title.setText(spaceName);
         title.setTextColor(Color.WHITE);
-        title.setTextSize(15);
-        title.setPadding(dp(8), 0, dp(8), 0);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
         title.setSingleLine(true);
         title.setEllipsize(TextUtils.TruncateAt.END);
-        title.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        header.addView(title);
+        titleBlock.addView(title);
 
-        TextView inbox = textButton("Inbox");
-        inbox.setOnClickListener(v -> webView.loadUrl("https://www.airbnb.com/hosting/inbox"));
-        header.addView(inbox);
+        TextView subtitle = new TextView(this);
+        subtitle.setText("Airbnb Host Dashboard");
+        subtitle.setTextColor(Color.parseColor("#9CA3AF"));
+        subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        subtitle.setSingleLine(true);
+        titleBlock.addView(subtitle);
 
-        TextView calendar = textButton("Calendar");
-        calendar.setOnClickListener(v -> webView.loadUrl("https://www.airbnb.com/multicalendar"));
-        header.addView(calendar);
+        header.addView(titleBlock);
 
-        TextView refresh = textButton("↻"); // ↻
-        refresh.setOnClickListener(v -> webView.reload());
-        header.addView(refresh);
+        header.addView(iconButton("✉", "Inbox", v -> webView.loadUrl(INBOX_URL))); // ✉
+        header.addView(iconButton("📅", "Calendar", v -> webView.loadUrl(CALENDAR_URL))); // 📅
+        header.addView(iconButton("↻", "Refresh", v -> webView.reload())); // ↻
 
         return header;
     }
 
-    private TextView textButton(String label) {
+    /** A square, min-48dp touch target with a borderless ripple — not raw unstyled text crammed against its neighbors. */
+    private TextView iconButton(String label, String contentDescription, View.OnClickListener onClick) {
         TextView tv = new TextView(this);
         tv.setText(label);
+        tv.setContentDescription(contentDescription);
         tv.setTextColor(Color.WHITE);
-        tv.setTextSize(13);
-        int padH = dp(8);
-        int padV = dp(6);
-        tv.setPadding(padH, padV, padH, padV);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        tv.setGravity(Gravity.CENTER);
+        int size = dp(48);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
+        params.setMargins(dp(2), dp(4), dp(2), dp(4));
+        tv.setLayoutParams(params);
+        TypedValue ripple = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true);
+        tv.setBackgroundResource(ripple.resourceId);
         tv.setClickable(true);
         tv.setFocusable(true);
+        tv.setOnClickListener(onClick);
         return tv;
     }
 

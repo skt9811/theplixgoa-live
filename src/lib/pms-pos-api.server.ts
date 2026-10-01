@@ -214,7 +214,7 @@ async function ownedOrder(sql: Sql, actor: Actor, orderId: string): Promise<Orde
     OrderRow[]
   >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held, legacy_bill_no FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
-  requireProperty(actor, o.property_id);
+  await requireProperty(sql, actor, o.property_id);
   return o;
 }
 
@@ -242,7 +242,7 @@ async function restoreStock(sql: Sql, orderId: string, lineId?: string) {
 
 async function getState(url: URL, actor: Actor, sql: Sql, tenantId: string) {
   const property = str(url.searchParams.get("property"));
-  requireProperty(actor, property);
+  await requireProperty(sql, actor, property);
   await seedProperty(sql, property);
   await seedConfig(sql, property);
   const [tables, categories, items, config] = await Promise.all([
@@ -282,7 +282,7 @@ async function getState(url: URL, actor: Actor, sql: Sql, tenantId: string) {
 async function saveOrder(request: Request, actor: Actor, sql: Sql, station: string) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const property = str(body["property"]);
-  requireProperty(actor, property);
+  await requireProperty(sql, actor, property);
   const tenantId = getTenantId(request, actor);
   const guest = (body["guest"] ?? {}) as Record<string, unknown>;
   const drafts = Array.isArray(body["drafts"]) ? (body["drafts"] as Record<string, unknown>[]) : [];
@@ -837,7 +837,7 @@ async function settle(request: Request, actor: Actor, sql: Sql, station: string)
 async function menuApi(request: Request, actor: Actor, sql: Sql, station: string) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const property = str(body["property"]);
-  requireProperty(actor, property);
+  await requireProperty(sql, actor, property);
   const tenantId = getTenantId(request, actor);
   const entity = str(body["entity"]);
   const del = body["action"] === "delete";
@@ -970,7 +970,7 @@ async function reports(url: URL, actor: Actor, sql: Sql) {
   let slugs: string[];
   if (property === "all") slugs = isAllProps(actor) ? PROPERTIES.map((p) => p.slug) : actor.props;
   else {
-    requireProperty(actor, property);
+    await requireProperty(sql, actor, property);
     slugs = [property];
   }
   // Report dates are IST calendar days of when the bill was settled/opened.
@@ -1060,7 +1060,7 @@ export async function handlePosApi(
     if (sub === "reports" && request.method === "GET") return await reports(url, actor, sql);
     if (sub === "guest-history" && request.method === "GET") {
       const property = str(url.searchParams.get("property"));
-      requireProperty(actor, property);
+      await requireProperty(sql, actor, property);
       const phone = str(url.searchParams.get("phone"));
       if (phone.length < 6) return json({ orders: [] });
       const orders =

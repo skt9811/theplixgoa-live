@@ -1,7 +1,7 @@
 // Server-only helpers shared by the POS API modules.
 import type postgres from "postgres";
-import { PROPERTIES } from "@/lib/plix";
 import { canProperty, type Actor } from "@/lib/pms-users.server";
+import { isBookablePropertyForOrg } from "@/lib/tenant-context.server";
 
 export type Sql = ReturnType<typeof postgres>;
 
@@ -18,8 +18,16 @@ export class PosError extends Error {
   }
 }
 
-export function requireProperty(actor: Actor, slug: string) {
-  if (!PROPERTIES.some((p) => p.slug === slug)) throw new PosError("Choose a property first");
+// `sql` must be the PMS database connection (NEON_PMS_DATABASE_URL) — every
+// caller in this module already holds it for that reason. Static Plix
+// properties resolve without a query (isBookablePropertyForOrg short-circuits
+// on PROPERTIES); a Phase-4/6 tenant's own property is checked against
+// pms_properties, scoped to their organization — this used to only ever
+// accept the 10 static slugs, which silently broke the whole POS ("Choose a
+// property first") for every dynamically signed-up tenant.
+export async function requireProperty(sql: Sql, actor: Actor, slug: string) {
+  if (!(await isBookablePropertyForOrg(sql, slug, actor.organizationId)))
+    throw new PosError("Choose a property first");
   if (!canProperty(actor, slug)) throw new PosError("You do not have access to this property", 403);
 }
 

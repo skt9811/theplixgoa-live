@@ -109,7 +109,7 @@ export async function handleConfigApi(sub: string, request: Request, actor: Acto
   const kind = sub.slice(7);
   const b = await body(request);
   const property = str(b["property"]);
-  requireProperty(actor, property);
+  await requireProperty(sql, actor, property);
   requireManager(actor);
   const id = str(b["id"]);
   const del = b["action"] === "delete";

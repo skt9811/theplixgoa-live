@@ -72,7 +72,7 @@ export async function handlePosAdminApi(
   // ---- customers ----
   if (sub === "customers") {
     if (get) {
-      requireProperty(actor, propertyQ);
+      await requireProperty(sql, actor, propertyQ);
       const q = `%${str(url.searchParams.get("q")).toLowerCase()}%`;
       const rows =
         await sql`SELECT id, name, mobile, persons, is_commercial, address_type, address, city, zipcode, created_at FROM pms_pos_customers
@@ -81,7 +81,7 @@ export async function handlePosAdminApi(
     }
     const b = await body(request);
     const property = str(b["property"]);
-    requireProperty(actor, property);
+    await requireProperty(sql, actor, property);
     const id = str(b["id"]);
     if (b["action"] === "delete") {
       requireManager(actor);
@@ -122,7 +122,7 @@ export async function handlePosAdminApi(
   // ---- security groups ----
   if (sub === "groups") {
     if (get) {
-      requireProperty(actor, propertyQ);
+      await requireProperty(sql, actor, propertyQ);
       await ensureGroups(sql, propertyQ);
       return json({
         groups:
@@ -132,7 +132,7 @@ export async function handlePosAdminApi(
     }
     const b = await body(request);
     const property = str(b["property"]);
-    requireProperty(actor, property);
+    await requireProperty(sql, actor, property);
     requireManager(actor);
     const id = str(b["id"]);
     if (b["action"] === "delete") {
@@ -179,7 +179,7 @@ export async function handlePosAdminApi(
   // ---- employees ----
   if (sub === "employees") {
     if (get) {
-      requireProperty(actor, propertyQ);
+      await requireProperty(sql, actor, propertyQ);
       requireManager(actor);
       return json({
         employees:
@@ -188,7 +188,7 @@ export async function handlePosAdminApi(
     }
     const b = await body(request);
     const property = str(b["property"]);
-    requireProperty(actor, property);
+    await requireProperty(sql, actor, property);
     requireManager(actor);
     const id = str(b["id"]);
     if (b["action"] === "delete") {
@@ -239,7 +239,7 @@ export async function handlePosAdminApi(
 
   // ---- POS invoice register ----
   if (sub === "invoices" && get) {
-    requireProperty(actor, propertyQ);
+    await requireProperty(sql, actor, propertyQ);
     const { from, to } = range(url);
     const type = ["dine_in", "room_service"].includes(str(url.searchParams.get("type")))
       ? str(url.searchParams.get("type"))
@@ -255,7 +255,7 @@ export async function handlePosAdminApi(
   // ---- shift income & expense (shares the master expenses ledger) ----
   if (sub === "cashbook") {
     if (get) {
-      requireProperty(actor, propertyQ);
+      await requireProperty(sql, actor, propertyQ);
       const { from, to } = range(url);
       const rows =
         await sql`SELECT id, type, category, amount::float AS amount, payment_mode, vendor_name AS note, expense_date::text AS date, "time"::text AS time FROM expenses
@@ -270,7 +270,7 @@ export async function handlePosAdminApi(
     }
     const b = await body(request);
     const property = str(b["property"]);
-    requireProperty(actor, property);
+    await requireProperty(sql, actor, property);
     requireManager(actor);
     if (b["action"] === "delete") {
       await sql`DELETE FROM expenses WHERE id = ${str(b["id"])}::uuid AND property_id = ${property} AND 'pos' = ANY(tags)`;
@@ -304,7 +304,7 @@ export async function handlePosAdminApi(
 
   // ---- activity log ----
   if (sub === "logs" && get) {
-    requireProperty(actor, propertyQ);
+    await requireProperty(sql, actor, propertyQ);
     requireManager(actor);
     const { from, to } = range(url);
     const user = str(url.searchParams.get("user"));
@@ -321,7 +321,7 @@ export async function handlePosAdminApi(
   if (sub === "menu-import" && request.method === "POST") {
     const b = await body(request);
     const property = str(b["property"]);
-    requireProperty(actor, property);
+    await requireProperty(sql, actor, property);
     requireManager(actor);
     const cats = Array.isArray(b["categories"])
       ? (b["categories"] as Record<string, unknown>[])

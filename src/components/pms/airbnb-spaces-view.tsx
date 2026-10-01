@@ -5,15 +5,20 @@
 // booking/POS/inquiry data or route, and nothing is synced to the server —
 // nothing a device wipe/reinstall couldn't just re-seed from scratch.
 //
-// IMPORTANT — this does NOT give each space its own isolated cookie jar.
-// True per-account session isolation (what the cloner apps actually do)
-// needs Android's native WebView.setDataDirectorySuffix() API, which means
-// a custom Capacitor plugin — real native Android work this component
-// can't do on its own. Every tile opens the same shared system browser,
-// exactly like opening regular browser tabs: logging into one Airbnb
-// account there still logs out whichever one was active before. The UI
-// says this plainly rather than implying isolation that isn't real.
+// In the Android app, opening a Space hands off to AirbnbHostActivity (a
+// native full-screen WebView, via AirbnbHostPlugin) instead of the system
+// browser — that's what actually stops Android's WebView/browser from
+// handing airbnb.com navigation off to the installed Airbnb app through its
+// registered App Links, and what gives each Space its own cookie jar
+// (androidx.webkit Profile, keyed by the space's own partitionKey) on
+// devices whose WebView provider supports it — not guaranteed on every
+// device, so AirbnbHostActivity falls back to one shared profile rather
+// than crashing where it isn't. In a plain browser (or an app build older
+// than this plugin), there's no such native screen to hand off to, so it
+// falls back to the system browser — normal browser-tab behavior, no
+// isolation, same as before.
 import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import { ArrowLeft, Calendar, Home, Inbox, MoreVertical, Plus, X } from "lucide-react";
 import { useBackDismiss } from "@/lib/pms-back-stack";
@@ -72,11 +77,33 @@ const HOSTING_URL = "https://www.airbnb.com/hosting";
 const INBOX_URL = "https://www.airbnb.com/hosting/inbox";
 const CALENDAR_URL = "https://www.airbnb.com/multicalendar";
 
-function openExternal(url: string): void {
+type NativeAirbnbHostPlugin = {
+  openSpace(opts: { spaceId: string; spaceName: string; url: string }): Promise<{ launched: boolean }>;
+};
+
+/** Same access pattern pms-pos-print.ts's nativePrinter() uses for PosPrinterPlugin — null in the browser or an app build older than this plugin. */
+function nativeAirbnbHost(): NativeAirbnbHostPlugin | null {
+  if (!Capacitor.isNativePlatform()) return null;
+  const plugins = (Capacitor as unknown as { Plugins?: Record<string, NativeAirbnbHostPlugin> }).Plugins;
+  return plugins?.["AirbnbHost"] ?? null;
+}
+
+/** spaceId is the space's own partitionKey, not its id — that's the field AirbnbHostActivity keys its (best-effort) per-Space cookie profile on. */
+async function openSpaceUrl(space: AirbnbSpaceInstance, url: string): Promise<void> {
+  const plugin = nativeAirbnbHost();
+  if (plugin) {
+    try {
+      await plugin.openSpace({ spaceId: space.partitionKey, spaceName: space.name, url });
+      return;
+    } catch (err) {
+      console.warn("[airbnb-spaces] native openSpace failed, falling back to system browser:", err);
+    }
+  }
   // Same convention pms-native-file.ts's openVoucherInSystemBrowser uses —
   // "_system" is what actually leaves the Capacitor WebView for the real
   // system browser on Android; a plain "_blank" would try (and fail) to
-  // open a new tab inside the app's own WebView instead.
+  // open a new tab inside the app's own WebView instead. Also the only
+  // path at all in a plain browser.
   window.open(url, "_system");
 }
 
@@ -136,12 +163,21 @@ export function AirbnbSpacesView() {
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 text-white shadow-sm">
         <h1 className="text-xl font-bold">Airbnb Host Spaces</h1>
         <p className="mt-1 text-sm text-slate-400">
-          Quick launchers for each Airbnb host login — tap a tile to open it in your browser.
+          Quick launchers for each Airbnb host login — tap a tile to open it.
         </p>
-        <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-          These all share one browser session, same as regular browser tabs — logging into one
-          account logs out whichever was open before. Not isolated like a cloner app (yet).
-        </p>
+        {Capacitor.isNativePlatform() ? (
+          <p className="mt-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+            Opens in a dedicated in-app screen, not the Airbnb app. Each Space gets its own login
+            kept separate when your device's WebView supports it — on an older device they may
+            still share one session.
+          </p>
+        ) : (
+          <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+            These all share one browser session, same as regular browser tabs — logging into one
+            account logs out whichever was open before. Isolated Spaces need the Plix PMS Android
+            app, not a browser.
+          </p>
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
@@ -365,14 +401,16 @@ function SpaceLauncher({ space, onClose }: { space: AirbnbSpaceInstance; onClose
           <p className="truncate text-sm font-bold">
             {space.name} (Airbnb #{space.indexNumber})
           </p>
-          <p className="text-xs text-slate-400">Opens in your browser — shared session, not isolated.</p>
+          <p className="text-xs text-slate-400">
+            {Capacitor.isNativePlatform() ? "Opens in an in-app screen, not the Airbnb app." : "Opens in your browser — shared session, not isolated."}
+          </p>
         </div>
       </div>
 
       <div className="mt-4 grid gap-2.5">
         <button
           type="button"
-          onClick={() => openExternal(HOSTING_URL)}
+          onClick={() => void openSpaceUrl(space, HOSTING_URL)}
           className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-50"
         >
           <span className="flex size-10 items-center justify-center rounded-xl text-white" style={{ backgroundColor: CORAL }}>
@@ -385,7 +423,7 @@ function SpaceLauncher({ space, onClose }: { space: AirbnbSpaceInstance; onClose
         </button>
         <button
           type="button"
-          onClick={() => openExternal(INBOX_URL)}
+          onClick={() => void openSpaceUrl(space, INBOX_URL)}
           className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-50"
         >
           <span className="flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
@@ -398,7 +436,7 @@ function SpaceLauncher({ space, onClose }: { space: AirbnbSpaceInstance; onClose
         </button>
         <button
           type="button"
-          onClick={() => openExternal(CALENDAR_URL)}
+          onClick={() => void openSpaceUrl(space, CALENDAR_URL)}
           className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-50"
         >
           <span className="flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">

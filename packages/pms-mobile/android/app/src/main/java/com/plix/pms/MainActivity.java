@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(PosPrinterPlugin.class);
+        registerPlugin(AirbnbHostPlugin.class);
         super.onCreate(savedInstanceState);
         // Cold start is dominated by the WebView re-fetching and re-parsing
         // theplixgoa.com/pms from scratch every launch (this app has no

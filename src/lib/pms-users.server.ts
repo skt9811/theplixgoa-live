@@ -5,6 +5,7 @@ import { PROPERTIES } from "@/lib/plix";
 import { getPmsDb } from "@/lib/pms-db.server";
 import { ensureAccessSchema } from "@/lib/pms-schema.server";
 import { getPmsSession } from "@/lib/pms-session.server";
+import { DEFAULT_ORG_ID } from "@/lib/tenant-context.server";
 
 export const TABS = [
   "dashboard",
@@ -27,6 +28,14 @@ export type Actor = {
   props: string[]; // slugs, or ["all"]
   tabs: string[];
   isOwner: boolean;
+  /** Phase 2 multi-tenant hierarchy (see pms-billing.server.ts) — which
+   * organization this login belongs to. Re-read from pms_users on every
+   * request by resolveActor, same as role/props/tabs, rather than cached in
+   * the session JWT — this codebase deliberately re-reads permissions fresh
+   * each request so a change takes effect within seconds (see resolveActor's
+   * own comment), and a stale org claim in a long-lived cookie would break
+   * that guarantee. */
+  organizationId: string;
 };
 
 export const OWNER: Actor = {
@@ -36,6 +45,7 @@ export const OWNER: Actor = {
   props: ["all"],
   tabs: [...TABS],
   isOwner: true,
+  organizationId: DEFAULT_ORG_ID,
 };
 
 const SLUGS = new Set(PROPERTIES.map((p) => p.slug));
@@ -78,6 +88,7 @@ type UserRow = {
   failed_attempts: number;
   locked_until: Date | null;
   pin_hash: string;
+  organization_id: string;
 };
 
 const toActor = (u: UserRow): Actor => ({
@@ -90,6 +101,7 @@ const toActor = (u: UserRow): Actor => ({
       ? [...(u.allowed_tabs ?? []), "pos"]
       : (u.allowed_tabs ?? []),
   isOwner: false,
+  organizationId: u.organization_id ?? DEFAULT_ORG_ID,
 });
 
 /** Checks the identifier (name, email or phone) and PIN. Locks the account after repeated failures. */

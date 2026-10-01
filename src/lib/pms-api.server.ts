@@ -20,6 +20,7 @@ import { notifyNewBooking } from "@/lib/push-notifications.server";
 import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
 import { ensureExpensesSchema, ensureInvoicesSchema } from "@/lib/pms-schema.server";
 import { DEFAULT_ORG_ID, getTenantId } from "@/lib/tenant-context.server";
+import { assertSubscriptionActive } from "@/lib/pms-billing.server";
 import {
   COLOR_PALETTE,
   HEX_COLOR,
@@ -43,7 +44,11 @@ import { buildStayVoucherPdf } from "@/lib/pms-voucher-pdf.server";
 import { defaultRoomCategory, voucherDetails } from "@/lib/pms-voucher-content";
 import { PMS_COMPANY } from "@/lib/pms-company";
 import { audit } from "@/lib/pms-audit.server";
-import { sendBookingAuditNotification, sendBookingNotification, registerStaffDevice } from "@/lib/pms-notifications.server";
+import {
+  sendBookingAuditNotification,
+  sendBookingNotification,
+  registerStaffDevice,
+} from "@/lib/pms-notifications.server";
 import {
   handleInquiryWebhook,
   listInquiries,
@@ -419,6 +424,14 @@ async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promis
 }
 
 async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<Response> {
+  // organizations lives in the PMS database (NEON_PMS_DATABASE_URL), never
+  // the web `sql` connection this function otherwise uses — see
+  // pms-billing.server.ts and pms-schema.server.ts's own file-header note.
+  const pmsDbForBilling = getPmsDb();
+  if (pmsDbForBilling) {
+    const subscription = await assertSubscriptionActive(pmsDbForBilling, actor.organizationId);
+    if (!subscription.ok) return json({ error: subscription.message }, subscription.status);
+  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -575,7 +588,8 @@ async function notifyBookingModified(
     );
   }
   if (before.status !== after.status) parts.push(`Status: ${before.status} → ${after.status}`);
-  if (before.guest_name !== after.guestName) parts.push(`Guest: ${before.guest_name} → ${after.guestName}`);
+  if (before.guest_name !== after.guestName)
+    parts.push(`Guest: ${before.guest_name} → ${after.guestName}`);
   if (parts.length === 0) return;
 
   const property = PROPERTIES.find((p) => p.slug === after.propertySlug);
@@ -594,6 +608,11 @@ async function notifyBookingModified(
 // payment-reconciliation implications well outside this form's scope, so it
 // is only ever cancellable (see cancelBooking), never edited.
 async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<Response> {
+  const pmsDbForBilling = getPmsDb();
+  if (pmsDbForBilling) {
+    const subscription = await assertSubscriptionActive(pmsDbForBilling, actor.organizationId);
+    if (!subscription.ok) return json({ error: subscription.message }, subscription.status);
+  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -787,7 +806,14 @@ async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<
 
   if (source === "manual") {
     const [existing] = await sql<
-      { property_id: string; guest_name: string; status: string; check_in: string; check_out: string; rooms_count: number | null }[]
+      {
+        property_id: string;
+        guest_name: string;
+        status: string;
+        check_in: string;
+        check_out: string;
+        rooms_count: number | null;
+      }[]
     >`SELECT property_id, guest_name, status, check_in::text AS check_in, check_out::text AS check_out, rooms_count FROM public.portal_bookings WHERE id = ${id}::uuid`;
     if (!existing) return json({ error: "Booking not found" }, 404);
     if (!canProperty(actor, existing.property_id))
@@ -900,7 +926,14 @@ async function getInventory(url: URL, sql: Sql, actor: Actor): Promise<Response>
     return json({ error: "Range too long (max 120 days)" }, 400);
 
   const [rates, blocks, bookings] = await Promise.all([
-    sql<{ date: string; rate: string; extra_adult_price: string | null; extra_child_price: string | null }[]>`
+    sql<
+      {
+        date: string;
+        rate: string;
+        extra_adult_price: string | null;
+        extra_child_price: string | null;
+      }[]
+    >`
       SELECT date::text AS date, rate, extra_adult_price, extra_child_price FROM public.property_rates WHERE property_id = ${property} AND date >= ${start}::date AND date <= ${end}::date`,
     sql<{ date: string; reason: string | null }[]>`
       SELECT date::text AS date, reason FROM public.blocked_dates WHERE property_id = ${property} AND date >= ${start}::date AND date <= ${end}::date`,
@@ -916,10 +949,14 @@ async function getInventory(url: URL, sql: Sql, actor: Actor): Promise<Response>
     basePrice: p.base_price,
     rates: Object.fromEntries(rates.map((r) => [r.date, Number(r.rate)])),
     extraAdultPrice: Object.fromEntries(
-      rates.filter((r) => r.extra_adult_price !== null).map((r) => [r.date, Number(r.extra_adult_price)]),
+      rates
+        .filter((r) => r.extra_adult_price !== null)
+        .map((r) => [r.date, Number(r.extra_adult_price)]),
     ),
     extraChildPrice: Object.fromEntries(
-      rates.filter((r) => r.extra_child_price !== null).map((r) => [r.date, Number(r.extra_child_price)]),
+      rates
+        .filter((r) => r.extra_child_price !== null)
+        .map((r) => [r.date, Number(r.extra_child_price)]),
     ),
     blocked: Object.fromEntries(blocks.map((b) => [b.date, b.reason ?? "Blocked"])),
     booked,
@@ -927,6 +964,11 @@ async function getInventory(url: URL, sql: Sql, actor: Actor): Promise<Response>
 }
 
 async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise<Response> {
+  const pmsDbForBilling = getPmsDb();
+  if (pmsDbForBilling) {
+    const subscription = await assertSubscriptionActive(pmsDbForBilling, actor.organizationId);
+    if (!subscription.ok) return json({ error: subscription.message }, subscription.status);
+  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -943,11 +985,15 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
       ? null
       : num(body["price"], NaN);
   const extraAdultPrice =
-    body["extraAdultPrice"] === null || body["extraAdultPrice"] === undefined || body["extraAdultPrice"] === ""
+    body["extraAdultPrice"] === null ||
+    body["extraAdultPrice"] === undefined ||
+    body["extraAdultPrice"] === ""
       ? null
       : num(body["extraAdultPrice"], NaN);
   const extraChildPrice =
-    body["extraChildPrice"] === null || body["extraChildPrice"] === undefined || body["extraChildPrice"] === ""
+    body["extraChildPrice"] === null ||
+    body["extraChildPrice"] === undefined ||
+    body["extraChildPrice"] === ""
       ? null
       : num(body["extraChildPrice"], NaN);
   const allowOverride = body["allowOverride"] === true;
@@ -981,7 +1027,8 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
   if (price === null && extraAdultPrice === null && extraChildPrice === null && action === "none")
     return json({ error: "Nothing to apply" }, 400);
   let nights = eachNight(start, addDaysISO(end, 1)); // end date is included
-  if (daysOfWeek) nights = nights.filter((d) => daysOfWeek.has(new Date(`${d}T00:00:00Z`).getUTCDay()));
+  if (daysOfWeek)
+    nights = nights.filter((d) => daysOfWeek.has(new Date(`${d}T00:00:00Z`).getUTCDay()));
   if (nights.length > 120) return json({ error: "Range too long (max 120 days)" }, 400);
   if (nights.length === 0) return json({ error: "No nights match the selected days" }, 400);
 
@@ -1864,6 +1911,11 @@ async function saveSetting(request: Request, actor: Actor): Promise<Response> {
 async function createVoucher(request: Request, actor: Actor): Promise<Response> {
   const webDb = getWebDb();
   if (!webDb) return json({ error: "Database not configured" }, 503);
+  const pmsDbForBilling = getPmsDb();
+  if (pmsDbForBilling) {
+    const subscription = await assertSubscriptionActive(pmsDbForBilling, actor.organizationId);
+    if (!subscription.ok) return json({ error: subscription.message }, subscription.status);
+  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;

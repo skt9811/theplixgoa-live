@@ -213,6 +213,13 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
         )`;
       await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_users_name_key ON pms_users (lower(name))`;
       await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_users_phone_key ON pms_users (phone) WHERE phone IS NOT NULL`;
+      // Phase 2 multi-tenant hierarchy (see tenant-context.server.ts): which
+      // organization this login belongs to. Every current row defaults (and
+      // backfills) to the one internal org, so resolveActor's organizationId
+      // is correct with zero code changes at every pms_users INSERT site —
+      // new staff automatically land in the internal org via this DEFAULT.
+      await sql`ALTER TABLE pms_users ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_pms_users_org_id ON pms_users (organization_id)`;
       await sql`
         CREATE TABLE IF NOT EXISTS pms_audit_logs (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -239,17 +246,23 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
       await sql`
         CREATE TABLE IF NOT EXISTS organizations (
           id text PRIMARY KEY DEFAULT 'org_plix_internal',
-          name text NOT NULL DEFAULT 'The Plix Hospitality',
+          name text NOT NULL DEFAULT 'Plix Hospitality',
           slug text UNIQUE NOT NULL DEFAULT 'plix-internal',
-          plan_tier text NOT NULL DEFAULT 'enterprise_internal',
+          plan_tier text NOT NULL DEFAULT 'internal_enterprise',
           subscription_status text NOT NULL DEFAULT 'active',
           trial_ends_at timestamptz,
           created_at timestamptz DEFAULT now()
         )`;
+      // Phase 2 (trial/plan enforcement — pms-billing.server.ts): the limit
+      // a write path checks before letting an organization add another
+      // property. 1 is a sane default for a brand-new org; the internal org
+      // is set to 999 (effectively unlimited) below.
+      await sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS max_properties integer NOT NULL DEFAULT 1`;
       await sql`
-        INSERT INTO organizations (id, name, slug, plan_tier, subscription_status)
-        VALUES ('org_plix_internal', 'The Plix Hospitality', 'plix-internal', 'enterprise_internal', 'active')
-        ON CONFLICT (id) DO NOTHING`;
+        INSERT INTO organizations (id, name, slug, plan_tier, subscription_status, max_properties)
+        VALUES ('org_plix_internal', 'Plix Hospitality', 'plix-internal', 'internal_enterprise', 'active', 999)
+        ON CONFLICT (id) DO UPDATE SET
+          name = 'Plix Hospitality', plan_tier = 'internal_enterprise', subscription_status = 'active', max_properties = 999`;
       await sql`
         CREATE TABLE IF NOT EXISTS organization_members (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

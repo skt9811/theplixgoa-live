@@ -5,6 +5,7 @@ import { PROPERTIES } from "@/lib/plix";
 import { getPmsDb } from "@/lib/pms-db.server";
 import { ensureInvoicesSchema, ensurePosSchema } from "@/lib/pms-schema.server";
 import { getTenantId } from "@/lib/tenant-context.server";
+import { assertSubscriptionActive } from "@/lib/pms-billing.server";
 import { audit } from "@/lib/pms-audit.server";
 import { round2 } from "@/lib/pms-pos-calc";
 import { isAllProps, type Actor } from "@/lib/pms-users.server";
@@ -1035,6 +1036,10 @@ export async function handlePosApi(
   const tenantId = getTenantId(request);
   try {
     await ensurePosSchema(sql);
+    if (request.method !== "GET") {
+      const subscription = await assertSubscriptionActive(sql, actor.organizationId);
+      if (!subscription.ok) return json({ error: subscription.message }, subscription.status);
+    }
     if (sub === "state" && request.method === "GET")
       return json(await getState(url, actor, sql, tenantId));
     if (sub === "order" && request.method === "GET") {

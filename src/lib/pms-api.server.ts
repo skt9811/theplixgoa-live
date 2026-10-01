@@ -19,7 +19,12 @@ import {
 import { notifyNewBooking } from "@/lib/push-notifications.server";
 import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
 import { ensureExpensesSchema, ensureInvoicesSchema } from "@/lib/pms-schema.server";
-import { DEFAULT_ORG_ID, getTenantId, isBookablePropertyForOrg } from "@/lib/tenant-context.server";
+import {
+  DEFAULT_ORG_ID,
+  getTenantId,
+  isBookablePropertyForOrg,
+  resolveDynamicPropertyCode,
+} from "@/lib/tenant-context.server";
 import {
   assertFeatureEnabled,
   assertSubscriptionActive,
@@ -205,7 +210,16 @@ async function handleLogin(request: Request): Promise<Response> {
   if (!propertyCodeRaw.trim()) {
     return json({ error: "Property code is required" }, 400);
   }
-  const propertySlug = slugForPropertyCode(propertyCodeRaw);
+  // Static map first (the 10 real Plix properties), then pms_properties for
+  // anything a public signup created — see resolveDynamicPropertyCode's own
+  // note on why the static-only map alone would otherwise lock a signed-up
+  // tenant out of their account on every login after the first.
+  let propertySlug = slugForPropertyCode(propertyCodeRaw);
+  if (!propertySlug) {
+    const pmsDbForCode = getPmsDb();
+    if (pmsDbForCode)
+      propertySlug = await resolveDynamicPropertyCode(pmsDbForCode, propertyCodeRaw);
+  }
   if (!propertySlug) {
     return json({ error: "Enter a valid property code" }, 400);
   }

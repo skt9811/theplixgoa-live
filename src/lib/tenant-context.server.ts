@@ -87,3 +87,19 @@ export async function isBookablePropertyForOrg(
       AND organization_id = ${organizationId} AND is_active = true`;
   return !!row;
 }
+
+/** The mandatory-Property-Code login gate (handleLogin, pms-api.server.ts)
+ * resolves a code with slugForPropertyCode (property-codes.ts) first — the
+ * static map of the 10 real Plix properties, shared with the client form.
+ * That map can never know about a property created after signup, so a
+ * dynamically signed-up tenant could create an account but never log back in
+ * — this is the other half of that lookup, checked only when the static one
+ * comes up empty. Returns the property's own `id` (what gets stored in
+ * pms_users.assigned_properties / checked by canProperty), not the code. */
+export async function resolveDynamicPropertyCode(pmsDb: Sql, code: string): Promise<string | null> {
+  const normalized = code.trim().toUpperCase();
+  if (!normalized) return null;
+  const [row] = await pmsDb<{ id: string }[]>`
+    SELECT id FROM pms_properties WHERE upper(code) = ${normalized} AND is_active = true`;
+  return row?.id ?? null;
+}

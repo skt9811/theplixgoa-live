@@ -49,3 +49,4 @@ scripts/outreach/outreach-tracker.csv
 # Android release signing credentials — never committed
 android/keystore.properties
 keystore.properties
+.scratch/

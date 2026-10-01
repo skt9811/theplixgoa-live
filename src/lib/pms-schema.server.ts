@@ -35,6 +35,13 @@ export function ensureExpensesSchema(sql: Sql): Promise<void> {
       await sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS transfer_to varchar(30)`;
       await sql`CREATE INDEX IF NOT EXISTS expenses_type_idx ON expenses (type)`;
 
+      // Phase 1 multi-tenant hardening — see tenant-context.server.ts. A
+      // DEFAULT on ADD COLUMN backfills every existing row in the same
+      // statement (no separate UPDATE needed, no window where a row could
+      // read as NULL), so this is safe to run against the live table.
+      await sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_expenses_org_id ON expenses (organization_id)`;
+
       await sql`
         CREATE TABLE IF NOT EXISTS pms_categories (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -222,6 +229,44 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
       // Admins always have every module, including the Restaurant POS and Inquiries tabs.
       await sql`UPDATE pms_users SET allowed_tabs = array_append(allowed_tabs, 'pos') WHERE role = 'admin' AND NOT ('pos' = ANY(allowed_tabs))`;
       await sql`UPDATE pms_users SET allowed_tabs = array_append(allowed_tabs, 'inquiries') WHERE role = 'admin' AND NOT ('inquiries' = ANY(allowed_tabs))`;
+
+      // --- Phase 1 multi-tenant hardening (tenant-context.server.ts) ---
+      // This PMS database has only ever served one business, so there is
+      // exactly one row here today: the internal org every existing table
+      // and every tenant-context resolution already defaults to. No other
+      // code yet creates a second organization or reads organization_id
+      // from a real session/JWT — it's foundation, not an active switch.
+      await sql`
+        CREATE TABLE IF NOT EXISTS organizations (
+          id text PRIMARY KEY DEFAULT 'org_plix_internal',
+          name text NOT NULL DEFAULT 'The Plix Hospitality',
+          slug text UNIQUE NOT NULL DEFAULT 'plix-internal',
+          plan_tier text NOT NULL DEFAULT 'enterprise_internal',
+          subscription_status text NOT NULL DEFAULT 'active',
+          trial_ends_at timestamptz,
+          created_at timestamptz DEFAULT now()
+        )`;
+      await sql`
+        INSERT INTO organizations (id, name, slug, plan_tier, subscription_status)
+        VALUES ('org_plix_internal', 'The Plix Hospitality', 'plix-internal', 'enterprise_internal', 'active')
+        ON CONFLICT (id) DO NOTHING`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS organization_members (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          organization_id text NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+          user_id uuid NOT NULL REFERENCES pms_users(id) ON DELETE CASCADE,
+          role varchar(20) NOT NULL DEFAULT 'owner',
+          created_at timestamptz DEFAULT now()
+        )`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS organization_members_org_user_key ON organization_members (organization_id, user_id)`;
+      // Every existing staff account is a member of the one internal org —
+      // keeps this table consistent with pms_users from the moment it
+      // exists, without requiring every login to write to it first.
+      await sql`
+        INSERT INTO organization_members (organization_id, user_id, role)
+        SELECT 'org_plix_internal', id, CASE WHEN role = 'admin' THEN 'admin' ELSE 'staff' END
+        FROM pms_users
+        ON CONFLICT (organization_id, user_id) DO NOTHING`;
     })().catch((err) => {
       accessReady = null;
       throw err;
@@ -280,6 +325,11 @@ export function ensureInquiriesSchema(sql: Sql): Promise<void> {
         // or Make.com-retried webhook; only enforced when present since a
         // plain inquiry email never has one.
         await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_inquiries_confirmation_code_key ON pms_inquiries (confirmation_code) WHERE confirmation_code IS NOT NULL`;
+        // Phase 1 multi-tenant hardening — see tenant-context.server.ts. A
+        // DEFAULT on ADD COLUMN backfills every existing row in the same
+        // statement, so this is safe to run against the live table.
+        await sql`ALTER TABLE pms_inquiries ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
+        await sql`CREATE INDEX IF NOT EXISTS idx_pms_inquiries_org_id ON pms_inquiries (organization_id)`;
         await sql`
           CREATE TABLE IF NOT EXISTS pms_staff_devices (
             id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -290,6 +340,8 @@ export function ensureInquiriesSchema(sql: Sql): Promise<void> {
             last_seen timestamptz NOT NULL DEFAULT now()
           )`;
         await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_staff_devices_token_key ON pms_staff_devices (fcm_token)`;
+        await sql`ALTER TABLE pms_staff_devices ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
+        await sql`CREATE INDEX IF NOT EXISTS idx_pms_staff_devices_org_id ON pms_staff_devices (organization_id)`;
         // A property owner's device on the Plix Partner app (com.plix.partner)
         // — keyed by property_id rather than phone, since a booking notification
         // needs "everyone watching this property", not "everyone at this phone".
@@ -645,6 +697,19 @@ export function ensurePosSchema(sql: Sql): Promise<void> {
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_orders_prop_idx ON pms_pos_orders (property_id, created_at)`;
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_order_items_order_idx ON pms_pos_order_items (order_id)`;
       await sql`CREATE INDEX IF NOT EXISTS pms_pos_tables_prop_idx ON pms_pos_tables (property_id)`;
+
+      // Phase 1 multi-tenant hardening — see tenant-context.server.ts. A
+      // DEFAULT on ADD COLUMN backfills every existing row in the same
+      // statement, so this is safe to run against the live tables; no
+      // separate UPDATE pass, no window where a row could read as NULL.
+      await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_pms_pos_orders_org_id ON pms_pos_orders (organization_id)`;
+      await sql`ALTER TABLE pms_pos_order_items ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_pms_pos_order_items_org_id ON pms_pos_order_items (organization_id)`;
+      await sql`ALTER TABLE pms_pos_tables ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_pms_pos_tables_org_id ON pms_pos_tables (organization_id)`;
+      await sql`ALTER TABLE pms_pos_customers ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_pms_pos_customers_org_id ON pms_pos_customers (organization_id)`;
       // Retired: this table backed a remote print queue (a device with no
       // local printer dropped a job here for another device to pick up),
       // removed because stale jobs piled up while a printer was offline and

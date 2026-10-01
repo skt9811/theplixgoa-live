@@ -6,6 +6,7 @@
 // until FIREBASE_SERVICE_ACCOUNT_KEY is set, since building fake delivery
 // would be worse than an honest no-op.
 import { ensureInquiriesSchema } from "@/lib/pms-schema.server";
+import { getTenantId } from "@/lib/tenant-context.server";
 import { getPmsDb } from "@/lib/pms-db.server";
 import { json, str } from "@/lib/pms-pos-shared.server";
 import type { Actor } from "@/lib/pms-users.server";
@@ -369,10 +370,11 @@ export async function registerStaffDevice(request: Request, actor: Actor): Promi
   const sql = getPmsDb();
   if (!sql) return json({ error: "PMS database not configured" }, 503);
   await ensureInquiriesSchema(sql);
+  const tenantId = getTenantId(request);
   await sql`
-    INSERT INTO pms_staff_devices (user_id, staff_name, fcm_token, platform, last_seen)
-    VALUES (${actor.id}, ${staffName}, ${fcmToken}, ${platform}, now())
-    ON CONFLICT (fcm_token) DO UPDATE SET user_id = ${actor.id}, staff_name = ${staffName}, platform = ${platform}, last_seen = now()`;
+    INSERT INTO pms_staff_devices (user_id, staff_name, fcm_token, platform, last_seen, organization_id)
+    VALUES (${actor.id}, ${staffName}, ${fcmToken}, ${platform}, now(), ${tenantId})
+    ON CONFLICT (fcm_token) DO UPDATE SET user_id = ${actor.id}, staff_name = ${staffName}, platform = ${platform}, last_seen = now(), organization_id = ${tenantId}`;
   return json({ success: true, ok: true, registered: true });
 }
 

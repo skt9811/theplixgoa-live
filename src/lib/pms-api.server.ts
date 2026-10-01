@@ -19,6 +19,7 @@ import {
 import { notifyNewBooking } from "@/lib/push-notifications.server";
 import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
 import { ensureExpensesSchema, ensureInvoicesSchema } from "@/lib/pms-schema.server";
+import { DEFAULT_ORG_ID, getTenantId } from "@/lib/tenant-context.server";
 import {
   COLOR_PALETTE,
   HEX_COLOR,
@@ -257,7 +258,13 @@ function parseRoomAllocations(raw: unknown): RoomAllocation[] {
     }));
 }
 
-async function listBookings(sql: Sql): Promise<PmsBooking[]> {
+// tenantId defaults to DEFAULT_ORG_ID (Phase 1 multi-tenant hardening — see
+// tenant-context.server.ts) so every pre-existing caller that doesn't yet
+// have a request/tenant to thread through keeps today's exact behavior: a
+// no-op filter, since every row backfilled to that same constant. Only the
+// primary `getBookings` list route (handlePmsApi, path === "bookings") passes
+// a real resolved tenantId.
+async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promise<PmsBooking[]> {
   const [online, manual] = await Promise.all([
     sql<
       {
@@ -283,7 +290,7 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
       SELECT id, property_id, guest_name, guest_mobile, guest_email, check_in::text AS check_in, check_out::text AS check_out,
              nights, guests, rooms, total_amount, subtotal, taxes, commission_pct, commission_amount, payment_status, created_at
       FROM public.bookings
-      WHERE payment_status IN ('paid', 'simulated', 'pending')
+      WHERE payment_status IN ('paid', 'simulated', 'pending') AND organization_id = ${tenantId}
     `,
     sql<
       {
@@ -320,7 +327,7 @@ async function listBookings(sql: Sql): Promise<PmsBooking[]> {
              payment_status, channel, status, notes, commission_pct, commission_amount, room_allocations, created_by, created_at,
              visible_on_partner_app, is_manual_override, override_reason
       FROM public.portal_bookings
-      WHERE status NOT IN ('blocked', 'cancelled')
+      WHERE status NOT IN ('blocked', 'cancelled') AND organization_id = ${tenantId}
     `,
   ]);
 
@@ -462,17 +469,19 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   if (conflict && !allowOverride) return json({ error: conflict }, 409);
   const isManualOverride = Boolean(conflict) && allowOverride;
   const overrideReason = isManualOverride ? overrideReasonInput || conflict : null;
+  const tenantId = getTenantId(request);
 
   const [row] = await sql<{ id: string }[]>`
     INSERT INTO public.portal_bookings
       (property_id, guest_name, guest_phone, guest_email, check_in, check_out, nights, guests_count,
        adults_count, children_count, rooms_count, booking_amount, advance_amount, payment_status, channel, notes, status,
-       commission_pct, commission_amount, room_allocations, created_by, visible_on_partner_app, is_manual_override, override_reason)
+       commission_pct, commission_amount, room_allocations, created_by, visible_on_partner_app, is_manual_override, override_reason,
+       organization_id)
     VALUES
       (${propertySlug}, ${guestName}, ${guestPhone}, ${guestEmail}, ${checkIn}, ${checkOut}, ${nights}, ${adults + children},
        ${adults}, ${children}, ${rooms}, ${total}, ${advance}, ${paymentStatus}, ${channel}, ${notes}, 'confirmed',
        ${commissionPct}, ${commissionAmount}, ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null}, ${actor.name.slice(0, 150)}, ${visibleOnPartnerApp},
-       ${isManualOverride}, ${overrideReason})
+       ${isManualOverride}, ${overrideReason}, ${tenantId})
     RETURNING id
   `;
   let warning: string | undefined;
@@ -1048,9 +1057,10 @@ function shapeTx(r: TxRow) {
 }
 
 // "all" = every property plus company overhead; a slug = that property only.
-async function listTransactions(url: URL, actor: Actor): Promise<Response> {
+async function listTransactions(request: Request, url: URL, actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  const tenantId = getTenantId(request);
   const property = url.searchParams.get("property") ?? "all";
   const start = url.searchParams.get("start") ?? "";
   const end = url.searchParams.get("end") ?? "";
@@ -1070,7 +1080,7 @@ async function listTransactions(url: URL, actor: Actor): Promise<Response> {
   const slugs = allowedSlugs(actor);
   const rows = await pmsDb<TxRow[]>`
     SELECT ${pmsDb.unsafe(TX_COLUMNS)} FROM expenses
-    WHERE expense_date >= ${start}::date AND expense_date <= ${end}::date
+    WHERE organization_id = ${tenantId} AND expense_date >= ${start}::date AND expense_date <= ${end}::date
       ${property === "all" ? (isAllProps(actor) ? pmsDb`` : pmsDb`AND property_id = ANY(${slugs})`) : property === "hq" ? pmsDb`AND property_id IS NULL` : pmsDb`AND property_id = ${property}`}
     ORDER BY expense_date DESC, "time" DESC, created_at DESC
     LIMIT 5000`;
@@ -1131,10 +1141,11 @@ async function createTransaction(request: Request, actor: Actor): Promise<Respon
     if (found.length === 0) return json({ error: "Select a category" }, 400);
   }
 
+  const tenantId = getTenantId(request);
   const [row] = await pmsDb<{ id: string }[]>`
-    INSERT INTO expenses (type, property_id, category, amount, payment_mode, transfer_to, vendor_name, expense_date, "time", receipt_url, tags)
+    INSERT INTO expenses (type, property_id, category, amount, payment_mode, transfer_to, vendor_name, expense_date, "time", receipt_url, tags, organization_id)
     VALUES (${type}, ${property === "hq" ? null : property}, ${category}, ${Math.round(amount * 100) / 100}, ${paymentMode},
-            ${type === "transfer" ? transferTo : null}, ${note}, ${date}, COALESCE(${time}::time, CURRENT_TIME), ${receipt}, ${tags})
+            ${type === "transfer" ? transferTo : null}, ${note}, ${date}, COALESCE(${time}::time, CURRENT_TIME), ${receipt}, ${tags}, ${tenantId})
     RETURNING id`;
   await audit(actor, "CREATE", "expense", row?.id ?? "unknown", {
     type,
@@ -1882,6 +1893,7 @@ async function createVoucher(request: Request, actor: Actor): Promise<Response> 
     .filter(Boolean)
     .join(" · ");
 
+  const tenantId = getTenantId(request);
   const outcome = await webDb.begin(async (tx) => {
     const conflict = await findStayConflict(
       tx as unknown as typeof webDb,
@@ -1896,10 +1908,12 @@ async function createVoucher(request: Request, actor: Actor): Promise<Response> 
     const [row] = await tx<{ id: string }[]>`
       INSERT INTO public.portal_bookings
         (property_id, guest_name, guest_phone, guest_email, check_in, check_out, nights, guests_count, adults_count, children_count, rooms_count,
-         booking_amount, advance_amount, payment_status, channel, notes, status, commission_pct, commission_amount, is_manual_override, override_reason)
+         booking_amount, advance_amount, payment_status, channel, notes, status, commission_pct, commission_amount, is_manual_override, override_reason,
+         organization_id)
       VALUES
         (${propertySlug}, ${guestName}, ${mobile}, ${email}, ${checkIn}, ${checkOut}, ${nights}, ${guests}, ${guests}, 0, ${rooms},
-         ${tariff}, ${advance}, ${paymentStatus}, ${channel}, ${notes}, 'confirmed', ${commissionPct}, ${commissionAmount}, ${isManualOverride}, ${overrideReason})
+         ${tariff}, ${advance}, ${paymentStatus}, ${channel}, ${notes}, 'confirmed', ${commissionPct}, ${commissionAmount}, ${isManualOverride}, ${overrideReason},
+         ${tenantId})
       RETURNING id`;
     await syncManualBlocks(
       tx as unknown as typeof webDb,
@@ -2346,7 +2360,8 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     if (path.startsWith("pos/")) return await handlePosApi(path.slice(4), request, url, actor);
     if (path === "notifications/register-device" && request.method === "POST")
       return await registerStaffDevice(request, actor);
-    if (path === "inquiries" && request.method === "GET") return await listInquiries(actor);
+    if (path === "inquiries" && request.method === "GET")
+      return await listInquiries(request, actor);
     if (path === "inquiries" && request.method === "DELETE")
       return await deleteInquiries(request, url, actor);
     if (path === "inquiries/update" && request.method === "POST")
@@ -2364,7 +2379,8 @@ export async function handlePmsApi(request: Request): Promise<Response> {
       return await createVoucher(request, actor);
     if (path === "settings" && request.method === "GET") return await getSettings();
     if (path === "settings" && request.method === "POST") return await saveSetting(request, actor);
-    if (path === "expenses" && request.method === "GET") return await listTransactions(url, actor);
+    if (path === "expenses" && request.method === "GET")
+      return await listTransactions(request, url, actor);
     if (path === "expenses" && request.method === "POST")
       return await createTransaction(request, actor);
     if (path === "expenses" && request.method === "DELETE")
@@ -2378,7 +2394,7 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     if (path === "budgets" && request.method === "POST") return await saveBudget(request, actor);
     if (!sql) return json({ error: "Database not configured" }, 500);
     if (path === "bookings" && request.method === "GET") {
-      const all = await listBookings(sql);
+      const all = await listBookings(sql, getTenantId(request));
       const slugs = new Set(allowedSlugs(actor));
       return json({
         bookings: isAllProps(actor) ? all : all.filter((b) => slugs.has(b.property_id)),

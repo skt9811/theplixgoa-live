@@ -12,6 +12,7 @@ import { allowedSlugs, isAllProps, type Actor } from "@/lib/pms-users.server";
 import { sendStaffPushNotification, stripSurroundingQuotes } from "@/lib/pms-notifications.server";
 import { audit } from "@/lib/pms-audit.server";
 import { getHostDisplayName, HOST_NAME_MAP } from "@/lib/pms-host-names";
+import { DEFAULT_ORG_ID, getTenantId } from "@/lib/tenant-context.server";
 
 /** Returns the first value that's a non-empty string once trimmed, trying
  * each candidate field name in order — empty strings and non-string values
@@ -61,10 +62,11 @@ const mapInquiry = (r: InquiryRow) => ({
   updated_at: r.updated_at.toISOString(),
 });
 
-export async function listInquiries(actor: Actor): Promise<Response> {
+export async function listInquiries(request: Request, actor: Actor): Promise<Response> {
   const sql = getPmsDb();
   if (!sql) return json({ inquiries: [] });
   await ensureInquiriesSchema(sql);
+  const tenantId = getTenantId(request);
   const slugs = allowedSlugs(actor);
   // Every row in this table is a lead, not a resource tied to one property's
   // finances/operations — a property-restricted staff member still needs to
@@ -76,10 +78,10 @@ export async function listInquiries(actor: Actor): Promise<Response> {
   const rows = isAllProps(actor)
     ? await sql<
         InquiryRow[]
-      >`SELECT ${sql.unsafe(INQUIRY_COLUMNS)} FROM pms_inquiries ORDER BY created_at DESC LIMIT 300`
+      >`SELECT ${sql.unsafe(INQUIRY_COLUMNS)} FROM pms_inquiries WHERE organization_id = ${tenantId} ORDER BY created_at DESC LIMIT 300`
     : await sql<
         InquiryRow[]
-      >`SELECT ${sql.unsafe(INQUIRY_COLUMNS)} FROM pms_inquiries WHERE property_id = ANY(${slugs}) OR property_id IS NULL OR source = 'airbnb' ORDER BY created_at DESC LIMIT 300`;
+      >`SELECT ${sql.unsafe(INQUIRY_COLUMNS)} FROM pms_inquiries WHERE organization_id = ${tenantId} AND (property_id = ANY(${slugs}) OR property_id IS NULL OR source = 'airbnb') ORDER BY created_at DESC LIMIT 300`;
   return json({ inquiries: rows.map(mapInquiry) });
 }
 
@@ -688,9 +690,13 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
       WHERE id = ${id}::uuid`;
   } else {
     try {
+      // Airbnb's forwarding service authenticates with its own
+      // x-webhook-secret, not a PMS session — there's no tenant header to
+      // resolve here, so this always binds the one organization that exists
+      // today (same constant the column itself defaults to).
       const [row] = await sql<{ id: string }[]>`
-        INSERT INTO pms_inquiries (source, airbnb_account, property_id, property_name, guest_name, check_in, check_out, pax_count, inquiry_text, thread_url, email_type, confirmation_code, payout_amount, payout_currency, recipient_email, listing_title, raw_payload)
-        VALUES ('airbnb', ${from}, ${property?.slug ?? null}, ${property?.name ?? null}, ${guestName}, ${checkIn}, ${checkOut}, ${paxCount}, ${notes || null}, ${threadUrl}, ${emailType}, ${confirmationCode}, ${payoutAmount}, ${payoutCurrency}, ${recipientEmail}, ${listingTitle}, ${rawText})
+        INSERT INTO pms_inquiries (source, airbnb_account, property_id, property_name, guest_name, check_in, check_out, pax_count, inquiry_text, thread_url, email_type, confirmation_code, payout_amount, payout_currency, recipient_email, listing_title, raw_payload, organization_id)
+        VALUES ('airbnb', ${from}, ${property?.slug ?? null}, ${property?.name ?? null}, ${guestName}, ${checkIn}, ${checkOut}, ${paxCount}, ${notes || null}, ${threadUrl}, ${emailType}, ${confirmationCode}, ${payoutAmount}, ${payoutCurrency}, ${recipientEmail}, ${listingTitle}, ${rawText}, ${DEFAULT_ORG_ID})
         RETURNING id`;
       id = row!.id;
       isNew = true;

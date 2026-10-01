@@ -4,6 +4,7 @@
 import { audit } from "@/lib/pms-audit.server";
 import { hashPin, type Actor } from "@/lib/pms-users.server";
 import { PosError, ISO_DATE, istToday, json, logPos, num, requireManager, requireProperty, str, type Sql } from "@/lib/pms-pos-shared.server";
+import { getTenantId } from "@/lib/tenant-context.server";
 
 const PERMISSION_KEYS = ["can_discount", "can_void", "can_bill", "can_manage_menu", "can_view_reports"] as const;
 const DEFAULT_GROUPS: Record<string, string[]> = {
@@ -35,6 +36,7 @@ const body = async (request: Request) => ((await request.json().catch(() => ({})
 export async function handlePosAdminApi(sub: string, request: Request, url: URL, actor: Actor, sql: Sql, station: string): Promise<Response | null> {
   const get = request.method === "GET";
   const propertyQ = str(url.searchParams.get("property"));
+  const tenantId = getTenantId(request);
 
   // ---- customers ----
   if (sub === "customers") {
@@ -42,7 +44,7 @@ export async function handlePosAdminApi(sub: string, request: Request, url: URL,
       requireProperty(actor, propertyQ);
       const q = `%${str(url.searchParams.get("q")).toLowerCase()}%`;
       const rows = await sql`SELECT id, name, mobile, persons, is_commercial, address_type, address, city, zipcode, created_at FROM pms_pos_customers
-        WHERE property_id = ${propertyQ} AND (lower(name) LIKE ${q} OR mobile LIKE ${q}) ORDER BY name LIMIT 300`;
+        WHERE property_id = ${propertyQ} AND organization_id = ${tenantId} AND (lower(name) LIKE ${q} OR mobile LIKE ${q}) ORDER BY name LIMIT 300`;
       return json({ customers: rows });
     }
     const b = await body(request);
@@ -61,7 +63,7 @@ export async function handlePosAdminApi(sub: string, request: Request, url: URL,
     const type = ["Home", "Work", "Hotel", "Other"].includes(str(b["addressType"])) ? str(b["addressType"]) : "Hotel";
     try {
       if (id) await sql`UPDATE pms_pos_customers SET name = ${name}, mobile = ${mobile}, persons = ${Math.max(1, Math.floor(num(b["persons"], 1)))}, is_commercial = ${b["isCommercial"] === true}, address_type = ${type}, address = ${str(b["address"]) || null}, city = ${str(b["city"]).slice(0, 100) || null}, zipcode = ${str(b["zip"]).slice(0, 20) || null} WHERE id = ${id} AND property_id = ${property}`;
-      else await sql`INSERT INTO pms_pos_customers (property_id, name, mobile, persons, is_commercial, address_type, address, city, zipcode) VALUES (${property}, ${name}, ${mobile}, ${Math.max(1, Math.floor(num(b["persons"], 1)))}, ${b["isCommercial"] === true}, ${type}, ${str(b["address"]) || null}, ${str(b["city"]).slice(0, 100) || null}, ${str(b["zip"]).slice(0, 20) || null})`;
+      else await sql`INSERT INTO pms_pos_customers (property_id, name, mobile, persons, is_commercial, address_type, address, city, zipcode, organization_id) VALUES (${property}, ${name}, ${mobile}, ${Math.max(1, Math.floor(num(b["persons"], 1)))}, ${b["isCommercial"] === true}, ${type}, ${str(b["address"]) || null}, ${str(b["city"]).slice(0, 100) || null}, ${str(b["zip"]).slice(0, 20) || null}, ${tenantId})`;
     } catch (err) {
       if ((err as { code?: string }).code === "23505") throw new PosError("A customer with this mobile number already exists");
       throw err;

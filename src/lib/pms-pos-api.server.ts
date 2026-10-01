@@ -4,6 +4,7 @@
 import { PROPERTIES } from "@/lib/plix";
 import { getPmsDb } from "@/lib/pms-db.server";
 import { ensureInvoicesSchema, ensurePosSchema } from "@/lib/pms-schema.server";
+import { getTenantId } from "@/lib/tenant-context.server";
 import { audit } from "@/lib/pms-audit.server";
 import { round2 } from "@/lib/pms-pos-calc";
 import { isAllProps, type Actor } from "@/lib/pms-users.server";
@@ -235,7 +236,7 @@ async function restoreStock(sql: Sql, orderId: string, lineId?: string) {
   await sql`UPDATE pms_pos_order_items SET stock_deducted = false WHERE order_id = ${orderId} AND stock_deducted = true AND (${lineId ?? null}::uuid IS NULL OR id = ${lineId ?? null}::uuid)`;
 }
 
-async function getState(url: URL, actor: Actor, sql: Sql) {
+async function getState(url: URL, actor: Actor, sql: Sql, tenantId: string) {
   const property = str(url.searchParams.get("property"));
   requireProperty(actor, property);
   await seedProperty(sql, property);
@@ -244,7 +245,7 @@ async function getState(url: URL, actor: Actor, sql: Sql) {
     sql`SELECT t.id, t.name, t.table_type, t.group_name, t.status, o.id AS order_id, o.order_number, o.total_amount, o.guest_count, o.created_at, o.status AS order_status,
                (SELECT count(*)::int FROM pms_pos_order_items i WHERE i.order_id = o.id AND i.status = 'active') AS item_count
         FROM pms_pos_tables t LEFT JOIN pms_pos_orders o ON o.id = t.current_order_id AND o.status IN ('running', 'billing')
-        WHERE t.property_id = ${property}
+        WHERE t.property_id = ${property} AND t.organization_id = ${tenantId}
         ORDER BY t.sort_order, CASE t.table_type WHEN 'open' THEN 0 WHEN 'villa' THEN 1 ELSE 2 END, length(t.name), t.name`,
     sql`SELECT id, name, sort_order, is_active, color, tax_percent::float AS tax_percent, tax_type, is_tax_inclusive FROM pms_pos_categories WHERE property_id = ${property} ORDER BY sort_order, name`,
     sql`SELECT id, category_id, category_name, name, price::float AS price, stock::float AS stock, brand, printer_destination, is_veg, tax_group, image_url, is_available, track_profit, cost_price::float AS cost_price FROM pms_pos_items WHERE property_id = ${property} ORDER BY name`,
@@ -278,6 +279,7 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const property = str(body["property"]);
   requireProperty(actor, property);
+  const tenantId = getTenantId(request);
   const guest = (body["guest"] ?? {}) as Record<string, unknown>;
   const drafts = Array.isArray(body["drafts"]) ? (body["drafts"] as Record<string, unknown>[]) : [];
   const wantKot = body["kot"] === true;
@@ -311,7 +313,7 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
         else {
           const [o] = await tx<
             { id: string }[]
-          >`INSERT INTO pms_pos_orders (property_id, table_id, table_name, created_by, order_type) VALUES (${property}, ${table.id}, ${table.name}, ${actor.name}, ${(table as unknown as { table_type: string }).table_type === "room" ? "room_service" : "dine_in"}) RETURNING id`;
+          >`INSERT INTO pms_pos_orders (property_id, table_id, table_name, created_by, order_type, organization_id) VALUES (${property}, ${table.id}, ${table.name}, ${actor.name}, ${(table as unknown as { table_type: string }).table_type === "room" ? "room_service" : "dine_in"}, ${tenantId}) RETURNING id`;
           orderId = o!.id;
           created = true;
           await tx`UPDATE pms_pos_tables SET status = 'running', current_order_id = ${orderId} WHERE id = ${table.id}`;
@@ -319,7 +321,7 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
       } else {
         const [o] = await tx<
           { id: string }[]
-        >`INSERT INTO pms_pos_orders (property_id, table_name, created_by, order_type) VALUES (${property}, 'Quick', ${actor.name}, 'dine_in') RETURNING id`;
+        >`INSERT INTO pms_pos_orders (property_id, table_name, created_by, order_type, organization_id) VALUES (${property}, 'Quick', ${actor.name}, 'dine_in', ${tenantId}) RETURNING id`;
         orderId = o!.id;
         created = true;
       }
@@ -378,8 +380,8 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
         isTaxInclusive = item.is_tax_inclusive === true;
       }
       if (!name) throw new PosError("Every line needs a name");
-      await tx`INSERT INTO pms_pos_order_items (order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, tax_rate, category_name, tax_type, is_tax_inclusive, added_by)
-        VALUES (${orderId}, 0, ${itemId || null}, ${name}, ${qty}, ${price}, ${round2(price * qty)}, ${str(d["notes"]) || null}, ${taxPercent}, ${categoryName}, ${taxType}, ${isTaxInclusive}, ${actor.name})`;
+      await tx`INSERT INTO pms_pos_order_items (order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, tax_rate, category_name, tax_type, is_tax_inclusive, added_by, organization_id)
+        VALUES (${orderId}, 0, ${itemId || null}, ${name}, ${qty}, ${price}, ${round2(price * qty)}, ${str(d["notes"]) || null}, ${taxPercent}, ${categoryName}, ${taxType}, ${isTaxInclusive}, ${actor.name}, ${tenantId})`;
     }
 
     let kotNumber: number | null = null;
@@ -397,8 +399,8 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
     }
     const gPhone = str(guest["phone"]).slice(0, 50);
     if (gPhone.length >= 6 && str(guest["name"])) {
-      await tx`INSERT INTO pms_pos_customers (property_id, name, mobile, is_commercial, address_type, address, city, zipcode, persons)
-        VALUES (${property}, ${str(guest["name"]).slice(0, 150)}, ${gPhone}, ${guest["isCommercial"] === true}, ${str(guest["addressType"]).slice(0, 20) || "Hotel"}, ${str(guest["address"]) || null}, ${str(guest["city"]).slice(0, 100) || null}, ${str(guest["zip"]).slice(0, 20) || null}, ${Math.max(1, Math.floor(num(guest["count"], 1)))})
+      await tx`INSERT INTO pms_pos_customers (property_id, name, mobile, is_commercial, address_type, address, city, zipcode, persons, organization_id)
+        VALUES (${property}, ${str(guest["name"]).slice(0, 150)}, ${gPhone}, ${guest["isCommercial"] === true}, ${str(guest["addressType"]).slice(0, 20) || "Hotel"}, ${str(guest["address"]) || null}, ${str(guest["city"]).slice(0, 100) || null}, ${str(guest["zip"]).slice(0, 20) || null}, ${Math.max(1, Math.floor(num(guest["count"], 1)))}, ${tenantId})
         ON CONFLICT (property_id, mobile) DO NOTHING`;
     }
     await recalc(tx, orderId);
@@ -704,6 +706,7 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
 
 async function settle(request: Request, actor: Actor, sql: Sql, station: string) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const tenantId = getTenantId(request);
   const order = await ownedOrder(sql, actor, str(body["orderId"]));
   if (order.status !== "running" && order.status !== "billing")
     throw new PosError("This order is already closed", 409);
@@ -791,8 +794,8 @@ async function settle(request: Request, actor: Actor, sql: Sql, station: string)
     const guestPhone = str(order["guest_phone"]);
     if (guestPhone) {
       await tx`
-        INSERT INTO pms_pos_customers (property_id, name, mobile, total_orders, last_order_at)
-        VALUES (${order.property_id}, ${guestName || "Guest"}, ${guestPhone}, 1, now())
+        INSERT INTO pms_pos_customers (property_id, name, mobile, total_orders, last_order_at, organization_id)
+        VALUES (${order.property_id}, ${guestName || "Guest"}, ${guestPhone}, 1, now(), ${tenantId})
         ON CONFLICT (property_id, mobile)
         DO UPDATE SET
           name = CASE WHEN ${guestName} <> '' THEN ${guestName} ELSE pms_pos_customers.name END,
@@ -831,6 +834,7 @@ async function menuApi(request: Request, actor: Actor, sql: Sql, station: string
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const property = str(body["property"]);
   requireProperty(actor, property);
+  const tenantId = getTenantId(request);
   const entity = str(body["entity"]);
   const del = body["action"] === "delete";
   const id = str(body["id"]);
@@ -926,7 +930,7 @@ async function menuApi(request: Request, actor: Actor, sql: Sql, station: string
         const [m] = await sql<
           { k: number }[]
         >`SELECT COALESCE(max(sort_order), 0)::int + 1 AS k FROM pms_pos_tables WHERE property_id = ${property}`;
-        await sql`INSERT INTO pms_pos_tables (property_id, name, table_type, group_name, sort_order) VALUES (${property}, ${name}, ${type}, ${groupName}, ${m!.k})`;
+        await sql`INSERT INTO pms_pos_tables (property_id, name, table_type, group_name, sort_order, organization_id) VALUES (${property}, ${name}, ${type}, ${groupName}, ${m!.k}, ${tenantId})`;
       }
     }
   } else if (entity === "group") {
@@ -1028,9 +1032,11 @@ export async function handlePosApi(
 ): Promise<Response> {
   const sql = getPmsDb();
   if (!sql) return json({ error: "PMS database not configured" }, 503);
+  const tenantId = getTenantId(request);
   try {
     await ensurePosSchema(sql);
-    if (sub === "state" && request.method === "GET") return json(await getState(url, actor, sql));
+    if (sub === "state" && request.method === "GET")
+      return json(await getState(url, actor, sql, tenantId));
     if (sub === "order" && request.method === "GET") {
       const o = await ownedOrder(sql, actor, str(url.searchParams.get("id")));
       return json(await loadOrder(sql, o.id));

@@ -15,8 +15,11 @@
 // call site already has `actor` in scope — passing it is what makes a new
 // tenant's writes land under their own organization instead of silently
 // defaulting into Plix's real internal one.
+import type postgres from "postgres";
 import { PROPERTIES } from "@/lib/plix";
 import { isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates";
+
+type Sql = ReturnType<typeof postgres>;
 
 export const DEFAULT_ORG_ID = "org_plix_internal";
 
@@ -60,4 +63,27 @@ export function propertiesForOrganization(organizationId: string): string[] {
   return PROPERTIES.filter((p) => organizationForProperty(p.slug) === organizationId).map(
     (p) => p.slug,
   );
+}
+
+/** Phase 5 (createBooking and sibling booking-creation handlers): is
+ * `propertyIdOrCode` a real, active property this organization may book
+ * against? True for any of the 10 static Plix properties (unchanged,
+ * `organizationId` isn't even consulted — those have always belonged to
+ * org_plix_internal and keep working exactly as before), OR a genuine
+ * `pms_properties` row owned by this exact organization. `pmsDb` must be the
+ * PMS database connection (NEON_PMS_DATABASE_URL) — pms_properties doesn't
+ * exist on the web database `sql` these booking handlers otherwise use; see
+ * pms-schema.server.ts's own note on why the two are never interchangeable. */
+export async function isBookablePropertyForOrg(
+  pmsDb: Sql,
+  propertyIdOrCode: string,
+  organizationId: string,
+): Promise<boolean> {
+  if (PROPERTIES.some((p) => p.slug === propertyIdOrCode)) return true;
+  if (!propertyIdOrCode.trim()) return false;
+  const [row] = await pmsDb<{ id: string }[]>`
+    SELECT id FROM pms_properties
+    WHERE (id = ${propertyIdOrCode} OR upper(code) = ${propertyIdOrCode.toUpperCase()})
+      AND organization_id = ${organizationId} AND is_active = true`;
+  return !!row;
 }

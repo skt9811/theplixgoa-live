@@ -19,7 +19,7 @@ import {
 import { notifyNewBooking } from "@/lib/push-notifications.server";
 import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
 import { ensureExpensesSchema, ensureInvoicesSchema } from "@/lib/pms-schema.server";
-import { DEFAULT_ORG_ID, getTenantId } from "@/lib/tenant-context.server";
+import { DEFAULT_ORG_ID, getTenantId, isBookablePropertyForOrg } from "@/lib/tenant-context.server";
 import {
   assertFeatureEnabled,
   assertSubscriptionActive,
@@ -483,8 +483,11 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const allowOverride = body["allowOverride"] === true;
   const overrideReasonInput = str(body["overrideReason"]).slice(0, 300) || null;
 
-  if (!PROPERTIES.some((p) => p.slug === propertySlug))
-    return json({ error: "Select a property" }, 400);
+  const pmsDbForProperty = getPmsDb();
+  const validProperty = pmsDbForProperty
+    ? await isBookablePropertyForOrg(pmsDbForProperty, propertySlug, actor.organizationId)
+    : PROPERTIES.some((p) => p.slug === propertySlug);
+  if (!validProperty) return json({ error: "Select a property" }, 400);
   if (!canProperty(actor, propertySlug))
     return json({ error: "You do not have access to this property" }, 403);
   if (!guestName) return json({ error: "Guest name is required" }, 400);
@@ -1945,8 +1948,11 @@ async function createVoucher(request: Request, actor: Actor): Promise<Response> 
   const allowOverride = body["allowOverride"] === true;
   const overrideReasonInput = str(body["overrideReason"]).slice(0, 300) || null;
 
-  if (!PROPERTIES.some((p) => p.slug === propertySlug))
-    return json({ error: "Select a property" }, 400);
+  const pmsDbForProperty = getPmsDb();
+  const validProperty = pmsDbForProperty
+    ? await isBookablePropertyForOrg(pmsDbForProperty, propertySlug, actor.organizationId)
+    : PROPERTIES.some((p) => p.slug === propertySlug);
+  if (!validProperty) return json({ error: "Select a property" }, 400);
   if (!canProperty(actor, propertySlug))
     return json({ error: "You do not have access to this property" }, 403);
   if (!channel) return json({ error: "Invalid booking source" }, 400);

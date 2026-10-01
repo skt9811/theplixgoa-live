@@ -2,6 +2,12 @@
 // with the PMS session cookie; nothing here touches the partner portal.
 export class PmsAuthError extends Error {}
 
+// The device's last-chosen property scope (pms.tsx reads this on mount, the
+// property selector writes it on every change). Login's optional "Property
+// Code" field also writes here when it recognizes a code — shared so both
+// files agree on the same key without one importing the other.
+export const PMS_PROPERTY_STORAGE_KEY = "plix_pms_property";
+
 export async function pms<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`/api/pms/${path}`, {
     ...init,

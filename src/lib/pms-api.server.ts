@@ -900,8 +900,8 @@ async function getInventory(url: URL, sql: Sql, actor: Actor): Promise<Response>
     return json({ error: "Range too long (max 120 days)" }, 400);
 
   const [rates, blocks, bookings] = await Promise.all([
-    sql<{ date: string; rate: string }[]>`
-      SELECT date::text AS date, rate FROM public.property_rates WHERE property_id = ${property} AND date >= ${start}::date AND date <= ${end}::date`,
+    sql<{ date: string; rate: string; extra_adult_price: string | null; extra_child_price: string | null }[]>`
+      SELECT date::text AS date, rate, extra_adult_price, extra_child_price FROM public.property_rates WHERE property_id = ${property} AND date >= ${start}::date AND date <= ${end}::date`,
     sql<{ date: string; reason: string | null }[]>`
       SELECT date::text AS date, reason FROM public.blocked_dates WHERE property_id = ${property} AND date >= ${start}::date AND date <= ${end}::date`,
     listBookings(sql),
@@ -915,6 +915,12 @@ async function getInventory(url: URL, sql: Sql, actor: Actor): Promise<Response>
   return json({
     basePrice: p.base_price,
     rates: Object.fromEntries(rates.map((r) => [r.date, Number(r.rate)])),
+    extraAdultPrice: Object.fromEntries(
+      rates.filter((r) => r.extra_adult_price !== null).map((r) => [r.date, Number(r.extra_adult_price)]),
+    ),
+    extraChildPrice: Object.fromEntries(
+      rates.filter((r) => r.extra_child_price !== null).map((r) => [r.date, Number(r.extra_child_price)]),
+    ),
     blocked: Object.fromEntries(blocks.map((b) => [b.date, b.reason ?? "Blocked"])),
     booked,
   });
@@ -936,7 +942,24 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
     body["price"] === null || body["price"] === undefined || body["price"] === ""
       ? null
       : num(body["price"], NaN);
+  const extraAdultPrice =
+    body["extraAdultPrice"] === null || body["extraAdultPrice"] === undefined || body["extraAdultPrice"] === ""
+      ? null
+      : num(body["extraAdultPrice"], NaN);
+  const extraChildPrice =
+    body["extraChildPrice"] === null || body["extraChildPrice"] === undefined || body["extraChildPrice"] === ""
+      ? null
+      : num(body["extraChildPrice"], NaN);
   const allowOverride = body["allowOverride"] === true;
+  // Rate Update / Update Inventory modals' day-of-week presets (Week Days /
+  // Weekends / Custom pills) — 0=Sun..6=Sat, JS Date#getUTCDay() convention.
+  // Omitted (or every day present) keeps the original apply-to-every-night
+  // behavior, so this is purely additive for existing callers.
+  const daysOfWeekRaw = body["daysOfWeek"];
+  const daysOfWeek =
+    Array.isArray(daysOfWeekRaw) && daysOfWeekRaw.length > 0 && daysOfWeekRaw.length < 7
+      ? new Set(daysOfWeekRaw.map((d) => Math.floor(num(d, -1))).filter((d) => d >= 0 && d <= 6))
+      : null;
 
   if (
     !PROPERTIES.some((p) => p.slug === property) ||
@@ -951,9 +974,16 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
   if (!["block", "open", "none"].includes(action)) return json({ error: "Invalid action" }, 400);
   if (price !== null && (!Number.isFinite(price) || price <= 0))
     return json({ error: "Enter a valid nightly price" }, 400);
-  if (price === null && action === "none") return json({ error: "Nothing to apply" }, 400);
-  const nights = eachNight(start, addDaysISO(end, 1)); // end date is included
+  if (extraAdultPrice !== null && (!Number.isFinite(extraAdultPrice) || extraAdultPrice < 0))
+    return json({ error: "Enter a valid extra adult price" }, 400);
+  if (extraChildPrice !== null && (!Number.isFinite(extraChildPrice) || extraChildPrice < 0))
+    return json({ error: "Enter a valid extra child price" }, 400);
+  if (price === null && extraAdultPrice === null && extraChildPrice === null && action === "none")
+    return json({ error: "Nothing to apply" }, 400);
+  let nights = eachNight(start, addDaysISO(end, 1)); // end date is included
+  if (daysOfWeek) nights = nights.filter((d) => daysOfWeek.has(new Date(`${d}T00:00:00Z`).getUTCDay()));
   if (nights.length > 120) return json({ error: "Range too long (max 120 days)" }, 400);
+  if (nights.length === 0) return json({ error: "No nights match the selected days" }, 400);
 
   let overrodeReservedNights = false;
   if (action === "block") {
@@ -983,11 +1013,28 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
 
   let opened = 0;
   let blocked = 0;
-  if (price !== null) {
+  if (price !== null || extraAdultPrice !== null || extraChildPrice !== null) {
     for (const date of nights) {
-      await sql`
-        INSERT INTO public.property_rates (property_id, date, rate) VALUES (${property}, ${date}, ${price})
-        ON CONFLICT (property_id, date) DO UPDATE SET rate = EXCLUDED.rate, updated_at = now()`;
+      if (price !== null) {
+        await sql`
+          INSERT INTO public.property_rates (property_id, date, rate, extra_adult_price, extra_child_price)
+          VALUES (${property}, ${date}, ${price}, ${extraAdultPrice}, ${extraChildPrice})
+          ON CONFLICT (property_id, date) DO UPDATE SET rate = EXCLUDED.rate,
+            extra_adult_price = COALESCE(EXCLUDED.extra_adult_price, public.property_rates.extra_adult_price),
+            extra_child_price = COALESCE(EXCLUDED.extra_child_price, public.property_rates.extra_child_price),
+            updated_at = now()`;
+      } else {
+        // Extra adult/child pricing with no base-rate change: only ever
+        // touches an existing override row — there's no base price here to
+        // seed a brand-new row with, so a date with no rate override yet
+        // just keeps falling back to the property's base_price as before.
+        await sql`
+          UPDATE public.property_rates SET
+            extra_adult_price = COALESCE(${extraAdultPrice}, extra_adult_price),
+            extra_child_price = COALESCE(${extraChildPrice}, extra_child_price),
+            updated_at = now()
+          WHERE property_id = ${property} AND date = ${date}::date`;
+      }
     }
   }
   if (action === "block") {
@@ -1011,6 +1058,9 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
     start,
     end,
     price,
+    extraAdultPrice,
+    extraChildPrice,
+    daysOfWeek: daysOfWeek ? [...daysOfWeek] : undefined,
     action,
     reason: action === "block" ? reason : undefined,
     blocked,
@@ -1020,7 +1070,7 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
   return json({
     success: true,
     nights: nights.length,
-    priced: price !== null,
+    priced: price !== null || extraAdultPrice !== null || extraChildPrice !== null,
     blocked,
     opened,
     ...(overrodeReservedNights ? { overridden: true } : {}),

@@ -6,7 +6,15 @@ import { PmsShell } from "@/components/pms/pms-shell";
 import { PmsBackButton } from "@/components/pms/pms-back-button";
 import { PmsContext } from "@/components/pms/pms-context";
 import { CreateReservationModal } from "@/components/pms/create-reservation-modal";
-import { pms, tabForPath, TAB_HOME, TAB_LABELS, type PmsTab, type PmsUser } from "@/lib/pms-client";
+import {
+  pms,
+  PMS_PROPERTY_STORAGE_KEY,
+  tabForPath,
+  TAB_HOME,
+  TAB_LABELS,
+  type PmsTab,
+  type PmsUser,
+} from "@/lib/pms-client";
 import { PmsThemeProvider, type ThemePreference } from "@/components/pms/pms-theme";
 import { pmsHead, usePmsBrandedHead } from "@/components/pms/pms-head";
 import { hidePmsSplash } from "@/lib/pms-splash";
@@ -19,7 +27,7 @@ export const Route = createFileRoute("/pms")({
   component: PmsLayout,
 });
 
-const PROPERTY_KEY = "plix_pms_property";
+const PROPERTY_KEY = PMS_PROPERTY_STORAGE_KEY;
 
 function isKnownProperty(value: string | null): value is string {
   return value === "all" || (value !== null && PROPERTIES.some((p) => p.slug === value));

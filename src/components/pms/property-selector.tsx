@@ -10,7 +10,40 @@ export const MY_PROPERTIES_LABEL = "All My Properties";
 
 export function propertyDisplayName(slug: string): string {
   if (slug === "all") return PORTFOLIO_LABEL;
-  return PMS_PROPERTIES_CONFIG[slug]?.name ?? PROPERTIES.find((p) => p.slug === slug)?.name.split(" - ")[0] ?? slug;
+  return (
+    PMS_PROPERTIES_CONFIG[slug]?.name ??
+    PROPERTIES.find((p) => p.slug === slug)?.name.split(" - ")[0] ??
+    slug
+  );
+}
+
+// Short memorable codes for the login screen's optional "Property Code"
+// field — a pure UX convenience (pre-selects the dashboard's property scope,
+// same as picking it from PropertySelector) and NOT an access boundary: an
+// unrecognized or blank code never blocks sign-in, and this never reaches
+// the server. There is exactly one organization in this codebase today (see
+// tenant-context.server.ts) — these codes identify a PROPERTY within it, not
+// a separate tenant.
+const PROPERTY_CODES: Record<string, string> = {
+  HARBOR: "harbor-court",
+  MORJIM: "morjim-pride",
+  MORJIMRESORT: "the-plix-resort-morjim",
+  CHICO: "vivenda-chico",
+  MARINA: "casa-marina",
+  MOANA: "casa-moana",
+  MEADOWS: "casa-meadows",
+  PLIXVILLA: "the-plix-villa",
+  MADERA: "villa-madera",
+  SERENITA: "casa-serenita",
+};
+
+export function slugForPropertyCode(code: string): string | null {
+  const key = code
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "");
+  if (!key) return null;
+  return PROPERTY_CODES[key] ?? null;
 }
 
 // Desktop: dropdown under the trigger. Mobile: bottom sheet that slides up
@@ -42,7 +75,12 @@ export function PropertySelector() {
       if (e.key === "Escape") close();
     }
     function onClick(e: MouseEvent) {
-      if (window.innerWidth >= 768 && rootRef.current && !rootRef.current.contains(e.target as Node)) close();
+      if (
+        window.innerWidth >= 768 &&
+        rootRef.current &&
+        !rootRef.current.contains(e.target as Node)
+      )
+        close();
     }
     window.addEventListener("keydown", onKey);
     window.addEventListener("mousedown", onClick);
@@ -61,12 +99,23 @@ export function PropertySelector() {
 
   // Users limited to some properties only ever see (and can pick) their own.
   const options = [
-    ...(allProperties ? [{ slug: "all", label: "All Properties (Aggregated Portfolio View)" }] : allowedProperties.length > 1 ? [{ slug: "all", label: MY_PROPERTIES_LABEL }] : []),
-    ...PROPERTIES.filter((p) => allowedProperties.includes(p.slug)).map((p) => ({ slug: p.slug, label: propertyDisplayName(p.slug) })),
+    ...(allProperties
+      ? [{ slug: "all", label: "All Properties (Aggregated Portfolio View)" }]
+      : allowedProperties.length > 1
+        ? [{ slug: "all", label: MY_PROPERTIES_LABEL }]
+        : []),
+    ...PROPERTIES.filter((p) => allowedProperties.includes(p.slug)).map((p) => ({
+      slug: p.slug,
+      label: propertyDisplayName(p.slug),
+    })),
   ];
 
   const list = (
-    <ul role="listbox" aria-label="Property" className="max-h-[60vh] overflow-y-auto py-1 md:max-h-96">
+    <ul
+      role="listbox"
+      aria-label="Property"
+      className="max-h-[60vh] overflow-y-auto py-1 md:max-h-96"
+    >
       {options.map((o) => {
         const active = o.slug === property;
         return (
@@ -98,8 +147,15 @@ export function PropertySelector() {
         className={`flex max-w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold shadow-sm transition-colors border-slate-200 bg-white text-slate-800 hover:bg-slate-50`}
       >
         <Building2 className="size-4 shrink-0 text-emerald-600" aria-hidden />
-        <span className="truncate">{property === "all" && !allProperties ? MY_PROPERTIES_LABEL : propertyDisplayName(property)}</span>
-        <ChevronDown className={`size-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+        <span className="truncate">
+          {property === "all" && !allProperties
+            ? MY_PROPERTIES_LABEL
+            : propertyDisplayName(property)}
+        </span>
+        <ChevronDown
+          className={`size-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden
+        />
       </button>
 
       {open && (
@@ -114,7 +170,9 @@ export function PropertySelector() {
           </div>
           {/* Mobile bottom sheet */}
           <div className="fixed inset-0 z-[65] md:hidden" onClick={close}>
-            <div className={`absolute inset-0 bg-black/40 transition-opacity duration-200 ${shown ? "opacity-100" : "opacity-0"}`} />
+            <div
+              className={`absolute inset-0 bg-black/40 transition-opacity duration-200 ${shown ? "opacity-100" : "opacity-0"}`}
+            />
             <div
               className={`absolute inset-x-0 bottom-0 rounded-t-2xl pb-[env(safe-area-inset-bottom)] shadow-2xl transition-transform duration-200 ease-out bg-white ${
                 shown ? "translate-y-0" : "translate-y-full"
@@ -122,7 +180,9 @@ export function PropertySelector() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-slate-200" />
-              <p className="px-4 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-slate-400">Select property</p>
+              <p className="px-4 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-slate-400">
+                Select property
+              </p>
               {list}
             </div>
           </div>

@@ -1,22 +1,76 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { pms } from "@/lib/pms-client";
+import { toast } from "sonner";
+import { Building2, Eye, EyeOff, Lock, User } from "lucide-react";
+import { pms, PMS_PROPERTY_STORAGE_KEY } from "@/lib/pms-client";
 import { pmsHead, usePmsBrandedHead } from "@/components/pms/pms-head";
 import { PmsEmblem } from "@/components/pms/pms-emblem";
+import { slugForPropertyCode } from "@/components/pms/property-selector";
 import { hidePmsSplash } from "@/lib/pms-splash";
-import twilightVilla from "@/assets/casamarina23.webp";
 
 export const Route = createFileRoute("/pms_/login")({
   head: () => pmsHead,
   component: PmsLogin,
 });
 
+const APP_VERSION = "1.0.4";
+
+// A simple low-rise hotel silhouette — inline SVG so the splash stage needs
+// no image asset or extra network round trip.
+function HotelSilhouette({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 400 110" className={className} aria-hidden="true" fill="currentColor">
+      <rect x="18" y="50" width="70" height="60" rx="2" />
+      <rect x="30" y="62" width="10" height="10" fill="#fff" fillOpacity="0.5" />
+      <rect x="48" y="62" width="10" height="10" fill="#fff" fillOpacity="0.5" />
+      <rect x="66" y="62" width="10" height="10" fill="#fff" fillOpacity="0.5" />
+      <rect x="30" y="82" width="10" height="10" fill="#fff" fillOpacity="0.5" />
+      <rect x="48" y="82" width="10" height="10" fill="#fff" fillOpacity="0.5" />
+      <rect x="66" y="82" width="10" height="10" fill="#fff" fillOpacity="0.5" />
+      <rect x="98" y="24" width="90" height="86" rx="2" />
+      <rect x="112" y="38" width="12" height="12" fill="#fff" fillOpacity="0.5" />
+      <rect x="133" y="38" width="12" height="12" fill="#fff" fillOpacity="0.5" />
+      <rect x="154" y="38" width="12" height="12" fill="#fff" fillOpacity="0.5" />
+      <rect x="112" y="60" width="12" height="12" fill="#fff" fillOpacity="0.5" />
+      <rect x="133" y="60" width="12" height="12" fill="#fff" fillOpacity="0.5" />
+      <rect x="154" y="60" width="12" height="12" fill="#fff" fillOpacity="0.5" />
+      <rect x="112" y="82" width="12" height="12" fill="#fff" fillOpacity="0.5" />
+      <rect x="133" y="82" width="12" height="12" fill="#fff" fillOpacity="0.5" />
+      <rect x="154" y="82" width="12" height="12" fill="#fff" fillOpacity="0.5" />
+      <rect x="200" y="8" width="64" height="102" rx="2" />
+      <rect x="211" y="22" width="9" height="9" fill="#fff" fillOpacity="0.5" />
+      <rect x="227" y="22" width="9" height="9" fill="#fff" fillOpacity="0.5" />
+      <rect x="243" y="22" width="9" height="9" fill="#fff" fillOpacity="0.5" />
+      <rect x="211" y="40" width="9" height="9" fill="#fff" fillOpacity="0.5" />
+      <rect x="227" y="40" width="9" height="9" fill="#fff" fillOpacity="0.5" />
+      <rect x="243" y="40" width="9" height="9" fill="#fff" fillOpacity="0.5" />
+      <rect x="211" y="58" width="9" height="9" fill="#fff" fillOpacity="0.5" />
+      <rect x="227" y="58" width="9" height="9" fill="#fff" fillOpacity="0.5" />
+      <rect x="243" y="58" width="9" height="9" fill="#fff" fillOpacity="0.5" />
+      <rect x="211" y="76" width="9" height="9" fill="#fff" fillOpacity="0.5" />
+      <rect x="227" y="76" width="9" height="9" fill="#fff" fillOpacity="0.5" />
+      <rect x="243" y="76" width="9" height="9" fill="#fff" fillOpacity="0.5" />
+      <rect x="280" y="34" width="78" height="76" rx="2" />
+      <rect x="294" y="48" width="11" height="11" fill="#fff" fillOpacity="0.5" />
+      <rect x="313" y="48" width="11" height="11" fill="#fff" fillOpacity="0.5" />
+      <rect x="332" y="48" width="11" height="11" fill="#fff" fillOpacity="0.5" />
+      <rect x="294" y="70" width="11" height="11" fill="#fff" fillOpacity="0.5" />
+      <rect x="313" y="70" width="11" height="11" fill="#fff" fillOpacity="0.5" />
+      <rect x="332" y="70" width="11" height="11" fill="#fff" fillOpacity="0.5" />
+      <rect x="0" y="108" width="400" height="2" />
+    </svg>
+  );
+}
+
 function PmsLogin() {
   usePmsBrandedHead();
   const navigate = useNavigate();
+  const [stage, setStage] = useState<"splash" | "form">("splash");
   const [ownerMode, setOwnerMode] = useState(false);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [propertyCode, setPropertyCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -31,7 +85,21 @@ function PmsLogin() {
     setBusy(true);
     setError(null);
     try {
-      await pms("login", { method: "POST", body: JSON.stringify(ownerMode ? { password } : { identifier, pin: password }) });
+      await pms("login", {
+        method: "POST",
+        body: JSON.stringify(ownerMode ? { password } : { identifier, pin: password }),
+      });
+      // Optional, non-gating: a recognized Property Code just pre-selects
+      // the dashboard's property scope — see slugForPropertyCode's own note
+      // on why this never affects authentication itself.
+      const slug = slugForPropertyCode(propertyCode);
+      if (slug) {
+        try {
+          window.localStorage.setItem(PMS_PROPERTY_STORAGE_KEY, slug);
+        } catch {
+          // best-effort convenience only
+        }
+      }
       void navigate({ to: "/pms" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -40,76 +108,129 @@ function PmsLogin() {
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#0B1512] text-white lg:grid lg:grid-cols-2 lg:overflow-hidden">
-      {/* Twilight photo: top 45% on mobile, left half on desktop */}
-      <div className="relative h-[45dvh] shrink-0 lg:h-full">
-        <img
-          src={twilightVilla}
-          alt="Casa Marina at twilight, the pool reflecting warm garden lighting"
-          loading="eager"
-          fetchPriority="high"
-          className="absolute inset-0 h-full w-full object-cover object-center"
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0E231D]/35 to-[#101614]/35" />
-        {/* Mobile: dissolve the photo into the sheet below through a dark vignette */}
-        <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-b from-transparent via-[#0B1512]/70 to-[#0B1512] lg:hidden" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(6,12,10,0.55)_100%)] lg:hidden" />
-        {/* Desktop caption */}
-        <div className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-[#0B1512]/90 via-[#0B1512]/50 to-transparent p-12 pt-40 lg:block">
-          <p className="text-3xl font-semibold leading-tight tracking-tight text-[#F1DFA2]">Plix Central Operations</p>
-          <p className="mt-2 max-w-md text-base text-white/80">Estate PMS, Reservations &amp; Financial Ledger</p>
+  if (stage === "splash") {
+    return (
+      <div className="fixed inset-0 z-[60] flex flex-col items-center justify-between overflow-y-auto bg-[#F7F5F0] px-6 py-10 text-slate-900">
+        <div />
+        <div className="flex w-full max-w-sm flex-col items-center text-center">
+          <div className="relative mb-8 w-full max-w-xs text-slate-300">
+            <HotelSilhouette className="w-full" />
+          </div>
+          <PmsEmblem className="size-20" />
+          <h1 className="mt-5 text-2xl font-bold tracking-tight text-slate-900">Plix PMS</h1>
+          <p className="mt-1 text-sm font-medium text-slate-500">Plix Cloud Hospitality</p>
+          <button
+            type="button"
+            onClick={() => setStage("form")}
+            className="mt-9 w-full rounded-full bg-slate-900 px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-slate-900/10 transition-transform active:scale-[0.99] hover:bg-slate-800"
+          >
+            Login
+          </button>
         </div>
+        <p className="text-center text-xs text-slate-400">
+          Secure sign-in for Plix Property Teams &bull; Version {APP_VERSION}
+        </p>
       </div>
+    );
+  }
 
-      {/* Access card / bottom sheet */}
-      <div className="relative -mt-6 min-h-[55dvh] rounded-t-3xl bg-[#0B1512] px-6 pb-10 pt-8 shadow-[0_-20px_40px_rgba(0,0,0,0.35)] lg:mt-0 lg:flex lg:min-h-0 lg:items-center lg:justify-center lg:rounded-none lg:px-16 lg:py-0 lg:shadow-none">
-        <form onSubmit={submit} className="mx-auto w-full max-w-sm">
-          <PmsEmblem className="mx-auto size-20 drop-shadow-[0_0_24px_rgba(212,175,55,0.25)] lg:size-24" />
-          <h1 className="mt-5 text-center text-2xl font-semibold tracking-tight">Plix PMS</h1>
-          <p className="mt-1 text-center text-sm text-white/55">Operations Hub · Administrator access</p>
-          <p className="mt-2 text-center text-xs text-[#D4AF37]/80 lg:hidden">Estate PMS, Reservations &amp; Ledger</p>
+  const fieldWrap =
+    "flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-3 transition-shadow focus-within:border-blue-500 focus-within:shadow-[0_0_0_3px_rgba(37,99,235,0.12)]";
+  const fieldInput =
+    "min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400";
 
+  return (
+    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#F7F5F0] text-slate-900">
+      <div className="mx-auto flex min-h-full max-w-sm flex-col justify-center px-6 py-10">
+        <button
+          type="button"
+          onClick={() => setStage("splash")}
+          className="mb-6 self-start text-xs font-semibold text-slate-400 hover:text-slate-600"
+        >
+          &larr; Back
+        </button>
+        <PmsEmblem className="size-12" />
+        <h1 className="mt-5 text-2xl font-bold tracking-tight text-slate-900">Sign In</h1>
+        <p className="mt-1 text-sm text-slate-500">Please sign in to your account to continue.</p>
+
+        <form onSubmit={submit} className="mt-7 grid gap-3.5">
           {!ownerMode && (
-            <label className="mt-7 grid gap-2 text-sm">
-              <span className="text-white/70">Name, phone or email</span>
+            <label className={fieldWrap}>
+              <User className="size-4 shrink-0 text-slate-400" aria-hidden />
               <input
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 autoFocus
                 autoComplete="username"
-                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3.5 text-base text-white outline-none transition-shadow placeholder:text-white/30 focus:border-[#D4AF37] focus:shadow-[0_0_0_3px_rgba(212,175,55,0.25),0_0_24px_rgba(212,175,55,0.2)]"
+                placeholder="Username"
+                aria-label="Username (name, phone or email)"
+                className={fieldInput}
               />
             </label>
           )}
-          <label className={`${ownerMode ? "mt-7" : "mt-4"} grid gap-2 text-sm`}>
-            <span className="text-white/70">{ownerMode ? "Owner password" : "PIN"}</span>
+          <label className={fieldWrap}>
+            <Lock className="size-4 shrink-0 text-slate-400" aria-hidden />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               inputMode={ownerMode ? "text" : "numeric"}
               maxLength={ownerMode ? undefined : 6}
               value={password}
-              onChange={(e) => setPassword(ownerMode ? e.target.value : e.target.value.replace(/\D/g, ""))}
+              onChange={(e) =>
+                setPassword(ownerMode ? e.target.value : e.target.value.replace(/\D/g, ""))
+              }
               autoFocus={ownerMode}
               autoComplete="current-password"
-              className="rounded-xl border border-white/15 bg-white/5 px-4 py-3.5 text-base text-white outline-none transition-shadow placeholder:text-white/30 focus:border-[#D4AF37] focus:shadow-[0_0_0_3px_rgba(212,175,55,0.25),0_0_24px_rgba(212,175,55,0.2)]"
+              placeholder={ownerMode ? "Password" : "PIN"}
+              aria-label={ownerMode ? "Password" : "PIN"}
+              className={fieldInput}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="shrink-0 text-slate-400 hover:text-slate-600"
+            >
+              {showPassword ? (
+                <EyeOff className="size-4" aria-hidden />
+              ) : (
+                <Eye className="size-4" aria-hidden />
+              )}
+            </button>
+          </label>
+          <label className={fieldWrap}>
+            <Building2 className="size-4 shrink-0 text-slate-400" aria-hidden />
+            <input
+              type="text"
+              value={propertyCode}
+              onChange={(e) => setPropertyCode(e.target.value)}
+              autoComplete="off"
+              placeholder="Property Code (optional)"
+              aria-label="Property code, optional"
+              className={`${fieldInput} uppercase placeholder:normal-case`}
             />
           </label>
-          {error && <p className="mt-3 text-sm font-medium text-red-400">{error}</p>}
+
+          {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+
           <button
             type="submit"
             disabled={busy || !password || (!ownerMode && !identifier.trim())}
-            className="mt-6 w-full rounded-xl bg-gradient-to-r from-[#B8922B] via-[#D4AF37] to-[#E8CE7C] px-4 py-3.5 text-base font-semibold text-[#0E231D] shadow-[0_8px_24px_rgba(212,175,55,0.25)] transition-transform active:scale-[0.99] disabled:opacity-50"
+            className="mt-1.5 w-full rounded-xl bg-blue-700 px-4 py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-700/15 transition-colors active:scale-[0.99] disabled:opacity-50 hover:bg-blue-800"
           >
-            {busy ? (
-              "Signing in..."
-            ) : (
-              <>
-                <span className="lg:hidden">Sign In to PMS</span>
-                <span className="hidden lg:inline">Access Management Hub</span>
-              </>
-            )}
+            {busy ? "Signing in..." : "Sign In"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              toast.message("Forgot your PIN or password?", {
+                description: "Ask a PMS administrator to reset it from Settings → Users.",
+              })
+            }
+            className="text-center text-xs font-medium text-blue-700 hover:underline"
+          >
+            Forgot Password?
           </button>
           <button
             type="button"
@@ -118,12 +239,23 @@ function PmsLogin() {
               setPassword("");
               setError(null);
             }}
-            className="mt-4 w-full text-center text-xs text-white/50 hover:text-[#D4AF37]"
+            className="text-center text-xs text-slate-400 hover:text-slate-600"
           >
             {ownerMode ? "Sign in with name and PIN" : "Sign in with owner password"}
           </button>
-          <p className="mt-6 text-center text-[11px] text-white/35">Plix Hospitality Private Limited · Authorised staff only</p>
         </form>
+
+        <div className="mt-10 flex items-center justify-center gap-2 text-[11px] font-medium text-slate-400">
+          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">
+            PCI-DSS Compliant
+          </span>
+          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">
+            256-Bit SSL Encrypted
+          </span>
+        </div>
+        <p className="mt-4 text-center text-[11px] text-slate-400">
+          Plix Hospitality Private Limited &middot; Authorised staff only
+        </p>
       </div>
     </div>
   );

@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { CalendarCog, Tag } from "lucide-react";
 import { formatINR } from "@/lib/plix";
 import { addDays, fmtDate, istToday, PmsAuthError, pms } from "@/lib/pms-client";
 import { usePms } from "@/components/pms/pms-context";
 import { propertyDisplayName } from "@/components/pms/property-selector";
+import { HotelPositionCalendar } from "@/components/pms/hotel-position-calendar";
+import { RateUpdateModal, UpdateInventoryModal } from "@/components/pms/rate-inventory-modals";
 
 export const Route = createFileRoute("/pms/inventory")({
   component: PmsInventory,
@@ -31,6 +34,8 @@ function PmsInventory() {
   const [busy, setBusy] = useState(false);
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [forceOverride, setForceOverride] = useState(false);
+  const [inventoryModal, setInventoryModal] = useState(false);
+  const [rateModal, setRateModal] = useState(false);
 
   const load = useCallback(async () => {
     if (end < start || !property) return;
@@ -60,7 +65,13 @@ function PmsInventory() {
     setBusy(true);
     try {
       const action = mode === "open" ? "open" : mode === "none" ? "none" : "block";
-      const result = await pms<{ nights: number; priced: boolean; blocked: number; opened: number; overridden?: boolean }>("inventory", {
+      const result = await pms<{
+        nights: number;
+        priced: boolean;
+        blocked: number;
+        opened: number;
+        overridden?: boolean;
+      }>("inventory", {
         method: "POST",
         body: JSON.stringify({
           property,
@@ -73,11 +84,18 @@ function PmsInventory() {
         }),
       });
       toast.success(
-        [result.priced ? "Rates updated" : "", action === "block" ? `${result.blocked} night(s) blocked` : "", action === "open" ? `${result.opened} night(s) opened` : ""]
+        [
+          result.priced ? "Rates updated" : "",
+          action === "block" ? `${result.blocked} night(s) blocked` : "",
+          action === "open" ? `${result.opened} night(s) opened` : "",
+        ]
           .filter(Boolean)
           .join(", ") || "Updated",
       );
-      if (result.overridden) toast.warning("Manual override applied — reserved nights in this range keep their existing booking, but free nights were blocked as requested.");
+      if (result.overridden)
+        toast.warning(
+          "Manual override applied — reserved nights in this range keep their existing booking, but free nights were blocked as requested.",
+        );
       setPrice("");
       setConflictError(null);
       setForceOverride(false);
@@ -97,8 +115,14 @@ function PmsInventory() {
         <h1 className="text-xl font-bold">Rates &amp; Inventory</h1>
         <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
           <p className="font-semibold text-slate-800">Choose a property first</p>
-          <p className="mt-1 text-sm text-slate-500">Rates and blocked dates belong to one property. Select it on the Dashboard, then come back here.</p>
-          <Link to="/pms" className="mt-4 inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+          <p className="mt-1 text-sm text-slate-500">
+            Rates and blocked dates belong to one property. Select it on the Dashboard, then come
+            back here.
+          </p>
+          <Link
+            to="/pms"
+            className="mt-4 inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
             Go to Dashboard
           </Link>
         </div>
@@ -107,34 +131,109 @@ function PmsInventory() {
   }
 
   const days: string[] = [];
-  if (end >= start) for (let d = start, i = 0; d <= end && i < 121; d = addDays(d, 1), i++) days.push(d);
-  const field = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40";
+  if (end >= start)
+    for (let d = start, i = 0; d <= end && i < 121; d = addDays(d, 1), i++) days.push(d);
+  const field =
+    "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40";
 
   return (
     <div className="mx-auto max-w-6xl">
-      <h1 className="text-xl font-bold">Rates &amp; Inventory</h1>
-      <p className="text-sm text-slate-500">Changes update the website calendar and prices immediately.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">Rates &amp; Inventory</h1>
+          <p className="text-sm text-slate-500">
+            Changes update the website calendar and prices immediately.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setInventoryModal(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            <CalendarCog className="size-4" aria-hidden /> Update Inventory
+          </button>
+          <button
+            type="button"
+            onClick={() => setRateModal(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+          >
+            <Tag className="size-4" aria-hidden /> Rate Update
+          </button>
+        </div>
+      </div>
 
-      <form onSubmit={apply} className="mt-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-6">
+      <div className="mt-4">
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Hotel Position
+        </h2>
+        <HotelPositionCalendar property={property} />
+      </div>
+
+      {inventoryModal && (
+        <UpdateInventoryModal
+          property={property}
+          onClose={() => setInventoryModal(false)}
+          onApplied={() => void load()}
+        />
+      )}
+      {rateModal && (
+        <RateUpdateModal
+          property={property}
+          onClose={() => setRateModal(false)}
+          onApplied={() => void load()}
+        />
+      )}
+
+      <h2 className="mb-2 mt-6 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Quick range edit
+      </h2>
+      <form
+        onSubmit={apply}
+        className="mt-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-6"
+      >
         <div className="grid gap-1 text-xs text-slate-500 md:col-span-2">
           Property
-          <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">{propertyDisplayName(globalProperty)}</p>
+          <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
+            {propertyDisplayName(globalProperty)}
+          </p>
         </div>
         <label className="grid gap-1 text-xs text-slate-500">
           Start date
-          <input type="date" value={start} onChange={(e) => setStart(e.target.value)} className={field} />
+          <input
+            type="date"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+            className={field}
+          />
         </label>
         <label className="grid gap-1 text-xs text-slate-500">
           End date
-          <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className={field} />
+          <input
+            type="date"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+            className={field}
+          />
         </label>
         <label className="grid gap-1 text-xs text-slate-500">
           Override nightly price (₹)
-          <input type="number" min={0} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Keep current" className={field} />
+          <input
+            type="number"
+            min={0}
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="Keep current"
+            className={field}
+          />
         </label>
         <label className="grid gap-1 text-xs text-slate-500">
           Date status
-          <select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} className={field}>
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value as typeof mode)}
+            className={field}
+          >
             <option value="none">No change</option>
             <option value="open">Open (available)</option>
             <option value="Maintenance">Block: Maintenance</option>
@@ -145,7 +244,12 @@ function PmsInventory() {
           <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-xs md:col-span-6">
             <p className="font-semibold text-red-700">⚠️ {conflictError}</p>
             <label className="mt-2 flex items-center gap-2 font-semibold text-red-800">
-              <input type="checkbox" checked={forceOverride} onChange={(e) => setForceOverride(e.target.checked)} className="size-4 rounded border-red-400 text-red-600 focus:ring-red-500" />
+              <input
+                type="checkbox"
+                checked={forceOverride}
+                onChange={(e) => setForceOverride(e.target.checked)}
+                className="size-4 rounded border-red-400 text-red-600 focus:ring-red-500"
+              />
               Force Manual Override
             </label>
           </div>
@@ -155,12 +259,21 @@ function PmsInventory() {
             type="submit"
             disabled={busy || (price.trim() === "" && mode === "none")}
             className={`rounded-lg px-5 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-50 ${
-              conflictError && forceOverride ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"
+              conflictError && forceOverride
+                ? "bg-red-600 hover:bg-red-700"
+                : "bg-emerald-600 hover:bg-emerald-700"
             }`}
           >
-            {busy ? "Applying..." : conflictError && forceOverride ? "Apply to range (Override)" : "Apply to range"}
+            {busy
+              ? "Applying..."
+              : conflictError && forceOverride
+                ? "Apply to range (Override)"
+                : "Apply to range"}
           </button>
-          <span className="ml-3 text-xs text-slate-400">The end date is included. Opening only releases maintenance/owner blocks, never reservations.</span>
+          <span className="ml-3 text-xs text-slate-400">
+            The end date is included. Opening only releases maintenance/owner blocks, never
+            reservations.
+          </span>
         </div>
       </form>
 
@@ -188,7 +301,8 @@ function PmsInventory() {
                 const booking = grid.booked[d];
                 const block = grid.blocked[d];
                 const rate = grid.rates[d];
-                const isBlockOnly = block && !booking && block !== "Booked" && !block.startsWith("Manual booking ");
+                const isBlockOnly =
+                  block && !booking && block !== "Booked" && !block.startsWith("Manual booking ");
                 return (
                   <tr key={d} className="border-t border-slate-100">
                     <td className="px-4 py-2 font-medium text-slate-800">{fmtDate(d)}</td>
@@ -197,7 +311,9 @@ function PmsInventory() {
                       {rate === undefined ? (
                         <span className="ml-1.5 text-xs text-slate-400">base</span>
                       ) : (
-                        <span className="ml-1.5 rounded-full border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">OVERRIDE</span>
+                        <span className="ml-1.5 rounded-full border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                          OVERRIDE
+                        </span>
                       )}
                     </td>
                     <td className="px-4 py-2">
@@ -206,9 +322,13 @@ function PmsInventory() {
                           Reserved: {booking.guest} (#{booking.ref})
                         </span>
                       ) : isBlockOnly ? (
-                        <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">Blocked: {block}</span>
+                        <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+                          Blocked: {block}
+                        </span>
                       ) : (
-                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">Open</span>
+                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                          Open
+                        </span>
                       )}
                     </td>
                   </tr>

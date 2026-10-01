@@ -175,10 +175,15 @@ export function publicUser(u: UserRow): PublicUser {
   return { ...rest, created_at: created_at.toISOString() };
 }
 
-export async function listUsers(): Promise<PublicUser[]> {
+/** Strictly scoped to one organization — a B2B tenant's Settings > Users
+ * screen must only ever show staff accounts created within their own
+ * organization, never Plix's own internal staff or another tenant's. */
+export async function listUsers(organizationId: string): Promise<PublicUser[]> {
   const sql = getPmsDb();
   if (!sql) return [];
   await ensureAccessSchema(sql);
-  const rows = await sql<UserRow[]>`SELECT * FROM pms_users ORDER BY created_at`;
+  const rows = await sql<
+    UserRow[]
+  >`SELECT * FROM pms_users WHERE organization_id = ${organizationId} ORDER BY created_at`;
   return rows.map(publicUser);
 }

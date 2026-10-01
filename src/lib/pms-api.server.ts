@@ -23,6 +23,7 @@ import {
   DEFAULT_ORG_ID,
   getTenantId,
   isBookablePropertyForOrg,
+  listOrganizationProperties,
   resolveDynamicPropertyCode,
 } from "@/lib/tenant-context.server";
 import {
@@ -2225,8 +2226,16 @@ async function emailVoucher(request: Request, actor: Actor): Promise<Response> {
 
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
+// validSlugs is the CREATING actor's own organization's real properties
+// (listOrganizationProperties — static Plix properties for org_plix_internal,
+// a tenant's own pms_properties rows for anyone else). This used to check
+// only the static PROPERTIES array, which meant a B2B tenant's admin could
+// never actually assign their own property to a new staff member — every
+// attempt failed with "Choose at least one property" since a dynamic
+// property id is never in that array.
 function parseAccess(
   body: Record<string, unknown>,
+  validSlugs: Set<string>,
 ): { props: string[]; tabs: string[] } | { error: string } {
   const rawProps = Array.isArray(body["assignedProperties"])
     ? (body["assignedProperties"] as unknown[]).map((x) => str(x))
@@ -2236,7 +2245,7 @@ function parseAccess(
     : [];
   const props = rawProps.includes("all")
     ? ["all"]
-    : [...new Set(rawProps.filter((sl) => PROPERTIES.some((p) => p.slug === sl)))];
+    : [...new Set(rawProps.filter((sl) => validSlugs.has(sl)))];
   const tabs = [...new Set(rawTabs.filter((t) => (TABS as readonly string[]).includes(t)))];
   if (props.length === 0) return { error: "Choose at least one property, or All Properties" };
   if (tabs.length === 0) return { error: "Choose at least one tab" };
@@ -2247,15 +2256,18 @@ async function usersApi(request: Request, url: URL, actor: Actor): Promise<Respo
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   await ensureAccessSchema(pmsDb);
-  if (request.method === "GET") return json({ users: await listUsers() });
+  if (request.method === "GET") return json({ users: await listUsers(actor.organizationId) });
 
   const id = url.searchParams.get("id") ?? "";
   if (request.method === "DELETE") {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
     if (id === actor.id) return json({ error: "You cannot delete your own account" }, 400);
-    const [gone] = await pmsDb<
-      { name: string }[]
-    >`DELETE FROM pms_users WHERE id = ${id}::uuid RETURNING name`;
+    // organization_id scoped: without this, deleting by id alone let any
+    // tenant admin delete another organization's user (or Plix's own real
+    // staff) by guessing/enumerating a UUID.
+    const [gone] = await pmsDb<{ name: string }[]>`
+      DELETE FROM pms_users WHERE id = ${id}::uuid AND organization_id = ${actor.organizationId}
+      RETURNING name`;
     if (!gone) return json({ error: "User not found" }, 404);
     invalidateUserCache(id);
     await audit(actor, "DELETE", "user", id, { name: gone.name });
@@ -2283,7 +2295,9 @@ async function usersApi(request: Request, url: URL, actor: Actor): Promise<Respo
   if (!(ROLES as readonly string[]).includes(role)) return json({ error: "Invalid role" }, 400);
   if ((isCreate || pin) && !PIN_RE.test(pin))
     return json({ error: "PIN must be 4 to 6 digits" }, 400);
-  const access = parseAccess(body);
+  const ownProperties = await listOrganizationProperties(pmsDb, actor.organizationId);
+  const validSlugs = new Set(ownProperties.map((p) => p.id));
+  const access = parseAccess(body, validSlugs);
   if ("error" in access) return json({ error: access.error }, 400);
   if (role === "admin" && !access.tabs.includes("pos")) access.tabs.push("pos");
   const active = body["isActive"] === false ? false : true;
@@ -2299,8 +2313,8 @@ async function usersApi(request: Request, url: URL, actor: Actor): Promise<Respo
   try {
     if (isCreate) {
       const [row] = await pmsDb<{ id: string }[]>`
-        INSERT INTO pms_users (name, email, phone, pin_hash, role, assigned_properties, allowed_tabs, is_active)
-        VALUES (${name}, ${email}, ${phone}, ${hashPin(pin)}, ${role}, ${access.props}, ${access.tabs}, ${active})
+        INSERT INTO pms_users (name, email, phone, pin_hash, role, assigned_properties, allowed_tabs, is_active, organization_id)
+        VALUES (${name}, ${email}, ${phone}, ${hashPin(pin)}, ${role}, ${access.props}, ${access.tabs}, ${active}, ${actor.organizationId})
         RETURNING id`;
       await audit(actor, "CREATE", "user", row!.id, {
         name,
@@ -2310,6 +2324,9 @@ async function usersApi(request: Request, url: URL, actor: Actor): Promise<Respo
       });
       return json({ success: true, id: row!.id });
     }
+    // organization_id scoped: without this, updating by id alone let any
+    // tenant admin edit (including escalate the permissions of) another
+    // organization's user, or Plix's own real staff, by guessing a UUID.
     const [before] = await pmsDb<
       {
         name: string;
@@ -2319,12 +2336,13 @@ async function usersApi(request: Request, url: URL, actor: Actor): Promise<Respo
         is_active: boolean;
       }[]
     >`
-      SELECT name, role, assigned_properties, allowed_tabs, is_active FROM pms_users WHERE id = ${id}::uuid`;
+      SELECT name, role, assigned_properties, allowed_tabs, is_active FROM pms_users
+      WHERE id = ${id}::uuid AND organization_id = ${actor.organizationId}`;
     if (!before) return json({ error: "User not found" }, 404);
     await pmsDb`
       UPDATE pms_users SET name = ${name}, email = ${email}, phone = ${phone}, role = ${role}, assigned_properties = ${access.props},
         allowed_tabs = ${access.tabs}, is_active = ${active}${pin ? pmsDb`, pin_hash = ${hashPin(pin)}, failed_attempts = 0, locked_until = NULL` : pmsDb``}
-      WHERE id = ${id}::uuid`;
+      WHERE id = ${id}::uuid AND organization_id = ${actor.organizationId}`;
     invalidateUserCache(id);
     await audit(actor, "UPDATE", "user", id, {
       before: {
@@ -2345,7 +2363,7 @@ async function usersApi(request: Request, url: URL, actor: Actor): Promise<Respo
   }
 }
 
-async function auditApi(url: URL): Promise<Response> {
+async function auditApi(url: URL, actor: Actor): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   await ensureAccessSchema(pmsDb);
@@ -2357,8 +2375,12 @@ async function auditApi(url: URL): Promise<Response> {
   const userName = url.searchParams.get("user") ?? "";
   const action = url.searchParams.get("action") ?? "";
   const entity = url.searchParams.get("entity") ?? "";
+  // Strict tenant isolation: a B2B tenant must never read Plix's own
+  // internal audit trail, or any other tenant's — this was previously
+  // unfiltered entirely (every organization's full history, to anyone who
+  // could reach this admin-gated route, including a brand-new signup).
   const where = pmsDb`
-    WHERE true
+    WHERE organization_id = ${actor.organizationId}
       ${userName ? pmsDb`AND user_name = ${userName}` : pmsDb``}
       ${action ? pmsDb`AND action = ${action}` : pmsDb``}
       ${entity ? pmsDb`AND entity_type = ${entity}` : pmsDb``}`;
@@ -2575,7 +2597,7 @@ export async function handlePmsApi(request: Request): Promise<Response> {
   const sql = getWebDb();
   try {
     if (path === "users") return await usersApi(request, url, actor);
-    if (path === "audit") return await auditApi(url);
+    if (path === "audit") return await auditApi(url, actor);
     if (path === "system" && request.method === "GET") {
       const [web, pms] = await Promise.all([pingDb(sql), pingDb(getPmsDb())]);
       return json({ web, pms });

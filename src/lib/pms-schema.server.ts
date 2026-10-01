@@ -236,6 +236,15 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
         )`;
       await sql`CREATE INDEX IF NOT EXISTS pms_audit_logs_created_idx ON pms_audit_logs (created_at DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS pms_audit_logs_user_idx ON pms_audit_logs (user_id)`;
+      // Phase 7 (strict multi-tenant isolation — security fix): without this,
+      // GET /api/pms/audit had no way to scope results at all, so every
+      // tenant's admin could read every other organization's (and Plix's
+      // own internal) audit trail. Backfilled from the acting user's own
+      // organization_id at write time (audit() below), not derived at read
+      // time — a log entry should keep recording who it was for even if that
+      // user's org later changes.
+      await sql`ALTER TABLE pms_audit_logs ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_pms_audit_logs_org_id ON pms_audit_logs (organization_id)`;
       // Admins always have every module, including the Restaurant POS and Inquiries tabs.
       await sql`UPDATE pms_users SET allowed_tabs = array_append(allowed_tabs, 'pos') WHERE role = 'admin' AND NOT ('pos' = ANY(allowed_tabs))`;
       await sql`UPDATE pms_users SET allowed_tabs = array_append(allowed_tabs, 'inquiries') WHERE role = 'admin' AND NOT ('inquiries' = ANY(allowed_tabs))`;

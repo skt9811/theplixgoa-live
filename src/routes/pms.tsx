@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { PROPERTIES } from "@/lib/plix";
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { PmsShell } from "@/components/pms/pms-shell";
 import { PmsBackButton } from "@/components/pms/pms-back-button";
 import { PmsContext } from "@/components/pms/pms-context";
 import { CreateReservationModal } from "@/components/pms/create-reservation-modal";
+import { setDynamicPropertyNames } from "@/components/pms/property-selector";
 import {
   pms,
   PMS_PROPERTY_STORAGE_KEY,
   tabForPath,
   TAB_HOME,
   TAB_LABELS,
+  type PmsProperty,
   type PmsTab,
   type PmsUser,
 } from "@/lib/pms-client";
@@ -29,10 +30,6 @@ export const Route = createFileRoute("/pms")({
 
 const PROPERTY_KEY = PMS_PROPERTY_STORAGE_KEY;
 
-function isKnownProperty(value: string | null): value is string {
-  return value === "all" || (value !== null && PROPERTIES.some((p) => p.slug === value));
-}
-
 function PmsLayout() {
   usePmsBrandedHead();
   const navigate = useNavigate();
@@ -43,21 +40,41 @@ function PmsLayout() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [property, setPropertyState] = useState("all");
   const [serverTheme, setServerTheme] = useState<ThemePreference | null>(null);
+  // null = not fetched yet. This actor's own organization's real properties
+  // (GET /api/pms/properties) — replaces reading the static PROPERTIES array
+  // here, which only ever listed the 10 real Plix villas/hotels and silently
+  // excluded any other tenant's own property from their own switcher/POS.
+  const [properties, setProperties] = useState<PmsProperty[] | null>(null);
+
+  const isKnownProperty = useCallback(
+    (value: string | null): value is string =>
+      value === "all" || (value !== null && (properties ?? []).some((p) => p.id === value)),
+    [properties],
+  );
 
   const allProperties = user?.props.includes("all") ?? true;
   const allowedProperties = allProperties
-    ? PROPERTIES.map((p) => p.slug)
-    : (user?.props ?? []).filter((sl) => PROPERTIES.some((p) => p.slug === sl));
-  const isAllowed = (value: string | null): value is string =>
-    value === "all"
-      ? allProperties || allowedProperties.length > 1
-      : value !== null && allowedProperties.includes(value);
+    ? (properties ?? []).map((p) => p.id)
+    : (user?.props ?? []).filter((sl) => (properties ?? []).some((p) => p.id === sl));
+  // Memoized (not a plain const re-created every render) specifically so
+  // setProperty below can list it as a dependency and never close over a
+  // stale allowedProperties/allProperties pair from before `properties`
+  // finished loading.
+  const isAllowed = useCallback(
+    (value: string | null): value is string =>
+      value === "all"
+        ? allProperties || allowedProperties.length > 1
+        : value !== null && allowedProperties.includes(value),
+    [allProperties, allowedProperties],
+  );
 
   // The active property survives tab changes and reloads: a ?property= link
   // wins when present, otherwise the last choice saved on this device. A user
   // restricted to some properties can never land on one they do not have.
+  // Waits on `properties` too now — isAllowed/isKnownProperty can't resolve
+  // correctly against an empty list before that first fetch returns.
   useEffect(() => {
-    if (!user) return;
+    if (!user || properties === null) return;
     let chosen: string | null = null;
     try {
       const fromUrl = new URLSearchParams(window.location.search).get("property");
@@ -75,17 +92,20 @@ function PmsLayout() {
             : (allowedProperties[0] ?? "all"),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, properties]);
 
-  const setProperty = useCallback((next: string) => {
-    if (!isKnownProperty(next) || !isAllowed(next)) return;
-    setPropertyState(next);
-    try {
-      window.localStorage.setItem(PROPERTY_KEY, next);
-    } catch {
-      // ignore: the choice still applies for this session
-    }
-  }, []);
+  const setProperty = useCallback(
+    (next: string) => {
+      if (!isKnownProperty(next) || !isAllowed(next)) return;
+      setPropertyState(next);
+      try {
+        window.localStorage.setItem(PROPERTY_KEY, next);
+      } catch {
+        // ignore: the choice still applies for this session
+      }
+    },
+    [isKnownProperty, isAllowed],
+  );
 
   useEffect(() => {
     pms("session")
@@ -109,6 +129,21 @@ function PmsLayout() {
             if (t === "system" || t === "dark" || t === "light") setServerTheme(t);
           })
           .catch(() => undefined);
+        // This actor's own organization's real properties — must resolve to
+        // SOMETHING (even []) so the loading gate below can never hang
+        // forever on a failed fetch.
+        pms<{ properties: PmsProperty[] }>("properties")
+          .then((r) => {
+            setDynamicPropertyNames(r.properties);
+            setProperties(r.properties);
+          })
+          .catch((err) => {
+            console.error(
+              "[pms] properties fetch failed:",
+              err instanceof Error ? err.message : err,
+            );
+            setProperties([]);
+          });
       })
       .catch(() => void navigate({ to: "/pms/login" }));
   }, [navigate]);
@@ -149,7 +184,7 @@ function PmsLayout() {
     void navigate({ to: "/pms" });
   }, [posDenied, navigate]);
 
-  if (!user) {
+  if (!user || properties === null) {
     return (
       <PmsThemeProvider>
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-50 text-sm text-slate-400">
@@ -171,6 +206,9 @@ function PmsLayout() {
           can: (tab: PmsTab) => user.tabs.includes(tab),
           allowedProperties,
           allProperties,
+          properties: allProperties
+            ? properties
+            : properties.filter((p) => allowedProperties.includes(p.id)),
         }}
       >
         <PmsBackButton />

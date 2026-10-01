@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { PmsTab, PmsUser } from "@/lib/pms-client";
+import type { PmsProperty, PmsTab, PmsUser } from "@/lib/pms-client";
 
 type PmsContextValue = {
   openCreate: () => void;
@@ -14,6 +14,11 @@ type PmsContextValue = {
   /** Property slugs this user may see (all of them for full-access users). */
   allowedProperties: string[];
   allProperties: boolean;
+  /** This actor's own organization's real properties, from GET
+   * /api/pms/properties — already narrowed to allowedProperties. Empty while
+   * still loading; every consumer should treat an empty array as "not ready
+   * yet", the same way `user` starting null already gates the whole shell. */
+  properties: PmsProperty[];
 };
 
 const OWNER: PmsUser = {
@@ -44,5 +49,6 @@ export const PmsContext = createContext<PmsContextValue>({
   can: () => true,
   allowedProperties: [],
   allProperties: true,
+  properties: [],
 });
 export const usePms = () => useContext(PmsContext);

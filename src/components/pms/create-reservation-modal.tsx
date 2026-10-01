@@ -34,7 +34,7 @@ export function CreateReservationModal({
   initial?: Initial;
 }) {
   useBackDismiss(true, onClose);
-  const { property: activeProperty } = usePms();
+  const { property: activeProperty, properties } = usePms();
   const [property, setProperty] = useState(
     initial?.property ?? (activeProperty === "all" ? "" : activeProperty),
   );
@@ -221,9 +221,9 @@ export function CreateReservationModal({
               required
             >
               <option value="">Select a property</option>
-              {PROPERTIES.map((x) => (
-                <option key={x.slug} value={x.slug}>
-                  {x.name.split(" - ")[0]}
+              {properties.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
                 </option>
               ))}
             </select>
@@ -418,12 +418,15 @@ export function CreateReservationModal({
               min={0}
               max={100}
               value={commissionPct}
-              onChange={(e) => setCommissionPct(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+              onChange={(e) =>
+                setCommissionPct(Math.min(100, Math.max(0, Number(e.target.value) || 0)))
+              }
               className={field}
             />
           </label>
           <p className="self-end text-xs text-slate-500">
-            {formatINR(Math.round((total * commissionPct) / 100))} commission · {formatINR(total - Math.round((total * commissionPct) / 100))} net payout
+            {formatINR(Math.round((total * commissionPct) / 100))} commission ·{" "}
+            {formatINR(total - Math.round((total * commissionPct) / 100))} net payout
           </p>
 
           <RoomAllocationEditor

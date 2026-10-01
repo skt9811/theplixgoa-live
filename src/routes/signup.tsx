@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Building2, Check, Lock, Mail, Phone, User, X } from "lucide-react";
+import { BedDouble, Building2, Check, Lock, Mail, Phone, Tag, User, X } from "lucide-react";
 import { pms } from "@/lib/pms-client";
 import { pmsHead, usePmsBrandedHead } from "@/components/pms/pms-head";
 import { PmsEmblem } from "@/components/pms/pms-emblem";
@@ -22,6 +22,9 @@ function SignupPage() {
   const [phone, setPhone] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [propertyCode, setPropertyCode] = useState("");
+  const [totalRooms, setTotalRooms] = useState("5");
+  const [primaryRoomType, setPrimaryRoomType] = useState("");
+  const [basePrice, setBasePrice] = useState("");
   const [pin, setPin] = useState("");
   const [codeStatus, setCodeStatus] = useState<CodeStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +68,9 @@ function SignupPage() {
           phone,
           businessName,
           propertyCode: propertyCode.trim().toUpperCase(),
+          totalRooms: Number(totalRooms) || 0,
+          primaryRoomType,
+          basePrice: basePrice.trim() === "" ? null : Number(basePrice),
           pin,
         }),
       });
@@ -173,6 +179,41 @@ function SignupPage() {
             </label>
             {hint && <p className={`text-xs font-medium ${hint.className}`}>{hint.text}</p>}
           </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <label className={fieldWrap}>
+              <BedDouble className="size-4 shrink-0 text-slate-400" aria-hidden />
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={totalRooms}
+                onChange={(e) => setTotalRooms(e.target.value)}
+                placeholder="Total Rooms"
+                className={fieldInput}
+              />
+            </label>
+            <label className={fieldWrap}>
+              <Tag className="size-4 shrink-0 text-slate-400" aria-hidden />
+              <input
+                type="number"
+                min={0}
+                value={basePrice}
+                onChange={(e) => setBasePrice(e.target.value)}
+                placeholder="Base Price (₹)"
+                className={fieldInput}
+              />
+            </label>
+          </div>
+          <label className={fieldWrap}>
+            <Building2 className="size-4 shrink-0 text-slate-400" aria-hidden />
+            <input
+              type="text"
+              value={primaryRoomType}
+              onChange={(e) => setPrimaryRoomType(e.target.value)}
+              placeholder="Primary Room Type (e.g. Deluxe Room, Villa, 1BHK Suite)"
+              className={fieldInput}
+            />
+          </label>
           <label className={fieldWrap}>
             <Lock className="size-4 shrink-0 text-slate-400" aria-hidden />
             <input

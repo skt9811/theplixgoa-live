@@ -2,17 +2,31 @@ import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Building2 } from "lucide-react";
 import { PROPERTIES } from "@/lib/plix";
 import { PMS_PROPERTIES_CONFIG } from "@/lib/pms-properties-config";
+import type { PmsProperty } from "@/lib/pms-client";
 import { usePms } from "@/components/pms/pms-context";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
 export const PORTFOLIO_LABEL = "All Properties (Portfolio)";
 export const MY_PROPERTIES_LABEL = "All My Properties";
 
+// Populated once by pms.tsx right after GET /api/pms/properties resolves —
+// a plain module-level cache rather than threading the property list through
+// every one of propertyDisplayName's many call sites (booking rows, voucher
+// headers, POS screens...). Only ever consulted as a fallback: a slug
+// already in PMS_PROPERTIES_CONFIG or the static PROPERTIES array (the 10
+// real Plix villas/hotels) resolves exactly as it always has, unaffected by
+// whether this cache has loaded yet.
+let dynamicPropertyNames: Record<string, string> = {};
+export function setDynamicPropertyNames(list: PmsProperty[]): void {
+  dynamicPropertyNames = Object.fromEntries(list.map((p) => [p.id, p.name]));
+}
+
 export function propertyDisplayName(slug: string): string {
   if (slug === "all") return PORTFOLIO_LABEL;
   return (
     PMS_PROPERTIES_CONFIG[slug]?.name ??
     PROPERTIES.find((p) => p.slug === slug)?.name.split(" - ")[0] ??
+    dynamicPropertyNames[slug] ??
     slug
   );
 }
@@ -20,7 +34,7 @@ export function propertyDisplayName(slug: string): string {
 // Desktop: dropdown under the trigger. Mobile: bottom sheet that slides up
 // and closes as soon as a property is picked. Same list either way.
 export function PropertySelector() {
-  const { property, setProperty, allowedProperties, allProperties } = usePms();
+  const { property, setProperty, allowedProperties, allProperties, properties } = usePms();
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -69,15 +83,18 @@ export function PropertySelector() {
   }
 
   // Users limited to some properties only ever see (and can pick) their own.
+  // properties already comes pre-scoped to allowedProperties (pms.tsx), so
+  // this no longer needs to separately filter the static PROPERTIES array —
+  // which would have silently dropped any tenant's own non-static property.
   const options = [
     ...(allProperties
       ? [{ slug: "all", label: "All Properties (Aggregated Portfolio View)" }]
       : allowedProperties.length > 1
         ? [{ slug: "all", label: MY_PROPERTIES_LABEL }]
         : []),
-    ...PROPERTIES.filter((p) => allowedProperties.includes(p.slug)).map((p) => ({
-      slug: p.slug,
-      label: propertyDisplayName(p.slug),
+    ...properties.map((p) => ({
+      slug: p.id,
+      label: propertyDisplayName(p.id),
     })),
   ];
 

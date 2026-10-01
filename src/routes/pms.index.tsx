@@ -118,7 +118,7 @@ function QuickActionCard({
 }
 
 function PmsDashboard() {
-  const { property, can, openCreate } = usePms();
+  const { property, can, openCreate, properties } = usePms();
   const { bookings, error, reload } = usePmsBookings();
   const today = istToday();
   const [rangeId, setRangeId] = useState<RangeId>("mtd");
@@ -142,12 +142,12 @@ function PmsDashboard() {
     };
   }, [scoped, today]);
 
-  const units = unitsFor(property);
+  const units = unitsFor(property, properties);
   const vacant = Math.max(0, units - stats.inHouse.length);
 
   const trend = useMemo(
-    () => (scoped ? trendFor(scoped, property, range.start, range.end) : []),
-    [scoped, property, range],
+    () => (scoped ? trendFor(scoped, property, range.start, range.end, properties) : []),
+    [scoped, property, range, properties],
   );
   const totalRevenue = trend.reduce((s, p) => s + p.revenue, 0);
   const avgOccupancy = trend.length

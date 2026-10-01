@@ -18,7 +18,7 @@ import type postgres from "postgres";
 import { ensureAccessSchema, ensurePosSchema } from "@/lib/pms-schema.server";
 import { seedProperty } from "@/lib/pms-pos-api.server";
 import { seedConfig } from "@/lib/pms-pos-config.server";
-import { str } from "@/lib/pms-pos-shared.server";
+import { num, str } from "@/lib/pms-pos-shared.server";
 import { hashPin, PIN_RE, TABS } from "@/lib/pms-users.server";
 import { buildPmsSessionCookie } from "@/lib/pms-session.server";
 import { slugForPropertyCode } from "@/lib/property-codes";
@@ -66,6 +66,12 @@ export type ProvisionTenantParams = {
   propertyCode: string;
   propertyType: string;
   totalRooms: number;
+  /** Onboarding fields stored on the property record (real data, not yet
+   * consulted by the live rates/booking engine — see pms-schema.server.ts's
+   * own note on primary_room_type/base_price). Optional: the super-admin
+   * "Create Tenant" modal doesn't collect these, only /signup does. */
+  primaryRoomType?: string | null;
+  basePrice?: number | null;
   /** Login identifier (pms_users.name) for the account created — the public
    * signup form uses the owner's own full name; the super-admin modal takes
    * a separate "Default Admin Username" field instead. */
@@ -121,8 +127,8 @@ export async function provisionTenant(
            now(), now() + ${`${p.trialDays} days`}::interval,
            1, ${p.ownerName}, ${p.ownerEmail}, ${p.ownerPhone}, ${p.isInternal}, ${tx.json(p.features as never)})`;
       await tx`
-        INSERT INTO pms_properties (id, organization_id, name, code, property_type, total_rooms, is_active, contact_email, contact_phone)
-        VALUES (${propertyId}, ${orgId}, ${p.propertyName}, ${p.propertyCode}, ${p.propertyType}, ${p.totalRooms}, true, ${p.ownerEmail}, ${p.ownerPhone})`;
+        INSERT INTO pms_properties (id, organization_id, name, code, property_type, total_rooms, is_active, contact_email, contact_phone, primary_room_type, base_price)
+        VALUES (${propertyId}, ${orgId}, ${p.propertyName}, ${p.propertyCode}, ${p.propertyType}, ${p.totalRooms}, true, ${p.ownerEmail}, ${p.ownerPhone}, ${p.primaryRoomType ?? null}, ${p.basePrice ?? null})`;
       const [user] = await tx<{ id: string }[]>`
         INSERT INTO pms_users (name, email, phone, pin_hash, role, assigned_properties, allowed_tabs, is_active, organization_id)
         VALUES (${p.adminName}, ${p.ownerEmail}, ${p.ownerPhone}, ${hashPin(p.pin)}, 'admin', ${[propertyId]}, ${[...TABS]}, true, ${orgId})
@@ -184,6 +190,10 @@ async function signup(request: Request, sql: Sql): Promise<Response> {
   const phone = str(body["phone"]).replace(/\D/g, "");
   const businessName = str(body["businessName"]).slice(0, 150);
   const propertyCode = str(body["propertyCode"]).trim().toUpperCase();
+  const totalRooms = Math.max(1, Math.min(500, Math.floor(num(body["totalRooms"], 5))));
+  const primaryRoomType = str(body["primaryRoomType"]).slice(0, 100) || null;
+  const basePriceRaw = num(body["basePrice"], NaN);
+  const basePrice = Number.isFinite(basePriceRaw) && basePriceRaw >= 0 ? basePriceRaw : null;
   // The login flow this account signs in through (handleLogin, pms-api.server.ts)
   // only ever authenticates with a 4-6 digit PIN for a non-owner account — an
   // arbitrary "password" here would silently fail every future login, so the
@@ -207,7 +217,9 @@ async function signup(request: Request, sql: Sql): Promise<Response> {
     propertyName: businessName,
     propertyCode,
     propertyType: "hotel",
-    totalRooms: 5,
+    totalRooms,
+    primaryRoomType,
+    basePrice,
     adminName: fullName,
     pin,
     planTier: "starter_21k",

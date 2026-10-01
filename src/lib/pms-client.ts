@@ -72,6 +72,18 @@ export type PmsBooking = {
   override_reason: string | null;
 };
 
+/** GET /api/pms/properties — the signed-in actor's own organization's real
+ * properties (Phase 7: the top property switcher, POS property picker, and
+ * dashboard occupancy all read this now, not the static PROPERTIES array
+ * directly, so a Phase-4/6 tenant's own property actually shows up). */
+export type PmsProperty = {
+  id: string;
+  name: string;
+  code: string;
+  propertyType: string;
+  totalRooms: number;
+};
+
 export type PmsUser = {
   id: string | null;
   name: string;

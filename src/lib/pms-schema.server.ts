@@ -360,6 +360,17 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
       await sql`ALTER TABLE pms_properties ADD COLUMN IF NOT EXISTS contact_phone text`;
       await sql`ALTER TABLE pms_properties ADD COLUMN IF NOT EXISTS contact_email text`;
       await sql`ALTER TABLE pms_properties ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()`;
+      // Phase 7 signup onboarding: the room-type + starting price a new
+      // tenant names at signup. Stored as real property-level data, same as
+      // total_rooms — deliberately NOT forced into pms_pos_categories/items:
+      // those are the Restaurant POS's own menu inventory, a different
+      // domain, and a "Deluxe Room" showing up as a sellable POS item next
+      // to food and drinks would be actively misleading, not a real
+      // integration. Also NOT wired into the live rates/booking engine
+      // (still only the 10 static Plix properties — see
+      // pms-signup.server.ts's own header for why that's unchanged here).
+      await sql`ALTER TABLE pms_properties ADD COLUMN IF NOT EXISTS primary_room_type text`;
+      await sql`ALTER TABLE pms_properties ADD COLUMN IF NOT EXISTS base_price numeric`;
       // Seed the 10 real Plix properties as real pms_properties rows, under
       // org_plix_internal, with the exact codes the static login map
       // (property-codes.ts) already resolves — so the Super-Admin tenant

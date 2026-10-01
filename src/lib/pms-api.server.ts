@@ -1919,6 +1919,29 @@ async function deleteInvoice(url: URL, actor: Actor): Promise<Response> {
   return json({ success: true });
 }
 
+// The top property switcher / POS property picker's real data source —
+// replaces reading the static PROPERTIES array directly client-side, which
+// only ever listed the 10 real Plix villas/hotels. Every organization
+// (Plix's own internal one included, now that it's seeded into
+// pms_properties too) gets its OWN real property list here; a
+// property-restricted staff member (assigned_properties not ["all"]) only
+// gets the subset allowedSlugs already resolves them to.
+async function listProperties(actor: Actor): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ properties: [] });
+  const all = await listOrganizationProperties(pmsDb, actor.organizationId);
+  const visible = isAllProps(actor) ? all : all.filter((p) => allowedSlugs(actor).includes(p.id));
+  return json({
+    properties: visible.map((p) => ({
+      id: p.id,
+      name: p.name,
+      code: p.code,
+      propertyType: p.propertyType,
+      totalRooms: p.totalRooms,
+    })),
+  });
+}
+
 async function getSettings(): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ settings: {} });
@@ -2429,6 +2452,10 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "owner" |
   switch (path) {
     case "settings":
       return "any";
+    case "properties":
+      // Every signed-in staff member needs this to render the property
+      // switcher/POS picker, not just a particular tab's own holders.
+      return "any";
     case "system":
       return ["settings"];
     case "users":
@@ -2627,6 +2654,7 @@ export async function handlePmsApi(request: Request): Promise<Response> {
       return await emailVoucher(request, actor);
     if (path === "vouchers" && request.method === "POST")
       return await createVoucher(request, actor);
+    if (path === "properties" && request.method === "GET") return await listProperties(actor);
     if (path === "settings" && request.method === "GET") return await getSettings();
     if (path === "settings" && request.method === "POST") return await saveSetting(request, actor);
     if (path === "expenses" && request.method === "GET")

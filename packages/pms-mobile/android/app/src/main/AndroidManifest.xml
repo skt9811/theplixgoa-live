@@ -23,6 +23,20 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Google sign-in deep-link return (pms-google-button.tsx /
+                 pms_.auth.callback.tsx / __root.tsx's appUrlOpen listener):
+                 Google OAuth is run in an external Custom Tab, never this
+                 app's own WebView (Google rejects it there outright), so
+                 the Custom Tab hands the finished session back to this
+                 specific app via this scheme instead of a theplixgoa.com
+                 URL, which would just stay open in the tab. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.plix.pms" android:host="oauth-callback" />
+            </intent-filter>
+
         </activity>
 
         <activity

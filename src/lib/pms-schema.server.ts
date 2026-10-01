@@ -223,6 +223,21 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
       // new staff automatically land in the internal org via this DEFAULT.
       await sql`ALTER TABLE pms_users ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
       await sql`CREATE INDEX IF NOT EXISTS idx_pms_users_org_id ON pms_users (organization_id)`;
+      // Short-lived, single-use bridge for the Android app's Google sign-in
+      // (pms-signup.server.ts's mintHandoffToken/completeHandoff): a Custom
+      // Tab completes the real OAuth flow outside the app's own WebView (its
+      // own sandboxed cookie jar never sees that session), so the deep link
+      // that brings the user back into the app carries this token instead of
+      // a cookie — the WebView exchanges it for a real PMS session itself,
+      // so the resulting Set-Cookie lands where it's actually needed.
+      await sql`
+        CREATE TABLE IF NOT EXISTS pms_auth_handoffs (
+          token text PRIMARY KEY,
+          user_id uuid NOT NULL REFERENCES pms_users(id) ON DELETE CASCADE,
+          redirect_to text NOT NULL DEFAULT '/pms',
+          expires_at timestamptz NOT NULL,
+          used boolean NOT NULL DEFAULT false
+        )`;
       await sql`
         CREATE TABLE IF NOT EXISTS pms_audit_logs (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

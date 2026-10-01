@@ -7,7 +7,7 @@
 // through the same tables and conflict rules the admin punch-in uses, so
 // the website sees every change immediately. PMS DB (NEON_PMS_DATABASE_URL)
 // holds the operations data (expenses); nothing there is ever written to the web DB.
-import { timingSafeEqual } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { differenceInCalendarDays } from "date-fns";
 import { PROPERTIES } from "@/lib/plix";
 import { eachNight, isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates";
@@ -1942,6 +1942,53 @@ async function listProperties(actor: Actor): Promise<Response> {
   });
 }
 
+// /pms/onboarding's one write — confirming the room count/type/price a
+// Google sign-up never collected, against the single property that signup
+// just created. Deliberately narrower than Super-Admin's updateProperty:
+// no name/code change (the code is already live as this org's login
+// identifier), and the ownership check is a plain organization_id match
+// rather than isBookablePropertyForOrg, since a static Plix property was
+// never meant to be reachable here at all.
+async function updateMyProperty(request: Request, actor: Actor): Promise<Response> {
+  if (!isAdmin(actor)) return json({ error: "Only an admin can do this" }, 403);
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const propertyId = str(body["propertyId"]);
+  if (!propertyId) return json({ error: "Property is required" }, 400);
+  const [owned] = await pmsDb<{ id: string }[]>`
+    SELECT id FROM pms_properties WHERE id = ${propertyId} AND organization_id = ${actor.organizationId}`;
+  if (!owned) return json({ error: "Property not found" }, 404);
+  const totalRooms = Math.max(1, Math.min(500, Math.floor(num(body["totalRooms"], 5))));
+  const primaryRoomType = str(body["primaryRoomType"]).slice(0, 100) || null;
+  const basePriceRaw = num(body["basePrice"], NaN);
+  const basePrice = Number.isFinite(basePriceRaw) && basePriceRaw >= 0 ? basePriceRaw : null;
+  await pmsDb`
+    UPDATE pms_properties
+    SET total_rooms = ${totalRooms}, primary_room_type = ${primaryRoomType}, base_price = ${basePrice}, updated_at = now()
+    WHERE id = ${propertyId}`;
+  await audit(actor, "UPDATE", "setting", `property:${propertyId}`, { action: "onboarding" });
+  return json({ success: true });
+}
+
+// The Android app's own half of the deep-link handoff (see
+// pms-schema.server.ts's pms_auth_handoffs comment and
+// pms-signup.server.ts's completeHandoff): mints a short-lived, single-use
+// token for the identity already authenticated on *this* request — called
+// from /pms/auth/callback while it's still running inside the external
+// Custom Tab, right after googleComplete set a real PMS cookie there. That
+// cookie is trapped in the Custom Tab's own cookie jar; this token is what
+// actually reaches the app's WebView, via the deep link.
+async function mintHandoffToken(actor: Actor, redirectTo: string): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb || !actor.id) return json({ error: "Not available" }, 503);
+  const token = randomBytes(24).toString("base64url");
+  await pmsDb`
+    INSERT INTO pms_auth_handoffs (token, user_id, redirect_to, expires_at)
+    VALUES (${token}, ${actor.id}::uuid, ${redirectTo}, now() + interval '2 minutes')`;
+  return json({ token });
+}
+
 async function getSettings(): Promise<Response> {
   const pmsDb = getPmsDb();
   if (!pmsDb) return json({ settings: {} });
@@ -2456,6 +2503,10 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "owner" |
       // Every signed-in staff member needs this to render the property
       // switcher/POS picker, not just a particular tab's own holders.
       return "any";
+    case "onboarding/property":
+      return "admin";
+    case "handoff/mint":
+      return "any";
     case "system":
       return ["settings"];
     case "users":
@@ -2655,6 +2706,12 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     if (path === "vouchers" && request.method === "POST")
       return await createVoucher(request, actor);
     if (path === "properties" && request.method === "GET") return await listProperties(actor);
+    if (path === "onboarding/property" && request.method === "POST")
+      return await updateMyProperty(request, actor);
+    if (path === "handoff/mint" && request.method === "POST") {
+      const b = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+      return await mintHandoffToken(actor, str(b["redirectTo"]) || "/pms");
+    }
     if (path === "settings" && request.method === "GET") return await getSettings();
     if (path === "settings" && request.method === "POST") return await saveSetting(request, actor);
     if (path === "expenses" && request.method === "GET")

@@ -5,6 +5,7 @@ import { Building2, Eye, EyeOff, Lock, User } from "lucide-react";
 import { pms, PMS_PROPERTY_STORAGE_KEY } from "@/lib/pms-client";
 import { pmsHead, usePmsBrandedHead } from "@/components/pms/pms-head";
 import { PmsEmblem } from "@/components/pms/pms-emblem";
+import { PmsGoogleButton } from "@/components/pms/pms-google-button";
 import { slugForPropertyCode } from "@/lib/property-codes";
 import { hidePmsSplash } from "@/lib/pms-splash";
 
@@ -266,6 +267,13 @@ function PmsLogin() {
             {ownerMode ? "Sign in with name and PIN" : "Sign in with owner password"}
           </button>
         </form>
+
+        <div className="my-6 flex items-center gap-3">
+          <div className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Or</span>
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
+        <PmsGoogleButton />
 
         <div className="mt-10 flex items-center justify-center gap-2 text-[11px] font-medium text-slate-400">
           <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">

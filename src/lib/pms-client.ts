@@ -8,6 +8,52 @@ export class PmsAuthError extends Error {}
 // files agree on the same key without one importing the other.
 export const PMS_PROPERTY_STORAGE_KEY = "plix_pms_property";
 
+// Starts the shared Auth.js Google OAuth flow (the same /api/auth/* routes
+// the consumer booking site's AuthModal already uses — see guest-auth.ts's
+// signInWithGoogle, which this mirrors), but with callbackUrl pointed at
+// /pms/auth/callback instead of wherever the button happened to be clicked.
+// Auth.js lands the browser back there, with its own session cookie already
+// set, and that page finishes the PMS-specific half (POST /api/pms/auth/google
+// — look up or provision the tenant, issue the real PMS session cookie).
+// Auth.js v5 refuses a bare GET/<a href> to /signin/:provider outright (CSRF
+// hardening), hence the hidden-form POST with a fetched CSRF token rather
+// than a plain navigation.
+export async function pmsSignInWithGoogle(
+  opts: { native?: boolean } = {},
+): Promise<{ success: boolean; error?: string }> {
+  if (typeof window === "undefined") return { success: false, error: "Not available right now." };
+  const csrfRes = await fetch("/api/auth/csrf");
+  if (!csrfRes.ok) return { success: false, error: "Google sign-in failed. Please try again." };
+  const { csrfToken } = (await csrfRes.json().catch(() => ({}))) as { csrfToken?: string };
+  if (!csrfToken) return { success: false, error: "Google sign-in failed. Please try again." };
+
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "/api/auth/signin/google";
+  form.style.display = "none";
+
+  const csrfInput = document.createElement("input");
+  csrfInput.type = "hidden";
+  csrfInput.name = "csrfToken";
+  csrfInput.value = csrfToken;
+  form.appendChild(csrfInput);
+
+  const callbackInput = document.createElement("input");
+  callbackInput.type = "hidden";
+  callbackInput.name = "callbackUrl";
+  // ?native=1 is the one signal /pms/auth/callback has to work with once
+  // Google redirects back — by then it's running inside the Android app's
+  // external Custom Tab, a plain browser tab with no Capacitor bridge of
+  // its own, so Capacitor.isNativePlatform() there would always read false
+  // even though this whole flow started from the app.
+  callbackInput.value = `${window.location.origin}/pms/auth/callback${opts.native ? "?native=1" : ""}`;
+  form.appendChild(callbackInput);
+
+  document.body.appendChild(form);
+  form.submit();
+  return { success: true };
+}
+
 export async function pms<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`/api/pms/${path}`, {
     ...init,

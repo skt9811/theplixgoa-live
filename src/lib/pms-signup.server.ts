@@ -19,10 +19,11 @@ import { ensureAccessSchema, ensurePosSchema } from "@/lib/pms-schema.server";
 import { seedProperty } from "@/lib/pms-pos-api.server";
 import { seedConfig } from "@/lib/pms-pos-config.server";
 import { num, str } from "@/lib/pms-pos-shared.server";
-import { hashPin, PIN_RE, TABS } from "@/lib/pms-users.server";
+import { findActiveUserByEmail, hashPin, PIN_RE, TABS } from "@/lib/pms-users.server";
 import { buildPmsSessionCookie } from "@/lib/pms-session.server";
 import { slugForPropertyCode } from "@/lib/property-codes";
 import { audit } from "@/lib/pms-audit.server";
+import { getSessionFromRequest } from "@/lib/session-cookie.server";
 
 type Sql = ReturnType<typeof postgres>;
 
@@ -129,9 +130,15 @@ export async function provisionTenant(
       await tx`
         INSERT INTO pms_properties (id, organization_id, name, code, property_type, total_rooms, is_active, contact_email, contact_phone, primary_room_type, base_price)
         VALUES (${propertyId}, ${orgId}, ${p.propertyName}, ${p.propertyCode}, ${p.propertyType}, ${p.totalRooms}, true, ${p.ownerEmail}, ${p.ownerPhone}, ${p.primaryRoomType ?? null}, ${p.basePrice ?? null})`;
+      // pms_users_phone_key is a partial unique index (WHERE phone IS NOT
+      // NULL) — an empty string still satisfies "IS NOT NULL", so every
+      // account provisioned without a phone (Google sign-up never collects
+      // one) would collide with the very first one on this exact column the
+      // moment a second ever existed. null sidesteps the index entirely,
+      // same as any other staff account created with no phone on file.
       const [user] = await tx<{ id: string }[]>`
         INSERT INTO pms_users (name, email, phone, pin_hash, role, assigned_properties, allowed_tabs, is_active, organization_id)
-        VALUES (${p.adminName}, ${p.ownerEmail}, ${p.ownerPhone}, ${hashPin(p.pin)}, 'admin', ${[propertyId]}, ${[...TABS]}, true, ${orgId})
+        VALUES (${p.adminName}, ${p.ownerEmail}, ${p.ownerPhone || null}, ${hashPin(p.pin)}, 'admin', ${[propertyId]}, ${[...TABS]}, true, ${orgId})
         RETURNING id`;
       return user!.id;
     });
@@ -166,7 +173,36 @@ export async function handleSignupApi(sub: string, request: Request, sql: Sql): 
     return json({ available });
   }
   if (sub === "signup" && request.method === "POST") return signup(request, sql);
+  if (sub === "google" && request.method === "POST") return googleComplete(request, sql);
+  if (sub === "handoff/complete" && request.method === "POST") return completeHandoff(request, sql);
   return json({ error: "Not found" }, 404);
+}
+
+// The one piece of the Android deep-link bridge (see pms-schema.server.ts's
+// pms_auth_handoffs comment) this module owns: redeeming a token minted by
+// POST /api/pms/handoff/mint (pms-api.server.ts, called from inside the
+// Custom Tab right after googleComplete above) for a real PMS session,
+// called from inside the app's own WebView after the deep link lands. The
+// token itself is the credential here — there's no session to check yet,
+// that's the entire point.
+async function completeHandoff(request: Request, sql: Sql): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const token = str(body["token"]);
+  if (!token) return json({ error: "Missing token" }, 400);
+  await ensureAccessSchema(sql);
+  const [row] = await sql<{ user_id: string; redirect_to: string }[]>`
+    UPDATE pms_auth_handoffs SET used = true
+    WHERE token = ${token} AND used = false AND expires_at > now()
+    RETURNING user_id, redirect_to`;
+  if (!row) return json({ error: "This sign-in link has expired. Please try again." }, 401);
+  return json({ success: true, redirect: row.redirect_to }, 200, {
+    "Set-Cookie": await buildPmsSessionCookie(request, row.user_id),
+  });
 }
 
 const DEFAULT_FEATURES = {
@@ -246,6 +282,101 @@ async function signup(request: Request, sql: Sql): Promise<Response> {
   );
 
   return json({ success: true, redirect: "/pms" }, 200, {
+    "Set-Cookie": await buildPmsSessionCookie(request, result.userId),
+  });
+}
+
+function randomPin(): string {
+  // Never shown to or typed by the user — Google is this account's only
+  // credential until they set a real PIN of their own choosing in Settings
+  // (the same place every other staff PIN is managed). Still has to satisfy
+  // PIN_RE since provisionTenant hashes and stores it exactly like any
+  // other account's PIN.
+  return Array.from(randomBytes(3), (b) => (b % 10).toString()).join("");
+}
+
+async function generateUniquePropertyCode(sql: Sql, seed: string): Promise<string> {
+  const base =
+    seed
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 8) || "PLIX";
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const suffix = attempt === 0 ? "" : String(Math.floor(Math.random() * 900) + 100);
+    const candidate = (base + suffix).slice(0, 12);
+    if (candidate.length >= 3 && (await checkPropertyCodeAvailable(sql, candidate)))
+      return candidate;
+  }
+  return `PROP${randomBytes(3).toString("hex").toUpperCase()}`.slice(0, 12);
+}
+
+// Google is handled as its own identity, not as a Credentials-style password
+// swap: the browser completes the full Auth.js /api/auth/signin/google ->
+// accounts.google.com -> /api/auth/callback/google round trip first (see
+// auth.server.ts), which leaves Auth.js's own session cookie set on this
+// request. This endpoint only runs afterwards (called by the client once
+// it lands back on /pms/auth/callback) and reads that cookie — it never
+// touches Google itself, so there's nothing OAuth-specific to validate here
+// beyond "is there a verified email on this request."
+async function googleComplete(request: Request, sql: Sql): Promise<Response> {
+  const session = await getSessionFromRequest(request);
+  const email = session?.email?.trim().toLowerCase();
+  if (!email) return json({ error: "Google sign-in did not complete. Please try again." }, 401);
+
+  await ensureAccessSchema(sql);
+
+  const existing = await findActiveUserByEmail(email);
+  if (existing) {
+    await audit(existing, "LOGIN", "setting", "session", { via: "google" });
+    return json({ success: true, redirect: "/pms", isNew: false }, 200, {
+      "Set-Cookie": await buildPmsSessionCookie(request, existing.id),
+    });
+  }
+
+  const name = (session?.name?.trim() || email.split("@")[0] || "New Owner").slice(0, 100);
+  const businessName = `${name}'s Property`.slice(0, 150);
+  const propertyCode = await generateUniquePropertyCode(sql, name || email);
+
+  const result = await provisionTenant(sql, {
+    organizationName: businessName,
+    ownerName: name,
+    ownerEmail: email,
+    ownerPhone: "",
+    propertyName: businessName,
+    propertyCode,
+    propertyType: "hotel",
+    totalRooms: 5,
+    primaryRoomType: null,
+    basePrice: null,
+    adminName: name,
+    pin: randomPin(),
+    planTier: "starter_21k",
+    trialDays: 7,
+    features: DEFAULT_FEATURES,
+    isInternal: false,
+  });
+  if (!result.ok) return json({ error: result.message }, result.status);
+
+  await audit(
+    {
+      id: result.userId,
+      name,
+      role: "admin",
+      props: [result.propertyId],
+      tabs: [...TABS],
+      isOwner: false,
+      organizationId: result.organizationId,
+    },
+    "CREATE",
+    "setting",
+    `organization:${result.organizationId}`,
+    { action: "google signup", businessName, propertyCode },
+  );
+
+  // Room count/type/price were never collected (Google's profile has no
+  // concept of any of that) — /pms/onboarding confirms them right after
+  // this redirect, against the same property this just created.
+  return json({ success: true, redirect: "/pms/onboarding", isNew: true }, 200, {
     "Set-Cookie": await buildPmsSessionCookie(request, result.userId),
   });
 }

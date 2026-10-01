@@ -8,6 +8,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { pms } from "@/lib/pms-client";
 import { Capacitor } from "@capacitor/core";
 
 import appCss from "../styles.css?url";
@@ -52,7 +53,6 @@ function loadDeferredAnalytics() {
   `;
   document.head.appendChild(inlineScript);
 }
-
 
 function NotFoundComponent() {
   return (
@@ -177,7 +177,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // for any non-standard script `type`, this one included). It's added
       // purely as a stable query target for manual/automated verification
       // (e.g. `document.querySelector('#global-website-jsonld')`).
-      { type: "application/ld+json", id: "global-website-jsonld", children: jsonLdScript(websiteJsonLd()) },
+      {
+        type: "application/ld+json",
+        id: "global-website-jsonld",
+        children: jsonLdScript(websiteJsonLd()),
+      },
       {
         type: "text/javascript",
         children: `(function() {
@@ -269,7 +273,8 @@ function RootComponent() {
   // since SiteHeader/SiteFooter are otherwise unconditional for every page.
   // /pms (the standalone Plix PMS) is likewise its own app with its own shell.
   const isPortalRoute = useRouterState({
-    select: (s) => s.location.pathname.startsWith("/portal") || s.location.pathname.startsWith("/pms"),
+    select: (s) =>
+      s.location.pathname.startsWith("/portal") || s.location.pathname.startsWith("/pms"),
   });
   const isPmsRoute = useRouterState({ select: (s) => s.location.pathname.startsWith("/pms") });
 
@@ -315,6 +320,52 @@ function RootComponent() {
     return () => window.clearTimeout(timeout);
   }, []);
 
+  // The other half of the Android Google sign-in bridge (see
+  // pms-google-button.tsx and pms_.auth.callback.tsx): the Custom Tab that
+  // actually completed OAuth hands off to this app via a deep link to
+  // com.plix.pms://oauth-callback?token=... (registered in that project's
+  // own AndroidManifest.xml), which Capacitor surfaces here as an
+  // appUrlOpen event. Redeeming the token happens from inside this WebView
+  // specifically so the resulting Set-Cookie lands in its own cookie jar,
+  // not the Custom Tab's — that's the entire reason this round trip needs a
+  // token instead of just trusting the Custom Tab's own session.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let cancelled = false;
+    let handle: { remove: () => void } | undefined;
+    void import("@capacitor/app").then(({ App }) => {
+      if (cancelled) return;
+      void App.addListener("appUrlOpen", (data: { url: string }) => {
+        let url: URL;
+        try {
+          url = new URL(data.url);
+        } catch {
+          return;
+        }
+        if (url.protocol !== "com.plix.pms:" || url.hostname !== "oauth-callback") return;
+        const token = url.searchParams.get("token");
+        if (!token) return;
+        void pms<{ success: true; redirect: string }>("auth/handoff/complete", {
+          method: "POST",
+          body: JSON.stringify({ token }),
+        })
+          .then((res) => {
+            window.location.href = res.redirect || "/pms";
+          })
+          .catch(() => {
+            window.location.href = "/pms/login";
+          });
+      }).then((sub) => {
+        if (cancelled) sub.remove();
+        else handle = sub;
+      });
+    });
+    return () => {
+      cancelled = true;
+      handle?.remove();
+    };
+  }, []);
+
   if (isPortalRoute) {
     return (
       <QueryClientProvider client={queryClient}>
@@ -345,4 +396,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-

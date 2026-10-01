@@ -4,6 +4,7 @@ import { BedDouble, Building2, Check, Lock, Mail, Phone, Tag, User, X } from "lu
 import { pms } from "@/lib/pms-client";
 import { pmsHead, usePmsBrandedHead } from "@/components/pms/pms-head";
 import { PmsEmblem } from "@/components/pms/pms-emblem";
+import { PmsGoogleButton } from "@/components/pms/pms-google-button";
 
 export const Route = createFileRoute("/signup")({
   head: () => pmsHead,
@@ -237,6 +238,13 @@ function SignupPage() {
             {busy ? "Creating your workspace..." : "Start 7-Day Free Trial"}
           </button>
         </form>
+
+        <div className="my-6 flex items-center gap-3">
+          <div className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Or</span>
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
+        <PmsGoogleButton label="Sign up with Google" />
 
         <p className="mt-6 text-center text-xs text-slate-400">
           Already have an account?{" "}

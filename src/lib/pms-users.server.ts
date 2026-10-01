@@ -175,6 +175,20 @@ export function publicUser(u: UserRow): PublicUser {
   return { ...rest, created_at: created_at.toISOString() };
 }
 
+/** Google sign-in identifies a person by their verified email before any
+ * organization/session is known — unlike every other lookup in this file,
+ * deliberately NOT organization-scoped. email is UNIQUE on pms_users, so
+ * this can only ever resolve to the one account that owns it. */
+export async function findActiveUserByEmail(email: string): Promise<Actor | null> {
+  const sql = getPmsDb();
+  if (!sql) return null;
+  await ensureAccessSchema(sql);
+  const [row] = await sql<
+    UserRow[]
+  >`SELECT * FROM pms_users WHERE is_active AND lower(email) = ${email.trim().toLowerCase()} LIMIT 1`;
+  return row ? toActor(row) : null;
+}
+
 /** Strictly scoped to one organization — a B2B tenant's Settings > Users
  * screen must only ever show staff accounts created within their own
  * organization, never Plix's own internal staff or another tenant's. */

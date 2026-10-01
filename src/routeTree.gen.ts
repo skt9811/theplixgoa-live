@@ -40,6 +40,7 @@ import { Route as PmsSuperAdminRouteImport } from './routes/pms.super-admin'
 import { Route as PmsSystemRouteImport } from './routes/pms.system'
 import { Route as PmsVouchersRouteImport } from './routes/pms.vouchers'
 import { Route as PmsLoginRouteImport } from './routes/pms_.login'
+import { Route as PmsOnboardingRouteImport } from './routes/pms_.onboarding'
 import { Route as PortalIndexRouteImport } from './routes/portal/index'
 import { Route as PortalDashboardRouteImport } from './routes/portal/dashboard'
 import { Route as PortalLoginRouteImport } from './routes/portal/login'
@@ -55,6 +56,8 @@ import { Route as PmsPosQuickRouteImport } from './routes/pms.pos.quick'
 import { Route as PmsPosReportsRouteImport } from './routes/pms.pos.reports'
 import { Route as PmsPosSettingsRouteImport } from './routes/pms.pos.settings'
 import { Route as PmsSettingsUsersRouteImport } from './routes/pms.settings_.users'
+import { Route as PmsAuthCallbackRouteImport } from './routes/pms_.auth.callback'
+import { Route as PmsAuthGoogleStartRouteImport } from './routes/pms_.auth.google-start'
 import { Route as PmsPosManageIndexRouteImport } from './routes/pms.pos.manage.index'
 import { Route as PmsPosManageActivityLogsRouteImport } from './routes/pms.pos.manage.activity-logs'
 import { Route as PmsPosManageCategoriesRouteImport } from './routes/pms.pos.manage.categories'
@@ -229,6 +232,11 @@ const PmsLoginRoute = PmsLoginRouteImport.update({
   path: '/pms/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PmsOnboardingRoute = PmsOnboardingRouteImport.update({
+  id: '/pms_/onboarding',
+  path: '/pms/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PortalIndexRoute = PortalIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -303,6 +311,16 @@ const PmsSettingsUsersRoute = PmsSettingsUsersRouteImport.update({
   id: '/settings_/users',
   path: '/settings/users',
   getParentRoute: () => PmsRoute,
+} as any)
+const PmsAuthCallbackRoute = PmsAuthCallbackRouteImport.update({
+  id: '/pms_/auth/callback',
+  path: '/pms/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PmsAuthGoogleStartRoute = PmsAuthGoogleStartRouteImport.update({
+  id: '/pms_/auth/google-start',
+  path: '/pms/auth/google-start',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PmsPosManageIndexRoute = PmsPosManageIndexRouteImport.update({
   id: '/',
@@ -429,6 +447,7 @@ export interface FileRoutesByFullPath {
   '/pms/system': typeof PmsSystemRoute
   '/pms/vouchers': typeof PmsVouchersRoute
   '/pms/login': typeof PmsLoginRoute
+  '/pms/onboarding': typeof PmsOnboardingRoute
   '/portal/dashboard': typeof PortalDashboardRoute
   '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
@@ -445,6 +464,8 @@ export interface FileRoutesByFullPath {
   '/pms/pos/reports': typeof PmsPosReportsRoute
   '/pms/pos/settings': typeof PmsPosSettingsRouteWithChildren
   '/pms/settings/users': typeof PmsSettingsUsersRoute
+  '/pms/auth/callback': typeof PmsAuthCallbackRoute
+  '/pms/auth/google-start': typeof PmsAuthGoogleStartRoute
   '/pms/pos/': typeof PmsPosIndexRoute
   '/pms/pos/manage/activity-logs': typeof PmsPosManageActivityLogsRoute
   '/pms/pos/manage/categories': typeof PmsPosManageCategoriesRoute
@@ -492,6 +513,7 @@ export interface FileRoutesByTo {
   '/pms/system': typeof PmsSystemRoute
   '/pms/vouchers': typeof PmsVouchersRoute
   '/pms/login': typeof PmsLoginRoute
+  '/pms/onboarding': typeof PmsOnboardingRoute
   '/portal/dashboard': typeof PortalDashboardRoute
   '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
@@ -506,6 +528,8 @@ export interface FileRoutesByTo {
   '/pms/pos/quick': typeof PmsPosQuickRoute
   '/pms/pos/reports': typeof PmsPosReportsRoute
   '/pms/settings/users': typeof PmsSettingsUsersRoute
+  '/pms/auth/callback': typeof PmsAuthCallbackRoute
+  '/pms/auth/google-start': typeof PmsAuthGoogleStartRoute
   '/pms/pos': typeof PmsPosIndexRoute
   '/pms/pos/manage/activity-logs': typeof PmsPosManageActivityLogsRoute
   '/pms/pos/manage/categories': typeof PmsPosManageCategoriesRoute
@@ -557,6 +581,7 @@ export interface FileRoutesById {
   '/pms/system': typeof PmsSystemRoute
   '/pms/vouchers': typeof PmsVouchersRoute
   '/pms_/login': typeof PmsLoginRoute
+  '/pms_/onboarding': typeof PmsOnboardingRoute
   '/portal/dashboard': typeof PortalDashboardRoute
   '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
@@ -573,6 +598,8 @@ export interface FileRoutesById {
   '/pms/pos/reports': typeof PmsPosReportsRoute
   '/pms/pos/settings': typeof PmsPosSettingsRouteWithChildren
   '/pms/settings_/users': typeof PmsSettingsUsersRoute
+  '/pms_/auth/callback': typeof PmsAuthCallbackRoute
+  '/pms_/auth/google-start': typeof PmsAuthGoogleStartRoute
   '/pms/pos/': typeof PmsPosIndexRoute
   '/pms/pos/manage/activity-logs': typeof PmsPosManageActivityLogsRoute
   '/pms/pos/manage/categories': typeof PmsPosManageCategoriesRoute
@@ -625,6 +652,7 @@ export interface FileRouteTypes {
     | '/pms/system'
     | '/pms/vouchers'
     | '/pms/login'
+    | '/pms/onboarding'
     | '/portal/dashboard'
     | '/portal/login'
     | '/properties/$slug'
@@ -641,6 +669,8 @@ export interface FileRouteTypes {
     | '/pms/pos/reports'
     | '/pms/pos/settings'
     | '/pms/settings/users'
+    | '/pms/auth/callback'
+    | '/pms/auth/google-start'
     | '/pms/pos/'
     | '/pms/pos/manage/activity-logs'
     | '/pms/pos/manage/categories'
@@ -688,6 +718,7 @@ export interface FileRouteTypes {
     | '/pms/system'
     | '/pms/vouchers'
     | '/pms/login'
+    | '/pms/onboarding'
     | '/portal/dashboard'
     | '/portal/login'
     | '/properties/$slug'
@@ -702,6 +733,8 @@ export interface FileRouteTypes {
     | '/pms/pos/quick'
     | '/pms/pos/reports'
     | '/pms/settings/users'
+    | '/pms/auth/callback'
+    | '/pms/auth/google-start'
     | '/pms/pos'
     | '/pms/pos/manage/activity-logs'
     | '/pms/pos/manage/categories'
@@ -752,6 +785,7 @@ export interface FileRouteTypes {
     | '/pms/system'
     | '/pms/vouchers'
     | '/pms_/login'
+    | '/pms_/onboarding'
     | '/portal/dashboard'
     | '/portal/login'
     | '/properties/$slug'
@@ -768,6 +802,8 @@ export interface FileRouteTypes {
     | '/pms/pos/reports'
     | '/pms/pos/settings'
     | '/pms/settings_/users'
+    | '/pms_/auth/callback'
+    | '/pms_/auth/google-start'
     | '/pms/pos/'
     | '/pms/pos/manage/activity-logs'
     | '/pms/pos/manage/categories'
@@ -808,10 +844,13 @@ export interface RootRouteChildren {
   BlogSlugRoute: typeof BlogSlugRoute
   LocationsSlugRoute: typeof LocationsSlugRoute
   PmsLoginRoute: typeof PmsLoginRoute
+  PmsOnboardingRoute: typeof PmsOnboardingRoute
   PropertiesSlugRoute: typeof PropertiesSlugRoute
   StaysLargeGroupsRoute: typeof StaysLargeGroupsRoute
   StaysPrivatePoolVillasRoute: typeof StaysPrivatePoolVillasRoute
   BlogIndexRoute: typeof BlogIndexRoute
+  PmsAuthCallbackRoute: typeof PmsAuthCallbackRoute
+  PmsAuthGoogleStartRoute: typeof PmsAuthGoogleStartRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1033,6 +1072,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PmsLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pms_/onboarding': {
+      id: '/pms_/onboarding'
+      path: '/pms/onboarding'
+      fullPath: '/pms/onboarding'
+      preLoaderRoute: typeof PmsOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/portal/': {
       id: '/portal/'
       path: '/'
@@ -1137,6 +1183,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/pms/settings/users'
       preLoaderRoute: typeof PmsSettingsUsersRouteImport
       parentRoute: typeof PmsRoute
+    }
+    '/pms_/auth/callback': {
+      id: '/pms_/auth/callback'
+      path: '/pms/auth/callback'
+      fullPath: '/pms/auth/callback'
+      preLoaderRoute: typeof PmsAuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pms_/auth/google-start': {
+      id: '/pms_/auth/google-start'
+      path: '/pms/auth/google-start'
+      fullPath: '/pms/auth/google-start'
+      preLoaderRoute: typeof PmsAuthGoogleStartRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/pms/pos/manage/': {
       id: '/pms/pos/manage/'
@@ -1416,10 +1476,13 @@ const rootRouteChildren: RootRouteChildren = {
   BlogSlugRoute: BlogSlugRoute,
   LocationsSlugRoute: LocationsSlugRoute,
   PmsLoginRoute: PmsLoginRoute,
+  PmsOnboardingRoute: PmsOnboardingRoute,
   PropertiesSlugRoute: PropertiesSlugRoute,
   StaysLargeGroupsRoute: StaysLargeGroupsRoute,
   StaysPrivatePoolVillasRoute: StaysPrivatePoolVillasRoute,
   BlogIndexRoute: BlogIndexRoute,
+  PmsAuthCallbackRoute: PmsAuthCallbackRoute,
+  PmsAuthGoogleStartRoute: PmsAuthGoogleStartRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

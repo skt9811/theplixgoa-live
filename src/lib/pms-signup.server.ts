@@ -1,16 +1,18 @@
-// Server-only. Phase 4 public self-serve signup: provisions a brand-new,
-// real organization + property + admin account and starts a 7-day trial.
+// Server-only. Phase 4 public self-serve signup (and Phase 6's super-admin
+// "Create Tenant" modal, which calls the same provisionTenant core below):
+// provisions a brand-new, real organization + property + admin account.
 // This is genuinely new multi-tenant ground — see pms-schema.server.ts's
 // pms_properties table comment for the one deliberate gap this leaves: a
-// freshly signed-up tenant's property isn't yet recognized by the existing
-// booking-creation validation (createBooking etc. in pms-api.server.ts still
-// check PROPERTIES, the static array of the 10 real Plix villas/hotels —
-// rewiring every booking/rates/inventory/expense validation path to also
-// recognize a dynamic property is a much larger, separate change this task
-// didn't ask for and that's too risky to bolt on blind here). What IS fully
-// real and working: the organization/property/admin-user records, the
-// 7-day trial (enforced by the same assertSubscriptionActive every other
-// write route already uses), login, and POS seeding for that property.
+// freshly created tenant's property isn't yet recognized by the existing
+// booking-creation validation path for the 10 static Plix properties
+// specifically (createBooking etc. in pms-api.server.ts check PROPERTIES
+// first, then fall back to pms_properties via isBookablePropertyForOrg —
+// already handles a NEW tenant's own property correctly; the static array
+// itself was never rewired, deliberately, since that's the live booking
+// engine for Plix's own real properties). What IS fully real and working:
+// the organization/property/admin-user records, the trial (enforced by the
+// same assertSubscriptionActive every other write route already uses),
+// login (property-codes.ts's dynamic fallback), and POS seeding.
 import { randomBytes } from "node:crypto";
 import type postgres from "postgres";
 import { ensureAccessSchema, ensurePosSchema } from "@/lib/pms-schema.server";
@@ -33,7 +35,7 @@ function json(body: unknown, status = 200, headers?: Record<string, string>): Re
   });
 }
 
-const PROPERTY_CODE_RE = /^[A-Z0-9]{3,12}$/;
+export const PROPERTY_CODE_RE = /^[A-Z0-9]{3,12}$/;
 const PHONE_RE = /^\d{10}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -45,12 +47,108 @@ export async function checkPropertyCodeAvailable(sql: Sql, code: string): Promis
   const normalized = code.trim().toUpperCase();
   if (!PROPERTY_CODE_RE.test(normalized)) return false;
   // Collides with a real Plix property's own code (HARBOR, VIVENDA, ...) —
-  // those aren't in pms_properties at all, so the DB check alone can't see them.
+  // seeded into pms_properties too now (pms-schema.server.ts), so the plain
+  // DB check below already catches those; the static-map check stays as a
+  // belt-and-suspenders guard against that seed ever being skipped.
   if (slugForPropertyCode(normalized)) return false;
   await ensureAccessSchema(sql);
   const [row] = await sql<{ id: string }[]>`
     SELECT id FROM pms_properties WHERE upper(code) = ${normalized}`;
   return !row;
+}
+
+export type ProvisionTenantParams = {
+  organizationName: string;
+  ownerName: string;
+  ownerEmail: string;
+  ownerPhone: string;
+  propertyName: string;
+  propertyCode: string;
+  propertyType: string;
+  totalRooms: number;
+  /** Login identifier (pms_users.name) for the account created — the public
+   * signup form uses the owner's own full name; the super-admin modal takes
+   * a separate "Default Admin Username" field instead. */
+  adminName: string;
+  pin: string;
+  planTier: string;
+  trialDays: number;
+  features: Record<string, boolean>;
+  isInternal: boolean;
+};
+
+export type ProvisionResult =
+  | { ok: true; organizationId: string; propertyId: string; userId: string }
+  | { ok: false; status: number; message: string };
+
+/** The atomic insert core shared by public signup and the super-admin
+ * "Create Tenant" modal — organization + property + admin user, one
+ * transaction. Callers do their own field-presence/shape validation first
+ * (the two forms have different fields and error copy); this only checks
+ * the uniqueness constraints the DB itself enforces, so the error is a
+ * clean 409 instead of a raw constraint-violation 500. */
+export async function provisionTenant(
+  sql: Sql,
+  p: ProvisionTenantParams,
+): Promise<ProvisionResult> {
+  await ensureAccessSchema(sql);
+  await ensurePosSchema(sql);
+
+  if (slugForPropertyCode(p.propertyCode))
+    return { ok: false, status: 409, message: "That property code is already taken" };
+  const [existingEmail] = await sql<{ id: string }[]>`
+    SELECT id FROM pms_users WHERE lower(email) = ${p.ownerEmail}`;
+  if (existingEmail)
+    return { ok: false, status: 409, message: "An account with this email already exists" };
+  const [existingCode] = await sql<{ id: string }[]>`
+    SELECT id FROM pms_properties WHERE upper(code) = ${p.propertyCode}`;
+  if (existingCode)
+    return { ok: false, status: 409, message: "That property code is already taken" };
+
+  const orgId = shortId("org");
+  const propertyId = shortId("prop");
+
+  let userId: string;
+  try {
+    userId = await sql.begin(async (tx0) => {
+      const tx = tx0 as unknown as Sql;
+      await tx`
+        INSERT INTO organizations
+          (id, name, slug, plan_tier, subscription_status, trial_starts_at, trial_ends_at,
+           max_properties, owner_name, owner_email, owner_phone, is_internal, features)
+        VALUES
+          (${orgId}, ${p.organizationName}, ${orgId}, ${p.planTier}, ${p.isInternal ? "active" : "trialing"},
+           now(), now() + ${`${p.trialDays} days`}::interval,
+           1, ${p.ownerName}, ${p.ownerEmail}, ${p.ownerPhone}, ${p.isInternal}, ${tx.json(p.features as never)})`;
+      await tx`
+        INSERT INTO pms_properties (id, organization_id, name, code, property_type, total_rooms, is_active, contact_email, contact_phone)
+        VALUES (${propertyId}, ${orgId}, ${p.propertyName}, ${p.propertyCode}, ${p.propertyType}, ${p.totalRooms}, true, ${p.ownerEmail}, ${p.ownerPhone})`;
+      const [user] = await tx<{ id: string }[]>`
+        INSERT INTO pms_users (name, email, phone, pin_hash, role, assigned_properties, allowed_tabs, is_active, organization_id)
+        VALUES (${p.adminName}, ${p.ownerEmail}, ${p.ownerPhone}, ${hashPin(p.pin)}, 'admin', ${[propertyId]}, ${[...TABS]}, true, ${orgId})
+        RETURNING id`;
+      return user!.id;
+    });
+  } catch (err) {
+    if ((err as { code?: string }).code === "23505")
+      return {
+        ok: false,
+        status: 409,
+        message: "That email, name, or property code is already taken",
+      };
+    console.error("[pms-signup] provisioning failed:", err instanceof Error ? err.message : err);
+    return { ok: false, status: 500, message: "Could not create the account. Please try again." };
+  }
+
+  // Best-effort starter POS setup for the new property — never fails provisioning itself.
+  try {
+    await seedProperty(sql, propertyId);
+    await seedConfig(sql, propertyId);
+  } catch (err) {
+    console.error("[pms-signup] POS seed failed:", err instanceof Error ? err.message : err);
+  }
+
+  return { ok: true, organizationId: orgId, propertyId, userId };
 }
 
 export async function handleSignupApi(sub: string, request: Request, sql: Sql): Promise<Response> {
@@ -65,9 +163,15 @@ export async function handleSignupApi(sub: string, request: Request, sql: Sql): 
   return json({ error: "Not found" }, 404);
 }
 
+const DEFAULT_FEATURES = {
+  pms_enabled: true,
+  pos_enabled: true,
+  airbnb_spaces_enabled: false,
+  whatsapp_bot_enabled: false,
+  audit_notifications_enabled: true,
+};
+
 async function signup(request: Request, sql: Sql): Promise<Response> {
-  await ensureAccessSchema(sql);
-  await ensurePosSchema(sql);
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -95,81 +199,41 @@ async function signup(request: Request, sql: Sql): Promise<Response> {
     return json({ error: "Property code must be 3-12 uppercase letters/numbers" }, 400);
   if (!PIN_RE.test(pin)) return json({ error: "PIN must be 4-6 digits" }, 400);
 
-  if (slugForPropertyCode(propertyCode))
-    return json({ error: "That property code is already taken" }, 409);
-
-  const [existingEmail] = await sql<{ id: string }[]>`
-    SELECT id FROM pms_users WHERE lower(email) = ${email}`;
-  if (existingEmail) return json({ error: "An account with this email already exists" }, 409);
-
-  const [existingCode] = await sql<{ id: string }[]>`
-    SELECT id FROM pms_properties WHERE upper(code) = ${propertyCode}`;
-  if (existingCode) return json({ error: "That property code is already taken" }, 409);
-
-  const orgId = shortId("org");
-  const propertyId = shortId("prop");
-  const totalRooms = 5;
-  const features = {
-    pms_enabled: true,
-    pos_enabled: true,
-    airbnb_spaces_enabled: false,
-    whatsapp_bot_enabled: false,
-    audit_notifications_enabled: true,
-  };
-
-  let userId: string;
-  try {
-    const result = await sql.begin(async (tx0) => {
-      const tx = tx0 as unknown as Sql;
-      await tx`
-        INSERT INTO organizations
-          (id, name, slug, plan_tier, subscription_status, trial_starts_at, trial_ends_at,
-           max_properties, owner_name, owner_email, owner_phone, is_internal, features)
-        VALUES
-          (${orgId}, ${businessName}, ${orgId}, 'starter_21k', 'trialing', now(), now() + interval '7 days',
-           1, ${fullName}, ${email}, ${phone}, false, ${tx.json(features as never)})`;
-      await tx`
-        INSERT INTO pms_properties (id, organization_id, name, code, property_type, total_rooms, is_active)
-        VALUES (${propertyId}, ${orgId}, ${businessName}, ${propertyCode}, 'hotel', ${totalRooms}, true)`;
-      const [user] = await tx<{ id: string }[]>`
-        INSERT INTO pms_users (name, email, phone, pin_hash, role, assigned_properties, allowed_tabs, is_active, organization_id)
-        VALUES (${fullName}, ${email}, ${phone}, ${hashPin(pin)}, 'admin', ${[propertyId]}, ${[...TABS]}, true, ${orgId})
-        RETURNING id`;
-      return user!.id;
-    });
-    userId = result;
-  } catch (err) {
-    if ((err as { code?: string }).code === "23505")
-      return json({ error: "That email or property code is already taken" }, 409);
-    console.error("[pms-signup] provisioning failed:", err instanceof Error ? err.message : err);
-    return json({ error: "Could not create your account. Please try again." }, 500);
-  }
-
-  // Best-effort starter POS setup for the new property — never fails signup itself.
-  try {
-    await seedProperty(sql, propertyId);
-    await seedConfig(sql, propertyId);
-  } catch (err) {
-    console.error("[pms-signup] POS seed failed:", err instanceof Error ? err.message : err);
-  }
+  const result = await provisionTenant(sql, {
+    organizationName: businessName,
+    ownerName: fullName,
+    ownerEmail: email,
+    ownerPhone: phone,
+    propertyName: businessName,
+    propertyCode,
+    propertyType: "hotel",
+    totalRooms: 5,
+    adminName: fullName,
+    pin,
+    planTier: "starter_21k",
+    trialDays: 7,
+    features: DEFAULT_FEATURES,
+    isInternal: false,
+  });
+  if (!result.ok) return json({ error: result.message }, result.status);
 
   await audit(
     {
-      id: userId,
+      id: result.userId,
       name: fullName,
       role: "admin",
-      props: [propertyId],
+      props: [result.propertyId],
       tabs: [...TABS],
       isOwner: false,
-      organizationId: orgId,
+      organizationId: result.organizationId,
     },
     "CREATE",
     "setting",
-    `organization:${orgId}`,
+    `organization:${result.organizationId}`,
     { action: "public signup", businessName, propertyCode },
   );
 
   return json({ success: true, redirect: "/pms" }, 200, {
-    "Set-Cookie": await buildPmsSessionCookie(request, userId),
+    "Set-Cookie": await buildPmsSessionCookie(request, result.userId),
   });
 }

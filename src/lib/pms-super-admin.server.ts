@@ -1,29 +1,29 @@
-// Server-only. Phase 3: the Super-Admin "God Mode" tenant directory —
-// listing every organization on the platform, and editing its trial/plan/
-// feature-flag/suspension state. Routed from handlePmsApi under
-// super-admin/* (requiredTabs there gates every path here to actor.isOwner
-// strictly — never the PMS "admin" role, which runs ONE org's day-to-day
-// operations, not platform billing for every tenant). The task's own spec
-// named REST paths (GET /api/super-admin/tenants, PATCH .../tenants/[id])
-// that don't exist as a separate route group in this codebase — everything
-// server-side goes through the one /api/pms/* dispatcher — so this lives at
-// POST-friendly sibling paths instead: GET super-admin/tenants and POST
-// super-admin/tenants/update (id in the body), matching every other mutating
-// route in pms-api.server.ts (bookings/update, inventory, etc.) rather than
-// introducing this feature's own REST convention.
+// Server-only. Phase 3/6: the Super-Admin "God Mode" tenant directory —
+// listing every organization on the platform, editing its trial/plan/
+// feature-flag/suspension state, and (Phase 6) creating a brand-new tenant
+// or adding/editing a property under an existing one. Routed from
+// handlePmsApi under super-admin/* (requiredTabs there gates every path here
+// to actor.isOwner strictly — never the PMS "admin" role, which runs ONE
+// org's day-to-day operations, not platform billing for every tenant). The
+// task's own spec named REST paths (GET /api/super-admin/tenants, PATCH
+// .../tenants/[id]) that don't exist as a separate route group in this
+// codebase — everything server-side goes through the one /api/pms/*
+// dispatcher — so this lives at POST-friendly sibling paths instead,
+// matching every other mutating route in pms-api.server.ts (bookings/update,
+// inventory, etc.) rather than introducing this feature's own REST convention.
+import { randomBytes } from "node:crypto";
 import type postgres from "postgres";
-import { PROPERTIES } from "@/lib/plix";
 import { getPmsDb } from "@/lib/pms-db.server";
 import { ensureAccessSchema } from "@/lib/pms-schema.server";
 import { audit } from "@/lib/pms-audit.server";
-import type { Actor } from "@/lib/pms-users.server";
-import { json, str } from "@/lib/pms-pos-shared.server";
-import {
-  DEFAULT_ORG_ID,
-  propertiesForOrganization,
-  roomCountForOrganization,
-} from "@/lib/tenant-context.server";
+import { PIN_RE, type Actor } from "@/lib/pms-users.server";
+import { json, num, str } from "@/lib/pms-pos-shared.server";
+import { DEFAULT_ORG_ID, listOrganizationProperties } from "@/lib/tenant-context.server";
+import { canAddProperty } from "@/lib/pms-billing.server";
+import { seedProperty } from "@/lib/pms-pos-api.server";
+import { seedConfig } from "@/lib/pms-pos-config.server";
 import { slugForPropertyCode } from "@/lib/property-codes";
+import { PROPERTY_CODE_RE, provisionTenant } from "@/lib/pms-signup.server";
 
 type Sql = ReturnType<typeof postgres>;
 
@@ -51,8 +51,8 @@ const DEFAULT_FEATURES = {
   audit_notifications_enabled: true,
 };
 
-function shapeTenant(o: OrgRow, staffCount: number) {
-  const properties = propertiesForOrganization(o.id);
+async function shapeTenant(sql: Sql, o: OrgRow, staffCount: number) {
+  const properties = await listOrganizationProperties(sql, o.id);
   return {
     id: o.id,
     name: o.name,
@@ -68,12 +68,9 @@ function shapeTenant(o: OrgRow, staffCount: number) {
     features: { ...DEFAULT_FEATURES, ...o.features },
     createdAt: o.created_at.toISOString(),
     propertyCount: properties.length,
-    roomCount: roomCountForOrganization(o.id),
+    roomCount: properties.reduce((sum, p) => sum + p.totalRooms, 0),
     staffCount,
-    properties: properties.map((slug) => ({
-      slug,
-      name: PROPERTIES.find((p) => p.slug === slug)?.name.split(" - ")[0] ?? slug,
-    })),
+    properties,
   };
 }
 
@@ -89,7 +86,7 @@ async function listTenants(sql: Sql, url: URL): Promise<Response> {
   const staffByOrg = new Map(staffCounts.map((r) => [r.organization_id, r.n]));
   const codeSlug = q ? slugForPropertyCode(q) : null;
 
-  let tenants = orgs.map((o) => shapeTenant(o, staffByOrg.get(o.id) ?? 0));
+  let tenants = await Promise.all(orgs.map((o) => shapeTenant(sql, o, staffByOrg.get(o.id) ?? 0)));
   if (q) {
     tenants = tenants.filter(
       (t) =>
@@ -97,7 +94,10 @@ async function listTenants(sql: Sql, url: URL): Promise<Response> {
         (t.ownerName ?? "").toLowerCase().includes(q) ||
         (t.ownerEmail ?? "").toLowerCase().includes(q) ||
         (t.ownerPhone ?? "").toLowerCase().includes(q) ||
-        t.properties.some((p) => p.slug === codeSlug || p.name.toLowerCase().includes(q)),
+        t.properties.some(
+          (p) =>
+            p.id === codeSlug || p.code.toLowerCase() === q || p.name.toLowerCase().includes(q),
+        ),
     );
   }
 
@@ -115,6 +115,7 @@ async function listTenants(sql: Sql, url: URL): Promise<Response> {
 const PLAN_TIERS = new Set(["starter_21k", "growth_25k", "pro_30k", "internal_enterprise"]);
 const STATUSES = new Set(["active", "trialing", "past_due", "suspended"]);
 const FEATURE_KEYS = new Set(Object.keys(DEFAULT_FEATURES));
+const PROPERTY_TYPES = new Set(["hotel", "resort", "villa", "apartment"]);
 
 async function updateTenant(request: Request, sql: Sql, actor: Actor): Promise<Response> {
   await ensureAccessSchema(sql);
@@ -230,7 +231,207 @@ async function updateTenant(request: Request, sql: Sql, actor: Actor): Promise<R
     FROM organizations WHERE id = ${id}`;
   const [staffRow] = await sql<{ n: number }[]>`
     SELECT count(*)::int AS n FROM pms_users WHERE organization_id = ${id}`;
-  return json({ success: true, tenant: shapeTenant(row!, staffRow?.n ?? 0) });
+  return json({ success: true, tenant: await shapeTenant(sql, row!, staffRow?.n ?? 0) });
+}
+
+// ---- Phase 6: full tenant onboarding (Create Tenant / Property modal) ----
+
+async function createTenant(request: Request, sql: Sql, actor: Actor): Promise<Response> {
+  await ensureAccessSchema(sql);
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+
+  const organizationName = str(body["organizationName"]).slice(0, 150);
+  const ownerName = str(body["ownerName"]).slice(0, 100);
+  const ownerEmail = str(body["ownerEmail"]).trim().toLowerCase().slice(0, 150);
+  const ownerPhone = str(body["ownerPhone"]).replace(/\D/g, "");
+  const propertyName = str(body["propertyName"]).slice(0, 150) || organizationName;
+  const propertyCode = str(body["propertyCode"]).trim().toUpperCase();
+  const propertyType = PROPERTY_TYPES.has(str(body["propertyType"]))
+    ? str(body["propertyType"])
+    : "hotel";
+  const totalRooms = Math.max(0, Math.floor(num(body["totalRooms"], 1)));
+  const adminName = str(body["adminName"]).slice(0, 100) || ownerName;
+  const pin = str(body["pin"]);
+  const planTier = PLAN_TIERS.has(str(body["planTier"])) ? str(body["planTier"]) : "starter_21k";
+  const trialDays = Math.max(0, Math.min(90, Math.floor(num(body["trialDays"], 7))));
+  const incomingFeatures = (body["features"] ?? {}) as Record<string, unknown>;
+  const features = { ...DEFAULT_FEATURES };
+  for (const key of Object.keys(incomingFeatures)) {
+    if (FEATURE_KEYS.has(key))
+      (features as Record<string, boolean>)[key] = incomingFeatures[key] === true;
+  }
+
+  if (!organizationName) return json({ error: "Organization name is required" }, 400);
+  if (!ownerName) return json({ error: "Owner name is required" }, 400);
+  if (!ownerEmail || !ownerEmail.includes("@"))
+    return json({ error: "Enter a valid owner email" }, 400);
+  if (!propertyName) return json({ error: "Property name is required" }, 400);
+  if (!PROPERTY_CODE_RE.test(propertyCode))
+    return json({ error: "Property code must be 3-12 uppercase letters/numbers" }, 400);
+  if (!PIN_RE.test(pin)) return json({ error: "Initial PIN must be 4-6 digits" }, 400);
+
+  const result = await provisionTenant(sql, {
+    organizationName,
+    ownerName,
+    ownerEmail,
+    ownerPhone,
+    propertyName,
+    propertyCode,
+    propertyType,
+    totalRooms,
+    adminName,
+    pin,
+    planTier,
+    trialDays,
+    features,
+    isInternal: false,
+  });
+  if (!result.ok) return json({ error: result.message }, result.status);
+
+  await audit(actor, "CREATE", "setting", `organization:${result.organizationId}`, {
+    action: "super-admin tenant create",
+    organizationName,
+    propertyCode,
+  });
+
+  const [row] = await sql<OrgRow[]>`
+    SELECT id, name, owner_name, owner_email, owner_phone, plan_tier, subscription_status,
+           trial_starts_at, trial_ends_at, max_properties, is_internal, features, created_at
+    FROM organizations WHERE id = ${result.organizationId}`;
+  return json({ success: true, tenant: await shapeTenant(sql, row!, 1) });
+}
+
+async function addProperty(request: Request, sql: Sql, actor: Actor): Promise<Response> {
+  await ensureAccessSchema(sql);
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const organizationId = str(body["organizationId"]);
+  const [org] = await sql<
+    { id: string }[]
+  >`SELECT id FROM organizations WHERE id = ${organizationId}`;
+  if (!org) return json({ error: "Organization not found" }, 404);
+
+  const name = str(body["name"]).slice(0, 150);
+  const code = str(body["code"]).trim().toUpperCase();
+  const propertyType = PROPERTY_TYPES.has(str(body["propertyType"]))
+    ? str(body["propertyType"])
+    : "hotel";
+  const totalRooms = Math.max(0, Math.floor(num(body["totalRooms"], 1)));
+  if (!name) return json({ error: "Property name is required" }, 400);
+  if (!PROPERTY_CODE_RE.test(code))
+    return json({ error: "Property code must be 3-12 uppercase letters/numbers" }, 400);
+
+  const limit = await canAddProperty(sql, organizationId);
+  if (!limit.ok) return json({ error: limit.message }, 403);
+  if (slugForPropertyCode(code)) return json({ error: "That property code is already taken" }, 409);
+  const [existingCode] = await sql<{ id: string }[]>`
+    SELECT id FROM pms_properties WHERE upper(code) = ${code}`;
+  if (existingCode) return json({ error: "That property code is already taken" }, 409);
+
+  const propertyId = `prop_${randomBytes(6).toString("hex")}`;
+  await sql`
+    INSERT INTO pms_properties (id, organization_id, name, code, property_type, total_rooms, is_active)
+    VALUES (${propertyId}, ${organizationId}, ${name}, ${code}, ${propertyType}, ${totalRooms}, true)`;
+  try {
+    await seedProperty(sql, propertyId);
+    await seedConfig(sql, propertyId);
+  } catch (err) {
+    console.error("[pms-super-admin] POS seed failed:", err instanceof Error ? err.message : err);
+  }
+
+  await audit(actor, "CREATE", "setting", `property:${propertyId}`, {
+    action: "super-admin add property",
+    organizationId,
+    code,
+  });
+
+  const [row] = await sql<OrgRow[]>`
+    SELECT id, name, owner_name, owner_email, owner_phone, plan_tier, subscription_status,
+           trial_starts_at, trial_ends_at, max_properties, is_internal, features, created_at
+    FROM organizations WHERE id = ${organizationId}`;
+  const [staffRow] = await sql<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM pms_users WHERE organization_id = ${organizationId}`;
+  return json({ success: true, tenant: await shapeTenant(sql, row!, staffRow?.n ?? 0) });
+}
+
+async function updateProperty(request: Request, sql: Sql, actor: Actor): Promise<Response> {
+  await ensureAccessSchema(sql);
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const id = str(body["id"]);
+  const [existing] = await sql<{ id: string; organization_id: string }[]>`
+    SELECT id, organization_id FROM pms_properties WHERE id = ${id}`;
+  if (!existing) return json({ error: "Property not found" }, 404);
+
+  const assignments: string[] = [];
+  const params: unknown[] = [];
+  const set = (column: string, value: unknown) => {
+    params.push(value);
+    assignments.push(`${column} = $${params.length}`);
+  };
+
+  if (body["name"] !== undefined) {
+    const name = str(body["name"]).slice(0, 150);
+    if (!name) return json({ error: "Property name cannot be empty" }, 400);
+    set("name", name);
+  }
+  if (body["code"] !== undefined) {
+    const code = str(body["code"]).trim().toUpperCase();
+    if (!PROPERTY_CODE_RE.test(code))
+      return json({ error: "Property code must be 3-12 uppercase letters/numbers" }, 400);
+    const [clash] = await sql<{ id: string }[]>`
+      SELECT id FROM pms_properties WHERE upper(code) = ${code} AND id != ${id}`;
+    if (clash || slugForPropertyCode(code))
+      return json({ error: "That property code is already taken" }, 409);
+    set("code", code);
+  }
+  if (body["propertyType"] !== undefined) {
+    const type = str(body["propertyType"]);
+    if (!PROPERTY_TYPES.has(type)) return json({ error: "Invalid property type" }, 400);
+    set("property_type", type);
+  }
+  if (body["totalRooms"] !== undefined)
+    set("total_rooms", Math.max(0, Math.floor(num(body["totalRooms"], 1))));
+  if (body["isActive"] !== undefined) set("is_active", body["isActive"] === true);
+  for (const field of ["address", "contactPhone", "contactEmail"] as const) {
+    if (body[field] !== undefined) {
+      const column = field.replace(/([A-Z])/g, "_$1").toLowerCase();
+      set(column, str(body[field]) || null);
+    }
+  }
+  if (assignments.length === 0) return json({ error: "Nothing to update" }, 400);
+  assignments.push("updated_at = now()");
+
+  params.push(id);
+  await sql.unsafe(
+    `UPDATE pms_properties SET ${assignments.join(", ")} WHERE id = $${params.length}`,
+    params as never[],
+  );
+
+  await audit(actor, "UPDATE", "setting", `property:${id}`, {
+    action: "super-admin edit property",
+  });
+
+  const [row] = await sql<OrgRow[]>`
+    SELECT id, name, owner_name, owner_email, owner_phone, plan_tier, subscription_status,
+           trial_starts_at, trial_ends_at, max_properties, is_internal, features, created_at
+    FROM organizations WHERE id = ${existing.organization_id}`;
+  const [staffRow] = await sql<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM pms_users WHERE organization_id = ${existing.organization_id}`;
+  return json({ success: true, tenant: await shapeTenant(sql, row!, staffRow?.n ?? 0) });
 }
 
 export async function handleSuperAdminApi(
@@ -244,5 +445,11 @@ export async function handleSuperAdminApi(
   if (sub === "tenants" && request.method === "GET") return listTenants(sql, url);
   if (sub === "tenants/update" && request.method === "POST")
     return updateTenant(request, sql, actor);
+  if (sub === "tenants/create" && request.method === "POST")
+    return createTenant(request, sql, actor);
+  if (sub === "properties/create" && request.method === "POST")
+    return addProperty(request, sql, actor);
+  if (sub === "properties/update" && request.method === "POST")
+    return updateProperty(request, sql, actor);
   return json({ error: "Not found" }, 404);
 }

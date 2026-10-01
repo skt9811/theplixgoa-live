@@ -27,3 +27,20 @@ export function slugForPropertyCode(code: string): string | null {
   if (!key) return null;
   return PROPERTY_CODES[key] ?? null;
 }
+
+// The one code each static property is actually shown/seeded with (CHICO is
+// a login alias for VIVENDA, not a second identity) — pms-schema.server.ts's
+// pms_properties seed uses this so the DB row's code matches what the static
+// login map already resolves, rather than hand-duplicating the pairing.
+export const PRIMARY_PROPERTY_CODES: Record<string, string> = {
+  "harbor-court": "HARBOR",
+  "morjim-pride": "MORJIM",
+  "the-plix-resort-morjim": "MORJIMRESORT",
+  "vivenda-chico": "VIVENDA",
+  "casa-marina": "MARINA",
+  "casa-moana": "MOANA",
+  "casa-meadows": "MEADOWS",
+  "the-plix-villa": "PLIXVILLA",
+  "villa-madera": "MADERA",
+  "casa-serenita": "SERENITA",
+};

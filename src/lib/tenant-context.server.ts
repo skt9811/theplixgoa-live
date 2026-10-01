@@ -17,7 +17,6 @@
 // defaulting into Plix's real internal one.
 import type postgres from "postgres";
 import { PROPERTIES } from "@/lib/plix";
-import { isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates";
 
 type Sql = ReturnType<typeof postgres>;
 
@@ -41,28 +40,67 @@ export function organizationForProperty(_propertySlug: string): string {
   return DEFAULT_ORG_ID;
 }
 
+export type PropertyRecord = {
+  id: string;
+  name: string;
+  code: string;
+  propertyType: string;
+  totalRooms: number;
+  isActive: boolean;
+  address: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+};
+
+type PropertyRow = {
+  id: string;
+  name: string;
+  code: string;
+  property_type: string;
+  total_rooms: number;
+  is_active: boolean;
+  address: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+};
+
+const shapeProperty = (r: PropertyRow): PropertyRecord => ({
+  id: r.id,
+  name: r.name,
+  code: r.code,
+  propertyType: r.property_type,
+  totalRooms: r.total_rooms,
+  isActive: r.is_active,
+  address: r.address,
+  contactPhone: r.contact_phone,
+  contactEmail: r.contact_email,
+});
+
+/** Every property an organization has, straight from `pms_properties` — the
+ * super-admin tenant directory's "Properties" tab, its "N properties • M
+ * rooms" badge, and its property-code search. Accurate for the internal org
+ * too: pms-schema.server.ts's ensureAccessSchema seeds a real row for each
+ * of the 10 static Plix properties, so this is a real table read, not a
+ * static-array stand-in, for every organization including org_plix_internal. */
+export async function listOrganizationProperties(
+  pmsDb: Sql,
+  organizationId: string,
+): Promise<PropertyRecord[]> {
+  const rows = await pmsDb<PropertyRow[]>`
+    SELECT id, name, code, property_type, total_rooms, is_active, address, contact_phone, contact_email
+    FROM pms_properties WHERE organization_id = ${organizationId} ORDER BY created_at`;
+  return rows.map(shapeProperty);
+}
+
 /** How many properties an organization currently has — the other half of
  * the property-limit check alongside `organizations.max_properties`. */
-export function propertyCountForOrganization(organizationId: string): number {
-  return PROPERTIES.filter((p) => organizationForProperty(p.slug) === organizationId).length;
-}
-
-/** Total sellable units (rooms for a multi-room property, 1 for a whole
- * villa) across every property an organization has — the super-admin
- * tenant directory's "N properties • M rooms" badge. */
-export function roomCountForOrganization(organizationId: string): number {
-  return PROPERTIES.filter((p) => organizationForProperty(p.slug) === organizationId).reduce(
-    (sum, p) => sum + (isMultiRoomProperty(p.slug) ? maxRoomsForProperty(p.slug) : 1),
-    0,
-  );
-}
-
-/** Every property slug an organization has — used by the tenant directory's
- * "Direct Property & Staff List" section and its property-code search. */
-export function propertiesForOrganization(organizationId: string): string[] {
-  return PROPERTIES.filter((p) => organizationForProperty(p.slug) === organizationId).map(
-    (p) => p.slug,
-  );
+export async function propertyCountForOrganization(
+  pmsDb: Sql,
+  organizationId: string,
+): Promise<number> {
+  const [row] = await pmsDb<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM pms_properties WHERE organization_id = ${organizationId}`;
+  return row?.n ?? 0;
 }
 
 /** Phase 5 (createBooking and sibling booking-creation handlers): is

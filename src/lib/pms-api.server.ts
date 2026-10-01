@@ -207,25 +207,43 @@ async function handleLogin(request: Request): Promise<Response> {
 
   // Property Code is mandatory for every login, staff and owner alike — it
   // identifies which property the session is for (see property-codes.ts).
+  // GLOBAL / ALL is the one reserved exception: the Owner's master override,
+  // never resolved to a real property, and refused outright on a staff (PIN)
+  // login below — "reserved for the Owner" means exactly that, not a
+  // shortcut any account can type in.
   if (!propertyCodeRaw.trim()) {
     return json({ error: "Property code is required" }, 400);
   }
-  // Static map first (the 10 real Plix properties), then pms_properties for
-  // anything a public signup created — see resolveDynamicPropertyCode's own
-  // note on why the static-only map alone would otherwise lock a signed-up
-  // tenant out of their account on every login after the first.
-  let propertySlug = slugForPropertyCode(propertyCodeRaw);
-  if (!propertySlug) {
-    const pmsDbForCode = getPmsDb();
-    if (pmsDbForCode)
-      propertySlug = await resolveDynamicPropertyCode(pmsDbForCode, propertyCodeRaw);
-  }
-  if (!propertySlug) {
-    return json({ error: "Enter a valid property code" }, 400);
+  const propertyCodeNormalized = propertyCodeRaw.trim().toUpperCase();
+  const isGlobalCode = propertyCodeNormalized === "GLOBAL" || propertyCodeNormalized === "ALL";
+
+  let propertySlug: string | null = null;
+  if (!isGlobalCode) {
+    // Static map first (the 10 real Plix properties), then pms_properties
+    // for anything a signup/super-admin created — see
+    // resolveDynamicPropertyCode's own note on why the static-only map alone
+    // would otherwise lock a signed-up tenant out of their account on every
+    // login after the first.
+    propertySlug = slugForPropertyCode(propertyCodeRaw);
+    if (!propertySlug) {
+      const pmsDbForCode = getPmsDb();
+      if (pmsDbForCode)
+        propertySlug = await resolveDynamicPropertyCode(pmsDbForCode, propertyCodeRaw);
+    }
+    if (!propertySlug) {
+      return json({ error: "Enter a valid property code" }, 400);
+    }
   }
 
   // Staff sign in with their name, phone or email and a 4 to 6 digit PIN.
   if (identifier || pin) {
+    if (isGlobalCode) {
+      recordLoginAttempt(request, false);
+      return json(
+        { error: "GLOBAL/ALL is reserved for Owner sign-in. Enter your property's code." },
+        400,
+      );
+    }
     if (!identifier || !PIN_RE.test(pin)) {
       recordLoginAttempt(request, false);
       return json({ error: "Enter your name, phone or email and your PIN" }, 400);
@@ -235,7 +253,7 @@ async function handleLogin(request: Request): Promise<Response> {
       recordLoginAttempt(request, false);
       return json({ error: result.error }, result.status);
     }
-    if (!canProperty(result.actor, propertySlug)) {
+    if (!canProperty(result.actor, propertySlug!)) {
       recordLoginAttempt(request, false);
       return json({ error: "You do not have access to this property" }, 403);
     }

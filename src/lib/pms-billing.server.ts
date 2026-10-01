@@ -146,18 +146,16 @@ export async function assertFeatureEnabled(
 export type PropertyLimitCheck = { ok: true } | { ok: false; message: string };
 
 /** The other half of the property-limit rule: `organizations.max_properties`
- * vs. how many properties the org already has. Correct and ready, but
- * nothing in this codebase currently creates a property at runtime —
- * PROPERTIES (src/lib/plix.ts) ships in code, not through an admin "add
- * property" action — so there is no live write route to call this from yet.
- * Exported for the write path that eventually adds one. */
+ * vs. how many properties the org already has — called from the
+ * super-admin "add property" / "create tenant" write paths
+ * (pms-super-admin.server.ts). */
 export async function canAddProperty(
   sql: Sql,
   organizationId: string,
 ): Promise<PropertyLimitCheck> {
   const org = await getOrganization(sql, organizationId);
   if (!org) return { ok: true };
-  const current = propertyCountForOrganization(organizationId);
+  const current = await propertyCountForOrganization(sql, organizationId);
   if (current >= org.max_properties) {
     return {
       ok: false,

@@ -3,6 +3,9 @@
 // database. Idempotent, so it is safe to call before any expense query.
 import type postgres from "postgres";
 import { DEFAULT_CATEGORIES } from "@/lib/pms-categories";
+import { PROPERTIES } from "@/lib/plix";
+import { isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates";
+import { PRIMARY_PROPERTY_CODES } from "@/lib/property-codes";
 
 type Sql = ReturnType<typeof postgres>;
 
@@ -342,6 +345,39 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
         )`;
       await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_properties_code_key ON pms_properties (upper(code))`;
       await sql`CREATE INDEX IF NOT EXISTS idx_pms_properties_org_id ON pms_properties (organization_id)`;
+      // Phase 6 (super-admin property CRUD — pms-super-admin.server.ts):
+      // the admin-record fields "Edit Property" actually edits.
+      await sql`ALTER TABLE pms_properties ADD COLUMN IF NOT EXISTS address text`;
+      await sql`ALTER TABLE pms_properties ADD COLUMN IF NOT EXISTS contact_phone text`;
+      await sql`ALTER TABLE pms_properties ADD COLUMN IF NOT EXISTS contact_email text`;
+      await sql`ALTER TABLE pms_properties ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()`;
+      // Seed the 10 real Plix properties as real pms_properties rows, under
+      // org_plix_internal, with the exact codes the static login map
+      // (property-codes.ts) already resolves — so the Super-Admin tenant
+      // directory's "Properties" tab has real rows to list/edit for the
+      // internal org too, not just for a Phase-4 signed-up tenant. This is
+      // ADDITIVE, informational scaffolding, not a new source of truth: live
+      // booking creation, rates/inventory, and the public website still read
+      // PROPERTIES (src/lib/plix.ts) exactly as before — isBookablePropertyForOrg
+      // and the static-first login resolver both check the static array
+      // FIRST and only fall back to this table for anything not in it, so
+      // nothing here can change how a real booking or a real staff login
+      // behaves. Editing a seeded row's code here adds a second working
+      // alias (the dynamic-lookup fallback also matches it); it does not
+      // revoke the original hardcoded code, since that still resolves first
+      // and lives in compiled code, not this table — rewiring the static
+      // array itself out of the live booking/login path is a separate,
+      // larger change this phase deliberately didn't attempt.
+      for (const p of PROPERTIES) {
+        const code = PRIMARY_PROPERTY_CODES[p.slug];
+        if (!code) continue;
+        const totalRooms = isMultiRoomProperty(p.slug) ? maxRoomsForProperty(p.slug) : 1;
+        const displayName = p.name.split(" - ")[0] ?? p.name;
+        await sql`
+          INSERT INTO pms_properties (id, organization_id, name, code, property_type, total_rooms, is_active)
+          VALUES (${p.slug}, 'org_plix_internal', ${displayName}, ${code}, ${isMultiRoomProperty(p.slug) ? "hotel" : "villa"}, ${totalRooms}, true)
+          ON CONFLICT (id) DO NOTHING`;
+      }
     })().catch((err) => {
       accessReady = null;
       throw err;

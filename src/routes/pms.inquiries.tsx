@@ -240,32 +240,32 @@ function Inquiries() {
           </div>
         )}
 
-        <div className="mt-4 grid gap-3">
+        <div className="mt-4 grid w-full gap-3">
           {visible.map((inq) => (
             <article
               key={inq.id}
               ref={inq.id === highlightId ? highlightRef : undefined}
-              className={`rounded-xl border bg-white p-4 transition-colors ${inq.id === highlightId ? "border-emerald-400 ring-2 ring-emerald-200" : "border-slate-200"}`}
+              className={`w-full max-w-full overflow-hidden rounded-xl border bg-white p-4 transition-colors box-border ${inq.id === highlightId ? "border-emerald-400 ring-2 ring-emerald-200" : "border-slate-200"}`}
             >
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
+              <div className="flex w-full flex-wrap items-center gap-1.5 text-[11px] font-semibold">
                 <Checkbox
                   aria-label={`Select inquiry from ${inq.guest_name}`}
                   checked={selectedIds.has(inq.id)}
                   onCheckedChange={() => toggleOne(inq.id)}
                   className="mr-0.5"
                 />
-                <span className="rounded-full bg-slate-900 px-2.5 py-1 text-white">
+                <span className="max-w-full truncate rounded-full bg-slate-900 px-2.5 py-1 text-white">
                   {inq.property_name ?? inq.listing_title ?? "Unmatched property"}
                 </span>
                 <span className={`rounded-full px-2.5 py-1 ${STATUS_STYLE[inq.status]}`}>
                   {STATUS_LABELS[inq.status]}
                 </span>
                 {inq.recipient_email && (
-                  <span className="rounded-full bg-sky-100 px-2.5 py-1 text-sky-700">
+                  <span className="max-w-full truncate rounded-full bg-sky-100 px-2.5 py-1 text-sky-700">
                     Host: {getHostDisplayName(inq.recipient_email) ?? inq.recipient_email}
                   </span>
                 )}
-                <span className="ml-auto text-slate-400">
+                <span className="text-slate-400 ml-auto">
                   {new Date(inq.created_at).toLocaleString("en-IN", {
                     day: "numeric",
                     month: "short",
@@ -275,16 +275,16 @@ function Inquiries() {
                 </span>
               </div>
 
-              <div className="mt-2 flex items-start justify-between gap-3">
-                <div className="min-w-0">
+              <div className="mt-2 flex w-full items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-slate-900">{inq.guest_name}</p>
                   {inq.listing_title && (
-                    <p className="truncate text-xs font-medium text-bronze">
+                    <p className="break-words text-xs font-medium text-bronze">
                       Airbnb: {inq.listing_title}
                     </p>
                   )}
-                  <p className="flex items-center gap-1 text-xs text-slate-500">
-                    <Users className="size-3" aria-hidden /> {inq.pax_count} guest
+                  <p className="flex flex-wrap items-center gap-1 break-words text-xs text-slate-500">
+                    <Users className="size-3 shrink-0" aria-hidden /> {inq.pax_count} guest
                     {inq.pax_count === 1 ? "" : "s"}
                     {inq.check_in && inq.check_out && (
                       <>
@@ -297,10 +297,12 @@ function Inquiries() {
               </div>
 
               {inq.inquiry_text && (
-                <p className="mt-2 line-clamp-3 text-sm text-slate-600">{inq.inquiry_text}</p>
+                <p className="mt-2 line-clamp-3 break-words whitespace-normal text-sm text-slate-600">
+                  {inq.inquiry_text}
+                </p>
               )}
 
-              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+              <div className="mt-3 flex w-full flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
                 {inq.thread_url && (
                   <a
                     href={inq.thread_url}
@@ -316,7 +318,7 @@ function Inquiries() {
                   value={inq.status}
                   disabled={savingId === inq.id}
                   onChange={(e) => void setStatus(inq, e.target.value as InquiryStatus)}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none disabled:opacity-60"
+                  className="max-w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none disabled:opacity-60"
                 >
                   {(Object.keys(STATUS_LABELS) as InquiryStatus[]).map((s) => (
                     <option key={s} value={s}>
@@ -328,7 +330,7 @@ function Inquiries() {
                   <button
                     type="button"
                     onClick={() => setConverting(inq)}
-                    className="ml-auto rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                    className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 ml-auto"
                   >
                     Convert to Booking
                   </button>

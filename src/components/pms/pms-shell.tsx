@@ -5,6 +5,7 @@ import {
   CalendarRange,
   UtensilsCrossed,
   FileText,
+  Grid3x3,
   HeartPulse,
   Inbox,
   LayoutDashboard,
@@ -36,6 +37,18 @@ const NAV = [
   { to: "/pms/invoices", label: "Invoices", icon: FileText, exact: false, tab: "invoices" },
   { to: "/pms/vouchers", label: "Vouchers", icon: Ticket, exact: false, tab: "vouchers" },
   { to: "/pms/inquiries", label: "Inquiries", icon: Inbox, exact: false, tab: "inquiries" },
+  {
+    to: "/pms/airbnb-spaces",
+    label: "Airbnb Spaces",
+    icon: Grid3x3,
+    exact: false,
+    // Reuses the "settings" permission bucket (same as System Health below)
+    // rather than adding a new PmsTab value — this is a personal,
+    // device-local bookmark list (localStorage only, no server data, no
+    // booking/POS/inquiry involvement), not a feature that needs its own
+    // row in the employee-permissions UI.
+    tab: "settings",
+  },
   { to: "/pms/system", label: "System Health", icon: HeartPulse, exact: false, tab: "settings" },
   { to: "/pms/settings", label: "Settings", icon: Settings, exact: false, tab: "settings" },
 ] as const;

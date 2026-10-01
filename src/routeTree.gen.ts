@@ -27,6 +27,7 @@ import { Route as BlogIndexRouteImport } from './routes/blog/index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as LocationsSlugRouteImport } from './routes/locations.$slug'
 import { Route as PmsIndexRouteImport } from './routes/pms.index'
+import { Route as PmsAirbnbSpacesRouteImport } from './routes/pms.airbnb-spaces'
 import { Route as PmsBookingsRouteImport } from './routes/pms.bookings'
 import { Route as PmsExpensesRouteImport } from './routes/pms.expenses'
 import { Route as PmsInquiriesRouteImport } from './routes/pms.inquiries'
@@ -159,6 +160,11 @@ const LocationsSlugRoute = LocationsSlugRouteImport.update({
 const PmsIndexRoute = PmsIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => PmsRoute,
+} as any)
+const PmsAirbnbSpacesRoute = PmsAirbnbSpacesRouteImport.update({
+  id: '/airbnb-spaces',
+  path: '/airbnb-spaces',
   getParentRoute: () => PmsRoute,
 } as any)
 const PmsBookingsRoute = PmsBookingsRouteImport.update({
@@ -398,6 +404,7 @@ export interface FileRoutesByFullPath {
   '/admin/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/locations/$slug': typeof LocationsSlugRoute
+  '/pms/airbnb-spaces': typeof PmsAirbnbSpacesRoute
   '/pms/bookings': typeof PmsBookingsRoute
   '/pms/expenses': typeof PmsExpensesRoute
   '/pms/inquiries': typeof PmsInquiriesRoute
@@ -459,6 +466,7 @@ export interface FileRoutesByTo {
   '/admin/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/locations/$slug': typeof LocationsSlugRoute
+  '/pms/airbnb-spaces': typeof PmsAirbnbSpacesRoute
   '/pms/bookings': typeof PmsBookingsRoute
   '/pms/expenses': typeof PmsExpensesRoute
   '/pms/inquiries': typeof PmsInquiriesRoute
@@ -520,6 +528,7 @@ export interface FileRoutesById {
   '/admin_/bookings': typeof AdminBookingsRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/locations/$slug': typeof LocationsSlugRoute
+  '/pms/airbnb-spaces': typeof PmsAirbnbSpacesRoute
   '/pms/bookings': typeof PmsBookingsRoute
   '/pms/expenses': typeof PmsExpensesRoute
   '/pms/inquiries': typeof PmsInquiriesRoute
@@ -585,6 +594,7 @@ export interface FileRouteTypes {
     | '/admin/bookings'
     | '/blog/$slug'
     | '/locations/$slug'
+    | '/pms/airbnb-spaces'
     | '/pms/bookings'
     | '/pms/expenses'
     | '/pms/inquiries'
@@ -646,6 +656,7 @@ export interface FileRouteTypes {
     | '/admin/bookings'
     | '/blog/$slug'
     | '/locations/$slug'
+    | '/pms/airbnb-spaces'
     | '/pms/bookings'
     | '/pms/expenses'
     | '/pms/inquiries'
@@ -706,6 +717,7 @@ export interface FileRouteTypes {
     | '/admin_/bookings'
     | '/blog/$slug'
     | '/locations/$slug'
+    | '/pms/airbnb-spaces'
     | '/pms/bookings'
     | '/pms/expenses'
     | '/pms/inquiries'
@@ -903,6 +915,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/pms/'
       preLoaderRoute: typeof PmsIndexRouteImport
+      parentRoute: typeof PmsRoute
+    }
+    '/pms/airbnb-spaces': {
+      id: '/pms/airbnb-spaces'
+      path: '/airbnb-spaces'
+      fullPath: '/pms/airbnb-spaces'
+      preLoaderRoute: typeof PmsAirbnbSpacesRouteImport
       parentRoute: typeof PmsRoute
     }
     '/pms/bookings': {
@@ -1289,6 +1308,7 @@ const PmsPosRouteWithChildren =
   PmsPosRoute._addFileChildren(PmsPosRouteChildren)
 
 interface PmsRouteChildren {
+  PmsAirbnbSpacesRoute: typeof PmsAirbnbSpacesRoute
   PmsBookingsRoute: typeof PmsBookingsRoute
   PmsExpensesRoute: typeof PmsExpensesRoute
   PmsInquiriesRoute: typeof PmsInquiriesRoute
@@ -1304,6 +1324,7 @@ interface PmsRouteChildren {
 }
 
 const PmsRouteChildren: PmsRouteChildren = {
+  PmsAirbnbSpacesRoute: PmsAirbnbSpacesRoute,
   PmsBookingsRoute: PmsBookingsRoute,
   PmsExpensesRoute: PmsExpensesRoute,
   PmsInquiriesRoute: PmsInquiriesRoute,

@@ -1038,7 +1038,11 @@ export async function handlePosApi(
     await ensurePosSchema(sql);
     if (request.method !== "GET") {
       const subscription = await assertSubscriptionActive(sql, actor.organizationId);
-      if (!subscription.ok) return json({ error: subscription.message }, subscription.status);
+      if (!subscription.ok)
+        return json(
+          { error: subscription.error, code: subscription.code, message: subscription.message },
+          subscription.status,
+        );
     }
     if (sub === "state" && request.method === "GET")
       return json(await getState(url, actor, sql, tenantId));

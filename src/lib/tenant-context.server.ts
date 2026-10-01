@@ -12,6 +12,7 @@
 // by the one value every existing row already has — a no-op in practice
 // until a second organization and real tenant-aware auth exist.
 import { PROPERTIES } from "@/lib/plix";
+import { isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates";
 
 export const DEFAULT_ORG_ID = "org_plix_internal";
 
@@ -36,4 +37,22 @@ export function organizationForProperty(_propertySlug: string): string {
  * the property-limit check alongside `organizations.max_properties`. */
 export function propertyCountForOrganization(organizationId: string): number {
   return PROPERTIES.filter((p) => organizationForProperty(p.slug) === organizationId).length;
+}
+
+/** Total sellable units (rooms for a multi-room property, 1 for a whole
+ * villa) across every property an organization has — the super-admin
+ * tenant directory's "N properties • M rooms" badge. */
+export function roomCountForOrganization(organizationId: string): number {
+  return PROPERTIES.filter((p) => organizationForProperty(p.slug) === organizationId).reduce(
+    (sum, p) => sum + (isMultiRoomProperty(p.slug) ? maxRoomsForProperty(p.slug) : 1),
+    0,
+  );
+}
+
+/** Every property slug an organization has — used by the tenant directory's
+ * "Direct Property & Staff List" section and its property-code search. */
+export function propertiesForOrganization(organizationId: string): string[] {
+  return PROPERTIES.filter((p) => organizationForProperty(p.slug) === organizationId).map(
+    (p) => p.slug,
+  );
 }

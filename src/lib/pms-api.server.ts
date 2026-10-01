@@ -22,6 +22,7 @@ import { ensureExpensesSchema, ensureInvoicesSchema } from "@/lib/pms-schema.ser
 import { DEFAULT_ORG_ID, getTenantId } from "@/lib/tenant-context.server";
 import { assertSubscriptionActive } from "@/lib/pms-billing.server";
 import { slugForPropertyCode } from "@/lib/property-codes";
+import { handleSuperAdminApi } from "@/lib/pms-super-admin.server";
 import {
   COLOR_PALETTE,
   HEX_COLOR,
@@ -447,7 +448,11 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const pmsDbForBilling = getPmsDb();
   if (pmsDbForBilling) {
     const subscription = await assertSubscriptionActive(pmsDbForBilling, actor.organizationId);
-    if (!subscription.ok) return json({ error: subscription.message }, subscription.status);
+    if (!subscription.ok)
+      return json(
+        { error: subscription.error, code: subscription.code, message: subscription.message },
+        subscription.status,
+      );
   }
   let body: Record<string, unknown>;
   try {
@@ -628,7 +633,11 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const pmsDbForBilling = getPmsDb();
   if (pmsDbForBilling) {
     const subscription = await assertSubscriptionActive(pmsDbForBilling, actor.organizationId);
-    if (!subscription.ok) return json({ error: subscription.message }, subscription.status);
+    if (!subscription.ok)
+      return json(
+        { error: subscription.error, code: subscription.code, message: subscription.message },
+        subscription.status,
+      );
   }
   let body: Record<string, unknown>;
   try {
@@ -984,7 +993,11 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
   const pmsDbForBilling = getPmsDb();
   if (pmsDbForBilling) {
     const subscription = await assertSubscriptionActive(pmsDbForBilling, actor.organizationId);
-    if (!subscription.ok) return json({ error: subscription.message }, subscription.status);
+    if (!subscription.ok)
+      return json(
+        { error: subscription.error, code: subscription.code, message: subscription.message },
+        subscription.status,
+      );
   }
   let body: Record<string, unknown>;
   try {
@@ -1931,7 +1944,11 @@ async function createVoucher(request: Request, actor: Actor): Promise<Response> 
   const pmsDbForBilling = getPmsDb();
   if (pmsDbForBilling) {
     const subscription = await assertSubscriptionActive(pmsDbForBilling, actor.organizationId);
-    if (!subscription.ok) return json({ error: subscription.message }, subscription.status);
+    if (!subscription.ok)
+      return json(
+        { error: subscription.error, code: subscription.code, message: subscription.message },
+        subscription.status,
+      );
   }
   let body: Record<string, unknown>;
   try {
@@ -2369,10 +2386,17 @@ async function auditApi(url: URL): Promise<Response> {
 }
 
 // Which tab(s) a route needs. Any one of the listed tabs is enough.
-function requiredTabs(path: string, method: string): Tab[] | "admin" | "any" | null {
+function requiredTabs(path: string, method: string): Tab[] | "admin" | "owner" | "any" | null {
   // The restaurant POS is part of daily front-of-house operations, so it
   // follows the Bookings privilege rather than adding another permission tab.
   if (path.startsWith("pos/")) return ["pos"];
+  // Super-admin "God Mode": strictly the Owner's master identity (the
+  // password login, Actor.isOwner) — deliberately NOT the PMS "admin" role.
+  // A PMS admin (Kanhai, Ankur — real day-to-day managers) runs ONE
+  // organization's operations; this surface can suspend or rewrite billing
+  // for every tenant on the platform, a materially different privilege this
+  // task never asked to hand regular admin accounts.
+  if (path.startsWith("super-admin/")) return "owner";
   switch (path) {
     case "settings":
       return "any";
@@ -2465,7 +2489,12 @@ export async function handlePmsApi(request: Request): Promise<Response> {
 
   const need = requiredTabs(path, request.method);
   if (need === null) return json({ error: "Not found" }, 404);
-  if (need === "admin" ? !isAdmin(actor) : need !== "any" && !canAnyTab(actor, need))
+  if (need === "owner" && !actor.isOwner)
+    return json({ error: "You do not have permission to do this" }, 403);
+  if (
+    need !== "owner" &&
+    (need === "admin" ? !isAdmin(actor) : need !== "any" && !canAnyTab(actor, need))
+  )
     return json({ error: "You do not have permission to do this" }, 403);
 
   const sql = getWebDb();
@@ -2477,6 +2506,8 @@ export async function handlePmsApi(request: Request): Promise<Response> {
       return json({ web, pms });
     }
     if (path.startsWith("pos/")) return await handlePosApi(path.slice(4), request, url, actor);
+    if (path.startsWith("super-admin/"))
+      return await handleSuperAdminApi(path.slice(12), request, url, actor);
     if (path === "notifications/register-device" && request.method === "POST")
       return await registerStaffDevice(request, actor);
     if (path === "inquiries" && request.method === "GET")

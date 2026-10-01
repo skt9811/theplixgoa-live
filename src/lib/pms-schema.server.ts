@@ -258,11 +258,49 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
       // property. 1 is a sane default for a brand-new org; the internal org
       // is set to 999 (effectively unlimited) below.
       await sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS max_properties integer NOT NULL DEFAULT 1`;
+      // Phase 3 (super-admin tenant directory — pms-super-admin.server.ts):
+      // owner contact fields for the directory/search, per-tenant feature
+      // flags, and is_internal — a dedicated boolean rather than relying on
+      // plan_tier's string staying spelled exactly "internal_enterprise"
+      // forever. assertSubscriptionActive checks is_internal first for
+      // exactly that reason: it survives a future plan_tier rename, a prior
+      // task's wording never could.
+      await sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS owner_name text`;
+      await sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS owner_email text`;
+      await sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS owner_phone text`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_organizations_owner_email ON organizations (lower(owner_email))`;
       await sql`
-        INSERT INTO organizations (id, name, slug, plan_tier, subscription_status, max_properties)
-        VALUES ('org_plix_internal', 'Plix Hospitality', 'plix-internal', 'internal_enterprise', 'active', 999)
+        ALTER TABLE organizations ADD COLUMN IF NOT EXISTS features jsonb NOT NULL DEFAULT '{
+          "pms_enabled": true,
+          "pos_enabled": true,
+          "airbnb_spaces_enabled": true,
+          "whatsapp_bot_enabled": false,
+          "audit_notifications_enabled": true
+        }'::jsonb`;
+      await sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS is_internal boolean NOT NULL DEFAULT false`;
+      await sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS trial_starts_at timestamptz NOT NULL DEFAULT now()`;
+      // A brand-new (non-internal) organization this codebase doesn't yet
+      // have any signup flow to create gets a real 7-day trial by default if
+      // one is ever INSERTed without specifying trial_ends_at explicitly.
+      await sql`ALTER TABLE organizations ALTER COLUMN trial_ends_at SET DEFAULT (now() + interval '7 days')`;
+      // The super-admin tenant directory can now edit organizations freely —
+      // so this upsert, unlike earlier phases, must stop clobbering that on
+      // every cold start. `name`/`owner_name` are purely informational and
+      // respect whatever an admin already set (COALESCE only fills a NULL).
+      // plan_tier/subscription_status/is_internal/max_properties stay
+      // force-pinned for this ONE row specifically: org_plix_internal is the
+      // live business's own organization, not a manageable tenant, and
+      // super-admin PATCH (pms-super-admin.server.ts) independently refuses
+      // to touch it too — this is the second, redundant guarantee that it
+      // can never end up suspended or trial-gated by any code path.
+      await sql`
+        INSERT INTO organizations (id, name, slug, plan_tier, subscription_status, max_properties, owner_name, is_internal)
+        VALUES ('org_plix_internal', 'Plix Hospitality', 'plix-internal', 'internal_enterprise', 'active', 999, 'Plix Hospitality', true)
         ON CONFLICT (id) DO UPDATE SET
-          name = 'Plix Hospitality', plan_tier = 'internal_enterprise', subscription_status = 'active', max_properties = 999`;
+          plan_tier = 'internal_enterprise', subscription_status = 'active',
+          max_properties = 999, is_internal = true,
+          name = COALESCE(organizations.name, 'Plix Hospitality'),
+          owner_name = COALESCE(organizations.owner_name, 'Plix Hospitality')`;
       await sql`
         CREATE TABLE IF NOT EXISTS organization_members (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

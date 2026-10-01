@@ -11,6 +11,7 @@ import {
   Inbox,
   LayoutDashboard,
   LogOut,
+  Crown,
   Menu,
   Plus,
   QrCode,
@@ -55,7 +56,28 @@ const NAV = [
   },
   { to: "/pms/system", label: "System Health", icon: HeartPulse, exact: false, tab: "settings" },
   { to: "/pms/settings", label: "Settings", icon: Settings, exact: false, tab: "settings" },
+  {
+    to: "/pms/super-admin",
+    label: "Platform Tenant Hub",
+    icon: Crown,
+    exact: false,
+    // Owner's master identity only — see requiredTabs("owner") in
+    // pms-api.server.ts for the matching server-side gate. Not a `tab`
+    // permission: a PMS admin (Kanhai, Ankur) must never see this link,
+    // since it manages billing/suspension for every tenant on the
+    // platform, not this one organization's day-to-day operations.
+    tab: "settings",
+    ownerOnly: true,
+  },
 ] as const;
+
+function navVisible(
+  item: (typeof NAV)[number],
+  user: { tabs: string[]; isOwner: boolean },
+): boolean {
+  if ("ownerOnly" in item && item.ownerOnly) return user.isOwner;
+  return user.tabs.includes(item.tab);
+}
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -74,7 +96,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
   useBackDismiss(true, onClose);
 
   const navMatches = NAV.filter(
-    (item) => user.tabs.includes(item.tab) && item.label.toLowerCase().includes(q.toLowerCase()),
+    (item) => navVisible(item, user) && item.label.toLowerCase().includes(q.toLowerCase()),
   );
   const propertyMatches = PROPERTIES.filter(
     (p) => allowedProperties.includes(p.slug) && p.name.toLowerCase().includes(q.toLowerCase()),
@@ -197,7 +219,7 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
   const [search, setSearch] = useState(false);
   useBackDismiss(drawer, () => setDrawer(false));
 
-  const navItems = useMemo(() => NAV.filter((item) => can(item.tab)), [can]);
+  const navItems = useMemo(() => NAV.filter((item) => navVisible(item, user)), [user]);
 
   const links = (
     <nav className="grid gap-1 p-3">

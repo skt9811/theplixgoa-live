@@ -17,6 +17,8 @@ type OrganizationRow = {
   subscription_status: string;
   trial_ends_at: Date | null;
   max_properties: number;
+  is_internal: boolean;
+  features: Record<string, boolean>;
 };
 
 export async function getOrganization(
@@ -25,19 +27,29 @@ export async function getOrganization(
 ): Promise<OrganizationRow | null> {
   await ensureAccessSchema(sql);
   const [row] = await sql<OrganizationRow[]>`
-    SELECT id, name, plan_tier, subscription_status, trial_ends_at, max_properties
+    SELECT id, name, plan_tier, subscription_status, trial_ends_at, max_properties, is_internal, features
     FROM organizations WHERE id = ${organizationId}`;
   return row ?? null;
 }
 
-export type SubscriptionCheck = { ok: true } | { ok: false; status: 402; message: string };
+// The "not ok" shape doubles as the response body every call site sends
+// straight to json(...) — `error`/`code` are the machine-readable pair the
+// task's client banner branches on, `message` is the human sentence this
+// codebase's existing toast()-based error handling already expects.
+export type SubscriptionCheck =
+  | { ok: true }
+  | { ok: false; status: 402; error: "subscription_expired"; code: "TRIAL_ENDED"; message: string };
+
+function blocked(message: string): SubscriptionCheck {
+  return { ok: false, status: 402, error: "subscription_expired", code: "TRIAL_ENDED", message };
+}
 
 /** Called once, early, for write routes on bookings / POS orders / rate &
  * inventory updates. Fails OPEN (allows the write) if the organization can't
  * be resolved at all — an enforcement gate must never be the reason a real,
  * paid-up business can't take a booking because of an unrelated lookup
  * hiccup; the one case it actively blocks is the one the task asked for:
- * a trial that has genuinely run out. */
+ * a trial (or a super-admin-suspended account) that has genuinely run out. */
 export async function assertSubscriptionActive(
   sql: Sql,
   organizationId: string,
@@ -54,24 +66,23 @@ export async function assertSubscriptionActive(
     return { ok: true };
   }
   if (!org) return { ok: true };
-  if (org.plan_tier === "internal_enterprise") return { ok: true };
-  if (org.subscription_status === "expired") {
-    return {
-      ok: false,
-      status: 402,
-      message: "Your 7-day trial has ended. Please subscribe to continue.",
-    };
-  }
+  // is_internal is the authoritative bypass — a dedicated boolean a
+  // super-admin can toggle, rather than a string that has already been
+  // spelled two different ways ("enterprise_internal", "internal_enterprise")
+  // across this feature's own task history. The plan_tier check stays as a
+  // second, redundant safety net for any row written before is_internal
+  // existed.
+  if (org.is_internal || org.plan_tier === "internal_enterprise") return { ok: true };
+  if (org.subscription_status === "suspended")
+    return blocked("This account has been suspended. Contact Plix support to reactivate it.");
+  if (org.subscription_status === "expired")
+    return blocked("Your 7-day trial has ended. Please subscribe to continue.");
   if (
     org.subscription_status === "trialing" &&
     org.trial_ends_at &&
     org.trial_ends_at.getTime() < Date.now()
   ) {
-    return {
-      ok: false,
-      status: 402,
-      message: "Your 7-day trial has ended. Please subscribe to continue.",
-    };
+    return blocked("Your 7-day trial has ended. Please subscribe to continue.");
   }
   return { ok: true };
 }

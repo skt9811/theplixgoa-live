@@ -434,6 +434,125 @@ async function updateProperty(request: Request, sql: Sql, actor: Actor): Promise
   return json({ success: true, tenant: await shapeTenant(sql, row!, staffRow?.n ?? 0) });
 }
 
+// Every table genuinely scoped by property_id with no organization_id column
+// of its own (confirmed against the live schema's information_schema, not
+// guessed) — deleted first, before the properties themselves, for the org's
+// property set. pms_pos_orders/pms_pos_tables go first among these: orders
+// has a NO ACTION fk to tables (table_id) and items (item_id), so deleting
+// orders (which cascades its own pms_pos_order_items) before tables/items
+// avoids a constraint violation; everything else here has no inter-table fk
+// and can go in any order. pms_invoices is listed even though its own
+// pms_invoice_items cascade automatically (fk delete_rule CASCADE) — no
+// separate items delete needed.
+const PROPERTY_SCOPED_TABLES = [
+  "pms_pos_orders",
+  "pms_pos_tables",
+  "pms_pos_items",
+  "pms_pos_categories",
+  "pms_invoices",
+  "gst_invoices",
+  "pms_budgets",
+  "expenses",
+  "pms_pos_customers",
+  "pms_pos_discounts",
+  "pms_pos_employees",
+  "pms_pos_general_settings",
+  "pms_pos_payment_methods",
+  "pms_pos_print_jobs",
+  "pms_pos_printer_settings",
+  "pms_pos_printers",
+  "pms_pos_security_groups",
+  "pms_pos_settings",
+  "pms_pos_stations",
+  "pms_pos_store_profiles",
+  "pms_pos_tax_rules",
+  "pms_pos_activity_logs",
+  "pms_partner_devices",
+] as const;
+
+// Every table scoped directly by organization_id with no property_id
+// involved (also confirmed against the live schema) — deleted by
+// organization_id regardless of which properties exist. pms_users last:
+// pms_auth_handoffs cascades from it (fk CASCADE) and pms_audit_logs'
+// user_id just SET NULLs, so nothing here depends on ordering, but deleting
+// the account rows last reads more naturally in the transaction.
+const ORG_SCOPED_TABLES = [
+  "pms_inquiries",
+  "pms_staff_devices",
+  "pms_audit_logs",
+  "pms_users",
+] as const;
+
+/**
+ * Permanently erases a tenant organization and every row anywhere in the PMS
+ * database that belongs to it — properties, POS data, invoices, expenses,
+ * staff accounts, devices, inquiries, and its own audit trail. Irreversible;
+ * there is no soft-delete/undo. Confirmed against this database's real
+ * information_schema (not assumed) that only pms_properties and
+ * organization_members have an actual ON DELETE CASCADE fk to organizations
+ * — every other organization_id/property_id column here is a plain column
+ * with no DB-enforced cleanup, so each table is deleted explicitly rather
+ * than relying on a cascade that doesn't exist for it. The two tables that
+ * DO cascade (pms_properties, organization_members) are left to the final
+ * DELETE FROM organizations below rather than deleted twice.
+ */
+async function deleteTenant(request: Request, sql: Sql, actor: Actor): Promise<Response> {
+  // Redundant with handlePmsApi's requiredTabs("super-admin/...") === "owner"
+  // gate that already runs before this function is ever reached — kept here
+  // too since a destructive, irreversible delete is worth a second guard
+  // directly at the point of the actual deletion, not just at the router.
+  if (!actor.isOwner)
+    return json({ error: "Only the platform owner can delete an organization" }, 403);
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const id = str(body["id"]);
+  if (!id) return json({ error: "id is required" }, 400);
+
+  const [org] = await sql<{ id: string; name: string; is_internal: boolean }[]>`
+    SELECT id, name, is_internal FROM organizations WHERE id = ${id}`;
+  if (!org) return json({ error: "Organization not found" }, 404);
+  if (id === DEFAULT_ORG_ID || org.is_internal) {
+    return json({ error: "Cannot delete the internal platform organization" }, 400);
+  }
+
+  const properties = await sql<{ id: string }[]>`
+    SELECT id FROM pms_properties WHERE organization_id = ${id}`;
+  const propertyIds = properties.map((p) => p.id);
+
+  await sql.begin(async (tx0) => {
+    const tx = tx0 as unknown as Sql;
+    if (propertyIds.length > 0) {
+      for (const table of PROPERTY_SCOPED_TABLES) {
+        await tx.unsafe(`DELETE FROM ${table} WHERE property_id = ANY($1::text[])`, [
+          propertyIds,
+        ] as never[]);
+      }
+    }
+    for (const table of ORG_SCOPED_TABLES) {
+      await tx.unsafe(`DELETE FROM ${table} WHERE organization_id = $1`, [id] as never[]);
+    }
+    // Cascades pms_properties (this org's rows) and organization_members via
+    // their real fk ON DELETE CASCADE — see this function's own doc comment.
+    await tx`DELETE FROM organizations WHERE id = ${id}`;
+  });
+
+  // Written to the ACTING super-admin's own organization_id (audit() always
+  // scopes to actor.organizationId, never a request-supplied one) — safe to
+  // log after the tenant and its own audit trail are already gone.
+  await audit(actor, "DELETE", "setting", `organization:${id}`, {
+    action: "super-admin tenant delete",
+    organizationName: org.name,
+    propertiesDeleted: propertyIds.length,
+  });
+
+  return json({ success: true, deletedOrganizationId: id });
+}
+
 export async function handleSuperAdminApi(
   sub: string,
   request: Request,
@@ -445,6 +564,8 @@ export async function handleSuperAdminApi(
   if (sub === "tenants" && request.method === "GET") return listTenants(sql, url);
   if (sub === "tenants/update" && request.method === "POST")
     return updateTenant(request, sql, actor);
+  if (sub === "tenants/delete" && request.method === "POST")
+    return deleteTenant(request, sql, actor);
   if (sub === "tenants/create" && request.method === "POST")
     return createTenant(request, sql, actor);
   if (sub === "properties/create" && request.method === "POST")

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Building2, Crown, Pencil, Plus, Search, ShieldAlert, X } from "lucide-react";
+import { Building2, Crown, Pencil, Plus, Search, ShieldAlert, Trash2, X } from "lucide-react";
 import { fmtDate, pms } from "@/lib/pms-client";
 import { usePms } from "@/components/pms/pms-context";
 import { useBackDismiss } from "@/lib/pms-back-stack";
@@ -322,6 +322,12 @@ function SuperAdminPage() {
         <ManageTenantDrawer
           tenant={managing}
           onClose={() => setManaging(null)}
+          onDeleted={(id) => {
+            setTenants((prev) => prev?.filter((t) => t.id !== id) ?? prev);
+            setManaging(null);
+            toast.success("Organization deleted successfully");
+            void load(q);
+          }}
           onSaved={(updated) => {
             setTenants((prev) => prev?.map((t) => (t.id === updated.id ? updated : t)) ?? prev);
             setManaging(updated);
@@ -726,10 +732,12 @@ function ManageTenantDrawer({
   tenant,
   onClose,
   onSaved,
+  onDeleted,
 }: {
   tenant: Tenant;
   onClose: () => void;
   onSaved: (t: Tenant) => void;
+  onDeleted: (id: string) => void;
 }) {
   useBackDismiss(true, onClose);
   const locked = tenant.isInternal; // the live business's own org — protected server-side too
@@ -740,6 +748,23 @@ function ManageTenantDrawer({
   const [busy, setBusy] = useState(false);
   const [pendingTrialDays, setPendingTrialDays] = useState<number | null>(null);
   const [propertyModal, setPropertyModal] = useState<"add" | PropertyRecord | null>(null);
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function deleteOrganization() {
+    setDeleting(true);
+    try {
+      await pms("super-admin/tenants/delete", {
+        method: "POST",
+        body: JSON.stringify({ id: tenant.id }),
+      });
+      onDeleted(tenant.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not delete the organization");
+      setDeleting(false);
+    }
+  }
 
   const trialDays = useMemo(() => daysLeft(tenant.trialEndsAt), [tenant.trialEndsAt]);
 
@@ -982,6 +1007,23 @@ function ManageTenantDrawer({
         >
           {busy ? "Saving..." : "Save Changes"}
         </button>
+
+        {!locked && (
+          <div className="mt-6 rounded-xl border-2 border-red-200 bg-red-50 p-4">
+            <h3 className="text-xs font-bold uppercase tracking-wide text-red-700">Danger Zone</h3>
+            <p className="mt-1 text-xs text-red-700">
+              Permanently erase this organization — every property, room, booking, POS order,
+              invoice, staff account, and audit record it owns. This cannot be undone.
+            </p>
+            <button
+              type="button"
+              onClick={() => setDeleteModal(true)}
+              className="mt-3 flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white hover:bg-red-700"
+            >
+              <Trash2 className="size-3.5" aria-hidden /> Delete Organization
+            </button>
+          </div>
+        )}
       </div>
 
       {propertyModal && (
@@ -994,6 +1036,55 @@ function ManageTenantDrawer({
             onSaved(updated);
           }}
         />
+      )}
+
+      {deleteModal && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !deleting && setDeleteModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+          >
+            <h3 className="flex items-center gap-2 text-base font-bold text-red-700">
+              <Trash2 className="size-5" aria-hidden /> Delete {tenant.name}?
+            </h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Are you sure you want to permanently delete <strong>{tenant.name}</strong>? All
+              properties, rooms, bookings, and users will be permanently erased. This cannot be
+              undone.
+            </p>
+            <label className="mt-4 grid gap-1 text-xs text-slate-500">
+              Type <strong>{tenant.name}</strong> to confirm
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                autoFocus
+                className={field}
+              />
+            </label>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteModal(false)}
+                disabled={deleting}
+                className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void deleteOrganization()}
+                disabled={deleting || deleteConfirmText !== tenant.name}
+                className="flex-1 rounded-lg bg-red-600 py-2.5 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Confirm Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

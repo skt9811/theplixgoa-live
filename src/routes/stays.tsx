@@ -5,7 +5,16 @@ import { BedDouble, CalendarDays, Users } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
 import { propertiesQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
 import { LOCATIONS, type Property } from "@/lib/plix";
-import { fetchBlockedDates, hasBlockedOverlap, isMultiRoomProperty } from "@/lib/rates";
+import {
+  fetchBlockedDates,
+  fetchRateOverrides,
+  hasBlockedOverlap,
+  isMultiRoomProperty,
+  scalesPriceByRooms,
+  computeNightlyRates,
+  quoteFromRates,
+  eachNight,
+} from "@/lib/rates";
 import { computeAvailableRooms, hasInsufficientRooms } from "@/lib/inventory";
 import {
   SITE_URL,
@@ -99,31 +108,67 @@ function Stays() {
   // checked yet" (or no dates were searched), and is treated as available
   // so the grid doesn't flash empty while this loads.
   const [availableForDates, setAvailableForDates] = useState<Record<string, boolean>>({});
+  // The real average nightly rate across the searched range (seasonal
+  // overrides, weekend rates, etc. — same inputs properties.$slug.tsx's
+  // booking sidebar uses), as opposed to property.starting_price's "as low
+  // as" marketing floor, which is capped to never exceed base_price and so
+  // can't reflect a genuinely pricier peak-season range. undefined means "no
+  // dates searched" — PropertyCard falls back to starting_price/base_price.
+  const [rangeRates, setRangeRates] = useState<
+    Record<string, { nightly: number; total: number; nights: number } | undefined>
+  >({});
+
+  // A malformed/reversed range from the URL (checkOut <= checkIn) is treated
+  // the same as "no dates searched" — eachNight() would return no nights for
+  // it anyway, so this just skips the wasted fetches and keeps the grid on
+  // its normal base-price display rather than erroring on a bad query string.
+  const hasValidRange = Boolean(checkIn && checkOut && checkOut > checkIn);
 
   useEffect(() => {
-    if (!checkIn || !checkOut) {
+    if (!hasValidRange) {
       setAvailableForDates({});
+      setRangeRates({});
       return;
     }
     let cancelled = false;
     void Promise.all(
       properties.map(async (p: Property) => {
         const isMultiRoom = isMultiRoomProperty(p.id);
-        const [blocked, availability] = await Promise.all([
-          fetchBlockedDates(p.slug, checkIn, checkOut),
-          isMultiRoom ? computeAvailableRooms(p.slug, checkIn, checkOut, p.total_inventory) : Promise.resolve({}),
+        const [blocked, availability, overrides] = await Promise.all([
+          fetchBlockedDates(p.slug, checkIn!, checkOut!),
+          isMultiRoom
+            ? computeAvailableRooms(p.slug, checkIn!, checkOut!, p.total_inventory)
+            : Promise.resolve({}),
+          fetchRateOverrides(p.slug, checkIn!, checkOut!),
         ]);
-        const blockedOverlap = hasBlockedOverlap(blocked, checkIn, checkOut);
-        const insufficientRooms = isMultiRoom ? hasInsufficientRooms(availability, rooms ?? 1) : false;
-        return [p.id, !blockedOverlap && !insufficientRooms] as const;
+        const blockedOverlap = hasBlockedOverlap(blocked, checkIn!, checkOut!);
+        const insufficientRooms = isMultiRoom
+          ? hasInsufficientRooms(availability, rooms ?? 1)
+          : false;
+        // Mirrors properties.$slug.tsx's nightlyRates/quoteFromRates exactly
+        // (same roomPriceMultiplier rule) so the listing card's figure never
+        // disagrees with what the guest sees after clicking through.
+        const nights = eachNight(checkIn!, checkOut!);
+        const roomPriceMultiplier = scalesPriceByRooms(p.id) ? (rooms ?? 1) : 1;
+        const nightlyRates = computeNightlyRates(p.base_price, nights, overrides).map(
+          (r) => r * roomPriceMultiplier,
+        );
+        const { subtotal } = quoteFromRates(nightlyRates, p.bedrooms);
+        const rate =
+          nights.length > 0
+            ? { nightly: subtotal / nights.length, total: subtotal, nights: nights.length }
+            : undefined;
+        return [p.id, !blockedOverlap && !insufficientRooms, rate] as const;
       }),
     ).then((results) => {
-      if (!cancelled) setAvailableForDates(Object.fromEntries(results));
+      if (cancelled) return;
+      setAvailableForDates(Object.fromEntries(results.map(([id, available]) => [id, available])));
+      setRangeRates(Object.fromEntries(results.map(([id, , rate]) => [id, rate])));
     });
     return () => {
       cancelled = true;
     };
-  }, [properties, checkIn, checkOut, rooms]);
+  }, [properties, hasValidRange, checkIn, checkOut, rooms]);
 
   const filtered = properties.filter((p) => {
     const matchesLocation =
@@ -214,7 +259,12 @@ function Stays() {
       ) : (
         <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((p) => (
-            <PropertyCard key={p.id} property={p} />
+            <PropertyCard
+              key={p.id}
+              property={p}
+              searchRate={rangeRates[p.id]}
+              search={{ checkIn, checkOut, guests, rooms }}
+            />
           ))}
         </div>
       )}

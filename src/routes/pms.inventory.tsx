@@ -33,6 +33,7 @@ function PmsInventory() {
   const [mode, setMode] = useState<"none" | "Maintenance" | "Owner Stay" | "open">("none");
   const [busy, setBusy] = useState(false);
   const [conflictError, setConflictError] = useState<string | null>(null);
+  const [conflictVacantNights, setConflictVacantNights] = useState(0);
   const [forceOverride, setForceOverride] = useState(false);
   const [inventoryModal, setInventoryModal] = useState(false);
   const [rateModal, setRateModal] = useState(false);
@@ -98,12 +99,18 @@ function PmsInventory() {
         );
       setPrice("");
       setConflictError(null);
+      setConflictVacantNights(0);
       setForceOverride(false);
       await load();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not apply changes";
+      // Every property here is a single bookable unit, so a conflict always
+      // means some nights are reserved and the rest are genuinely vacant —
+      // the server reports both counts (see applyInventory's 409).
+      const data = err as { message?: string; clashNights?: number; vacantNights?: number };
+      const message = data.message ?? "Could not apply changes";
       toast.error(message);
       setConflictError(message);
+      setConflictVacantNights(typeof data.vacantNights === "number" ? data.vacantNights : 0);
     } finally {
       setBusy(false);
     }
@@ -242,16 +249,23 @@ function PmsInventory() {
         </label>
         {conflictError && (
           <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-xs md:col-span-6">
-            <p className="font-semibold text-red-700">⚠️ {conflictError}</p>
-            <label className="mt-2 flex items-center gap-2 font-semibold text-red-800">
-              <input
-                type="checkbox"
-                checked={forceOverride}
-                onChange={(e) => setForceOverride(e.target.checked)}
-                className="size-4 rounded border-red-400 text-red-600 focus:ring-red-500"
-              />
-              Force Manual Override
-            </label>
+            <p className="font-semibold text-red-700">
+              ⚠️ {conflictError}{" "}
+              {conflictVacantNights > 0
+                ? `Those nights will keep their reservation; the other ${conflictVacantNights} vacant night${conflictVacantNights === 1 ? "" : "s"} in the range can still be closed below.`
+                : "Every night in this range is already reserved — there is nothing left to close."}
+            </p>
+            {conflictVacantNights > 0 && (
+              <label className="mt-2 flex items-center gap-2 font-semibold text-red-800">
+                <input
+                  type="checkbox"
+                  checked={forceOverride}
+                  onChange={(e) => setForceOverride(e.target.checked)}
+                  className="size-4 rounded border-red-400 text-red-600 focus:ring-red-500"
+                />
+                Close remaining unsold nights
+              </label>
+            )}
           </div>
         )}
         <div className="md:col-span-6">

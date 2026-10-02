@@ -63,7 +63,13 @@ export async function pms<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   const data = (await res.json().catch(() => ({}))) as { error?: string } & Record<string, unknown>;
   if (res.status === 401 && path !== "login") throw new PmsAuthError("Not authenticated");
-  if (!res.ok) throw new Error(data.error || "Request failed");
+  if (!res.ok) {
+    // Extra fields a particular endpoint's error body carries (e.g. the
+    // inventory conflict check's clashNights/vacantNights) ride along on the
+    // thrown Error so a caller that cares can read them — every other
+    // caller's existing `err.message` usage is unaffected.
+    throw Object.assign(new Error(data.error || "Request failed"), data);
+  }
   return data as T;
 }
 

@@ -1083,9 +1083,19 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
     const clash = nights.filter((n) => held.has(n));
     if (clash.length > 0) {
       if (!allowOverride) {
+        // Every property here is a single bookable unit (never more than one
+        // concurrent booking — confirmed against production data), so a
+        // "clash" always means some nights in the range are reserved and the
+        // rest are genuinely free. Reported up front, with both counts, so
+        // the UI can offer closing the free nights instead of only reading
+        // as a dead end — the actual override path is the allowOverride
+        // resubmit below, not a contradiction of this message.
+        const vacantNights = nights.length - clash.length;
         return json(
           {
-            error: `${clash.length} night${clash.length === 1 ? "" : "s"} in this range have a reservation (first: ${clash[0]}). Move or cancel it first.`,
+            error: `${clash.length} night${clash.length === 1 ? "" : "s"} in this range already ${clash.length === 1 ? "has" : "have"} a reservation (first: ${clash[0]}).`,
+            clashNights: clash.length,
+            vacantNights,
           },
           409,
         );
@@ -1127,11 +1137,15 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
   }
   if (action === "block") {
     for (const date of nights) {
-      await sql`
+      // The ON CONFLICT ... WHERE guard makes this a no-op for a night
+      // that's already "Booked"/"Manual booking %" (an overridden clash) —
+      // .count reflects that, so `blocked` only counts nights genuinely
+      // newly blocked rather than double-counting protected reservations.
+      const result = await sql`
         INSERT INTO public.blocked_dates (property_id, date, reason) VALUES (${property}, ${date}, ${reason})
         ON CONFLICT (property_id, date) DO UPDATE SET reason = EXCLUDED.reason
         WHERE COALESCE(public.blocked_dates.reason, '') <> 'Booked' AND COALESCE(public.blocked_dates.reason, '') NOT LIKE 'Manual booking %'`;
-      blocked += 1;
+      blocked += result.count;
     }
   } else if (action === "open") {
     // Only hard blocks are released; nights held by a reservation stay held.

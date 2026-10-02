@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 import { addDays, istToday, pms } from "@/lib/pms-client";
@@ -209,8 +209,22 @@ export function UpdateInventoryModal({
   const [action, setAction] = useState<"open" | "block">("open");
   const [reason, setReason] = useState<"Maintenance" | "Owner Stay">("Maintenance");
   const [busy, setBusy] = useState(false);
+  const [conflict, setConflict] = useState<{
+    message: string;
+    clashNights: number;
+    vacantNights: number;
+  } | null>(null);
+  const [closeVacant, setCloseVacant] = useState(false);
 
-  async function submit() {
+  // A conflict is specific to the exact dates/action that produced it —
+  // changing any of those makes the stale warning (and its counts) wrong,
+  // so it's cleared rather than left showing outdated numbers.
+  useEffect(() => {
+    setConflict(null);
+    setCloseVacant(false);
+  }, [start, end, dateMode, action, days]);
+
+  async function submit(allowOverride = false) {
     setBusy(true);
     try {
       const result = await pms<{ nights: number; blocked: number; opened: number }>("inventory", {
@@ -222,6 +236,7 @@ export function UpdateInventoryModal({
           action,
           reason,
           daysOfWeek: days.size < 7 ? [...days] : undefined,
+          allowOverride,
         }),
       });
       toast.success(
@@ -232,7 +247,20 @@ export function UpdateInventoryModal({
       onApplied();
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not apply changes");
+      // Every property here is a single bookable unit, so a conflict always
+      // means: some nights in the range are reserved, the rest are genuinely
+      // vacant. The server reports both counts (see applyInventory's 409) so
+      // this can offer closing just the vacant nights instead of a dead end.
+      const data = err as { message?: string; clashNights?: number; vacantNights?: number };
+      if (action === "block" && typeof data.clashNights === "number") {
+        setConflict({
+          message: data.message ?? "Some nights in this range already have a reservation.",
+          clashNights: data.clashNights,
+          vacantNights: data.vacantNights ?? 0,
+        });
+      } else {
+        toast.error(err instanceof Error ? err.message : "Could not apply changes");
+      }
     } finally {
       setBusy(false);
     }
@@ -398,13 +426,36 @@ export function UpdateInventoryModal({
           <ChannelChecklist />
         </div>
 
+        {conflict && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs">
+            <p className="font-semibold text-amber-800">
+              ⚠️ There {conflict.clashNights === 1 ? "is" : "are"} {conflict.clashNights} confirmed
+              booking night{conflict.clashNights === 1 ? "" : "s"} in this date range.
+              {conflict.vacantNights > 0
+                ? ` Closing will leave those reserved nights untouched and block the other ${conflict.vacantNights} vacant night${conflict.vacantNights === 1 ? "" : "s"} on your website and channels.`
+                : " Every night in this range is already reserved — there is nothing left to close."}
+            </p>
+            {conflict.vacantNights > 0 && (
+              <label className="mt-2 flex items-center gap-2 font-semibold text-amber-900">
+                <input
+                  type="checkbox"
+                  checked={closeVacant}
+                  onChange={(e) => setCloseVacant(e.target.checked)}
+                  className="size-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                />
+                Close remaining unsold nights
+              </label>
+            )}
+          </div>
+        )}
+
         <button
           type="button"
-          onClick={submit}
-          disabled={busy}
+          onClick={() => void submit(conflict ? closeVacant : false)}
+          disabled={busy || (conflict !== null && (conflict.vacantNights === 0 || !closeVacant))}
           className="w-full rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
         >
-          {busy ? "Updating..." : "Update"}
+          {busy ? "Updating..." : conflict ? "Confirm" : "Update"}
         </button>
       </div>
     </ModalShell>

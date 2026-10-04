@@ -295,8 +295,10 @@ type Sql = NonNullable<ReturnType<typeof getWebDb>>;
 // portal_bookings.status = 'cancelled' for manual bookings and bookings.
 // payment_status = 'cancelled' for website ones. The partner portal hides both
 // (portal-bookings-api.server.ts), and this query applies exactly the same
-// filters (website: paid / simulated / pending; manual: not cancelled, not a
-// pure date block), so a booking removed in /admin can never appear in PMS.
+// filters (website: paid / simulated only — an unpaid checkout draft stays
+// pending in the database until payment, and never counts as a booking here;
+// manual: not cancelled, not a pure date block), so a booking removed in
+// /admin can never appear in PMS.
 const MEAL_PLANS = ["Room Only", "CP - Breakfast Included", "MAP", "AP", "EP"] as const;
 
 /** Sanitizes whatever landed in the jsonb column/request body into a safe, bounded RoomAllocation[] — never throws, drops anything malformed instead. */
@@ -351,7 +353,7 @@ async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promis
       SELECT id, property_id, guest_name, guest_mobile, guest_email, check_in::text AS check_in, check_out::text AS check_out,
              nights, guests, rooms, total_amount, subtotal, taxes, commission_pct, commission_amount, payment_status, created_at
       FROM public.bookings
-      WHERE payment_status IN ('paid', 'simulated', 'pending') AND organization_id = ${tenantId}
+      WHERE payment_status IN ('paid', 'simulated') AND organization_id = ${tenantId}
     `,
     sql<
       {

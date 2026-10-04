@@ -165,7 +165,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
                commission_pct, commission_amount, rooms
         FROM public.bookings
         WHERE property_id = ${propertySlug}
-          AND payment_status IN ('paid', 'simulated', 'pending')
+          AND payment_status IN ('paid', 'simulated')
       `,
       sql<ManualRow[]>`
         SELECT id, property_id, guest_name, guest_phone,

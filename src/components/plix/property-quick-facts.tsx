@@ -72,7 +72,7 @@ export function PropertyQuickFacts({
       {avgRating !== null ? (
         <div className="flex flex-wrap items-center gap-2">
           <a
-            href="#reviews"
+            href="#guest-reviews"
             onClick={(e) => {
               e.preventDefault();
               scrollToReviews();

@@ -55,10 +55,10 @@ export const Route = createFileRoute("/stays")({
 
     const title = location
       ? `Luxury Private Pool Villas & Stays in ${location} | The Plix`
-      : "Luxury Villas & Boutique Stays in North Goa | The Plix";
+      : "Luxury Pool Villas in Goa | Stay with The Plix";
     const description = location
       ? `Explore handpicked luxury villas and boutique pool stays in ${location}, North Goa. Direct bookings with zero OTA commissions.`
-      : "Browse handpicked private pool villas and boutique resorts in Vagator, Anjuna, Morjim, and Candolim. Book directly with Plix Hospitality.";
+      : "Discover luxury private pool villas and boutique resorts in North Goa. Handcrafted stays across Anjuna, Vagator & Morjim with dedicated hospitality.";
     const ogDescription = location
       ? description
       : "Compare 10 private-pool villas and boutique resorts across North Goa. Book direct with Plix Hospitality for the best guaranteed rate.";

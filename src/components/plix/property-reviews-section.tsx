@@ -9,6 +9,7 @@ import { OTABadge } from "@/components/plix/platform-mark";
 
 type Props = {
   propertyId: string;
+  propertyName: string;
 };
 
 const CATEGORY_PILLS = ["All", "Amenities", "Stay", "Food", "Service", "View"] as const;
@@ -130,7 +131,7 @@ function ReviewCard({ review }: { review: PropertyReview }) {
   );
 }
 
-export function PropertyReviewsSection({ propertyId }: Props) {
+export function PropertyReviewsSection({ propertyId, propertyName }: Props) {
   const [category, setCategory] = useState<CategoryFilter>("All");
   const [sort, setSort] = useState<SortOption>("Most Popular");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -169,9 +170,9 @@ export function PropertyReviewsSection({ propertyId }: Props) {
   if (propertyReviews.length === 0) return null;
 
   return (
-    <section id="reviews" className="mt-10">
+    <section id="guest-reviews" className="mt-10">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-2xl font-semibold text-navy">Guest experiences</h2>
+        <h2 className="text-2xl font-semibold text-navy">Guest Reviews &amp; Experiences for {propertyName}</h2>
         {avgRating !== null && (
           <span className="flex items-center gap-1.5 text-sm font-semibold text-navy">
             <Star className="size-4 fill-primary text-primary" aria-hidden />

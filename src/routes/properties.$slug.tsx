@@ -406,13 +406,16 @@ function PropertyDetail() {
         roomsCount={roomsCount}
       />
 
-      <PropertyHeroGallery
-        images={images}
-        imageKeys={property.image_keys}
-        videos={property.videos ?? []}
-        propertyName={property.name}
-        propertySlug={property.slug}
-      />
+      <section id="photo-gallery">
+        <h2 className="sr-only">Photo Gallery &amp; Real Images of {property.name}</h2>
+        <PropertyHeroGallery
+          images={images}
+          imageKeys={property.image_keys}
+          videos={property.videos ?? []}
+          propertyName={property.name}
+          propertySlug={property.slug}
+        />
+      </section>
 
       <PropertySubNav />
 
@@ -454,7 +457,7 @@ function PropertyDetail() {
 
           <PropertyImageCarousel images={images} propertyName={property.name} />
 
-          <PropertyReviewsSection propertyId={property.id} />
+          <PropertyReviewsSection propertyId={property.id} propertyName={property.name} />
 
           <section id="amenities" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">Amenities</h2>

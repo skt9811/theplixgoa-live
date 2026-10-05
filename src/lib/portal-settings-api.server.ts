@@ -1,6 +1,6 @@
 // Server-only. GET /api/portal/me and POST /api/portal/change-pin — backs
 // the Settings tab's Property Info card and Change PIN form.
-import { findPortalOwnerBySlug, PORTAL_ADMIN_PHONE, updateOwnerPin } from "@/lib/portal-pins.server";
+import { findPortalLoginsByPhone, findPortalOwnerBySlug, PORTAL_ADMIN_PHONE, updateLoginPin } from "@/lib/portal-pins.server";
 import { getPortalSessionFromRequest, resolveEffectivePropertySlug } from "@/lib/portal-session.server";
 import { PROPERTIES } from "@/lib/plix";
 
@@ -32,7 +32,7 @@ export async function handleGetPortalMe(request: Request): Promise<Response> {
   if (!owner) return jsonResponse({ error: "Property not found" }, 404);
 
   return jsonResponse(
-    { propertySlug: owner.propertySlug, propertyName: owner.propertyName, phone: owner.phone, role: session.role === "caretaker" ? "caretaker" : "owner" },
+    { propertySlug: owner.propertySlug, propertyName: owner.propertyName, phone: session.phone ?? owner.phone, role: session.role === "caretaker" ? "caretaker" : "owner" },
     200,
   );
 }
@@ -63,13 +63,18 @@ export async function handleChangePortalPin(request: Request): Promise<Response>
     return jsonResponse({ error: "New PIN must be exactly 4 digits" }, 400);
   }
 
-  const owner = await findPortalOwnerBySlug(session.propertySlug);
-  if (!owner) return jsonResponse({ error: "Property not found" }, 404);
-  if (owner.pin !== currentPin) {
+  // The login that's signed in, not the property's owner row: a caretaker's
+  // PIN change must touch only their own login. A session from before logins
+  // carried their phone falls back to the owner row.
+  const login = session.phone
+    ? (await findPortalLoginsByPhone(session.phone)).find((l) => l.propertySlug === session.propertySlug)
+    : await findPortalOwnerBySlug(session.propertySlug);
+  if (!login) return jsonResponse({ error: "Property not found" }, 404);
+  if (login.pin !== currentPin) {
     return jsonResponse({ error: "Current PIN is incorrect" }, 401);
   }
 
-  const result = await updateOwnerPin(session.propertySlug, newPin);
+  const result = await updateLoginPin(session.propertySlug, login.phone, newPin);
   if (result.error) return jsonResponse({ error: "Could not update PIN" }, 500);
 
   return jsonResponse({ success: true }, 200);

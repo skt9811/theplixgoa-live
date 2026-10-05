@@ -16,7 +16,6 @@ import {
   manualBlockReason,
   syncManualBlocks,
 } from "@/lib/manual-booking-guard.server";
-import { notifyNewBooking } from "@/lib/push-notifications.server";
 import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
 import { ensureExpensesSchema, ensureInvoicesSchema } from "@/lib/pms-schema.server";
 import {
@@ -66,7 +65,7 @@ import { PMS_COMPANY } from "@/lib/pms-company";
 import { audit } from "@/lib/pms-audit.server";
 import {
   sendBookingAuditNotification,
-  sendBookingNotification,
+  sendNewBookingAlert,
   registerStaffDevice,
 } from "@/lib/pms-notifications.server";
 import {
@@ -566,23 +565,15 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
       warning = "Saved, but the website calendar could not be updated. Block these dates manually.";
     }
   }
-  const property = PROPERTIES.find((p) => p.slug === propertySlug);
-  void notifyNewBooking(
-    propertySlug,
-    property?.name ?? propertySlug,
+  await sendNewBookingAlert(propertySlug, {
+    organizationId: actor.organizationId,
+    bookingId: row?.id ?? "",
     guestName,
-    total,
+    propertyName: await bookingPropertyName(actor, propertySlug),
+    rooms,
     checkIn,
-    nights,
-  );
-  await sendBookingNotification(propertySlug, {
-    title: "🏨 New Booking Received!",
-    body: `${guestName} • ${rooms} Room${rooms === 1 ? "" : "s"} • ${checkIn} to ${checkOut}`,
-    data: {
-      type: "booking",
-      bookingId: row?.id ?? "",
-      url: `/pms/bookings?highlight=${row?.id ?? ""}`,
-    },
+    checkOut,
+    amount: total,
   });
   await audit(actor, "CREATE", "booking", row?.id ?? "unknown", {
     property: propertySlug,
@@ -612,7 +603,7 @@ const shortDate = (iso: string) =>
  * or the guest's own name); a save that only touched e.g. notes or
  * payment_status stays quiet. Never awaited by the caller (updateBooking):
  * a notification failure must not slow down or fail the edit itself, same
- * rule sendBookingNotification already follows for new bookings.
+ * rule sendNewBookingAlert already follows for new bookings.
  */
 async function notifyBookingModified(
   before: {
@@ -2009,6 +2000,12 @@ async function partnerPropertyName(pmsDb: PmsSql, organizationId: string, slug: 
   return staticProp ? staticProp.name : null;
 }
 
+async function bookingPropertyName(actor: Actor, slug: string): Promise<string> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return slug;
+  return (await partnerPropertyName(pmsDb, actor.organizationId, slug)) ?? slug;
+}
+
 async function listPartners(actor: Actor): Promise<Response> {
   const accounts = await listPartnerAccounts();
   return json({ partners: accounts.filter((a) => canProperty(actor, a.property_slug)) });
@@ -2036,7 +2033,7 @@ async function savePartner(request: Request, actor: Actor): Promise<Response> {
   const role: "owner" | "caretaker" =
     requestedRole === "owner" || requestedRole === "caretaker"
       ? requestedRole
-      : ((await listPartnerAccounts()).find((a) => a.property_slug === slug)?.role ?? "owner");
+      : ((await listPartnerAccounts()).find((a) => a.property_slug === slug && a.phone === phone)?.role ?? "owner");
   const result = await savePartnerAccount({ propertySlug: slug, propertyName, ownerName, phone, pin, role });
   if (result.error) return json({ error: result.error }, 409);
   await audit(actor, "UPDATE", "user", `partner:${slug}`, { action: "partner login saved", property: propertyName });
@@ -2046,9 +2043,10 @@ async function savePartner(request: Request, actor: Actor): Promise<Response> {
 async function setPartnerStatus(request: Request, actor: Actor): Promise<Response> {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const slug = str(body["propertySlug"]);
-  if (!slug) return json({ error: "Choose a property" }, 400);
+  const phone = normalizePhone(str(body["phone"]));
+  if (!slug || phone.length !== 10) return json({ error: "Choose a partner login" }, 400);
   if (!canProperty(actor, slug)) return json({ error: "You do not have access to this property" }, 403);
-  const result = await setPartnerActive(slug, body["active"] === true);
+  const result = await setPartnerActive(slug, phone, body["active"] === true);
   if (result.error) return json({ error: result.error }, 404);
   await audit(actor, "UPDATE", "user", `partner:${slug}`, { action: body["active"] === true ? "partner login enabled" : "partner login disabled" });
   return json({ success: true });
@@ -2060,13 +2058,14 @@ async function movePartner(request: Request, actor: Actor): Promise<Response> {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const from = str(body["propertySlug"]);
   const to = str(body["newPropertySlug"]);
-  if (!from || !to) return json({ error: "Choose both properties" }, 400);
+  const phone = normalizePhone(str(body["phone"]));
+  if (!from || !to || phone.length !== 10) return json({ error: "Choose both properties" }, 400);
   if (!canProperty(actor, from) || !canProperty(actor, to))
     return json({ error: "You do not have access to this property" }, 403);
   if (!(await isBookablePropertyForOrg(pmsDb, to, actor.organizationId)))
     return json({ error: "Property not found" }, 404);
   const toName = (await partnerPropertyName(pmsDb, actor.organizationId, to)) ?? to;
-  const result = await movePartnerAccount(from, to, toName);
+  const result = await movePartnerAccount(from, phone, to, toName);
   if (result.error) return json({ error: result.error }, result.error === "Partner login not found" ? 404 : 409);
   await audit(actor, "UPDATE", "user", `partner:${to}`, { action: "partner login moved", from, to });
   return json({ success: true });
@@ -2239,19 +2238,15 @@ async function createVoucher(request: Request, actor: Actor): Promise<Response> 
   });
   if ("conflict" in outcome) return json({ error: outcome.conflict }, 409);
 
-  const property = PROPERTIES.find((p) => p.slug === propertySlug);
-  void notifyNewBooking(
-    propertySlug,
-    property?.name ?? propertySlug,
+  await sendNewBookingAlert(propertySlug, {
+    organizationId: actor.organizationId,
+    bookingId: outcome.id,
     guestName,
-    tariff,
+    propertyName: await bookingPropertyName(actor, propertySlug),
+    rooms,
     checkIn,
-    nights,
-  );
-  await sendBookingNotification(propertySlug, {
-    title: "🏨 New Booking Received!",
-    body: `${guestName} • ${rooms} Room${rooms === 1 ? "" : "s"} • ${checkIn} to ${checkOut}`,
-    data: { type: "booking", bookingId: outcome.id, url: `/pms/bookings?highlight=${outcome.id}` },
+    checkOut,
+    amount: tariff,
   });
   await audit(actor, "CREATE", "voucher", outcome.id, {
     property: propertySlug,

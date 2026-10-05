@@ -14,7 +14,6 @@ import {
   getPortalSessionFromRequest,
   resolveEffectivePropertySlug,
 } from "@/lib/portal-session.server";
-import { findPortalOwnerBySlug } from "@/lib/portal-pins.server";
 
 export type NotificationChannel = "bookings_channel" | "pos_channel" | "inquiries_channel";
 
@@ -134,36 +133,22 @@ async function activeStaffTokens(requireTab?: string): Promise<DeviceToken[]> {
 }
 
 /**
- * Every Plix Partner app (com.plix.partner) device registered for one
- * property, plus every admin device (stored with property_id 'all' — see
- * registerPartnerDevice) regardless of which property the booking is for.
- * 'admin'/'*' are matched too in case an older row was written before 'all'
- * became the one canonical value.
+ * Partner-app devices registered to exactly this property, filtered by the
+ * login role that registered them. Matching only the property id keeps alerts
+ * inside one organisation: a property belongs to one organisation, while the
+ * wildcard ids ('all', '*', 'admin') reached every tenant's bookings.
  */
-async function partnerTokensForProperty(propertyId: string): Promise<DeviceToken[]> {
+async function partnerDevicesForBooking(propertyId: string, roles: string[]): Promise<DeviceToken[]> {
   const sql = getPmsDb();
   if (!sql) return [];
   try {
     await ensureInquiriesSchema(sql);
-    const rows = await sql<
-      { id: string; fcm_token: string; partner_phone: string | null; property_id: string }[]
-    >`
-      SELECT id, fcm_token, partner_phone, property_id FROM pms_partner_devices
-      WHERE property_id = ${propertyId} OR property_id IN ('all', '*', 'admin')`;
-    console.log("[Push-Targeting]", {
-      targetProperty: propertyId,
-      recipientTokens: rows.map((r) => ({ phone: r.partner_phone, property: r.property_id })),
-    });
-    return rows.map((r) => ({
-      id: r.id,
-      token: r.fcm_token,
-      table: "pms_partner_devices" as const,
-    }));
+    const rows = await sql<{ id: string; fcm_token: string }[]>`
+      SELECT id, fcm_token FROM pms_partner_devices
+      WHERE property_id = ${propertyId} AND role = ANY(${roles})`;
+    return rows.map((r) => ({ id: r.id, token: r.fcm_token, table: "pms_partner_devices" as const }));
   } catch (err) {
-    console.error(
-      "[pms-notifications] partnerTokensForProperty:",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("[pms-notifications] partnerDevicesForBooking:", err instanceof Error ? err.message : err);
     return [];
   }
 }
@@ -253,45 +238,76 @@ export async function sendStaffPushNotification({
 }
 
 /**
- * A new booking's dual audience: every PMS staff device, plus the specific
- * property's Plix Partner app device(s) — merged and deduplicated by token
- * (the rare case where the same phone/device somehow ended up registered in
- * both tables shouldn't double-buzz). Never throws, same rule as above.
+ * Managers and admins with the Bookings tab, linked to an active account in
+ * this organisation and assigned to the property (or to all properties). A
+ * device with no linked account is never sent booking alerts, because its
+ * property access can't be checked.
  */
-export async function sendBookingNotification(
-  propertyId: string,
-  { title, body, data = {} }: { title: string; body: string; data?: Record<string, string> },
-): Promise<void> {
-  console.log("[Push] dispatching booking notification:", { propertyId, title });
+async function bookingStaffTokens(propertyId: string, organizationId: string): Promise<DeviceToken[]> {
+  const sql = getPmsDb();
+  if (!sql) return [];
   try {
-    const [staffTokens, partnerTokens] = await Promise.all([
-      // POS-only staff (allowed_tabs: ['pos'], no 'bookings' tab) must never
-      // get a room-booking alert — this is the fix for the reported bug:
-      // this call used to omit requireTab entirely, so activeStaffTokens()
-      // fell through to its unfiltered branch and sent to every staff
-      // device regardless of role/tabs, same as pms-inquiries.server.ts
-      // already avoids for Airbnb lead alerts via requireTab: "inquiries".
-      activeStaffTokens("bookings"),
-      partnerTokensForProperty(propertyId),
-    ]);
-    const seen = new Set<string>();
-    const merged: DeviceToken[] = [];
-    for (const d of [...staffTokens, ...partnerTokens]) {
-      if (seen.has(d.token)) continue;
-      seen.add(d.token);
-      merged.push(d);
-    }
-    await dispatch(merged, title, body, "bookings_channel", data);
-    console.log(
-      `[Push] Sent booking notification to ${staffTokens.length} staff and ${partnerTokens.length} partner devices.`,
-    );
+    const rows = await sql<{ id: string; fcm_token: string }[]>`
+      SELECT sd.id, sd.fcm_token
+      FROM pms_staff_devices sd
+      JOIN pms_users u ON u.id::text = sd.user_id
+      WHERE u.is_active AND u.organization_id = ${organizationId}
+        AND ('bookings' = ANY(u.allowed_tabs) OR u.role = 'admin')
+        AND (${propertyId} = ANY(u.assigned_properties) OR 'all' = ANY(u.assigned_properties))`;
+    return rows.map((r) => ({ id: r.id, token: r.fcm_token, table: "pms_staff_devices" as const }));
   } catch (err) {
-    console.error(
-      "[pms-notifications] sendBookingNotification failed:",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("[pms-notifications] bookingStaffTokens:", err instanceof Error ? err.message : err);
+    return [];
   }
 }
+
+export type NewBookingAlert = {
+  organizationId: string;
+  bookingId: string;
+  guestName: string;
+  propertyName: string;
+  rooms: number;
+  checkIn: string;
+  checkOut: string;
+  amount: number;
+};
+
+/**
+ * One new reservation, from the website after its payment claim is won, or
+ * from PMS manual entry. Owners, managers and admins get the amount; caretakers
+ * get the same alert without it. The caretaker body is built here, from the
+ * same fields, so the amount can't reach them by accident. Never throws.
+ */
+export async function sendNewBookingAlert(propertyId: string, b: NewBookingAlert): Promise<void> {
+  const rooms = `${b.rooms} Room${b.rooms === 1 ? "" : "s"}`;
+  const title = `🛎️ New Booking: ${b.guestName}`;
+  const amount = `₹${Math.round(b.amount).toLocaleString("en-IN")}`;
+  const bodyWithAmount = `${b.propertyName} • ${rooms} • ${b.checkIn} to ${b.checkOut} • ${amount}`;
+  const bodyWithoutAmount = `${b.propertyName} • ${rooms} • ${b.checkIn} to ${b.checkOut}`;
+  const data = { type: "booking", bookingId: b.bookingId, url: `/pms/bookings?highlight=${b.bookingId}` };
+  console.log("[Push] dispatching new booking alert:", { propertyId, bookingId: b.bookingId });
+  try {
+    const [staff, owners, caretakers] = await Promise.all([
+      bookingStaffTokens(propertyId, b.organizationId),
+      partnerDevicesForBooking(propertyId, ["owner"]),
+      partnerDevicesForBooking(propertyId, ["caretaker"]),
+    ]);
+    const seen = new Set<string>();
+    const withAmount = [...staff, ...owners].filter((d) => {
+      if (seen.has(d.token)) return false;
+      seen.add(d.token);
+      return true;
+    });
+    const withoutAmount = caretakers.filter((d) => !seen.has(d.token));
+    await Promise.all([
+      dispatch(withAmount, title, bodyWithAmount, "bookings_channel", data),
+      dispatch(withoutAmount, title, bodyWithoutAmount, "bookings_channel", data),
+    ]);
+  } catch (err) {
+    console.error("[pms-notifications] sendNewBookingAlert failed:", err instanceof Error ? err.message : err);
+  }
+}
+
 
 /**
  * Role-scoped, unlike activeStaffTokens (which is tab-scoped) — an audit
@@ -323,7 +339,7 @@ async function auditStaffTokens(roles: string[]): Promise<DeviceToken[]> {
 
 /**
  * A booking that already existed being modified or cancelled/deleted —
- * distinct from sendBookingNotification (a brand-new reservation), and
+ * distinct from sendNewBookingAlert (a brand-new reservation), and
  * deliberately narrower on the staff side: admin/manager only, not every
  * receptionist with Bookings-tab access (see auditStaffTokens). Still
  * reaches the property's own Partner-app owner device, same as a new
@@ -338,7 +354,7 @@ export async function sendBookingAuditNotification(
   try {
     const [staffTokens, partnerTokens] = await Promise.all([
       auditStaffTokens(["admin", "manager"]),
-      partnerTokensForProperty(propertyId),
+      partnerDevicesForBooking(propertyId, ["owner"]),
     ]);
     const seen = new Set<string>();
     const merged: DeviceToken[] = [];
@@ -407,28 +423,21 @@ export async function registerPartnerDevice(request: Request): Promise<Response>
   const platform = ["android", "ios", "web"].includes(str(body["platform"]))
     ? str(body["platform"])
     : "android";
+  // The device is bound to the login's own property and role; neither comes
+  // from the request body. An admin session has no single property, so its
+  // device is stored as 'all' with role 'admin' and receives no property alert.
   const resolvedSlug =
-    session.role === "admin" || !session.propertySlug
-      ? "all"
-      : resolveEffectivePropertySlug(request, session);
-  // resolvedSlug is "all" for admin before findPortalOwnerBySlug is ever
-  // reached, so an admin session never triggers the single-property owner
-  // lookup (which has no row to find for an admin phone) in the first place.
-  const owner = resolvedSlug === "all" ? undefined : await findPortalOwnerBySlug(resolvedSlug);
-  const partnerPhone = owner?.phone ?? str(body["partnerPhone"]).slice(0, 50) ?? null;
+    session.role === "admin" || !session.propertySlug ? "all" : resolveEffectivePropertySlug(request, session);
+  const role = session.role === "admin" ? "admin" : session.role === "caretaker" ? "caretaker" : "owner";
+  const partnerPhone = session.phone ?? (str(body["partnerPhone"]).slice(0, 50) || null);
   const sql = getPmsDb();
   if (!sql) return json({ error: "PMS database not configured" }, 503);
   await ensureInquiriesSchema(sql);
   await sql`
-    INSERT INTO pms_partner_devices (partner_phone, property_id, fcm_token, platform, last_seen)
-    VALUES (${partnerPhone}, ${resolvedSlug}, ${fcmToken}, ${platform}, now())
-    ON CONFLICT (fcm_token) DO UPDATE SET property_id = ${resolvedSlug}, partner_phone = ${partnerPhone}, platform = ${platform}, last_seen = now()`;
-  console.log("[Partner Push Reg]", {
-    role: session.role,
-    slug: resolvedSlug,
-    phone: partnerPhone,
-    tokenPrefix: fcmToken.slice(0, 10),
-    success: true,
-  });
-  return json({ success: true, ok: true, registered: true });
+    INSERT INTO pms_partner_devices (partner_phone, property_id, fcm_token, platform, role, last_seen)
+    VALUES (${partnerPhone}, ${resolvedSlug}, ${fcmToken}, ${platform}, ${role}, now())
+    ON CONFLICT (fcm_token) DO UPDATE
+      SET property_id = ${resolvedSlug}, partner_phone = ${partnerPhone}, platform = ${platform}, role = ${role}, last_seen = now()`;
+  console.log("[Partner Push Reg]", { role, slug: resolvedSlug, tokenPrefix: fcmToken.slice(0, 10) });
+  return json({ success: true });
 }

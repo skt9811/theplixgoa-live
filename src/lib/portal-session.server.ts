@@ -46,14 +46,19 @@ function readBearerToken(req: Request): string | undefined {
   return match?.[1];
 }
 
-export async function buildPortalSessionCookie(req: Request, propertySlug: string, role: PortalRole = "owner"): Promise<string> {
+export async function buildPortalSessionCookie(
+  req: Request,
+  propertySlug: string,
+  role: PortalRole = "owner",
+  phone?: string,
+): Promise<string> {
   const secure = isSecureRequest(req);
   const name = portalCookieName(secure);
   const secret = process.env["AUTH_SECRET"];
   if (!secret) throw new Error("AUTH_SECRET not configured on the server.");
 
   const token = await encodeSessionJwt({
-    token: { sub: propertySlug, portal: true, role },
+    token: { sub: propertySlug, portal: true, role, phone },
     secret,
     salt: name,
     maxAge: SESSION_MAX_AGE_SECONDS,
@@ -71,11 +76,11 @@ export async function buildPortalSessionCookie(req: Request, propertySlug: strin
 }
 
 /** The bearer-token counterpart to the cookie above, for native storage. Same claims, same 90-day expiry, fixed salt. */
-export async function buildPortalToken(propertySlug: string, role: PortalRole = "owner"): Promise<string> {
+export async function buildPortalToken(propertySlug: string, role: PortalRole = "owner", phone?: string): Promise<string> {
   const secret = process.env["AUTH_SECRET"];
   if (!secret) throw new Error("AUTH_SECRET not configured on the server.");
   return encodeSessionJwt({
-    token: { sub: propertySlug, portal: true, role },
+    token: { sub: propertySlug, portal: true, role, phone },
     secret,
     salt: TOKEN_SALT,
     maxAge: SESSION_MAX_AGE_SECONDS,
@@ -95,7 +100,8 @@ export function clearPortalSessionCookie(req: Request): string {
 // defaulting to the first PROPERTIES entry), not by anything in the token.
 /** owner: full partner access. caretaker: operational only (no rates, analytics or payout figures). admin: the site-wide master login, not bound to one property. */
 export type PortalRole = "owner" | "caretaker" | "admin";
-export type PortalSession = { propertySlug: string; role: PortalRole };
+/** phone is the login's own mobile number. Sessions issued before logins were per-phone have none, so callers fall back to the property's owner row. */
+export type PortalSession = { propertySlug: string; role: PortalRole; phone: string | null };
 
 async function decodePortalPayload(token: string, salt: string): Promise<PortalSession | null> {
   const secret = process.env["AUTH_SECRET"];
@@ -104,7 +110,8 @@ async function decodePortalPayload(token: string, salt: string): Promise<PortalS
     const payload = await decodeSessionJwt({ token, secret, salt });
     if (!payload || typeof payload["sub"] !== "string" || payload["portal"] !== true) return null;
     const role: PortalRole = payload["role"] === "admin" ? "admin" : payload["role"] === "caretaker" ? "caretaker" : "owner";
-    return { propertySlug: payload["sub"], role };
+    const phone = typeof payload["phone"] === "string" ? payload["phone"] : null;
+    return { propertySlug: payload["sub"], role, phone };
   } catch {
     return null;
   }

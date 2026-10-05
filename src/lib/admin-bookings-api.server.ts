@@ -6,7 +6,8 @@
 // bundle, so it was never actually a secret.
 import postgres from "postgres";
 import { differenceInCalendarDays } from "date-fns";
-import { notifyNewBooking } from "@/lib/push-notifications.server";
+import { sendNewBookingAlert } from "@/lib/pms-notifications.server";
+import { DEFAULT_ORG_ID } from "@/lib/tenant-context.server";
 import { requireAdminSession } from "@/lib/portal-session.server";
 import { PROPERTIES } from "@/lib/plix";
 import { findStayConflict, syncManualBlocks } from "@/lib/manual-booking-guard.server";
@@ -120,9 +121,18 @@ export async function handleAdminCreateBooking(request: Request): Promise<Respon
         warning = "Saved, but the website calendar could not be updated. Block these dates manually.";
       }
     }
-    if (status !== "blocked") {
+    if (status !== "blocked" && row?.id) {
       const property = PROPERTIES.find((p) => p.slug === propertySlug);
-      void notifyNewBooking(propertySlug, property?.name ?? propertySlug, guestName, bookingAmount, checkIn, nights);
+      await sendNewBookingAlert(propertySlug, {
+        organizationId: DEFAULT_ORG_ID,
+        bookingId: row.id,
+        guestName,
+        propertyName: property?.name ?? propertySlug,
+        rooms: Math.max(1, roomsCount),
+        checkIn,
+        checkOut,
+        amount: bookingAmount,
+      });
     }
 
     return jsonResponse({ success: true, id: row?.id, nights, ...(warning ? { warning } : {}) }, 200);

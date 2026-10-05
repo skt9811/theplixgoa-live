@@ -9,6 +9,8 @@
 // Ported from the Supabase edge function supabase/functions/send-booking-confirmation.
 import postgres from "postgres";
 import { generateVoucherPdf, type VoucherBooking } from "@/lib/pdf-voucher";
+import { sendNewBookingAlert } from "@/lib/pms-notifications.server";
+import { DEFAULT_ORG_ID } from "@/lib/tenant-context.server";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
 
@@ -152,6 +154,19 @@ export async function confirmBookingAndSendEmails(
       check_in: toDateString(row.check_in),
       check_out: toDateString(row.check_out),
     };
+    // Only the request that won the claim above reaches this line, so the
+    // booking alert goes out once, whichever of the client confirm, the
+    // webhook or the mobile flow confirmed the payment. Never throws.
+    await sendNewBookingAlert(row.property_id, {
+      organizationId: (row as { organization_id?: string | null }).organization_id ?? DEFAULT_ORG_ID,
+      bookingId: row.id,
+      guestName: row.guest_name,
+      propertyName: row.property_name,
+      rooms: Math.max(1, Number((row as { rooms?: number | null }).rooms ?? 1)),
+      checkIn: toDateString(row.check_in),
+      checkOut: toDateString(row.check_out),
+      amount: Number(row.total_amount),
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("[confirmBookingAndSendEmails] booking update failed:", message);

@@ -3,7 +3,7 @@
 // PHONE + the site's admin PIN) or a single-property owner session. The
 // login screen submits phone + PIN together in one request (no separate
 // phone-lookup step), so there's nothing to resolve ahead of time.
-import { findPortalOwnerByPhone, normalizePhone, PORTAL_ADMIN_PHONE } from "@/lib/portal-pins.server";
+import { findPortalLoginsByPhone, normalizePhone, PORTAL_ADMIN_PHONE } from "@/lib/portal-pins.server";
 import { buildPortalSessionCookie, buildPortalToken, clearPortalSessionCookie } from "@/lib/portal-session.server";
 
 function jsonResponse(body: unknown, status: number, headers?: Record<string, string>): Response {
@@ -52,17 +52,23 @@ export async function handlePortalAuth(request: Request): Promise<Response> {
 
   // Deliberately generic error — never reveal whether the phone number or
   // the PIN itself was wrong.
-  const owner = await findPortalOwnerByPhone(phone);
-  if (!owner || owner.pin !== pin) {
+  // One number can hold a login at several properties. The PIN decides which
+  // one this is; two matches with the same PIN is ambiguous, so it's refused.
+  const matches = (await findPortalLoginsByPhone(phone)).filter((l) => l.pin === pin);
+  if (matches.length === 0) {
     return jsonResponse({ error: "Invalid mobile number or PIN" }, 401);
   }
+  if (matches.length > 1) {
+    return jsonResponse({ error: "This login is set up at more than one property. Ask your admin to change one of the PINs." }, 409);
+  }
+  const owner = matches[0]!;
 
-  const cookie = await buildPortalSessionCookie(request, owner.propertySlug, owner.role);
+  const cookie = await buildPortalSessionCookie(request, owner.propertySlug, owner.role, owner.phone);
   // portal_token is the durable fallback for native storage (@capacitor/
   // preferences, see portal-native-session.ts) — cookies alone don't survive
   // Android killing the WebView/clearing its cache, so the app resends this
   // as an Authorization: Bearer header once the cookie is gone.
-  const portalToken = await buildPortalToken(owner.propertySlug, owner.role);
+  const portalToken = await buildPortalToken(owner.propertySlug, owner.role, owner.phone);
   return jsonResponse(
     {
       success: true,

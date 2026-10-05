@@ -501,6 +501,7 @@ export function ensureInquiriesSchema(sql: Sql): Promise<void> {
             last_seen timestamptz NOT NULL DEFAULT now(),
             created_at timestamptz NOT NULL DEFAULT now()
           )`;
+        await sql`ALTER TABLE pms_partner_devices ADD COLUMN IF NOT EXISTS role varchar(20) NOT NULL DEFAULT 'owner'`;
         await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_partner_devices_token_key ON pms_partner_devices (fcm_token)`;
         await sql`CREATE INDEX IF NOT EXISTS pms_partner_devices_property_idx ON pms_partner_devices (property_id)`;
       } catch (err) {

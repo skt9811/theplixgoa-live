@@ -24,7 +24,6 @@
 // body is just an anonymous POST anyone could forge.
 import postgres from "postgres";
 import { confirmBookingAndSendEmails } from "@/lib/booking-confirmation.server";
-import { notifyNewBooking } from "@/lib/push-notifications.server";
 import { PROPERTIES } from "@/lib/plix";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
@@ -194,17 +193,6 @@ async function handlePaymentCaptured(event: RazorpayWebhookEvent): Promise<Respo
     bookingId: booking.id,
     razorpayPaymentId: payment.id,
   });
-
-  const property = PROPERTIES.find((p) => p.slug === booking.property_id);
-  const checkInStr = booking.check_in instanceof Date ? booking.check_in.toISOString().slice(0, 10) : booking.check_in;
-  void notifyNewBooking(
-    booking.property_id,
-    property?.name ?? booking.property_id,
-    booking.guest_name,
-    Number(booking.total_amount),
-    checkInStr,
-    booking.nights,
-  );
 
   return new Response(
     JSON.stringify({ matched: true, ...result }),

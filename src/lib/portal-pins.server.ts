@@ -50,26 +50,30 @@ function toMapping(row: OwnerRow): PortalOwnerMapping {
   };
 }
 
-export async function findPortalOwnerByPhone(rawPhone: string): Promise<PortalOwnerMapping | undefined> {
+/**
+ * Every active partner login for one mobile number. A number can hold a login
+ * at several properties, so the caller picks the one whose PIN matches.
+ */
+export async function findPortalLoginsByPhone(rawPhone: string): Promise<PortalOwnerMapping[]> {
   const phone = normalizePhone(rawPhone);
-  if (phone.length !== 10) return undefined;
+  if (phone.length !== 10) return [];
   const sql = getSql();
-  if (!sql) return undefined;
+  if (!sql) return [];
   try {
-    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name, role FROM public.portal_owners WHERE phone = ${phone} AND is_active = true LIMIT 1`;
-    return rows[0] ? toMapping(rows[0]) : undefined;
+    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name, role FROM public.portal_owners WHERE phone = ${phone} AND is_active = true`;
+    return rows.map(toMapping);
   } catch (err) {
-    console.error("[findPortalOwnerByPhone]:", err instanceof Error ? err.message : err);
-    return undefined;
+    console.error("[findPortalLoginsByPhone]:", err instanceof Error ? err.message : err);
+    return [];
   }
 }
 
-/** Reverse lookup by property — used by the Settings tab to show the registered mobile number. */
+/** A property's owner login, for the admin screen and for sessions issued before logins carried their phone. */
 export async function findPortalOwnerBySlug(propertySlug: string): Promise<PortalOwnerMapping | undefined> {
   const sql = getSql();
   if (!sql) return undefined;
   try {
-    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name, role FROM public.portal_owners WHERE property_slug = ${propertySlug} LIMIT 1`;
+    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name, role FROM public.portal_owners WHERE property_slug = ${propertySlug} ORDER BY (role = 'owner') DESC LIMIT 1`;
     return rows[0] ? toMapping(rows[0]) : undefined;
   } catch (err) {
     console.error("[findPortalOwnerBySlug]:", err instanceof Error ? err.message : err);
@@ -77,12 +81,12 @@ export async function findPortalOwnerBySlug(propertySlug: string): Promise<Porta
   }
 }
 
-/** Every property's portal login credentials, ordered by property name — backs the admin web "Portal Access" tab, replacing what was previously only doable by hand against the database. */
+/** Every property's owner login, ordered by property name — backs the admin "Portal Access" tab, which edits owners only (caretakers are managed in PMS Users). */
 export async function findAllPortalOwners(): Promise<PortalOwnerMapping[]> {
   const sql = getSql();
   if (!sql) return [];
   try {
-    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name, role FROM public.portal_owners ORDER BY property_name`;
+    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name, role FROM public.portal_owners WHERE role = 'owner' ORDER BY property_name`;
     return rows.map(toMapping);
   } catch (err) {
     console.error("[findAllPortalOwners]:", err instanceof Error ? err.message : err);
@@ -90,7 +94,7 @@ export async function findAllPortalOwners(): Promise<PortalOwnerMapping[]> {
   }
 }
 
-/** Sets a property's owner phone + PIN together — the admin "Portal Access" tab's edit action. Distinct from updateOwnerPin (the owner's own Settings-tab self-service PIN change, which never touches phone). */
+/** The admin "Portal Access" tab's edit: sets the owner login's phone and PIN for a property. Caretaker logins are managed from PMS Users. */
 export async function updateOwnerCredentials(
   propertySlug: string,
   phone: string,
@@ -99,40 +103,37 @@ export async function updateOwnerCredentials(
   const sql = getSql();
   if (!sql) return { error: "Database not configured" };
   try {
-    const conflict = await sql<{ property_slug: string }[]>`
-      SELECT property_slug FROM public.portal_owners WHERE phone = ${phone} AND property_slug != ${propertySlug}
-    `;
-    if (conflict.length > 0) return { error: "This phone number is already registered to another property" };
-
     const rows = await sql<{ property_slug: string }[]>`
       UPDATE public.portal_owners SET phone = ${phone}, pin = ${pin}, updated_at = now()
-      WHERE property_slug = ${propertySlug}
+      WHERE property_slug = ${propertySlug} AND role = 'owner'
       RETURNING property_slug
     `;
     if (rows.length === 0) return { error: "Property not found" };
     return { error: null };
   } catch (err) {
+    if ((err as { code?: string }).code === "23505")
+      return { error: "That mobile number already has a login at this property" };
     const message = err instanceof Error ? err.message : String(err);
     console.error("[updateOwnerCredentials]:", message);
     return { error: message };
   }
 }
 
-/** Updates a property owner's PIN. Caller must have already verified the current PIN. */
-export async function updateOwnerPin(propertySlug: string, newPin: string): Promise<{ error: string | null }> {
+/** Changes one login's PIN. The caller has already proven it holds that login. */
+export async function updateLoginPin(propertySlug: string, phone: string, newPin: string): Promise<{ error: string | null }> {
   const sql = getSql();
   if (!sql) return { error: "Database not configured" };
   try {
     const rows = await sql<{ property_slug: string }[]>`
       UPDATE public.portal_owners SET pin = ${newPin}, updated_at = now()
-      WHERE property_slug = ${propertySlug}
+      WHERE property_slug = ${propertySlug} AND phone = ${phone}
       RETURNING property_slug
     `;
-    if (rows.length === 0) return { error: "Property not found" };
+    if (rows.length === 0) return { error: "Login not found" };
     return { error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[updateOwnerPin]:", message);
+    console.error("[updateLoginPin]:", message);
     return { error: message };
   }
 }
@@ -152,11 +153,11 @@ export async function listPartnerAccounts(): Promise<PartnerAccount[]> {
   if (!sql) return [];
   const rows = await sql<PartnerAccount[]>`
     SELECT property_slug, property_name, owner_name, phone, is_active, role
-    FROM public.portal_owners ORDER BY property_name`;
+    FROM public.portal_owners ORDER BY property_name, role`;
   return rows.map((r) => ({ ...r, role: r.role === "caretaker" ? "caretaker" : "owner" }));
 }
 
-/** Creates a property's partner login, or replaces the phone, PIN and name of the one already there. Phone numbers are unique across properties, so a collision with another property fails with a clear message instead of silently moving a login. */
+/** Creates a login at a property, or replaces the PIN, name and role of the login with that same phone there. */
 export async function savePartnerAccount(input: {
   propertySlug: string;
   propertyName: string;
@@ -171,32 +172,28 @@ export async function savePartnerAccount(input: {
     await sql`
       INSERT INTO public.portal_owners (phone, pin, property_slug, property_name, owner_name, role, is_active, updated_at)
       VALUES (${input.phone}, ${input.pin}, ${input.propertySlug}, ${input.propertyName}, ${input.ownerName}, ${input.role}, true, now())
-      ON CONFLICT (property_slug) DO UPDATE
-        SET phone = EXCLUDED.phone, pin = EXCLUDED.pin, owner_name = EXCLUDED.owner_name, role = EXCLUDED.role, updated_at = now()`;
+      ON CONFLICT (property_slug, phone) DO UPDATE
+        SET pin = EXCLUDED.pin, owner_name = EXCLUDED.owner_name, role = EXCLUDED.role, updated_at = now()`;
     return { error: null };
   } catch (err) {
-    if ((err as { code?: string }).code === "23505")
-      return { error: "This phone number is already used by another property's partner login" };
     console.error("[savePartnerAccount]:", err instanceof Error ? err.message : err);
     return { error: "Could not save the partner login" };
   }
 }
 
-export async function setPartnerActive(
-  propertySlug: string,
-  active: boolean,
-): Promise<{ error: string | null }> {
+export async function setPartnerActive(propertySlug: string, phone: string, active: boolean): Promise<{ error: string | null }> {
   const sql = getSql();
   if (!sql) return { error: "Database not configured" };
   const rows = await sql<{ property_slug: string }[]>`
     UPDATE public.portal_owners SET is_active = ${active}, updated_at = now()
-    WHERE property_slug = ${propertySlug} RETURNING property_slug`;
+    WHERE property_slug = ${propertySlug} AND phone = ${phone} RETURNING property_slug`;
   return rows.length ? { error: null } : { error: "Partner login not found" };
 }
 
-/** Moves a partner login to another property. Each property holds at most one login, so the target must be free. */
+/** Moves one login to another property. A number can't hold two logins at the same property. */
 export async function movePartnerAccount(
   fromSlug: string,
+  phone: string,
   toSlug: string,
   toPropertyName: string,
 ): Promise<{ error: string | null }> {
@@ -205,11 +202,11 @@ export async function movePartnerAccount(
   try {
     const rows = await sql<{ property_slug: string }[]>`
       UPDATE public.portal_owners SET property_slug = ${toSlug}, property_name = ${toPropertyName}, updated_at = now()
-      WHERE property_slug = ${fromSlug} RETURNING property_slug`;
+      WHERE property_slug = ${fromSlug} AND phone = ${phone} RETURNING property_slug`;
     return rows.length ? { error: null } : { error: "Partner login not found" };
   } catch (err) {
     if ((err as { code?: string }).code === "23505")
-      return { error: "That property already has a partner login" };
+      return { error: "That mobile number already has a login at that property" };
     console.error("[movePartnerAccount]:", err instanceof Error ? err.message : err);
     return { error: "Could not move the partner login" };
   }

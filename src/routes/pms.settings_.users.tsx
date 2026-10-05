@@ -399,7 +399,7 @@ function PartnerSection() {
     try {
       await pms("partners/active", {
         method: "POST",
-        body: JSON.stringify({ propertySlug: row.property_slug, active: next }),
+        body: JSON.stringify({ propertySlug: row.property_slug, phone: row.phone, active: next }),
       });
       toast.success(next ? "Partner login enabled" : "Partner login disabled");
       load();
@@ -424,7 +424,7 @@ function PartnerSection() {
           </p>
         )}
         {partners?.map((row) => (
-          <div key={row.property_slug} className="rounded-xl border border-slate-200 bg-white p-4">
+          <div key={`${row.property_slug}:${row.phone}`} className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="font-semibold text-slate-900">
@@ -526,7 +526,7 @@ function PartnerEditModal({
       } else {
         await pms("partners/move", {
           method: "POST",
-          body: JSON.stringify({ propertySlug: row.property_slug, newPropertySlug: target }),
+          body: JSON.stringify({ propertySlug: row.property_slug, phone: row.phone, newPropertySlug: target }),
         });
         toast.success("Partner login moved");
       }

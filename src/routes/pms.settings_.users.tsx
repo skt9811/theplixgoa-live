@@ -95,7 +95,9 @@ function AdminView() {
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="font-semibold text-slate-900">
-                  {u.name} <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{ROLE_LABELS[u.role] ?? u.role}</span>
+                  {u.name}{" "}
+                  <span className="ml-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">{u.role === "caretaker" ? "Caretaker" : "PMS Staff"}</span>
+                  <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{ROLE_LABELS[u.role] ?? u.role}</span>
                   {!u.is_active && <span className="ml-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">Inactive</span>}
                 </p>
                 <p className="text-xs text-slate-500">{[u.phone, u.email].filter(Boolean).join(" · ") || "No contact details"}</p>
@@ -128,6 +130,8 @@ function AdminView() {
         ))}
       </div>
 
+      <PartnerSection />
+
       <AuditTable />
       {editing && (
         <UserModal
@@ -154,6 +158,9 @@ function UserModal({ user, onClose, onSaved }: { user: User | null; onClose: () 
   const [props, setProps] = useState<string[]>(user?.assigned_properties.filter((p) => p !== "all") ?? []);
   const [tabs, setTabs] = useState<string[]>(user?.allowed_tabs ?? ROLE_PRESETS["receptionist"]!);
   const [active, setActive] = useState(user?.is_active ?? true);
+  const [kind, setKind] = useState<"staff" | "partner">("staff");
+  const { properties } = usePms();
+  const [partnerProperty, setPartnerProperty] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -164,6 +171,15 @@ function UserModal({ user, onClose, onSaved }: { user: User | null; onClose: () 
     setError(null);
     setSaving(true);
     try {
+      if (kind === "partner") {
+        await pms("partners", {
+          method: "POST",
+          body: JSON.stringify({ propertySlug: partnerProperty, name, phone, pin }),
+        });
+        toast.success("Partner login created");
+        onSaved();
+        return;
+      }
       await pms(user ? `users?id=${user.id}` : "users", {
         method: user ? "PUT" : "POST",
         body: JSON.stringify({ name, phone, email, pin, role, assignedProperties: allProps ? ["all"] : props, allowedTabs: tabs, isActive: active }),
@@ -186,6 +202,59 @@ function UserModal({ user, onClose, onSaved }: { user: User | null; onClose: () 
             <X className="size-5" aria-hidden />
           </button>
         </div>
+        {!user && (
+          <fieldset className="mt-4">
+            <legend className="text-xs font-medium text-slate-500">User type</legend>
+            <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+              <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
+                <input type="radio" name="user-kind" className="mt-1" checked={kind === "staff"} onChange={() => setKind("staff")} />
+                <span>
+                  <b className="block text-slate-900">Internal PMS staff</b>
+                  Manager, front desk, housekeeping or caretaker
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
+                <input type="radio" name="user-kind" className="mt-1" checked={kind === "partner"} onChange={() => setKind("partner")} />
+                <span>
+                  <b className="block text-slate-900">Property partner / owner</b>
+                  Partner App access for one property
+                </span>
+              </label>
+            </div>
+          </fieldset>
+        )}
+
+        {kind === "partner" ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className={label}>
+              Partner name *
+              <input value={name} onChange={(e) => setName(e.target.value)} className={field} required />
+            </label>
+            <label className={label}>
+              Mobile number (used to sign in) *
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={field} required />
+            </label>
+            <label className={label}>
+              PIN (4 digits) *
+              <input inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} className={field} required autoComplete="new-password" />
+            </label>
+            <label className={label}>
+              Property *
+              <select value={partnerProperty} onChange={(e) => setPartnerProperty(e.target.value)} className={field} required>
+                <option value="">Choose a property</option>
+                {properties.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="text-xs text-slate-500 sm:col-span-2">
+              The partner signs in to the Partner App with this mobile number and PIN, and sees only this property.
+            </p>
+          </div>
+        ) : (
+        <>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className={label}>
             Name *
@@ -255,13 +324,273 @@ function UserModal({ user, onClose, onSaved }: { user: User | null; onClose: () 
           </div>
         </fieldset>
 
+        </>
+        )}
+
         {error && <p className="mt-3 text-sm font-semibold text-red-600">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
             Cancel
           </button>
-          <button type="submit" disabled={saving} className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+          <button type="submit" disabled={saving || (kind === "partner" && !partnerProperty)} className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
             {saving ? "Saving..." : user ? "Save changes" : "Create User"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+type PartnerRow = {
+  property_slug: string;
+  property_name: string;
+  owner_name: string | null;
+  phone: string;
+  is_active: boolean;
+};
+
+function formatMobile(phone: string): string {
+  return phone.length === 10 ? `+91 ${phone.slice(0, 5)} ${phone.slice(5)}` : phone;
+}
+
+function PartnerSection() {
+  const { properties } = usePms();
+  const [partners, setPartners] = useState<PartnerRow[] | null>(null);
+  const [editing, setEditing] = useState<{ mode: "pin" | "property"; row: PartnerRow } | null>(
+    null,
+  );
+
+  const load = useCallback(() => {
+    pms<{ partners: PartnerRow[] }>("partners")
+      .then((r) => setPartners(r.partners))
+      .catch(() => setPartners([]));
+  }, []);
+  useEffect(load, [load]);
+
+  async function toggleActive(row: PartnerRow) {
+    const next = !row.is_active;
+    if (
+      !next &&
+      !window.confirm(
+        `Disable the Partner App login for ${row.property_name}? The owner can't sign in until it's enabled again.`,
+      )
+    )
+      return;
+    try {
+      await pms("partners/active", {
+        method: "POST",
+        body: JSON.stringify({ propertySlug: row.property_slug, active: next }),
+      });
+      toast.success(next ? "Partner login enabled" : "Partner login disabled");
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update the login");
+    }
+  }
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Partner App logins
+      </h2>
+      <p className="text-xs text-slate-500">
+        Mobile number and PIN for the Partner App. These are the same records the /admin Portal
+        Access tab edits.
+      </p>
+      <div className="mt-3 grid gap-2">
+        {partners && partners.length === 0 && (
+          <p className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
+            No partner logins yet.
+          </p>
+        )}
+        {partners?.map((row) => (
+          <div key={row.property_slug} className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-semibold text-slate-900">
+                  {row.owner_name || row.property_name}{" "}
+                  <span className="ml-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                    Partner App
+                  </span>
+                  {!row.is_active && (
+                    <span className="ml-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                      Inactive
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {formatMobile(row.phone)} · {row.property_name}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setEditing({ mode: "property", row })}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-slate-600 hover:bg-slate-50"
+                >
+                  Edit Properties
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditing({ mode: "pin", row })}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-slate-600 hover:bg-slate-50"
+                >
+                  Reset PIN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void toggleActive(row)}
+                  className="rounded-lg border border-red-200 px-3 py-1.5 text-red-600 hover:bg-red-50"
+                >
+                  {row.is_active ? "Deactivate" : "Activate"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {editing && (
+        <PartnerEditModal
+          mode={editing.mode}
+          row={editing.row}
+          properties={properties}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            load();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function PartnerEditModal({
+  mode,
+  row,
+  properties,
+  onClose,
+  onSaved,
+}: {
+  mode: "pin" | "property";
+  row: PartnerRow;
+  properties: { id: string; name: string }[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  useBackDismiss(true, onClose);
+  const [pin, setPin] = useState("");
+  const [target, setTarget] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      if (mode === "pin") {
+        await pms("partners", {
+          method: "POST",
+          body: JSON.stringify({
+            propertySlug: row.property_slug,
+            name: row.owner_name || row.property_name,
+            phone: row.phone,
+            pin,
+          }),
+        });
+        toast.success("PIN reset");
+      } else {
+        await pms("partners/move", {
+          method: "POST",
+          body: JSON.stringify({ propertySlug: row.property_slug, newPropertySlug: target }),
+        });
+        toast.success("Partner login moved");
+      }
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const options = properties.filter((p) => p.id !== row.property_slug);
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <form
+        onSubmit={submit}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold">
+            {mode === "pin" ? "Reset Partner PIN" : "Move Partner Login"}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-slate-400 hover:text-slate-600"
+          >
+            <X className="size-5" aria-hidden />
+          </button>
+        </div>
+        <p className="mt-1 text-sm text-slate-500">
+          {row.owner_name || row.property_name} · {formatMobile(row.phone)}
+        </p>
+        <div className="mt-4 grid gap-3">
+          {mode === "pin" ? (
+            <label className={label}>
+              New PIN (4 digits) *
+              <input
+                inputMode="numeric"
+                maxLength={4}
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                className={field}
+                required
+                autoComplete="new-password"
+              />
+            </label>
+          ) : (
+            <label className={label}>
+              Move to property *
+              <select
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                className={field}
+                required
+              >
+                <option value="">Choose a property</option>
+                {options.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+        {error && <p className="mt-3 text-sm font-semibold text-red-600">{error}</p>}
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving || (mode === "pin" ? pin.length !== 4 : !target)}
+            className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : mode === "pin" ? "Reset PIN" : "Move login"}
           </button>
         </div>
       </form>

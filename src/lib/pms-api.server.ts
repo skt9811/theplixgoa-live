@@ -35,6 +35,13 @@ import { slugForPropertyCode } from "@/lib/property-codes";
 import { handleSuperAdminApi } from "@/lib/pms-super-admin.server";
 import { handleSignupApi } from "@/lib/pms-signup.server";
 import {
+  listPartnerAccounts,
+  movePartnerAccount,
+  normalizePhone,
+  savePartnerAccount,
+  setPartnerActive,
+} from "@/lib/portal-pins.server";
+import {
   COLOR_PALETTE,
   HEX_COLOR,
   ICON_KEYS,
@@ -2281,6 +2288,77 @@ async function updateMyProperty(request: Request, actor: Actor): Promise<Respons
   return json({ success: true });
 }
 
+// ---- Partner app logins (portal_owners, the table /admin's Portal Access edits) ----
+// One phone per property, and one login per property. Credentials are written in
+// the same format the partner login verifies (plain 4-digit PIN), so a login created
+// here works on the partner app immediately, and /admin sees the same row.
+
+const PARTNER_PIN_RE = /^\d{4}$/;
+
+async function partnerPropertyName(pmsDb: PmsSql, organizationId: string, slug: string): Promise<string | null> {
+  const orgProps = await listOrganizationProperties(pmsDb, organizationId);
+  const dynamic = orgProps.find((p) => p.id === slug);
+  if (dynamic) return dynamic.name;
+  const staticProp = PROPERTIES.find((p) => p.slug === slug);
+  return staticProp ? staticProp.name : null;
+}
+
+async function listPartners(actor: Actor): Promise<Response> {
+  const accounts = await listPartnerAccounts();
+  return json({ partners: accounts.filter((a) => canProperty(actor, a.property_slug)) });
+}
+
+async function savePartner(request: Request, actor: Actor): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const slug = str(body["propertySlug"]);
+  const ownerName = str(body["name"]).slice(0, 100);
+  const phone = normalizePhone(str(body["phone"]));
+  const pin = str(body["pin"]);
+  if (!slug) return json({ error: "Choose a property" }, 400);
+  if (!canProperty(actor, slug)) return json({ error: "You do not have access to this property" }, 403);
+  if (!(await isBookablePropertyForOrg(pmsDb, slug, actor.organizationId)))
+    return json({ error: "Property not found" }, 404);
+  if (!ownerName) return json({ error: "Partner name is required" }, 400);
+  if (phone.length !== 10) return json({ error: "Enter a 10-digit mobile number" }, 400);
+  if (!PARTNER_PIN_RE.test(pin)) return json({ error: "The partner PIN must be 4 digits" }, 400);
+  const propertyName = (await partnerPropertyName(pmsDb, actor.organizationId, slug)) ?? slug;
+  const result = await savePartnerAccount({ propertySlug: slug, propertyName, ownerName, phone, pin });
+  if (result.error) return json({ error: result.error }, 409);
+  await audit(actor, "UPDATE", "user", `partner:${slug}`, { action: "partner login saved", property: propertyName });
+  return json({ success: true });
+}
+
+async function setPartnerStatus(request: Request, actor: Actor): Promise<Response> {
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const slug = str(body["propertySlug"]);
+  if (!slug) return json({ error: "Choose a property" }, 400);
+  if (!canProperty(actor, slug)) return json({ error: "You do not have access to this property" }, 403);
+  const result = await setPartnerActive(slug, body["active"] === true);
+  if (result.error) return json({ error: result.error }, 404);
+  await audit(actor, "UPDATE", "user", `partner:${slug}`, { action: body["active"] === true ? "partner login enabled" : "partner login disabled" });
+  return json({ success: true });
+}
+
+async function movePartner(request: Request, actor: Actor): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const from = str(body["propertySlug"]);
+  const to = str(body["newPropertySlug"]);
+  if (!from || !to) return json({ error: "Choose both properties" }, 400);
+  if (!canProperty(actor, from) || !canProperty(actor, to))
+    return json({ error: "You do not have access to this property" }, 403);
+  if (!(await isBookablePropertyForOrg(pmsDb, to, actor.organizationId)))
+    return json({ error: "Property not found" }, 404);
+  const toName = (await partnerPropertyName(pmsDb, actor.organizationId, to)) ?? to;
+  const result = await movePartnerAccount(from, to, toName);
+  if (result.error) return json({ error: result.error }, result.error === "Partner login not found" ? 404 : 409);
+  await audit(actor, "UPDATE", "user", `partner:${to}`, { action: "partner login moved", from, to });
+  return json({ success: true });
+}
+
 // The Android app's own half of the deep-link handoff (see
 // pms-schema.server.ts's pms_auth_handoffs comment and
 // pms-signup.server.ts's completeHandoff): mints a short-lived, single-use
@@ -2822,6 +2900,10 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "owner" |
       return "admin";
     case "handoff/mint":
       return "any";
+    case "partners":
+    case "partners/active":
+    case "partners/move":
+      return "admin";
     case "caretaker/checkin":
     case "caretaker/checkout":
     case "caretaker/housekeeping":
@@ -3031,6 +3113,10 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     if (path === "properties" && request.method === "GET") return await listProperties(actor);
     if (path === "onboarding/property" && request.method === "POST")
       return await updateMyProperty(request, actor);
+    if (path === "partners" && request.method === "GET") return await listPartners(actor);
+    if (path === "partners" && request.method === "POST") return await savePartner(request, actor);
+    if (path === "partners/active" && request.method === "POST") return await setPartnerStatus(request, actor);
+    if (path === "partners/move" && request.method === "POST") return await movePartner(request, actor);
     if (path === "handoff/mint" && request.method === "POST") {
       const b = (await request.json().catch(() => ({}))) as Record<string, unknown>;
       return await mintHandoffToken(actor, str(b["redirectTo"]) || "/pms");

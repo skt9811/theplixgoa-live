@@ -49,7 +49,7 @@ export async function findPortalOwnerByPhone(rawPhone: string): Promise<PortalOw
   const sql = getSql();
   if (!sql) return undefined;
   try {
-    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name FROM public.portal_owners WHERE phone = ${phone} LIMIT 1`;
+    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name FROM public.portal_owners WHERE phone = ${phone} AND is_active = true LIMIT 1`;
     return rows[0] ? toMapping(rows[0]) : undefined;
   } catch (err) {
     console.error("[findPortalOwnerByPhone]:", err instanceof Error ? err.message : err);
@@ -127,5 +127,81 @@ export async function updateOwnerPin(propertySlug: string, newPin: string): Prom
     const message = err instanceof Error ? err.message : String(err);
     console.error("[updateOwnerPin]:", message);
     return { error: message };
+  }
+}
+
+export type PartnerAccount = {
+  property_slug: string;
+  property_name: string;
+  owner_name: string | null;
+  phone: string;
+  is_active: boolean;
+};
+
+/** Every partner-app login row, for the PMS Users screen (the same rows /admin's Portal Access tab edits). */
+export async function listPartnerAccounts(): Promise<PartnerAccount[]> {
+  const sql = getSql();
+  if (!sql) return [];
+  const rows = await sql<PartnerAccount[]>`
+    SELECT property_slug, property_name, owner_name, phone, is_active
+    FROM public.portal_owners ORDER BY property_name`;
+  return rows;
+}
+
+/** Creates a property's partner login, or replaces the phone, PIN and name of the one already there. Phone numbers are unique across properties, so a collision with another property fails with a clear message instead of silently moving a login. */
+export async function savePartnerAccount(input: {
+  propertySlug: string;
+  propertyName: string;
+  ownerName: string;
+  phone: string;
+  pin: string;
+}): Promise<{ error: string | null }> {
+  const sql = getSql();
+  if (!sql) return { error: "Database not configured" };
+  try {
+    await sql`
+      INSERT INTO public.portal_owners (phone, pin, property_slug, property_name, owner_name, is_active, updated_at)
+      VALUES (${input.phone}, ${input.pin}, ${input.propertySlug}, ${input.propertyName}, ${input.ownerName}, true, now())
+      ON CONFLICT (property_slug) DO UPDATE
+        SET phone = EXCLUDED.phone, pin = EXCLUDED.pin, owner_name = EXCLUDED.owner_name, updated_at = now()`;
+    return { error: null };
+  } catch (err) {
+    if ((err as { code?: string }).code === "23505")
+      return { error: "This phone number is already used by another property's partner login" };
+    console.error("[savePartnerAccount]:", err instanceof Error ? err.message : err);
+    return { error: "Could not save the partner login" };
+  }
+}
+
+export async function setPartnerActive(
+  propertySlug: string,
+  active: boolean,
+): Promise<{ error: string | null }> {
+  const sql = getSql();
+  if (!sql) return { error: "Database not configured" };
+  const rows = await sql<{ property_slug: string }[]>`
+    UPDATE public.portal_owners SET is_active = ${active}, updated_at = now()
+    WHERE property_slug = ${propertySlug} RETURNING property_slug`;
+  return rows.length ? { error: null } : { error: "Partner login not found" };
+}
+
+/** Moves a partner login to another property. Each property holds at most one login, so the target must be free. */
+export async function movePartnerAccount(
+  fromSlug: string,
+  toSlug: string,
+  toPropertyName: string,
+): Promise<{ error: string | null }> {
+  const sql = getSql();
+  if (!sql) return { error: "Database not configured" };
+  try {
+    const rows = await sql<{ property_slug: string }[]>`
+      UPDATE public.portal_owners SET property_slug = ${toSlug}, property_name = ${toPropertyName}, updated_at = now()
+      WHERE property_slug = ${fromSlug} RETURNING property_slug`;
+    return rows.length ? { error: null } : { error: "Partner login not found" };
+  } catch (err) {
+    if ((err as { code?: string }).code === "23505")
+      return { error: "That property already has a partner login" };
+    console.error("[movePartnerAccount]:", err instanceof Error ? err.message : err);
+    return { error: "Could not move the partner login" };
   }
 }

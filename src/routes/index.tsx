@@ -36,29 +36,29 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "The Plix Goa | Luxury Boutique Villas & Resorts in Goa" },
+      { title: "The Plix Goa | Boutique Resorts & Luxury Private Villas" },
       {
         name: "description",
         content:
-          "Experience private luxury villas and boutique resorts in North Goa. Enjoy private pools, beach proximity, and zero-commission direct bookings.",
+          "Stay at The Plix in North Goa. Explore boutique resorts and luxury private pool villas across Anjuna, Vagator & Morjim. Book direct for the best tariff.",
       },
       { name: "robots", content: "index, follow, max-image-preview:large" },
-      { property: "og:title", content: "The Plix Goa | Luxury Boutique Villas & Resorts in Goa" },
+      { property: "og:title", content: "The Plix Goa | Boutique Resorts & Luxury Private Villas" },
       {
         property: "og:description",
         content:
-          "Experience private luxury villas and boutique resorts in North Goa. Enjoy private pools, beach proximity, and zero-commission direct bookings.",
+          "Stay at The Plix in North Goa. Explore boutique resorts and luxury private pool villas across Anjuna, Vagator & Morjim. Book direct for the best tariff.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: SITE_URL },
       { property: "og:site_name", content: SITE_NAME },
       { property: "og:image", content: `${SITE_URL}/og-home.jpg` },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "The Plix Goa | Luxury Boutique Villas & Resorts in Goa" },
+      { name: "twitter:title", content: "The Plix Goa | Boutique Resorts & Luxury Private Villas" },
       {
         name: "twitter:description",
         content:
-          "Experience private luxury villas and boutique resorts in North Goa. Enjoy private pools, beach proximity, and zero-commission direct bookings.",
+          "Stay at The Plix in North Goa. Explore boutique resorts and luxury private pool villas across Anjuna, Vagator & Morjim. Book direct for the best tariff.",
       },
       { name: "twitter:image", content: `${SITE_URL}/og-home.jpg` },
     ],
@@ -77,6 +77,7 @@ export const Route = createFileRoute("/")({
         children: jsonLdGraphScript(
           brandJsonLd(),
           faqPageJsonLd([
+            { q: "What is The Plix Resort & Villas?", a: "Boutique resort stays in Morjim & private luxury villas in Anjuna and Vagator, all run by one Goa-based team and booked direct." },
             { q: "Do you charge any booking or platform fees?", a: "No. Booking direct with The Plix Goa means you pay the nightly rate plus applicable taxes — nothing else." },
             { q: "Is the entire villa private to my group?", a: "Yes. Every Plix stay is booked as a whole property, so the pool, kitchen and garden are exclusively yours." },
             { q: "Are pets allowed?", a: "Selected villas including Morjim Pride are pet friendly. Look for the 'Pet Friendly' tag on the property card." },
@@ -126,6 +127,10 @@ const stats = [
 ];
 
 const faqs = [
+  {
+    q: "What is The Plix Resort & Villas?",
+    a: "Boutique resort stays in Morjim & private luxury villas in Anjuna and Vagator, all run by one Goa-based team and booked direct.",
+  },
   {
     q: "Do you charge any booking or platform fees?",
     a: "No. Booking direct with The Plix Goa means you pay the nightly rate plus applicable taxes — nothing else.",

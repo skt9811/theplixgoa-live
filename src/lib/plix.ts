@@ -1549,9 +1549,9 @@ export const PROPERTIES: Property[] = [
     tagline: "MORJIM, NORTH GOA • BEACHSIDE RESORT WITH POOL",
     description:
       "Welcome to The Plix Resort - Morjim, our serene beachside retreat just 100 meters from the ocean. Our resort features a swimming pool and chill-out area for unwinding. With 10 cozy rooms, your stay promises tranquility and scenic beauty. Wake up to the soothing sound of waves and indulge in coastal charm. The Plix Resort - Morjim offers the ideal escape for unforgettable memories by the sea.",
-    seo_title: "The Plix Resort Morjim | Luxury Cottages & Pool Goa",
+    seo_title: "The Plix Resort Morjim, Goa | Boutique Coastal Stays",
     seo_description:
-      "Serene boutique resort in Morjim with premium cottages, private pool, and green lawns near Turtle Beach. Best rates guaranteed direct.",
+      "Experience The Plix Resort in Morjim, North Goa. Close to Morjim beach, featuring serene rooms, pool access, and authentic Goan hospitality. Book direct.",
     seo_keywords: ["Resort near Morjim Beach", "Beachside Resort Morjim", "Swimming Pool Resort Goa", "Morjim Beach Stay", "North Goa Resort with Bar"],
     enclave: null,
     bedrooms: 10,

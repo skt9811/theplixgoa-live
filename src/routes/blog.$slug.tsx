@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { blogQuery, blogSummariesQuery, estimateReadingTime, formatDate, type BlogSummary } from "@/lib/blog";
 import { matchLocationForPost } from "@/lib/locations";
+import { BlogStayCallout, BLOG_STAY_CALLOUT_SLUGS } from "@/components/plix/blog-stay-callout";
 import {
   SITE_URL,
   SITE_NAME,
@@ -196,6 +197,8 @@ function BlogPostPage() {
           className="prose-blog"
           dangerouslySetInnerHTML={{ __html: post.content }}
         />
+
+        {BLOG_STAY_CALLOUT_SLUGS.has(post.slug) && <BlogStayCallout />}
 
         {matchedHub && (
           <Link

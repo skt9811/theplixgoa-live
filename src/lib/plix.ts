@@ -947,9 +947,9 @@ export const PROPERTIES: Property[] = [
     tagline: "ANJUNA, NORTH GOA • 3 BHK BOUTIQUE POOL VILLA",
     description:
       "Contemporary sanctuary for intimate escapes. Casa Marina is an elegant 3 BHK private pool villa in Vagator for up to 6 guests, combining modern aesthetics with cozy privacy. Featuring bespoke interior design, floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes, it offers a tranquil garden setting minutes from Anjuna and Vagator beaches. Each of the three bathrooms carries the same attention to detail as the living spaces, and the villa's elevated position affords genuinely panoramic views across the surrounding greenery. Anjuna's famous flea market is just a six-minute drive away, making it easy to spend a morning browsing stalls before returning to the pool.",
-    seo_title: "Casa Marina by The Plix | 3 BHK Private Pool Luxury Villa Vagator / Anjuna",
+    seo_title: "Marina Villas by The Plix, Anjuna | Private Pool Villa",
     seo_description:
-      "Book Casa Marina by The Plix direct. Exclusive 3 BHK private pool villa in North Goa with personalized concierge service, chef dining, and private lawn.",
+      "Book direct at Marina Villas in Anjuna by The Plix. Private pool, luxury amenities, 24/7 caretaker & best direct rates. Reserve your Goa stay today.",
     seo_keywords: ["3 BHK Villa Vagator", "Boutique Pool Villa Goa", "Private Pool Villa Vagator", "Couple Friendly Villa North Goa", "Luxury Holiday Home Anjuna"],
     enclave: "Marina Villas by The Plix",
     bedrooms: 3,
@@ -1123,9 +1123,9 @@ export const PROPERTIES: Property[] = [
     tagline: "ANJUNA, NORTH GOA • 5 BHK GRAND POOL VILLA",
     description:
       "Contemporary sanctuary for large groups and grand celebrations. Casa Meadows is an expansive 5 BHK luxury private pool villa designed for up to 10 guests, featuring floor-to-ceiling glass doors, a personal pool courtyard, wide lawns, and tropical landscapes. With panoramic valley views and premium concierge service, it delivers elite hospitality for unforgettable gatherings in North Goa. With five full bathrooms and free on-site parking for multiple vehicles, it's built for exactly the kind of multi-family or milestone-celebration group that needs room to spread out. Chapora Fort, known for its sunset views over the Chapora River, is a 15-minute drive away.",
-    seo_title: "Casa Meadows by The Plix | 5 BHK Grand Private Pool Villa Anjuna",
+    seo_title: "Casa Meadows Goa | Luxury Private Villa by The Plix",
     seo_description:
-      "Book Casa Meadows by The Plix direct. Grand 5 BHK luxury estate in North Goa with private pool, expansive lawn, and celebration enclave.",
+      "Stay at Casa Meadows in North Goa. Enjoy lush lawns, modern amenities, private stays, and dedicated hospitality. Book direct for lowest rates.",
     seo_keywords: ["5 BHK Villa Vagator", "Large Group Villa Goa", "Grand Pool Villa North Goa", "Wedding Villa Anjuna", "Luxury Villa with Lawn Goa"],
     enclave: "Marina Villas by The Plix",
     bedrooms: 5,

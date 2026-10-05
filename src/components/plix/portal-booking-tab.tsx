@@ -74,10 +74,29 @@ const STATUS_PILL: Record<LifecycleStatus, { label: string; bg: string; text: st
   checkout: { label: "Checkout", bg: "#fee2e2", text: "#b91c1c" },
 };
 
+async function caretakerLifecycle(id: string, source: string, action: "checkin" | "checkout", reload: () => void) {
+  try {
+    const res = await portalFetch(`/api/portal/${action}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, source }),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error ?? "Could not save");
+    }
+    toast.success(action === "checkin" ? "Guest checked in" : "Guest checked out");
+    reload();
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : "Could not save");
+  }
+}
+
 export function PortalBookingTab({
   propertySlug,
   bookings,
   role,
+  caretaker = false,
   onCreated,
   focusBookingId,
   onFocusHandled,
@@ -85,6 +104,8 @@ export function PortalBookingTab({
   propertySlug: string;
   bookings: PortalBooking[];
   role: "owner" | "admin";
+  /** Caretakers see the same cards with no amounts: only the balance still to collect and check-in/out. */
+  caretaker?: boolean;
   onCreated: () => void;
   focusBookingId: string | null;
   onFocusHandled: () => void;
@@ -373,6 +394,34 @@ export function PortalBookingTab({
                         <span>Pets: 0</span>
                       </div>
 
+                      {caretaker ? (
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                          {(b.pending_balance ?? 0) > 0 ? (
+                            <p className="text-sm font-semibold text-amber-700">Collect at Desk: {formatINR(b.pending_balance ?? 0)}</p>
+                          ) : (
+                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Payment: Paid</span>
+                          )}
+                          {b.status === "confirmed" && (
+                            <button
+                              type="button"
+                              onClick={() => void caretakerLifecycle(b.id, b.source, "checkin", onCreated)}
+                              className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
+                            >
+                              Check-in
+                            </button>
+                          )}
+                          {b.status === "checked_in" && (
+                            <button
+                              type="button"
+                              onClick={() => void caretakerLifecycle(b.id, b.source, "checkout", onCreated)}
+                              className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
+                            >
+                              Check-out
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                      <>
                       <div className="mt-3 flex items-start justify-between border-t border-slate-100 pt-3">
                         <div className="min-w-0">
                           <p className="text-[11px] text-slate-400">Total Amount</p>
@@ -392,8 +441,10 @@ export function PortalBookingTab({
                           {expanded ? "Hide details" : "View details"}
                         </button>
                       </div>
+                      </>
+                      )}
 
-                      {expanded && (
+                      {!caretaker && expanded && (
                         <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-slate-500">Gross Booking Value</span>
@@ -410,6 +461,8 @@ export function PortalBookingTab({
                           <p className="text-[11px] text-slate-400">Note: Final amount may vary due to payment gateway charges.</p>
                         </div>
                       )}
+
+
 
                       <div className="mt-3 flex flex-wrap gap-2">
                         <a

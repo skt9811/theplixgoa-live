@@ -13,7 +13,6 @@ import { PortalHomeTab } from "@/components/plix/portal-home-tab";
 import { PortalInventoryTab } from "@/components/plix/portal-inventory-tab";
 import { PortalBookingTab } from "@/components/plix/portal-booking-tab";
 import { PortalAnalyticsTab } from "@/components/plix/portal-analytics-tab";
-import { PortalCaretakerView } from "@/components/plix/portal-caretaker-view";
 import { PortalMenuTab } from "@/components/plix/portal-menu-tab";
 import { PortalPullToRefresh } from "@/components/plix/portal-pull-to-refresh";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -258,7 +257,7 @@ function PortalDashboardPage() {
             const fresh = data.bookings.filter((b) => !seenBookingIds.current!.has(b.id) && b.status !== "blocked");
             if (fresh.length > 0) {
               const newest = fresh[0]!;
-              const alert: PortalAlert = { id: newest.id, guestName: newest.guest_name, amount: newest.booking_amount };
+              const alert: PortalAlert = { id: newest.id, guestName: newest.guest_name, amount: newest.booking_amount > 0 ? newest.booking_amount : null };
               setBannerAlert(alert);
               setRecentAlerts((prev) => [alert, ...prev].slice(0, 5));
               tryPlayChime();
@@ -282,13 +281,6 @@ function PortalDashboardPage() {
     const timeout = window.setTimeout(() => setBannerAlert(null), 6000);
     return () => window.clearTimeout(timeout);
   }, [bannerAlert]);
-
-  // A caretaker's screen is only guest arrivals, departures and balances — the
-  // owner dashboard's home, inventory and analytics tabs all read fields a
-  // caretaker's response deliberately doesn't carry.
-  if (loaded && authed && propertySlug && role === "caretaker") {
-    return <PortalCaretakerView propertyName={propertyName} />;
-  }
 
   if (!loaded) {
     return (
@@ -343,7 +335,7 @@ function PortalDashboardPage() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-bronze">New Booking Received</p>
               <p className="mt-0.5 text-sm text-slate-900">
-                {bannerAlert.guestName} · {formatINR(bannerAlert.amount)}
+                {bannerAlert.guestName}{bannerAlert.amount !== null ? ` · ${formatINR(bannerAlert.amount)}` : ""}
               </p>
             </div>
             <button
@@ -405,23 +397,27 @@ function PortalDashboardPage() {
                 bookings={bookings}
                 onNavigateTab={setTab}
                 onFocusBooking={setFocusBookingId}
+                caretaker={role === "caretaker"}
               />
             </PortalPullToRefresh>
           )}
-          {tab === "inventory" && <PortalInventoryTab propertySlug={propertySlug} bookings={bookings} role={role === "admin" ? "admin" : "owner"} />}
+          {tab === "inventory" && (
+            <PortalInventoryTab propertySlug={propertySlug} bookings={bookings} role={role === "admin" ? "admin" : "owner"} caretaker={role === "caretaker"} />
+          )}
           {tab === "booking" && (
             <PortalPullToRefresh onRefresh={() => load(role === "admin" ? propertySlug : undefined)}>
               <PortalBookingTab
                 propertySlug={propertySlug}
                 bookings={bookings}
                 role={role === "admin" ? "admin" : "owner"}
+                caretaker={role === "caretaker"}
                 onCreated={() => load(role === "admin" ? propertySlug : undefined)}
                 focusBookingId={focusBookingId}
                 onFocusHandled={() => setFocusBookingId(null)}
               />
             </PortalPullToRefresh>
           )}
-          {tab === "analytics" && (
+          {tab === "analytics" && role !== "caretaker" && (
             <PortalAnalyticsTab
               propertySlug={propertySlug}
               bookings={bookings}
@@ -435,7 +431,7 @@ function PortalDashboardPage() {
         </div>
       </div>
 
-      <PortalBottomNav active={tab} onChange={setTab} />
+      <PortalBottomNav active={tab} onChange={setTab} hideAnalytics={role === "caretaker"} />
     </div>
   );
 }

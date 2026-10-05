@@ -37,4 +37,6 @@ export type PortalBooking = {
   commission_pct: number;
   /** commission_pct% of booking_amount, computed and stored server-side at write time. */
   commission_amount: number;
+  /** Caretakers only: the balance still to collect at the desk. Always 0 for owners. */
+  pending_balance?: number;
 };

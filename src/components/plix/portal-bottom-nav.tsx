@@ -10,14 +10,22 @@ const TABS: { id: PortalTab; label: string; icon: typeof Home }[] = [
   { id: "menu", label: "Menu", icon: UserCog },
 ];
 
-export function PortalBottomNav({ active, onChange }: { active: PortalTab; onChange: (tab: PortalTab) => void }) {
+export function PortalBottomNav({
+  active,
+  onChange,
+  hideAnalytics = false,
+}: {
+  active: PortalTab;
+  onChange: (tab: PortalTab) => void;
+  hideAnalytics?: boolean;
+}) {
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 backdrop-blur-md"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="mx-auto flex w-full max-w-lg items-stretch justify-between px-2 py-1.5">
-        {TABS.map((tab) => {
+        {TABS.filter((tab) => !(hideAnalytics && tab.id === "analytics")).map((tab) => {
           const Icon = tab.icon;
           const isActive = tab.id === active;
           return (

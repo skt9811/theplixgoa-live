@@ -66,6 +66,8 @@ export type PortalBooking = {
   commission_pct: number;
   /** commission_pct% of booking_amount, computed and stored server-side at write time. */
   commission_amount: number;
+  /** Caretakers only: the balance still to collect at the desk. Always 0 for owners. */
+  pending_balance?: number;
 };
 
 function toDateString(value: string | Date): string {
@@ -170,72 +172,24 @@ function ensureLifecycleSchema(sql: ReturnType<typeof getSql> & object): Promise
 }
 
 /**
- * What a caretaker may see of a booking: who is coming, where they sleep,
- * how to reach them, whether they've arrived or left, and whether a balance
- * is still to be collected at the desk. No total, commission, payout or
- * advance figure is built here, so none can leak through this response.
+ * A caretaker gets the standard Partner App feed, with the money fields
+ * replaced by zeros and nulls on the server, so no commission, gross or payout
+ * figure reaches the device. Their status is the real check-in state, and the
+ * amount still to collect at the desk is the only money they're given.
  */
-export type CaretakerPortalBooking = {
-  id: string;
-  source: "online" | "manual";
-  property_id: string;
-  guest_name: string;
-  guest_phone: string | null;
-  check_in: string;
-  check_out: string;
-  nights: number;
-  guests_count: number;
-  rooms_count: number;
-  room_type: string | null;
-  lifecycle: "expected" | "checked_in" | "checked_out";
-  payment: "paid" | "due";
-  /** Only ever shown as "Collect at Desk" when greater than zero. */
-  pending_balance: number;
-};
-
-function caretakerOnlineView(r: OnlineRow): CaretakerPortalBooking {
-  const check_in = toDateString(r.check_in);
-  const check_out = toDateString(r.check_out);
-  const lifecycle = r.checked_out_at ? "checked_out" : r.checked_in_at ? "checked_in" : "expected";
-  return {
-    id: r.id,
-    source: "online",
-    property_id: r.property_id,
-    guest_name: r.guest_name,
-    guest_phone: r.guest_phone,
-    check_in,
-    check_out,
-    nights: r.nights,
-    guests_count: r.guests_count,
-    rooms_count: r.rooms ?? 1,
-    room_type: null,
-    lifecycle,
-    payment: "paid",
-    pending_balance: 0,
-  };
+function caretakerOnlineFields(r: OnlineRow): Partial<PortalBooking> {
+  const status = r.checked_out_at ? "completed" : r.checked_in_at ? "checked_in" : "confirmed";
+  return { ...maskedMoney(), status, pending_balance: 0 };
 }
 
-function caretakerManualView(r: ManualRow): CaretakerPortalBooking {
-  const check_in = toDateString(r.check_in);
-  const check_out = toDateString(r.check_out);
-  const lifecycle = r.status === "completed" ? "checked_out" : r.status === "checked_in" ? "checked_in" : "expected";
+function caretakerManualFields(r: ManualRow): Partial<PortalBooking> {
+  const status = r.status === "completed" ? "completed" : r.status === "checked_in" ? "checked_in" : "confirmed";
   const pending = r.payment_status === "paid" ? 0 : Math.max(0, Number(r.booking_amount) - Number(r.advance_amount ?? 0));
-  return {
-    id: r.id,
-    source: "manual",
-    property_id: r.property_id,
-    guest_name: r.guest_name,
-    guest_phone: r.guest_phone,
-    check_in,
-    check_out,
-    nights: r.nights,
-    guests_count: r.guests_count,
-    rooms_count: r.rooms_count ?? 1,
-    room_type: firstRoomCategory(r.room_allocations),
-    lifecycle,
-    payment: pending > 0 ? "due" : "paid",
-    pending_balance: pending,
-  };
+  return { ...maskedMoney(), status, pending_balance: pending };
+}
+
+function maskedMoney(): Partial<PortalBooking> {
+  return { booking_amount: 0, commission_pct: 0, commission_amount: 0, advance_amount: null };
 }
 
 /**
@@ -330,14 +284,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
       `,
     ]);
 
-    if (session.role === "caretaker") {
-      const bookings = [
-        ...onlineRows.map(caretakerOnlineView),
-        ...manualRows.filter((r) => r.status !== "blocked").map(caretakerManualView),
-      ].sort((a, b) => a.check_in.localeCompare(b.check_in));
-      return jsonResponse({ bookings, propertySlug, role: "caretaker" }, 200);
-    }
-
+    const caretaker = session.role === "caretaker";
     const online: PortalBooking[] = onlineRows.map((r) => {
       const check_in = toDateString(r.check_in);
       const check_out = toDateString(r.check_out);
@@ -361,6 +308,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         advance_amount: null,
         commission_pct: Number(r.commission_pct),
         commission_amount: Number(r.commission_amount),
+        ...(caretaker ? caretakerOnlineFields(r) : {}),
       };
     });
 
@@ -387,6 +335,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         advance_amount: r.advance_amount === null ? null : Number(r.advance_amount),
         commission_pct: Number(r.commission_pct),
         commission_amount: Number(r.commission_amount),
+        ...(caretaker ? caretakerManualFields(r) : {}),
       };
     });
 

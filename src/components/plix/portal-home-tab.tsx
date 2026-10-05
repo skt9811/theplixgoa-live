@@ -26,7 +26,8 @@ function todayISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function balanceLine(b: PortalBooking): string {
+function balanceLine(b: PortalBooking, caretaker: boolean): string {
+  if (caretaker) return b.pending_balance && b.pending_balance > 0 ? `Collect at Desk: ${formatINR(b.pending_balance)}` : "Payment: Paid";
   if (b.admin_payment_status === "pending") return "Payment Pending";
   if (b.admin_payment_status === "pay_at_checkin") return "Pay at Check-in";
   if (b.admin_payment_status === "partial") {
@@ -41,11 +42,14 @@ export function PortalHomeTab({
   bookings,
   onNavigateTab,
   onFocusBooking,
+  caretaker = false,
 }: {
   propertySlug: string;
   bookings: PortalBooking[];
   onNavigateTab: (tab: PortalTab) => void;
   onFocusBooking: (bookingId: string) => void;
+  /** Caretakers get no revenue or analytics figures, so the performance card is hidden for them. */
+  caretaker?: boolean;
 }) {
   const property = PROPERTIES.find((p) => p.slug === propertySlug);
   const [segment, setSegment] = useState<Segment>("checkins");
@@ -91,6 +95,7 @@ export function PortalHomeTab({
 
   return (
     <>
+      {!caretaker && (
       <div className="rounded-3xl p-5 text-slate-900" style={{ background: "linear-gradient(135deg, #d8dbfe 0%, #bce6fd 100%)" }}>
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Quick Performance</p>
         <div className="mt-3 grid grid-cols-2 gap-4">
@@ -114,6 +119,7 @@ export function PortalHomeTab({
           Performance metrics representing all confirmed bookings for the current month.
         </p>
       </div>
+      )}
 
       <div className="mt-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
         <p className="text-sm font-semibold text-slate-900">Today's Operations</p>
@@ -184,7 +190,7 @@ export function PortalHomeTab({
                       b.admin_payment_status === "paid" || b.admin_payment_status === null ? "text-emerald-600" : "text-amber-600"
                     }`}
                   >
-                    {balanceLine(b)}
+                    {balanceLine(b, caretaker)}
                   </p>
                 </button>
               ))

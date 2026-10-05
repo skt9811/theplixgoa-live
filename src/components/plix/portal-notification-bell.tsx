@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Bell, X } from "lucide-react";
 import { formatINR } from "@/lib/plix";
 
-export type PortalAlert = { id: string; guestName: string; amount: number };
+export type PortalAlert = { id: string; guestName: string; amount: number | null };
 
 /**
  * Purely a view over the new-booking polling already running in
@@ -40,7 +40,7 @@ export function PortalNotificationBell({ alerts, onDismiss }: { alerts: PortalAl
                   <div key={alert.id} className="flex items-center justify-between gap-2 rounded-xl px-2 py-2 hover:bg-slate-50">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-slate-900">{alert.guestName}</p>
-                      <p className="text-xs text-slate-500">{formatINR(alert.amount)}</p>
+                      {alert.amount !== null && <p className="text-xs text-slate-500">{formatINR(alert.amount)}</p>}
                     </div>
                     <button
                       type="button"

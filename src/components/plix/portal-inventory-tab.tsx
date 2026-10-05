@@ -43,10 +43,13 @@ export function PortalInventoryTab({
   propertySlug,
   bookings,
   role,
+  caretaker = false,
 }: {
   propertySlug: string;
   bookings: PortalBooking[];
   role: "owner" | "admin";
+  /** Caretakers see the calendar only: no pricing view and no booking totals. */
+  caretaker?: boolean;
 }) {
   const property = useMemo(() => PROPERTIES.find((p) => p.slug === propertySlug), [propertySlug]);
   const basePrice = property?.base_price ?? 0;
@@ -146,6 +149,7 @@ export function PortalInventoryTab({
         >
           Calendar View
         </button>
+        {!caretaker && (
         <button
           type="button"
           onClick={() => setViewMode("pricing")}
@@ -155,6 +159,7 @@ export function PortalInventoryTab({
         >
           Pricing View
         </button>
+        )}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -233,6 +238,7 @@ export function PortalInventoryTab({
           date={selectedDate}
           propertySlug={propertySlug}
           role={role}
+          caretaker={caretaker}
           booking={bookingForDate(selectedDate)}
           status={statusForDate(selectedDate)}
           currentRate={rates[selectedDate] ?? basePrice}
@@ -259,6 +265,7 @@ function DateDetailSheet({
   date,
   propertySlug,
   role,
+  caretaker = false,
   booking,
   status,
   currentRate,
@@ -268,6 +275,7 @@ function DateDetailSheet({
   date: string;
   propertySlug: string;
   role: "owner" | "admin";
+  caretaker?: boolean;
   booking: PortalBooking | null;
   status: CellStatus;
   currentRate: number;
@@ -341,10 +349,12 @@ function DateDetailSheet({
                 <p className="text-xs text-slate-500">Total Nights</p>
                 <p className="font-medium">{booking.nights}</p>
               </div>
-              <div>
-                <p className="text-xs text-slate-500">Total Amount</p>
-                <p className="font-medium text-bronze">{formatINR(booking.booking_amount)}</p>
-              </div>
+              {!caretaker && (
+                <div>
+                  <p className="text-xs text-slate-500">Total Amount</p>
+                  <p className="font-medium text-bronze">{formatINR(booking.booking_amount)}</p>
+                </div>
+              )}
             </div>
           </div>
         ) : status === "owner" || status === "maintenance" ? (

@@ -257,7 +257,7 @@ function PmsDashboard() {
                 <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
               </span>
             </button>
-            {canSeeMoney && (
+            {canSeeMoney && revenueOpen && (
               <RevenueDrilldown
                 open={revenueOpen}
                 onOpenChange={setRevenueOpen}

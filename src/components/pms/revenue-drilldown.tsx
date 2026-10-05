@@ -1,6 +1,5 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatINR } from "@/lib/plix";
 import { addDays, fmtDate, istToday, pms } from "@/lib/pms-client";
 import { useBackDismiss } from "@/lib/pms-back-stack";
@@ -60,7 +59,10 @@ function shiftMonth(date: string, delta: number): string {
 }
 
 function monthLabel(month: string): string {
-  return new Date(`${month}-01T00:00:00`).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  return new Date(`${month}-01T00:00:00`).toLocaleDateString("en-IN", {
+    month: "long",
+    year: "numeric",
+  });
 }
 
 const navBtn =
@@ -69,8 +71,15 @@ const navBtn =
 /** Only accept a body that has the fields the views read. Anything else is an error, not a render crash. */
 function isRevenueResponse(data: unknown): data is DailyResponse | MonthlyResponse {
   if (!data || typeof data !== "object") return false;
-  const d = data as { view?: unknown; revenue?: unknown; stays?: unknown; days?: unknown; totalEarned?: unknown };
-  if (d.view === "daily") return !!d.revenue && typeof d.revenue === "object" && Array.isArray(d.stays);
+  const d = data as {
+    view?: unknown;
+    revenue?: unknown;
+    stays?: unknown;
+    days?: unknown;
+    totalEarned?: unknown;
+  };
+  if (d.view === "daily")
+    return !!d.revenue && typeof d.revenue === "object" && Array.isArray(d.stays);
   if (d.view === "monthly") return Array.isArray(d.days) && typeof d.totalEarned === "number";
   return false;
 }
@@ -79,7 +88,10 @@ function isRevenueResponse(data: unknown): data is DailyResponse | MonthlyRespon
  * Keeps a render error inside the drawer. Without it, one bad field unmounts the
  * whole PMS app and the screen goes blank until a reload.
  */
-class DetailBoundary extends Component<{ resetKey: string; children: ReactNode }, { failed: boolean; resetKey: string }> {
+class DetailBoundary extends Component<
+  { resetKey: string; children: ReactNode },
+  { failed: boolean; resetKey: string }
+> {
   override state = { failed: false, resetKey: this.props.resetKey };
 
   static getDerivedStateFromError(): { failed: boolean } {
@@ -122,11 +134,30 @@ export function RevenueDrilldown({
   const [view, setView] = useState<View>("daily");
   const [date, setDate] = useState(today);
   // Keeps the request key with its response so a stale day or month never renders.
-  const [result, setResult] = useState<{ key: string; data: DailyResponse | MonthlyResponse } | null>(null);
+  const [result, setResult] = useState<{
+    key: string;
+    data: DailyResponse | MonthlyResponse;
+  } | null>(null);
   const [error, setError] = useState<{ key: string; message: string } | null>(null);
   const stripRef = useRef<HTMLDivElement>(null);
 
   useBackDismiss(open, () => onOpenChange(false));
+
+  // Escape closes the drawer. The scroll lock is applied only while it is open and
+  // restored on close or unmount.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onOpenChange(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open, onOpenChange]);
 
   useEffect(() => {
     if (open) {
@@ -140,7 +171,9 @@ export function RevenueDrilldown({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    pms<unknown>(`revenue/history?propertyId=${encodeURIComponent(property)}&date=${date}&view=${view}`)
+    pms<unknown>(
+      `revenue/history?propertyId=${encodeURIComponent(property)}&date=${date}&view=${view}`,
+    )
       .then((data) => {
         if (cancelled) return;
         if (isRevenueResponse(data)) setResult({ key, data });
@@ -159,7 +192,8 @@ export function RevenueDrilldown({
   const loading = !current && !failed;
 
   // Strip runs 30 days back from today. An older picked date extends it so the selection is always visible.
-  const windowStart = date < addDays(today, -(STRIP_DAYS - 1)) ? date : addDays(today, -(STRIP_DAYS - 1));
+  const windowStart =
+    date < addDays(today, -(STRIP_DAYS - 1)) ? date : addDays(today, -(STRIP_DAYS - 1));
   const stripDays: string[] = [];
   for (let d = windowStart; d <= today; d = addDays(d, 1)) stripDays.push(d);
 
@@ -178,129 +212,167 @@ export function RevenueDrilldown({
   // dashboard's pull-to-refresh wrapper.
   const stopTouch = (e: { stopPropagation: () => void }) => e.stopPropagation();
 
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="w-full overflow-y-auto p-5 sm:max-w-2xl"
-        onTouchStart={stopTouch}
-        onTouchMove={stopTouch}
-        onTouchEnd={stopTouch}
-      >
-        <SheetHeader>
-          <SheetTitle>Revenue &amp; Daily Performance</SheetTitle>
-          <SheetDescription>{propertyLabel}</SheetDescription>
-        </SheetHeader>
+  if (!open) return null;
 
-        <div className="mt-4 flex gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1">
-          {(["daily", "monthly"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setView(v)}
-              className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-                view === v ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {v === "daily" ? "Daily Timeline" : "Monthly Summary"}
-            </button>
-          ))}
+  // Plain fixed layer, rendered in place rather than through a portal. The app
+  // shell is itself a z-[60] fixed layer, so a portal to <body> at z-50 paints
+  // behind it: the drawer is invisible while its backdrop still blocks touches.
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60"
+      onTouchStart={stopTouch}
+      onTouchMove={stopTouch}
+      onTouchEnd={stopTouch}
+    >
+      <div className="absolute inset-0" onClick={() => onOpenChange(false)} aria-hidden />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="revenue-drawer-title"
+        className="relative z-10 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:mx-auto sm:max-w-2xl"
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-4">
+          <div className="min-w-0">
+            <h2 id="revenue-drawer-title" className="text-lg font-semibold text-slate-900">
+              Revenue &amp; Daily Performance
+            </h2>
+            <p className="truncate text-sm text-slate-500">{propertyLabel}</p>
+          </div>
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => onOpenChange(false)}
+            className="shrink-0 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+          >
+            ✕
+          </button>
         </div>
 
-        {view === "daily" ? (
-          <>
-            <div className="mt-4 flex items-center gap-2">
-              <button type="button" aria-label="Previous day" className={navBtn} onClick={() => setDate(addDays(date, -1))}>
-                <ChevronLeft className="size-4" aria-hidden />
-              </button>
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4">
+          <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1">
+            {(["daily", "monthly"] as const).map((v) => (
               <button
+                key={v}
                 type="button"
-                aria-label="Next day"
-                className={navBtn}
-                disabled={date >= today}
-                onClick={() => setDate(addDays(date, 1))}
+                onClick={() => setView(v)}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                  view === v
+                    ? "bg-white text-emerald-700 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
               >
-                <ChevronRight className="size-4" aria-hidden />
+                {v === "daily" ? "Daily Timeline" : "Monthly Summary"}
               </button>
-              <input
-                type="date"
-                aria-label="Jump to date"
-                value={date}
-                max={today}
-                onChange={(e) => e.target.value && setDate(e.target.value)}
-                className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700"
-              />
-              <button
-                type="button"
-                onClick={() => setDate(today)}
-                disabled={date === today}
-                className="h-9 shrink-0 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
-              >
-                Today
-              </button>
-            </div>
+            ))}
+          </div>
 
-            <div ref={stripRef} className="mt-3 flex gap-1.5 overflow-x-auto pb-2">
-              {stripDays.map((d) => {
-                const [, , dd] = d.split("-");
-                const selected = d === date;
-                return (
-                  <button
-                    key={d}
-                    data-day={d}
-                    type="button"
-                    onClick={() => setDate(d)}
-                    aria-pressed={selected}
-                    className={`flex w-14 shrink-0 flex-col items-center rounded-lg border px-1 py-2 text-xs ${
-                      selected
-                        ? "border-emerald-600 bg-emerald-600 text-white"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span className="font-semibold">{Number(dd)}</span>
-                    <span className="text-[10px] opacity-80">{fmtDate(d).split(" ")[1]}</span>
-                  </button>
-                );
-              })}
-            </div>
+          {view === "daily" ? (
+            <>
+              <div className="mt-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="Previous day"
+                  className={navBtn}
+                  onClick={() => setDate(addDays(date, -1))}
+                >
+                  <ChevronLeft className="size-4" aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Next day"
+                  className={navBtn}
+                  disabled={date >= today}
+                  onClick={() => setDate(addDays(date, 1))}
+                >
+                  <ChevronRight className="size-4" aria-hidden />
+                </button>
+                <input
+                  type="date"
+                  aria-label="Jump to date"
+                  value={date}
+                  max={today}
+                  onChange={(e) => e.target.value && setDate(e.target.value)}
+                  className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700"
+                />
+                <button
+                  type="button"
+                  onClick={() => setDate(today)}
+                  disabled={date === today}
+                  className="h-9 shrink-0 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
+                >
+                  Today
+                </button>
+              </div>
 
-            {failed && <p className="mt-4 text-sm font-medium text-red-600">{failed}</p>}
-            {loading && <p className="mt-4 text-sm text-slate-400">Loading…</p>}
-            {current && "stays" in current && (
-              <DetailBoundary resetKey={key}>
-                <DailyDetail data={current} isToday={current.date === today} />
-              </DetailBoundary>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="mt-4 flex items-center gap-2">
-              <button type="button" aria-label="Previous month" className={navBtn} onClick={() => setDate(shiftMonth(date, -1))}>
-                <ChevronLeft className="size-4" aria-hidden />
-              </button>
-              <p className="flex-1 text-center text-base font-semibold text-slate-900">{monthLabel(date.slice(0, 7))}</p>
-              <button
-                type="button"
-                aria-label="Next month"
-                className={navBtn}
-                disabled={isCurrentMonth}
-                onClick={() => setDate(shiftMonth(date, 1))}
-              >
-                <ChevronRight className="size-4" aria-hidden />
-              </button>
-            </div>
+              <div ref={stripRef} className="mt-3 flex gap-1.5 overflow-x-auto pb-2">
+                {stripDays.map((d) => {
+                  const [, , dd] = d.split("-");
+                  const selected = d === date;
+                  return (
+                    <button
+                      key={d}
+                      data-day={d}
+                      type="button"
+                      onClick={() => setDate(d)}
+                      aria-pressed={selected}
+                      className={`flex w-14 shrink-0 flex-col items-center rounded-lg border px-1 py-2 text-xs ${
+                        selected
+                          ? "border-emerald-600 bg-emerald-600 text-white"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="font-semibold">{Number(dd)}</span>
+                      <span className="text-[10px] opacity-80">{fmtDate(d).split(" ")[1]}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-            {failed && <p className="mt-4 text-sm font-medium text-red-600">{failed}</p>}
-            {loading && <p className="mt-4 text-sm text-slate-400">Loading…</p>}
-            {current && "days" in current && (
-              <DetailBoundary resetKey={key}>
-                <MonthlyDetail data={current} isCurrentMonth={isCurrentMonth} />
-              </DetailBoundary>
-            )}
-          </>
-        )}
-      </SheetContent>
-    </Sheet>
+              {failed && <p className="mt-4 text-sm font-medium text-red-600">{failed}</p>}
+              {loading && <p className="mt-4 text-sm text-slate-400">Loading…</p>}
+              {current && "stays" in current && (
+                <DetailBoundary resetKey={key}>
+                  <DailyDetail data={current} isToday={current.date === today} />
+                </DetailBoundary>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="mt-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="Previous month"
+                  className={navBtn}
+                  onClick={() => setDate(shiftMonth(date, -1))}
+                >
+                  <ChevronLeft className="size-4" aria-hidden />
+                </button>
+                <p className="flex-1 text-center text-base font-semibold text-slate-900">
+                  {monthLabel(date.slice(0, 7))}
+                </p>
+                <button
+                  type="button"
+                  aria-label="Next month"
+                  className={navBtn}
+                  disabled={isCurrentMonth}
+                  onClick={() => setDate(shiftMonth(date, 1))}
+                >
+                  <ChevronRight className="size-4" aria-hidden />
+                </button>
+              </div>
+
+              {failed && <p className="mt-4 text-sm font-medium text-red-600">{failed}</p>}
+              {loading && <p className="mt-4 text-sm text-slate-400">Loading…</p>}
+              {current && "days" in current && (
+                <DetailBoundary resetKey={key}>
+                  <MonthlyDetail data={current} isCurrentMonth={isCurrentMonth} />
+                </DetailBoundary>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -315,7 +387,9 @@ function DailyDetail({ data, isToday }: { data: DailyResponse; isToday: boolean 
       <div className="mt-2 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
         <div>
           <p className="text-xs text-slate-500">Total earned</p>
-          <p className="text-3xl font-bold text-slate-900">{formatINR(Math.round(r.todayEarned))}</p>
+          <p className="text-3xl font-bold text-slate-900">
+            {formatINR(Math.round(r.todayEarned))}
+          </p>
         </div>
         {r.growthPercent !== null && (
           <span
@@ -331,7 +405,11 @@ function DailyDetail({ data, isToday }: { data: DailyResponse; isToday: boolean 
       <div className="mt-3 grid grid-cols-3 gap-2">
         <Metric label="ADR" value={formatINR(Math.round(r.adr))} />
         <Metric label="RevPAR" value={formatINR(Math.round(r.revpar))} />
-        <Metric label="Occupancy" value={`${r.occupiedRooms} / ${r.totalRooms}`} hint={`${data.occupancyPercent}% of rooms`} />
+        <Metric
+          label="Occupancy"
+          value={`${r.occupiedRooms} / ${r.totalRooms}`}
+          hint={`${data.occupancyPercent}% of rooms`}
+        />
       </div>
 
       <h3 className="mt-6 text-sm font-semibold text-slate-900">Stays this night</h3>
@@ -340,18 +418,26 @@ function DailyDetail({ data, isToday }: { data: DailyResponse; isToday: boolean 
       ) : (
         <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
           {(data.stays ?? []).map((s) => (
-            <li key={s.id} className="flex flex-col gap-1 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <li
+              key={s.id}
+              className="flex flex-col gap-1 p-3 sm:flex-row sm:items-center sm:justify-between"
+            >
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-900">{s.guest_name || "Guest"}</p>
+                <p className="truncate text-sm font-semibold text-slate-900">
+                  {s.guest_name || "Guest"}
+                </p>
                 <p className="text-xs text-slate-500">
-                  {s.roomTypes.length > 0 ? s.roomTypes.join(", ") : "Room type not recorded"} · {s.ref}
+                  {s.roomTypes.length > 0 ? s.roomTypes.join(", ") : "Room type not recorded"} ·{" "}
+                  {s.ref}
                 </p>
               </div>
               <div className="flex gap-4 text-xs text-slate-600 sm:text-right">
                 <span>
                   {s.nights} {s.nights === 1 ? "night" : "nights"}
                 </span>
-                <span className="font-semibold text-slate-900">{formatINR(Math.round(s.nightlyRate))} / night</span>
+                <span className="font-semibold text-slate-900">
+                  {formatINR(Math.round(s.nightlyRate))} / night
+                </span>
               </div>
             </li>
           ))}
@@ -361,7 +447,13 @@ function DailyDetail({ data, isToday }: { data: DailyResponse; isToday: boolean 
   );
 }
 
-function MonthlyDetail({ data, isCurrentMonth }: { data: MonthlyResponse; isCurrentMonth: boolean }) {
+function MonthlyDetail({
+  data,
+  isCurrentMonth,
+}: {
+  data: MonthlyResponse;
+  isCurrentMonth: boolean;
+}) {
   const days = data.days ?? [];
   const max = Math.max(1, ...days.map((d) => d.earned));
   const counted = data.daysCounted ?? 0;
@@ -371,7 +463,9 @@ function MonthlyDetail({ data, isCurrentMonth }: { data: MonthlyResponse; isCurr
     <div className="mt-4">
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <p className="text-xs text-slate-500">Total accrued revenue</p>
-        <p className="text-3xl font-bold text-slate-900">{formatINR(Math.round(data.totalEarned))}</p>
+        <p className="text-3xl font-bold text-slate-900">
+          {formatINR(Math.round(data.totalEarned))}
+        </p>
         <p className="mt-1 text-[11px] text-slate-400">
           {counted === 0
             ? "No nights counted yet for this month."

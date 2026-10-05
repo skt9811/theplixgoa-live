@@ -22,6 +22,7 @@ export type PortalOwnerMapping = {
   pin: string;
   propertySlug: string;
   propertyName: string;
+  role: "owner" | "caretaker";
 };
 
 // Master admin bypass: logging in with this phone + the site's admin PIN
@@ -37,10 +38,16 @@ export function normalizePhone(raw: string): string {
   return digitsOnly.slice(-10);
 }
 
-type OwnerRow = { phone: string; pin: string; property_slug: string; property_name: string };
+type OwnerRow = { phone: string; pin: string; property_slug: string; property_name: string; role: string };
 
 function toMapping(row: OwnerRow): PortalOwnerMapping {
-  return { phone: row.phone, pin: row.pin, propertySlug: row.property_slug, propertyName: row.property_name };
+  return {
+    phone: row.phone,
+    pin: row.pin,
+    propertySlug: row.property_slug,
+    propertyName: row.property_name,
+    role: row.role === "caretaker" ? "caretaker" : "owner",
+  };
 }
 
 export async function findPortalOwnerByPhone(rawPhone: string): Promise<PortalOwnerMapping | undefined> {
@@ -49,7 +56,7 @@ export async function findPortalOwnerByPhone(rawPhone: string): Promise<PortalOw
   const sql = getSql();
   if (!sql) return undefined;
   try {
-    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name FROM public.portal_owners WHERE phone = ${phone} AND is_active = true LIMIT 1`;
+    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name, role FROM public.portal_owners WHERE phone = ${phone} AND is_active = true LIMIT 1`;
     return rows[0] ? toMapping(rows[0]) : undefined;
   } catch (err) {
     console.error("[findPortalOwnerByPhone]:", err instanceof Error ? err.message : err);
@@ -62,7 +69,7 @@ export async function findPortalOwnerBySlug(propertySlug: string): Promise<Porta
   const sql = getSql();
   if (!sql) return undefined;
   try {
-    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name FROM public.portal_owners WHERE property_slug = ${propertySlug} LIMIT 1`;
+    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name, role FROM public.portal_owners WHERE property_slug = ${propertySlug} LIMIT 1`;
     return rows[0] ? toMapping(rows[0]) : undefined;
   } catch (err) {
     console.error("[findPortalOwnerBySlug]:", err instanceof Error ? err.message : err);
@@ -75,7 +82,7 @@ export async function findAllPortalOwners(): Promise<PortalOwnerMapping[]> {
   const sql = getSql();
   if (!sql) return [];
   try {
-    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name FROM public.portal_owners ORDER BY property_name`;
+    const rows = await sql<OwnerRow[]>`SELECT phone, pin, property_slug, property_name, role FROM public.portal_owners ORDER BY property_name`;
     return rows.map(toMapping);
   } catch (err) {
     console.error("[findAllPortalOwners]:", err instanceof Error ? err.message : err);
@@ -136,6 +143,7 @@ export type PartnerAccount = {
   owner_name: string | null;
   phone: string;
   is_active: boolean;
+  role: "owner" | "caretaker";
 };
 
 /** Every partner-app login row, for the PMS Users screen (the same rows /admin's Portal Access tab edits). */
@@ -143,9 +151,9 @@ export async function listPartnerAccounts(): Promise<PartnerAccount[]> {
   const sql = getSql();
   if (!sql) return [];
   const rows = await sql<PartnerAccount[]>`
-    SELECT property_slug, property_name, owner_name, phone, is_active
+    SELECT property_slug, property_name, owner_name, phone, is_active, role
     FROM public.portal_owners ORDER BY property_name`;
-  return rows;
+  return rows.map((r) => ({ ...r, role: r.role === "caretaker" ? "caretaker" : "owner" }));
 }
 
 /** Creates a property's partner login, or replaces the phone, PIN and name of the one already there. Phone numbers are unique across properties, so a collision with another property fails with a clear message instead of silently moving a login. */
@@ -155,15 +163,16 @@ export async function savePartnerAccount(input: {
   ownerName: string;
   phone: string;
   pin: string;
+  role: "owner" | "caretaker";
 }): Promise<{ error: string | null }> {
   const sql = getSql();
   if (!sql) return { error: "Database not configured" };
   try {
     await sql`
-      INSERT INTO public.portal_owners (phone, pin, property_slug, property_name, owner_name, is_active, updated_at)
-      VALUES (${input.phone}, ${input.pin}, ${input.propertySlug}, ${input.propertyName}, ${input.ownerName}, true, now())
+      INSERT INTO public.portal_owners (phone, pin, property_slug, property_name, owner_name, role, is_active, updated_at)
+      VALUES (${input.phone}, ${input.pin}, ${input.propertySlug}, ${input.propertyName}, ${input.ownerName}, ${input.role}, true, now())
       ON CONFLICT (property_slug) DO UPDATE
-        SET phone = EXCLUDED.phone, pin = EXCLUDED.pin, owner_name = EXCLUDED.owner_name, updated_at = now()`;
+        SET phone = EXCLUDED.phone, pin = EXCLUDED.pin, owner_name = EXCLUDED.owner_name, role = EXCLUDED.role, updated_at = now()`;
     return { error: null };
   } catch (err) {
     if ((err as { code?: string }).code === "23505")

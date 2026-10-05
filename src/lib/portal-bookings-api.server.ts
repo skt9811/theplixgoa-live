@@ -112,6 +112,8 @@ type OnlineRow = {
   commission_pct: string | number;
   commission_amount: string | number;
   rooms: number | null;
+  checked_in_at: Date | null;
+  checked_out_at: Date | null;
 };
 
 type ManualRow = {
@@ -148,6 +150,133 @@ function firstRoomCategory(raw: unknown): string | null {
   return null;
 }
 
+/**
+ * What a caretaker may see of a booking: who is coming, where they sleep,
+ * how to reach them, whether they've arrived or left, and whether a balance
+ * is still to be collected at the desk. No total, commission, payout or
+ * advance figure is built here, so none can leak through this response.
+ */
+export type CaretakerPortalBooking = {
+  id: string;
+  source: "online" | "manual";
+  property_id: string;
+  guest_name: string;
+  guest_phone: string | null;
+  check_in: string;
+  check_out: string;
+  nights: number;
+  guests_count: number;
+  rooms_count: number;
+  room_type: string | null;
+  lifecycle: "expected" | "checked_in" | "checked_out";
+  payment: "paid" | "due";
+  /** Only ever shown as "Collect at Desk" when greater than zero. */
+  pending_balance: number;
+};
+
+function caretakerOnlineView(r: OnlineRow): CaretakerPortalBooking {
+  const check_in = toDateString(r.check_in);
+  const check_out = toDateString(r.check_out);
+  const lifecycle = r.checked_out_at ? "checked_out" : r.checked_in_at ? "checked_in" : "expected";
+  return {
+    id: r.id,
+    source: "online",
+    property_id: r.property_id,
+    guest_name: r.guest_name,
+    guest_phone: r.guest_phone,
+    check_in,
+    check_out,
+    nights: r.nights,
+    guests_count: r.guests_count,
+    rooms_count: r.rooms ?? 1,
+    room_type: null,
+    lifecycle,
+    payment: "paid",
+    pending_balance: 0,
+  };
+}
+
+function caretakerManualView(r: ManualRow): CaretakerPortalBooking {
+  const check_in = toDateString(r.check_in);
+  const check_out = toDateString(r.check_out);
+  const lifecycle = r.status === "completed" ? "checked_out" : r.status === "checked_in" ? "checked_in" : "expected";
+  const pending = r.payment_status === "paid" ? 0 : Math.max(0, Number(r.booking_amount) - Number(r.advance_amount ?? 0));
+  return {
+    id: r.id,
+    source: "manual",
+    property_id: r.property_id,
+    guest_name: r.guest_name,
+    guest_phone: r.guest_phone,
+    check_in,
+    check_out,
+    nights: r.nights,
+    guests_count: r.guests_count,
+    rooms_count: r.rooms_count ?? 1,
+    room_type: firstRoomCategory(r.room_allocations),
+    lifecycle,
+    payment: pending > 0 ? "due" : "paid",
+    pending_balance: pending,
+  };
+}
+
+/**
+ * Check-in and check-out for the Partner App. Owners and caretakers may act
+ * only on bookings for the property their session is bound to; the lookup
+ * itself is scoped to that property, so a booking id from another property
+ * reads as not found.
+ */
+export async function handlePortalLifecycle(request: Request, action: "checkin" | "checkout"): Promise<Response> {
+  const session = await getPortalSessionFromRequest(request);
+  if (!session) return jsonResponse({ error: "Not authenticated" }, 401);
+  const propertySlug = resolveEffectivePropertySlug(request, session);
+  const sql = getSql();
+  if (!sql) return jsonResponse({ error: "Database not configured" }, 503);
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return jsonResponse({ error: "Invalid request" }, 400);
+  }
+  const id = typeof body["id"] === "string" ? body["id"] : "";
+  const source = body["source"];
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return jsonResponse({ error: "Invalid booking id" }, 400);
+
+  try {
+    if (source === "online") {
+      const [row] = await sql<{ checked_in_at: Date | null; checked_out_at: Date | null }[]>`
+        SELECT checked_in_at, checked_out_at FROM public.bookings
+        WHERE id = ${id}::uuid AND property_id = ${propertySlug} AND payment_status IN ('paid', 'simulated')`;
+      if (!row) return jsonResponse({ error: "Booking not found" }, 404);
+      if (action === "checkin") {
+        if (row.checked_in_at || row.checked_out_at) return jsonResponse({ error: "This guest is already checked in" }, 409);
+        await sql`UPDATE public.bookings SET checked_in_at = now() WHERE id = ${id}::uuid`;
+      } else {
+        if (!row.checked_in_at || row.checked_out_at) return jsonResponse({ error: "Only a checked-in guest can check out" }, 409);
+        await sql`UPDATE public.bookings SET checked_out_at = now() WHERE id = ${id}::uuid`;
+      }
+      return jsonResponse({ success: true }, 200);
+    }
+    if (source === "manual") {
+      const [row] = await sql<{ status: string }[]>`
+        SELECT status FROM public.portal_bookings WHERE id = ${id}::uuid AND property_id = ${propertySlug}`;
+      if (!row) return jsonResponse({ error: "Booking not found" }, 404);
+      if (action === "checkin") {
+        if (row.status !== "confirmed") return jsonResponse({ error: "Only a confirmed booking can be checked in" }, 409);
+        await sql`UPDATE public.portal_bookings SET status = 'checked_in' WHERE id = ${id}::uuid`;
+      } else {
+        if (row.status !== "checked_in") return jsonResponse({ error: "Only a checked-in guest can check out" }, 409);
+        await sql`UPDATE public.portal_bookings SET status = 'completed' WHERE id = ${id}::uuid`;
+      }
+      return jsonResponse({ success: true }, 200);
+    }
+    return jsonResponse({ error: "Invalid booking source" }, 400);
+  } catch (err) {
+    console.error("[handlePortalLifecycle]:", err instanceof Error ? err.message : err);
+    return jsonResponse({ error: "Internal error" }, 500);
+  }
+}
+
 export async function handleGetPortalBookings(request: Request): Promise<Response> {
   const session = await getPortalSessionFromRequest(request);
   if (!session) return jsonResponse({ error: "Not authenticated" }, 401);
@@ -162,7 +291,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         SELECT id, property_id, guest_name, guest_mobile AS guest_phone,
                check_in, check_out, nights, guests AS guests_count,
                total_amount AS booking_amount, created_at, payment_status,
-               commission_pct, commission_amount, rooms
+               commission_pct, commission_amount, rooms, checked_in_at, checked_out_at
         FROM public.bookings
         WHERE property_id = ${propertySlug}
           AND payment_status IN ('paid', 'simulated')
@@ -179,6 +308,14 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
           AND visible_on_partner_app = true
       `,
     ]);
+
+    if (session.role === "caretaker") {
+      const bookings = [
+        ...onlineRows.map(caretakerOnlineView),
+        ...manualRows.filter((r) => r.status !== "blocked").map(caretakerManualView),
+      ].sort((a, b) => a.check_in.localeCompare(b.check_in));
+      return jsonResponse({ bookings, propertySlug, role: "caretaker" }, 200);
+    }
 
     const online: PortalBooking[] = onlineRows.map((r) => {
       const check_in = toDateString(r.check_in);

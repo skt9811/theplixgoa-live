@@ -46,7 +46,7 @@ function readBearerToken(req: Request): string | undefined {
   return match?.[1];
 }
 
-export async function buildPortalSessionCookie(req: Request, propertySlug: string, role: "owner" | "admin" = "owner"): Promise<string> {
+export async function buildPortalSessionCookie(req: Request, propertySlug: string, role: PortalRole = "owner"): Promise<string> {
   const secure = isSecureRequest(req);
   const name = portalCookieName(secure);
   const secret = process.env["AUTH_SECRET"];
@@ -71,7 +71,7 @@ export async function buildPortalSessionCookie(req: Request, propertySlug: strin
 }
 
 /** The bearer-token counterpart to the cookie above, for native storage. Same claims, same 90-day expiry, fixed salt. */
-export async function buildPortalToken(propertySlug: string, role: "owner" | "admin" = "owner"): Promise<string> {
+export async function buildPortalToken(propertySlug: string, role: PortalRole = "owner"): Promise<string> {
   const secret = process.env["AUTH_SECRET"];
   if (!secret) throw new Error("AUTH_SECRET not configured on the server.");
   return encodeSessionJwt({
@@ -93,7 +93,9 @@ export function clearPortalSessionCookie(req: Request): string {
 // to one property the way an owner is, so which property's data comes back
 // is decided per-request (a `?property=` query param the client controls,
 // defaulting to the first PROPERTIES entry), not by anything in the token.
-export type PortalSession = { propertySlug: string; role: "owner" | "admin" };
+/** owner: full partner access. caretaker: operational only (no rates, analytics or payout figures). admin: the site-wide master login, not bound to one property. */
+export type PortalRole = "owner" | "caretaker" | "admin";
+export type PortalSession = { propertySlug: string; role: PortalRole };
 
 async function decodePortalPayload(token: string, salt: string): Promise<PortalSession | null> {
   const secret = process.env["AUTH_SECRET"];
@@ -101,7 +103,7 @@ async function decodePortalPayload(token: string, salt: string): Promise<PortalS
   try {
     const payload = await decodeSessionJwt({ token, secret, salt });
     if (!payload || typeof payload["sub"] !== "string" || payload["portal"] !== true) return null;
-    const role = payload["role"] === "admin" ? "admin" : "owner";
+    const role: PortalRole = payload["role"] === "admin" ? "admin" : payload["role"] === "caretaker" ? "caretaker" : "owner";
     return { propertySlug: payload["sub"], role };
   } catch {
     return null;
@@ -146,8 +148,17 @@ export async function getPortalSessionFromRequest(req: Request): Promise<PortalS
  * the first configured property if it's missing or not a real slug.
  */
 export function resolveEffectivePropertySlug(req: Request, session: PortalSession): string {
-  if (session.role === "owner") return session.propertySlug;
+  if (session.role !== "admin") return session.propertySlug;
   const requested = new URL(req.url).searchParams.get("property");
   const match = requested && PROPERTIES.some((p) => p.slug === requested);
   return match ? requested! : (PROPERTIES[0]?.slug ?? "");
+}
+
+/** Caretakers may not read or write rates, blocked dates or any other pricing or payout surface. */
+export function denyCaretaker(session: PortalSession): Response | null {
+  if (session.role !== "caretaker") return null;
+  return new Response(JSON.stringify({ error: "Not available for a caretaker account" }), {
+    status: 403,
+    headers: { "Content-Type": "application/json" },
+  });
 }

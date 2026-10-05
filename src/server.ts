@@ -17,7 +17,8 @@ import { handleMobileAvailability, handleMobileAvailabilityRange } from "./lib/m
 import { handleMobileUserBookings } from "./lib/mobile-user-bookings.server";
 import { mobilePreflight, mobileJson } from "./lib/mobile-cors.server";
 import { handlePortalAuth, handlePortalLogout } from "./lib/portal-auth.server";
-import { handleGetPortalBookings } from "./lib/portal-bookings-api.server";
+import { handleGetPortalBookings, handlePortalLifecycle } from "./lib/portal-bookings-api.server";
+import { denyCaretaker, getPortalSessionFromRequest } from "./lib/portal-session.server";
 import { handleGetPortalMe, handleChangePortalPin } from "./lib/portal-settings-api.server";
 import { handleRegisterPushToken } from "./lib/portal-push-api.server";
 import {
@@ -339,6 +340,15 @@ export default {
       if (preflight) return preflight;
 
       try {
+        if (url.pathname === "/api/portal/rates" || url.pathname === "/api/portal/blocked-dates") {
+          const session = await getPortalSessionFromRequest(request);
+          const denied = session ? denyCaretaker(session) : null;
+          if (denied) return withPortalCors(denied);
+        }
+        if (url.pathname === "/api/portal/checkin" && request.method === "POST")
+          return withPortalCors(await handlePortalLifecycle(request, "checkin"));
+        if (url.pathname === "/api/portal/checkout" && request.method === "POST")
+          return withPortalCors(await handlePortalLifecycle(request, "checkout"));
         if (url.pathname === "/api/portal/auth") return withPortalCors(await handlePortalAuth(request));
         if (url.pathname === "/api/portal/logout") return withPortalCors(handlePortalLogout(request));
         if (url.pathname === "/api/portal/bookings") return withPortalCors(await handleGetPortalBookings(request));

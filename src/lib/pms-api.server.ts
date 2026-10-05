@@ -2324,7 +2324,14 @@ async function savePartner(request: Request, actor: Actor): Promise<Response> {
   if (phone.length !== 10) return json({ error: "Enter a 10-digit mobile number" }, 400);
   if (!PARTNER_PIN_RE.test(pin)) return json({ error: "The partner PIN must be 4 digits" }, 400);
   const propertyName = (await partnerPropertyName(pmsDb, actor.organizationId, slug)) ?? slug;
-  const result = await savePartnerAccount({ propertySlug: slug, propertyName, ownerName, phone, pin });
+  // A PIN reset doesn't send a role, so keep whatever the login already has
+  // rather than silently demoting a caretaker to owner (or the reverse).
+  const requestedRole = str(body["role"]);
+  const role: "owner" | "caretaker" =
+    requestedRole === "owner" || requestedRole === "caretaker"
+      ? requestedRole
+      : ((await listPartnerAccounts()).find((a) => a.property_slug === slug)?.role ?? "owner");
+  const result = await savePartnerAccount({ propertySlug: slug, propertyName, ownerName, phone, pin, role });
   if (result.error) return json({ error: result.error }, 409);
   await audit(actor, "UPDATE", "user", `partner:${slug}`, { action: "partner login saved", property: propertyName });
   return json({ success: true });

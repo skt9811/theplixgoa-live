@@ -13,6 +13,7 @@ import { PortalHomeTab } from "@/components/plix/portal-home-tab";
 import { PortalInventoryTab } from "@/components/plix/portal-inventory-tab";
 import { PortalBookingTab } from "@/components/plix/portal-booking-tab";
 import { PortalAnalyticsTab } from "@/components/plix/portal-analytics-tab";
+import { PortalCaretakerView } from "@/components/plix/portal-caretaker-view";
 import { PortalMenuTab } from "@/components/plix/portal-menu-tab";
 import { PortalPullToRefresh } from "@/components/plix/portal-pull-to-refresh";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -64,7 +65,7 @@ type CachedDashboard = {
   bookings: PortalBooking[];
   propertySlug: string;
   propertyName: string;
-  role: "owner" | "admin";
+  role: "owner" | "admin" | "caretaker";
 };
 
 // Cold-start perceived latency: rather than always showing the skeleton
@@ -103,7 +104,7 @@ function PortalDashboardPage() {
   const [bookings, setBookings] = useState<PortalBooking[]>([]);
   const [propertySlug, setPropertySlug] = useState<string | null>(null);
   const [propertyName, setPropertyName] = useState<string>("Your Property");
-  const [role, setRole] = useState<"owner" | "admin" | null>(null);
+  const [role, setRole] = useState<"owner" | "admin" | "caretaker" | null>(null);
   const [tab, setTab] = useState<PortalTab>("home");
   const [recentAlerts, setRecentAlerts] = useState<PortalAlert[]>([]);
   const [bannerAlert, setBannerAlert] = useState<PortalAlert | null>(null);
@@ -185,7 +186,7 @@ function PortalDashboardPage() {
         const data = (await res.json()) as {
           bookings?: PortalBooking[];
           propertySlug?: string;
-          role?: "owner" | "admin";
+          role?: "owner" | "admin" | "caretaker";
         };
         setBookings(data.bookings ?? []);
         if (data.propertySlug) setPropertySlug(data.propertySlug);
@@ -281,6 +282,13 @@ function PortalDashboardPage() {
     const timeout = window.setTimeout(() => setBannerAlert(null), 6000);
     return () => window.clearTimeout(timeout);
   }, [bannerAlert]);
+
+  // A caretaker's screen is only guest arrivals, departures and balances — the
+  // owner dashboard's home, inventory and analytics tabs all read fields a
+  // caretaker's response deliberately doesn't carry.
+  if (loaded && authed && propertySlug && role === "caretaker") {
+    return <PortalCaretakerView propertyName={propertyName} />;
+  }
 
   if (!loaded) {
     return (
@@ -400,13 +408,13 @@ function PortalDashboardPage() {
               />
             </PortalPullToRefresh>
           )}
-          {tab === "inventory" && <PortalInventoryTab propertySlug={propertySlug} bookings={bookings} role={role ?? "owner"} />}
+          {tab === "inventory" && <PortalInventoryTab propertySlug={propertySlug} bookings={bookings} role={role === "admin" ? "admin" : "owner"} />}
           {tab === "booking" && (
             <PortalPullToRefresh onRefresh={() => load(role === "admin" ? propertySlug : undefined)}>
               <PortalBookingTab
                 propertySlug={propertySlug}
                 bookings={bookings}
-                role={role ?? "owner"}
+                role={role === "admin" ? "admin" : "owner"}
                 onCreated={() => load(role === "admin" ? propertySlug : undefined)}
                 focusBookingId={focusBookingId}
                 onFocusHandled={() => setFocusBookingId(null)}
@@ -422,7 +430,7 @@ function PortalDashboardPage() {
             />
           )}
           {tab === "menu" && (
-            <PortalMenuTab propertySlug={propertySlug} propertyName={propertyName} role={role ?? "owner"} bookings={bookings} />
+            <PortalMenuTab propertySlug={propertySlug} propertyName={propertyName} role={role === "admin" ? "admin" : "owner"} bookings={bookings} />
           )}
         </div>
       </div>

@@ -32,7 +32,7 @@ export async function handleGetPortalMe(request: Request): Promise<Response> {
   if (!owner) return jsonResponse({ error: "Property not found" }, 404);
 
   return jsonResponse(
-    { propertySlug: owner.propertySlug, propertyName: owner.propertyName, phone: owner.phone, role: "owner" },
+    { propertySlug: owner.propertySlug, propertyName: owner.propertyName, phone: owner.phone, role: session.role === "caretaker" ? "caretaker" : "owner" },
     200,
   );
 }

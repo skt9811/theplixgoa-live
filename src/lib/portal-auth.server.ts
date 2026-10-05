@@ -57,16 +57,16 @@ export async function handlePortalAuth(request: Request): Promise<Response> {
     return jsonResponse({ error: "Invalid mobile number or PIN" }, 401);
   }
 
-  const cookie = await buildPortalSessionCookie(request, owner.propertySlug);
+  const cookie = await buildPortalSessionCookie(request, owner.propertySlug, owner.role);
   // portal_token is the durable fallback for native storage (@capacitor/
   // preferences, see portal-native-session.ts) — cookies alone don't survive
   // Android killing the WebView/clearing its cache, so the app resends this
   // as an Authorization: Bearer header once the cookie is gone.
-  const portalToken = await buildPortalToken(owner.propertySlug);
+  const portalToken = await buildPortalToken(owner.propertySlug, owner.role);
   return jsonResponse(
     {
       success: true,
-      role: "owner",
+      role: owner.role,
       propertySlug: owner.propertySlug,
       ownerPhone: owner.phone,
       portal_token: portalToken,

@@ -161,6 +161,7 @@ function UserModal({ user, onClose, onSaved }: { user: User | null; onClose: () 
   const [kind, setKind] = useState<"staff" | "partner">("staff");
   const { properties } = usePms();
   const [partnerProperty, setPartnerProperty] = useState("");
+  const [partnerRole, setPartnerRole] = useState<"owner" | "caretaker">("owner");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -174,7 +175,7 @@ function UserModal({ user, onClose, onSaved }: { user: User | null; onClose: () 
       if (kind === "partner") {
         await pms("partners", {
           method: "POST",
-          body: JSON.stringify({ propertySlug: partnerProperty, name, phone, pin }),
+          body: JSON.stringify({ propertySlug: partnerProperty, name, phone, pin, role: partnerRole }),
         });
         toast.success("Partner login created");
         onSaved();
@@ -238,6 +239,25 @@ function UserModal({ user, onClose, onSaved }: { user: User | null; onClose: () 
               PIN (4 digits) *
               <input inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} className={field} required autoComplete="new-password" />
             </label>
+            <fieldset className="sm:col-span-2">
+              <legend className="text-xs font-medium text-slate-500">Partner App role</legend>
+              <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
+                  <input type="radio" name="partner-role" className="mt-1" checked={partnerRole === "owner"} onChange={() => setPartnerRole("owner")} />
+                  <span>
+                    <b className="block text-slate-900">Partner / Owner</b>
+                    Full access: financials, analytics, payouts
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
+                  <input type="radio" name="partner-role" className="mt-1" checked={partnerRole === "caretaker"} onChange={() => setPartnerRole("caretaker")} />
+                  <span>
+                    <b className="block text-slate-900">Caretaker</b>
+                    Guest details, check-in and check-out, and the balance to collect at the desk only
+                  </span>
+                </label>
+              </div>
+            </fieldset>
             <label className={label}>
               Property *
               <select value={partnerProperty} onChange={(e) => setPartnerProperty(e.target.value)} className={field} required>
@@ -347,6 +367,7 @@ type PartnerRow = {
   owner_name: string | null;
   phone: string;
   is_active: boolean;
+  role: "owner" | "caretaker";
 };
 
 function formatMobile(phone: string): string {
@@ -409,9 +430,11 @@ function PartnerSection() {
               <div className="min-w-0">
                 <p className="font-semibold text-slate-900">
                   {row.owner_name || row.property_name}{" "}
-                  <span className="ml-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                    Partner App
-                  </span>
+                  {row.role === "caretaker" ? (
+                    <span className="ml-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">Caretaker</span>
+                  ) : (
+                    <span className="ml-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Partner App</span>
+                  )}
                   {!row.is_active && (
                     <span className="ml-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
                       Inactive
@@ -497,6 +520,7 @@ function PartnerEditModal({
             name: row.owner_name || row.property_name,
             phone: row.phone,
             pin,
+            role: row.role,
           }),
         });
         toast.success("PIN reset");

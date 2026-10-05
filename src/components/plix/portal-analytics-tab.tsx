@@ -323,34 +323,34 @@ export function PortalAnalyticsTab({
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl p-4 shadow-sm" style={{ backgroundColor: "#111827" }}>
-        <p className="text-sm font-semibold" style={{ color: "#C59B62" }}>
+      <div className="mt-4 rounded-2xl border border-slate-200/80 bg-slate-50 p-4 shadow-sm">
+        <p className="text-sm font-semibold text-slate-700">
           Plix Commission &amp; Payout
         </p>
         {timeframe === "month" ? (
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
-              <p className="text-[11px] text-white/50">{selected?.label ?? "Selected Month"}</p>
-              <p className="mt-1 text-lg font-bold text-white">{formatINR(Math.round(commissionSummary.periodCommission))}</p>
-              <p className="mt-0.5 text-[11px]" style={{ color: "#C59B62" }}>
+              <p className="text-[11px] text-slate-500">{selected?.label ?? "Selected Month"}</p>
+              <p className="mt-1 text-lg font-bold text-slate-900">{formatINR(Math.round(commissionSummary.periodCommission))}</p>
+              <p className="mt-0.5 text-[11px] text-slate-500">
                 GBV {formatINR(Math.round(commissionSummary.periodGbv))}
               </p>
-              <p className="mt-1.5 border-t border-white/10 pt-1.5 text-[11px] text-white/50">
+              <p className="mt-1.5 border-t border-slate-200 pt-1.5 text-[11px] text-slate-500">
                 Net Payout{" "}
-                <span className="font-semibold text-emerald-400">
+                <span className="font-semibold text-emerald-700">
                   {formatINR(Math.round(commissionSummary.periodGbv - commissionSummary.periodCommission))}
                 </span>
               </p>
             </div>
-            <div className="border-l border-white/10 pl-3">
-              <p className="text-[11px] text-white/50">All Time</p>
-              <p className="mt-1 text-lg font-bold text-white">{formatINR(Math.round(commissionSummary.allTimeCommission))}</p>
-              <p className="mt-0.5 text-[11px]" style={{ color: "#C59B62" }}>
+            <div className="border-l border-slate-200 pl-3">
+              <p className="text-[11px] text-slate-500">All Time</p>
+              <p className="mt-1 text-lg font-bold text-slate-900">{formatINR(Math.round(commissionSummary.allTimeCommission))}</p>
+              <p className="mt-0.5 text-[11px] text-slate-500">
                 GBV {formatINR(Math.round(commissionSummary.allTimeGbv))}
               </p>
-              <p className="mt-1.5 border-t border-white/10 pt-1.5 text-[11px] text-white/50">
+              <p className="mt-1.5 border-t border-slate-200 pt-1.5 text-[11px] text-slate-500">
                 Net Payout{" "}
-                <span className="font-semibold text-emerald-400">
+                <span className="font-semibold text-emerald-700">
                   {formatINR(Math.round(commissionSummary.allTimeGbv - commissionSummary.allTimeCommission))}
                 </span>
               </p>
@@ -358,9 +358,9 @@ export function PortalAnalyticsTab({
           </div>
         ) : (
           <div className="mt-3">
-            <p className="text-[11px] text-white/50">Lifetime</p>
-            <p className="mt-1 text-2xl font-bold text-white">{formatINR(Math.round(commissionSummary.allTimeCommission))}</p>
-            <p className="mt-0.5 text-[11px]" style={{ color: "#C59B62" }}>
+            <p className="text-[11px] text-slate-500">Lifetime</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{formatINR(Math.round(commissionSummary.allTimeCommission))}</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">
               GBV {formatINR(Math.round(commissionSummary.allTimeGbv))}
             </p>
             <p className="mt-1.5 border-t border-white/10 pt-1.5 text-[11px] text-white/50">

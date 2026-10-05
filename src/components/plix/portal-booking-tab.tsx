@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { differenceInCalendarDays } from "date-fns";
-import { ArrowDown, ChevronDown, Info, Loader as Loader2, MapPin, MessageCircle, Plus, Users, X } from "lucide-react";
+import { ArrowDown, ChevronDown, Info, Loader as Loader2, MapPin, MessageCircle, Phone, Plus, Users, X } from "lucide-react";
+import { formatGuestPhone, guestPhoneDigits } from "@/lib/guest-phone";
 import { formatINR, PROPERTIES, todayISO } from "@/lib/plix";
 import type { PortalBooking } from "@/lib/portal-bookings-client";
 import { portalFetch } from "@/lib/portal-native-session";
@@ -314,6 +315,36 @@ export function PortalBookingTab({
                         >
                           {pill.label}
                         </span>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        {guestPhoneDigits(b.guest_phone) ? (
+                          <>
+                            <p className="text-xs font-medium text-slate-700">{formatGuestPhone(b.guest_phone)}</p>
+                            <div className="flex shrink-0 gap-2">
+                              <a
+                                href={`tel:+${guestPhoneDigits(b.guest_phone)}`}
+                                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:border-emerald-600 hover:text-emerald-700"
+                              >
+                                <Phone className="size-3.5" aria-hidden />
+                                Call
+                              </a>
+                              <a
+                                href={`https://wa.me/${guestPhoneDigits(b.guest_phone)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:border-emerald-600 hover:text-emerald-700"
+                              >
+                                <MessageCircle className="size-3.5" aria-hidden />
+                                WhatsApp
+                              </a>
+                            </div>
+                          </>
+                        ) : (
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-medium text-slate-500">
+                            No phone provided
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-4 grid grid-cols-3 items-center gap-2 rounded-2xl bg-slate-50 p-3 text-center">

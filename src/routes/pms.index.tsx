@@ -143,7 +143,13 @@ function PmsDashboard() {
   }, [scoped, today]);
 
   const units = unitsFor(property, properties);
-  const vacant = Math.max(0, units - stats.inHouse.length);
+  // Occupancy is physical rooms, not booking rows: a 5-room booking takes 5
+  // rooms, and vacancy comes from rooms actually occupied in house.
+  const rooms = (list: PmsBooking[]) => list.reduce((s, b) => s + Math.max(1, b.rooms), 0);
+  const checkInRooms = rooms(stats.arrivals);
+  const checkOutRooms = rooms(stats.departures);
+  const occupiedRooms = rooms(stats.inHouse);
+  const vacant = Math.max(0, units - occupiedRooms);
 
   const trend = useMemo(
     () => (scoped ? trendFor(scoped, property, range.start, range.end, properties) : []),
@@ -278,19 +284,19 @@ function PmsDashboard() {
         <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat
             label="Check-in"
-            value={ready ? `${stats.arrivals.length}/${units}` : "-"}
+            value={ready ? `${checkInRooms}/${units}` : "-"}
             hint="Arriving today"
             view="arrivals"
           />
           <Stat
             label="Stay"
             value={ready ? stats.inHouse.length : "-"}
-            hint="In house now"
+            hint={ready ? `In house now · ${occupiedRooms} rooms` : "In house now"}
             view="inhouse"
           />
           <Stat
             label="Check-out"
-            value={ready ? `${stats.departures.length}/${units}` : "-"}
+            value={ready ? `${checkOutRooms}/${units}` : "-"}
             hint="Departing today"
             view="departures"
           />

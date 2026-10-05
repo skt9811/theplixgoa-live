@@ -168,18 +168,6 @@ function PmsLayout() {
     window.location.assign("/pms/login");
   }, []);
 
-  // A caretaker's dashboard is the front-desk view. The owner/manager dashboard
-  // and the full bookings list are the financial screens, so route them there.
-  const caretakerOnFinancialScreen =
-    user?.role === "caretaker" &&
-    (pathname === "/pms" ||
-      pathname === "/pms/" ||
-      pathname.startsWith("/pms/dashboard") ||
-      pathname.startsWith("/pms/bookings"));
-  useEffect(() => {
-    if (caretakerOnFinancialScreen) void navigate({ to: "/pms/caretaker" });
-  }, [caretakerOnFinancialScreen, navigate]);
-
   const needTab = tabForPath(pathname);
   const posDenied = user !== null && needTab === "pos" && !user.tabs.includes("pos");
   useEffect(() => {

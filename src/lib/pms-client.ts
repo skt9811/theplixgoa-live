@@ -182,7 +182,6 @@ export const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
   manager: "Manager",
   receptionist: "Receptionist",
-  caretaker: "Caretaker",
 };
 
 // Which tab privilege a page needs. Rates & Inventory falls under Bookings,
@@ -360,26 +359,4 @@ export type PmsInvoice = {
   commission_amount: number;
   net_payout: number;
   items?: PmsInvoiceItem[];
-};
-
-/** GET /api/pms/bookings for a caretaker — built field by field server-side,
- * so no rate, total, commission or payout ever reaches their browser. */
-export type CaretakerBooking = {
-  id: string;
-  source: "online" | "manual";
-  property_id: string;
-  guest_name: string;
-  guest_phone: string | null;
-  guest_email: string | null;
-  check_in: string;
-  check_out: string;
-  nights: number;
-  adults: number;
-  children: number;
-  rooms: number;
-  room_types: string[];
-  room_numbers: string[];
-  status: "confirmed" | "checked_in" | "checked_out";
-  balance_due: number;
-  housekeeping: "clean" | "dirty" | null;
 };

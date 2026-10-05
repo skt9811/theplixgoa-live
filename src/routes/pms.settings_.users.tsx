@@ -20,7 +20,6 @@ const ROLE_PRESETS: Record<string, PmsTab[]> = {
   admin: TABS,
   manager: ["dashboard", "bookings", "expenses", "invoices", "vouchers", "pos"],
   receptionist: ["dashboard", "bookings", "vouchers"],
-  caretaker: ["dashboard", "bookings"],
 };
 const field = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40";
 const label = "grid gap-1 text-xs font-medium text-slate-500";
@@ -96,7 +95,7 @@ function AdminView() {
               <div className="min-w-0">
                 <p className="font-semibold text-slate-900">
                   {u.name}{" "}
-                  <span className="ml-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">{u.role === "caretaker" ? "Caretaker" : "PMS Staff"}</span>
+                  <span className="ml-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">{"PMS Staff"}</span>
                   <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{ROLE_LABELS[u.role] ?? u.role}</span>
                   {!u.is_active && <span className="ml-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">Inactive</span>}
                 </p>
@@ -211,7 +210,7 @@ function UserModal({ user, onClose, onSaved }: { user: User | null; onClose: () 
                 <input type="radio" name="user-kind" className="mt-1" checked={kind === "staff"} onChange={() => setKind("staff")} />
                 <span>
                   <b className="block text-slate-900">Internal PMS staff</b>
-                  Manager, front desk, housekeeping or caretaker
+                  Manager, front desk or housekeeping
                 </span>
               </label>
               <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">

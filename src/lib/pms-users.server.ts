@@ -18,7 +18,7 @@ export const TABS = [
   "settings",
 ] as const;
 export type Tab = (typeof TABS)[number];
-export const ROLES = ["admin", "manager", "receptionist", "caretaker"] as const;
+export const ROLES = ["admin", "manager", "receptionist"] as const;
 
 export type Actor = {
   /** null for the owner (password) login */

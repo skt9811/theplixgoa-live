@@ -334,300 +334,6 @@ function parseRoomAllocations(raw: unknown): RoomAllocation[] {
 // no-op filter, since every row backfilled to that same constant. Only the
 // primary `getBookings` list route (handlePmsApi, path === "bookings") passes
 // a real resolved tenantId.
-// ---- Caretaker role ----
-// A caretaker runs the front desk: they see who is arriving, who is in the
-// house, room types and pax, and collect balances. They never see amounts
-// beyond the balance still owed. This is enforced by building each payload
-// field by field from the database rows (no spread of the full booking), and
-// by allowing only the routes in CARETAKER_ROUTES through handlePmsApi.
-
-export type CaretakerBooking = {
-  id: string;
-  source: "online" | "manual";
-  property_id: string;
-  guest_name: string;
-  guest_phone: string | null;
-  guest_email: string | null;
-  check_in: string;
-  check_out: string;
-  nights: number;
-  adults: number;
-  children: number;
-  rooms: number;
-  room_types: string[];
-  /** Room numbers aren't recorded on bookings yet — always empty until they are. */
-  room_numbers: string[];
-  status: "confirmed" | "checked_in" | "checked_out";
-  balance_due: number;
-  housekeeping: "clean" | "dirty" | null;
-};
-
-const CARETAKER_ROUTES = new Set([
-  "GET bookings",
-  "GET properties",
-  "POST caretaker/checkin",
-  "POST caretaker/checkout",
-  "POST caretaker/housekeeping",
-  "POST caretaker/collect",
-]);
-
-let caretakerSchemaReady: Promise<void> | null = null;
-
-// Check-in / check-out timestamps and the housekeeping flag for online
-// bookings, plus the housekeeping flag for manual ones. Additive only.
-function ensureCaretakerSchema(sql: Sql): Promise<void> {
-  if (!caretakerSchemaReady) {
-    caretakerSchemaReady = (async () => {
-      await sql`ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS checked_in_at timestamptz`;
-      await sql`ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS checked_out_at timestamptz`;
-      await sql`ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS housekeeping_status text`;
-      await sql`ALTER TABLE public.portal_bookings ADD COLUMN IF NOT EXISTS housekeeping_status text`;
-    })().catch((err) => {
-      caretakerSchemaReady = null;
-      throw err;
-    });
-  }
-  return caretakerSchemaReady;
-}
-
-async function listCaretakerBookings(sql: Sql, actor: Actor): Promise<CaretakerBooking[]> {
-  await ensureCaretakerSchema(sql);
-  const slugs = new Set(allowedSlugs(actor));
-  const [online, manual] = await Promise.all([
-    sql<
-      {
-        id: string;
-        property_id: string;
-        guest_name: string;
-        guest_phone: string | null;
-        guest_email: string | null;
-        check_in: string;
-        check_out: string;
-        nights: number;
-        guests: number;
-        rooms: number | null;
-        checked_in_at: Date | null;
-        checked_out_at: Date | null;
-        housekeeping_status: string | null;
-      }[]
-    >`
-      SELECT id, property_id, guest_name, guest_mobile AS guest_phone, guest_email,
-             check_in::text AS check_in, check_out::text AS check_out, nights, guests, rooms,
-             checked_in_at, checked_out_at, housekeeping_status
-      FROM public.bookings
-      WHERE payment_status IN ('paid', 'simulated') AND organization_id = ${actor.organizationId}
-    `,
-    sql<
-      {
-        id: string;
-        property_id: string;
-        guest_name: string;
-        guest_phone: string | null;
-        guest_email: string | null;
-        check_in: string;
-        check_out: string;
-        nights: number;
-        adults_count: number | null;
-        children_count: number | null;
-        guests_count: number;
-        rooms_count: number | null;
-        booking_amount: string | number;
-        advance_amount: string | number;
-        status: string;
-        room_allocations: unknown;
-        housekeeping_status: string | null;
-      }[]
-    >`
-      SELECT id, property_id, guest_name, guest_phone, guest_email,
-             check_in::text AS check_in, check_out::text AS check_out, nights,
-             adults_count, children_count, guests_count, rooms_count,
-             booking_amount, advance_amount, status, room_allocations, housekeeping_status
-      FROM public.portal_bookings
-      WHERE status NOT IN ('blocked', 'cancelled') AND organization_id = ${actor.organizationId}
-    `,
-  ]);
-
-  const fromOnline = online.map((r): CaretakerBooking => {
-    const checkedOut = r.checked_out_at !== null;
-    return {
-      id: r.id,
-      source: "online",
-      property_id: r.property_id,
-      guest_name: r.guest_name,
-      guest_phone: r.guest_phone,
-      guest_email: r.guest_email,
-      check_in: r.check_in,
-      check_out: r.check_out,
-      nights: r.nights,
-      adults: r.guests,
-      children: 0,
-      rooms: Math.max(1, r.rooms ?? 1),
-      room_types: [],
-      room_numbers: [],
-      status: checkedOut ? "checked_out" : r.checked_in_at ? "checked_in" : "confirmed",
-      balance_due: 0,
-      housekeeping: r.housekeeping_status === "dirty" || r.housekeeping_status === "clean" ? r.housekeeping_status : null,
-    };
-  });
-
-  const fromManual = manual.map((r): CaretakerBooking => {
-    const roomTypes = [...new Set(parseRoomAllocations(r.room_allocations).map((a) => a.category).filter(Boolean))];
-    // 'completed' is this table's existing checked-out state (the status
-    // CHECK constraint allows no other finished value).
-    const status = r.status === "completed" ? "checked_out" : r.status === "checked_in" ? "checked_in" : "confirmed";
-    return {
-      id: r.id,
-      source: "manual",
-      property_id: r.property_id,
-      guest_name: r.guest_name,
-      guest_phone: r.guest_phone,
-      guest_email: r.guest_email,
-      check_in: r.check_in,
-      check_out: r.check_out,
-      nights: r.nights,
-      adults: r.adults_count ?? r.guests_count,
-      children: r.children_count ?? 0,
-      rooms: Math.max(1, r.rooms_count ?? 1),
-      room_types: roomTypes,
-      room_numbers: [],
-      status,
-      balance_due: Math.max(0, Number(r.booking_amount) - Number(r.advance_amount)),
-      housekeeping: r.housekeeping_status === "dirty" || r.housekeeping_status === "clean" ? r.housekeeping_status : null,
-    };
-  });
-
-  return [...fromOnline, ...fromManual].filter((b) => slugs.has(b.property_id));
-}
-
-async function caretakerBookingAction(
-  request: Request,
-  sql: Sql,
-  actor: Actor,
-  kind: "checkin" | "checkout" | "housekeeping" | "collect",
-): Promise<Response> {
-  let body: Record<string, unknown>;
-  try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
-    return json({ error: "Invalid request" }, 400);
-  }
-  const id = str(body["id"]);
-  const source = str(body["source"]);
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid booking id" }, 400);
-  if (source !== "online" && source !== "manual") return json({ error: "Invalid booking source" }, 400);
-  const housekeeping = str(body["status"]);
-  if (kind === "housekeeping" && housekeeping !== "clean" && housekeeping !== "dirty")
-    return json({ error: "Room status must be clean or dirty" }, 400);
-  await ensureCaretakerSchema(sql);
-
-  if (source === "online") {
-    if (kind === "collect") return json({ error: "Online bookings are already paid in full" }, 400);
-    const [row] = await sql<{ property_id: string; checked_in_at: Date | null; checked_out_at: Date | null }[]>`
-      SELECT property_id, checked_in_at, checked_out_at FROM public.bookings
-      WHERE id = ${id}::uuid AND organization_id = ${actor.organizationId} AND payment_status IN ('paid', 'simulated')`;
-    if (!row) return json({ error: "Booking not found" }, 404);
-    if (!canProperty(actor, row.property_id)) return json({ error: "You do not have access to this property" }, 403);
-    if (kind === "checkin") {
-      if (row.checked_in_at || row.checked_out_at) return json({ error: "This guest is already checked in" }, 409);
-      await sql`UPDATE public.bookings SET checked_in_at = now() WHERE id = ${id}::uuid`;
-    } else if (kind === "checkout") {
-      if (!row.checked_in_at || row.checked_out_at) return json({ error: "Only a checked-in guest can check out" }, 409);
-      await sql`UPDATE public.bookings SET checked_out_at = now(), housekeeping_status = 'dirty' WHERE id = ${id}::uuid`;
-    } else {
-      await sql`UPDATE public.bookings SET housekeeping_status = ${housekeeping} WHERE id = ${id}::uuid`;
-    }
-    await audit(actor, "UPDATE", "booking", id, { action: `caretaker ${kind}`, source });
-    return json({ success: true });
-  }
-
-  const [row] = await sql<
-    {
-      property_id: string;
-      status: string;
-      guest_name: string;
-      guest_phone: string | null;
-      guest_email: string | null;
-      check_in: string;
-      check_out: string;
-      nights: number;
-      adults_count: number | null;
-      children_count: number | null;
-      guests_count: number;
-      rooms_count: number | null;
-      booking_amount: string | number;
-      advance_amount: string | number;
-      payment_status: string;
-    }[]
-  >`
-    SELECT property_id, status, guest_name, guest_phone, guest_email, check_in::text AS check_in, check_out::text AS check_out,
-           nights, adults_count, children_count, guests_count, rooms_count, booking_amount, advance_amount, payment_status
-    FROM public.portal_bookings WHERE id = ${id}::uuid AND organization_id = ${actor.organizationId}`;
-  if (!row) return json({ error: "Booking not found" }, 404);
-  if (!canProperty(actor, row.property_id)) return json({ error: "You do not have access to this property" }, 403);
-  if (row.status === "cancelled" || row.status === "blocked") return json({ error: "This booking is not active" }, 409);
-
-  if (kind === "checkin") {
-    if (row.status !== "confirmed") return json({ error: "Only a confirmed booking can be checked in" }, 409);
-    await sql`UPDATE public.portal_bookings SET status = 'checked_in' WHERE id = ${id}::uuid`;
-  } else if (kind === "checkout") {
-    if (row.status !== "checked_in") return json({ error: "Only a checked-in guest can check out" }, 409);
-    await sql`UPDATE public.portal_bookings SET status = 'completed', housekeeping_status = 'dirty' WHERE id = ${id}::uuid`;
-  } else if (kind === "housekeeping") {
-    await sql`UPDATE public.portal_bookings SET housekeeping_status = ${housekeeping} WHERE id = ${id}::uuid`;
-  } else {
-    const balance = Number(row.booking_amount) - Number(row.advance_amount);
-    if (balance <= 0) return json({ error: "Nothing left to collect" }, 400);
-    const method = str(body["method"]);
-    if (method !== "cash" && method !== "upi") return json({ error: "Choose cash or UPI" }, 400);
-    const pmsDb = getPmsDb();
-    if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
-
-    // The booking lives in the web database and the ledger in the PMS
-    // database, so there is no single transaction across both. The booking
-    // update is guarded on the advance it read (no double-collect), and the
-    // ledger insert is compensated back out if it fails.
-    const [locked] = await sql<{ id: string }[]>`
-      UPDATE public.portal_bookings
-      SET advance_amount = booking_amount, payment_status = 'paid'
-      WHERE id = ${id}::uuid AND organization_id = ${actor.organizationId}
-        AND advance_amount = ${row.advance_amount}
-      RETURNING id`;
-    if (!locked) return json({ error: "This balance was already changed. Reload and try again." }, 409);
-
-    try {
-      await ensureInvoicesSchema(pmsDb);
-      const invoiceDate = istTodayISO();
-      const invoiceNumber = await nextInvoiceNumber(pmsDb, invoiceDate);
-      const orgProps = await listOrganizationProperties(pmsDb, actor.organizationId);
-      const propertyName =
-        orgProps.find((p) => p.id === row.property_id)?.name ??
-        PROPERTIES.find((p) => p.slug === row.property_id)?.name ??
-        row.property_id;
-      await pmsDb`
-        INSERT INTO pms_invoices (
-          invoice_number, invoice_date, booking_id, property_id, property_name, booking_source,
-          guest_name, guest_phone, guest_email, check_in, check_out, total_nights, total_guests, total_rooms,
-          grand_total, advance_paid, balance_due, payment_method, payment_status, is_finalized
-        ) VALUES (
-          ${invoiceNumber}, ${invoiceDate}, ${id}, ${row.property_id}, ${propertyName}, 'Direct',
-          ${row.guest_name}, ${row.guest_phone}, ${row.guest_email}, ${row.check_in}, ${row.check_out},
-          ${row.nights}, ${row.adults_count ?? row.guests_count}, ${Math.max(1, row.rooms_count ?? 1)},
-          ${balance}, ${balance}, 0, ${method === "cash" ? "Cash" : "UPI"}, 'Paid', true
-        )`;
-      await audit(actor, "CREATE", "invoice", invoiceNumber, { action: "balance collected at desk", booking: id, amount: balance, method });
-      return json({ success: true, collected: balance, invoice_number: invoiceNumber });
-    } catch (err) {
-      console.error("[caretaker-collect] ledger write failed, reverting booking:", err instanceof Error ? err.message : err);
-      await sql`
-        UPDATE public.portal_bookings SET advance_amount = ${row.advance_amount}, payment_status = ${row.payment_status}
-        WHERE id = ${id}::uuid`;
-      return json({ error: "Could not record the payment. Nothing was changed. Try again." }, 500);
-    }
-  }
-  await audit(actor, "UPDATE", "booking", id, { action: `caretaker ${kind}`, source });
-  return json({ success: true });
-}
-
 async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promise<PmsBooking[]> {
   const [online, manual] = await Promise.all([
     sql<
@@ -2764,11 +2470,6 @@ async function usersApi(request: Request, url: URL, actor: Actor): Promise<Respo
   const validSlugs = new Set(ownProperties.map((p) => p.id));
   const access = parseAccess(body, validSlugs);
   if ("error" in access) return json({ error: access.error }, 400);
-  if (role === "caretaker") {
-    if (access.props.includes("all"))
-      return json({ error: "A caretaker must be assigned to specific properties" }, 400);
-    access.tabs = ["bookings"];
-  }
   if (role === "admin" && !access.tabs.includes("pos")) access.tabs.push("pos");
   const active = body["isActive"] === false ? false : true;
 
@@ -2911,11 +2612,6 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "owner" |
     case "partners/active":
     case "partners/move":
       return "admin";
-    case "caretaker/checkin":
-    case "caretaker/checkout":
-    case "caretaker/housekeeping":
-    case "caretaker/collect":
-      return ["bookings"];
     case "system":
       return ["settings"];
     case "users":
@@ -3044,9 +2740,6 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     return await handleInquiryWebhook(request);
   if (!actor) return json({ error: "Not authenticated" }, 401);
 
-  if (actor.role === "caretaker" && !CARETAKER_ROUTES.has(`${request.method} ${path}`))
-    return json({ error: "Not available for the caretaker role" }, 403);
-
   const need = requiredTabs(path, request.method);
   if (need === null) return json({ error: "Not found" }, 404);
   if (need === "owner" && !actor.isOwner)
@@ -3144,13 +2837,6 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     if (path === "budgets" && request.method === "GET") return await listBudgets(actor);
     if (path === "budgets" && request.method === "POST") return await saveBudget(request, actor);
     if (!sql) return json({ error: "Database not configured" }, 500);
-    if (path === "bookings" && request.method === "GET" && actor.role === "caretaker")
-      return json({ bookings: await listCaretakerBookings(sql, actor) });
-    if (path.startsWith("caretaker/") && request.method === "POST") {
-      const kind = path.slice("caretaker/".length);
-      if (kind === "checkin" || kind === "checkout" || kind === "housekeeping" || kind === "collect")
-        return await caretakerBookingAction(request, sql, actor, kind);
-    }
     if (path === "bookings" && request.method === "GET") {
       const all = await listBookings(sql, getTenantId(request, actor));
       const slugs = new Set(allowedSlugs(actor));

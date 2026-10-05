@@ -150,6 +150,25 @@ function firstRoomCategory(raw: unknown): string | null {
   return null;
 }
 
+let lifecycleSchemaReady: Promise<void> | null = null;
+
+// Check-in / check-out timestamps and the housekeeping flag, added once and
+// kept additive. The Partner App's own check-in and check-out write these.
+function ensureLifecycleSchema(sql: ReturnType<typeof getSql> & object): Promise<void> {
+  if (!lifecycleSchemaReady) {
+    lifecycleSchemaReady = (async () => {
+      await sql`ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS checked_in_at timestamptz`;
+      await sql`ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS checked_out_at timestamptz`;
+      await sql`ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS housekeeping_status text`;
+      await sql`ALTER TABLE public.portal_bookings ADD COLUMN IF NOT EXISTS housekeeping_status text`;
+    })().catch((err) => {
+      lifecycleSchemaReady = null;
+      throw err;
+    });
+  }
+  return lifecycleSchemaReady;
+}
+
 /**
  * What a caretaker may see of a booking: who is coming, where they sleep,
  * how to reach them, whether they've arrived or left, and whether a balance
@@ -231,6 +250,7 @@ export async function handlePortalLifecycle(request: Request, action: "checkin" 
   const propertySlug = resolveEffectivePropertySlug(request, session);
   const sql = getSql();
   if (!sql) return jsonResponse({ error: "Database not configured" }, 503);
+  await ensureLifecycleSchema(sql);
 
   let body: Record<string, unknown>;
   try {
@@ -284,6 +304,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
 
   const sql = getSql();
   if (!sql) return jsonResponse({ bookings: [], propertySlug, role: session.role }, 200);
+  await ensureLifecycleSchema(sql);
 
   try {
     const [onlineRows, manualRows] = await Promise.all([

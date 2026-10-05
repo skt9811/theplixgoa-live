@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
@@ -11,7 +11,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { PROPERTIES, formatINR } from "@/lib/plix";
-import { channelLabel, fmtDate, istToday, type PmsBooking } from "@/lib/pms-client";
+import { channelLabel, fmtDate, istToday, pms, type PmsBooking } from "@/lib/pms-client";
 import {
   forProperty,
   statusBadge,
@@ -27,6 +27,8 @@ import { DonutRing } from "@/components/pms/donut-ring";
 import { HotelPositionCalendar } from "@/components/pms/hotel-position-calendar";
 import { PmsPullToRefresh } from "@/components/pms/pms-pull-to-refresh";
 import type { BookingsView } from "@/routes/pms.bookings";
+
+type DailyRevenue = { todayEarned: number; yesterdayEarned: number; occupiedRooms: number; totalRooms: number; adr: number; revpar: number; growthPercent: number | null };
 
 export const Route = createFileRoute("/pms/")({
   component: PmsDashboard,
@@ -141,6 +143,26 @@ function PmsDashboard() {
       inHouse: active.filter((b) => b.check_in <= today && b.check_out > today),
     };
   }, [scoped, today]);
+
+  // Money is only ever present in the response for roles allowed to see it;
+  // the server omits the revenue object for everyone else, so the figures are
+  // hidden on that absence rather than on a client-side role check.
+  const [dailyRevenue, setDailyRevenue] = useState<DailyRevenue | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setDailyRevenue(null);
+    pms<{ revenue?: DailyRevenue }>(`dashboard/revenue?property=${encodeURIComponent(property)}`)
+      .then((r) => {
+        if (!cancelled) setDailyRevenue(r.revenue ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setDailyRevenue(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [property]);
+  const canSeeMoney = dailyRevenue !== null;
 
   const units = unitsFor(property, properties);
   // Occupancy is physical rooms, not booking rows: a 5-room booking takes 5
@@ -303,6 +325,38 @@ function PmsDashboard() {
           <Stat label="Vacant" value={ready ? vacant : "-"} hint="Available right now" />
         </div>
 
+        {canSeeMoney && dailyRevenue && (
+          <>
+            <h2 className="mt-7 text-sm font-semibold uppercase tracking-wide text-slate-500">Today&apos;s revenue</h2>
+            <div className="mt-2 rounded-xl border border-slate-200 bg-white p-4">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <p className="text-3xl font-bold text-slate-900">{formatINR(Math.round(dailyRevenue.todayEarned))}</p>
+                {dailyRevenue.growthPercent !== null && (
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      dailyRevenue.growthPercent >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+                    }`}
+                  >
+                    {dailyRevenue.growthPercent >= 0 ? "▲ +" : "▼ "}
+                    {dailyRevenue.growthPercent.toFixed(1)}% vs yesterday
+                  </span>
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                  ADR {formatINR(Math.round(dailyRevenue.adr))}
+                </span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                  RevPAR {formatINR(Math.round(dailyRevenue.revpar))}
+                </span>
+              </div>
+              <p className="mt-3 text-[11px] text-slate-400">
+                Each stay&apos;s total is spread over its nights; a checkout morning earns nothing for that stay.
+              </p>
+            </div>
+          </>
+        )}
+
         <div className="mt-6 flex gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1">
           <button
             type="button"
@@ -358,31 +412,35 @@ function PmsDashboard() {
                   sublabel="Occupied"
                 />
                 <div className="text-center">
-                  <p className="text-lg font-bold text-slate-900">
-                    {ready ? formatINR(totalRevenue) : "..."}
-                  </p>
-                  <p className="text-[11px] text-slate-400">{range.label} revenue</p>
+                  {canSeeMoney && (
+                    <>
+                      <p className="text-lg font-bold text-slate-900">{ready ? formatINR(totalRevenue) : "..."}</p>
+                      <p className="text-[11px] text-slate-400">{range.label} revenue</p>
+                    </>
+                  )}
                 </div>
-                <div className="flex gap-2">
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                    ADR {ready ? formatINR(Math.round(adr)) : "-"}
-                  </span>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                    RevPAR {ready ? formatINR(Math.round(revpar)) : "-"}
-                  </span>
-                </div>
+                {canSeeMoney && (
+                  <div className="flex gap-2">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                      ADR {ready ? formatINR(Math.round(adr)) : "-"}
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                      RevPAR {ready ? formatINR(Math.round(revpar)) : "-"}
+                    </span>
+                  </div>
+                )}
               </div>
               <div>
-                {ready ? (
+                {!canSeeMoney ? null : ready ? (
                   <TrendChart points={trend} />
                 ) : (
                   <p className="py-10 text-center text-sm text-slate-400">Loading...</p>
                 )}
-                <p className="mt-2 text-[11px] text-slate-400">
+                {canSeeMoney && <p className="mt-2 text-[11px] text-slate-400">
                   Revenue is each stay&apos;s total spread evenly over its nights; cancelled stays
                   are excluded. ADR = revenue / occupied nights. RevPAR = revenue / (sellable units
                   &times; days).
-                </p>
+                </p>}
               </div>
             </div>
           </>
@@ -443,7 +501,7 @@ function PmsDashboard() {
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-slate-800">{formatINR(b.total)}</span>
+                      {canSeeMoney && <span className="text-sm font-bold text-slate-800">{formatINR(b.total)}</span>}
                       <span
                         className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${BADGE_STYLE[badge]}`}
                       >

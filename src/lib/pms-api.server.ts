@@ -10,6 +10,8 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { differenceInCalendarDays } from "date-fns";
 import { PROPERTIES } from "@/lib/plix";
+import { dailyRevenue, managerMayViewRevenue, roleMayViewRevenue, withoutRevenue } from "@/lib/pms-revenue.server";
+import { unitsFor } from "@/lib/pms-analytics";
 import { eachNight, isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates";
 import {
   findStayConflict,
@@ -333,6 +335,15 @@ function parseRoomAllocations(raw: unknown): RoomAllocation[] {
 // no-op filter, since every row backfilled to that same constant. Only the
 // primary `getBookings` list route (handlePmsApi, path === "bookings") passes
 // a real resolved tenantId.
+/** Revenue is visible to admins, and to managers when the admin has switched the toggle on. Everyone else gets bookings and dashboard responses with no money fields. */
+async function revenueAccess(actor: Actor): Promise<boolean> {
+  if (actor.role !== "manager") return roleMayViewRevenue(actor.role, false);
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return false;
+  const [row] = await pmsDb<{ features: unknown }[]>`SELECT features FROM organizations WHERE id = ${actor.organizationId}`;
+  return roleMayViewRevenue(actor.role, managerMayViewRevenue(row?.features));
+}
+
 async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promise<PmsBooking[]> {
   const [online, manual] = await Promise.all([
     sql<
@@ -2595,6 +2606,10 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "owner" |
   switch (path) {
     case "settings":
       return "any";
+    case "dashboard/revenue":
+      return ["dashboard"];
+    case "settings/revenue-access":
+      return "admin";
     case "properties":
       // Every signed-in staff member needs this to render the property
       // switcher/POS picker, not just a particular tab's own holders.
@@ -2835,9 +2850,41 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     if (path === "bookings" && request.method === "GET") {
       const all = await listBookings(sql, getTenantId(request, actor));
       const slugs = new Set(allowedSlugs(actor));
-      return json({
-        bookings: isAllProps(actor) ? all : all.filter((b) => slugs.has(b.property_id)),
-      });
+      const visible = isAllProps(actor) ? all : all.filter((b) => slugs.has(b.property_id));
+      const money = await revenueAccess(actor);
+      return json({ bookings: money ? visible : visible.map(withoutRevenue) });
+    }
+    if (path === "dashboard/revenue" && request.method === "GET") {
+      if (!(await revenueAccess(actor))) return json({});
+      const all = await listBookings(sql, getTenantId(request, actor));
+      const pmsDb = getPmsDb();
+      if (!pmsDb) return json({});
+      const property = str(url.searchParams.get("property")) || "all";
+      const orgProps = (await listOrganizationProperties(pmsDb, actor.organizationId)).filter(
+        (p) => isAllProps(actor) || allowedSlugs(actor).includes(p.id),
+      );
+      const scopedProps = property === "all" ? orgProps : orgProps.filter((p) => p.id === property);
+      const bookings = property === "all" ? all : all.filter((b) => b.property_id === property);
+      const scoped = bookings.filter((b) => isAllProps(actor) || allowedSlugs(actor).includes(b.property_id));
+      return json({ revenue: dailyRevenue(scoped, istTodayISO(), unitsFor(property, scopedProps)) });
+    }
+    if (path === "settings/revenue-access" && request.method === "GET") {
+      const pmsDb = getPmsDb();
+      if (!pmsDb) return json({ allowManagerRevenue: false });
+      const [row] = await pmsDb<{ features: unknown }[]>`SELECT features FROM organizations WHERE id = ${actor.organizationId}`;
+      return json({ allowManagerRevenue: managerMayViewRevenue(row?.features) });
+    }
+    if (path === "settings/revenue-access" && request.method === "POST") {
+      const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+      const pmsDb = getPmsDb();
+      if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+      const enabled = body["allowManagerRevenue"] === true;
+      await pmsDb`
+        UPDATE organizations
+        SET features = jsonb_set(coalesce(features, '{}'::jsonb), '{allow_manager_view_revenue}', to_jsonb(${enabled}::boolean))
+        WHERE id = ${actor.organizationId}`;
+      await audit(actor, "UPDATE", "setting", "revenue-access", { allowManagerRevenue: enabled });
+      return json({ success: true, allowManagerRevenue: enabled });
     }
     if (path === "bookings" && request.method === "POST")
       return await createBooking(request, sql, actor);

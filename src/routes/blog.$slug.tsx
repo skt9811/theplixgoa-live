@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { blogQuery, blogSummariesQuery, estimateReadingTime, formatDate, type BlogSummary } from "@/lib/blog";
 import { matchLocationForPost } from "@/lib/locations";
-import { BlogStayCallout, BLOG_STAY_CALLOUT_SLUGS } from "@/components/plix/blog-stay-callout";
+import { BlogArticleBody, BlogStayCallout, BLOG_STAY_CALLOUT_SLUGS } from "@/components/plix/blog-stay-callout";
 import {
   SITE_URL,
   SITE_NAME,
@@ -193,10 +193,7 @@ function BlogPostPage() {
           <ShareButtons url={shareUrl} title={post.title} />
         </div>
 
-        <article
-          className="prose-blog"
-          dangerouslySetInnerHTML={{ __html: post.content }}
-        />
+        <BlogArticleBody html={post.content} slug={post.slug} />
 
         {BLOG_STAY_CALLOUT_SLUGS.has(post.slug) && <BlogStayCallout />}
 

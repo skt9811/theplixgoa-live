@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import {
   BedDouble,
   CalendarRange,
+  ChevronRight,
   ClipboardList,
   DoorOpen,
   FileBarChart,
@@ -22,6 +23,7 @@ import {
 import { usePms } from "@/components/pms/pms-context";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
 import { propertyDisplayName } from "@/components/pms/property-selector";
+import { RevenueDrilldown } from "@/components/pms/revenue-drilldown";
 import { TrendChart } from "@/components/pms/trend-chart";
 import { DonutRing } from "@/components/pms/donut-ring";
 import { HotelPositionCalendar } from "@/components/pms/hotel-position-calendar";
@@ -148,6 +150,7 @@ function PmsDashboard() {
   // the server omits the revenue object for everyone else, so the figures are
   // hidden on that absence rather than on a client-side role check.
   const [dailyRevenue, setDailyRevenue] = useState<DailyRevenue | null>(null);
+  const [revenueOpen, setRevenueOpen] = useState(false);
   useEffect(() => {
     let cancelled = false;
     setDailyRevenue(null);
@@ -219,9 +222,14 @@ function PmsDashboard() {
         {canSeeMoney && dailyRevenue && (
           <>
             <h2 className="mt-5 text-sm font-semibold uppercase tracking-wide text-slate-500">Today&apos;s revenue</h2>
-            <div className="mt-2 rounded-xl border border-slate-200 bg-white p-4">
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <p className="text-3xl font-bold text-slate-900">{formatINR(Math.round(dailyRevenue.todayEarned))}</p>
+            <button
+              type="button"
+              onClick={() => setRevenueOpen(true)}
+              aria-haspopup="dialog"
+              className="group mt-2 block w-full rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-emerald-300 hover:shadow-md active:scale-[0.99]"
+            >
+              <span className="flex flex-wrap items-end justify-between gap-3">
+                <span className="block text-3xl font-bold text-slate-900">{formatINR(Math.round(dailyRevenue.todayEarned))}</span>
                 {dailyRevenue.growthPercent !== null && (
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -232,19 +240,31 @@ function PmsDashboard() {
                     {dailyRevenue.growthPercent.toFixed(1)}% vs yesterday
                   </span>
                 )}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
+              </span>
+              <span className="mt-3 flex flex-wrap gap-2">
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
                   ADR {formatINR(Math.round(dailyRevenue.adr))}
                 </span>
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
                   RevPAR {formatINR(Math.round(dailyRevenue.revpar))}
                 </span>
-              </div>
-              <p className="mt-3 text-[11px] text-slate-400">
+              </span>
+              <span className="mt-3 block text-[11px] text-slate-400">
                 Each stay&apos;s total is spread over its nights; a checkout morning earns nothing for that stay.
-              </p>
-            </div>
+              </span>
+              <span className="mt-3 flex items-center gap-1 border-t border-slate-100 pt-3 text-xs font-semibold text-emerald-700">
+                Tap for daily &amp; monthly breakdown
+                <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+              </span>
+            </button>
+            {canSeeMoney && (
+              <RevenueDrilldown
+                open={revenueOpen}
+                onOpenChange={setRevenueOpen}
+                property={property}
+                propertyLabel={propertyDisplayName(property)}
+              />
+            )}
           </>
         )}
 

@@ -23,22 +23,74 @@ function previousDay(dateStr: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+function nextDay(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+export type StayOnDay = { booking: PmsBooking; nights: number; nightlyRate: number };
+
 /**
- * Revenue accrued on one night. A stay accrues on each night from check-in up to
+ * Stays that occupy one night. A stay occupies each night from check-in up to
  * but not including check-out, so a checkout morning earns nothing for that stay.
  * Each night gets an equal share of the stay's room total.
  */
-export function accruedOn(bookings: PmsBooking[], dateStr: string) {
-  let earned = 0;
-  let occupiedRooms = 0;
+export function staysOn(bookings: PmsBooking[], dateStr: string): StayOnDay[] {
+  const out: StayOnDay[] = [];
   for (const b of bookings) {
     if (b.status === "cancelled") continue;
     if (!(b.check_in <= dateStr && b.check_out > dateStr)) continue;
     const nights = Math.max(1, differenceInCalendarDays(new Date(b.check_out), new Date(b.check_in)));
-    earned += b.total / nights;
-    occupiedRooms += Math.max(1, b.rooms);
+    out.push({ booking: b, nights, nightlyRate: b.total / nights });
   }
-  return { earned, occupiedRooms };
+  return out;
+}
+
+/** Revenue accrued on one night, and the rooms occupied that night. */
+export function accruedOn(bookings: PmsBooking[], dateStr: string) {
+  const stays = staysOn(bookings, dateStr);
+  return {
+    earned: stays.reduce((sum, s) => sum + s.nightlyRate, 0),
+    occupiedRooms: stays.reduce((sum, s) => sum + Math.max(1, s.booking.rooms), 0),
+  };
+}
+
+export type MonthlyRevenue = {
+  month: string;
+  /** Days from the 1st up to and including the last counted date (today, for the current month). */
+  daysCounted: number;
+  totalRooms: number;
+  totalEarned: number;
+  occupiedRoomNights: number;
+  adr: number;
+  revpar: number;
+  /** Average occupancy across the counted days, as a percentage. */
+  avgOccupancy: number;
+  days: { date: string; earned: number; occupiedRooms: number }[];
+};
+
+/** Day-by-day accrual for one calendar month (YYYY-MM), stopping at lastDate. */
+export function monthlyRevenue(bookings: PmsBooking[], month: string, totalRooms: number, lastDate: string): MonthlyRevenue {
+  const days: MonthlyRevenue["days"] = [];
+  for (let d = `${month}-01`; d.startsWith(month) && d <= lastDate; d = nextDay(d)) {
+    const a = accruedOn(bookings, d);
+    days.push({ date: d, earned: round2(a.earned), occupiedRooms: a.occupiedRooms });
+  }
+  const earnedRaw = days.reduce((sum, d) => sum + d.earned, 0);
+  const occupiedRoomNights = days.reduce((sum, d) => sum + d.occupiedRooms, 0);
+  const capacity = totalRooms * days.length;
+  return {
+    month,
+    daysCounted: days.length,
+    totalRooms,
+    totalEarned: round2(earnedRaw),
+    occupiedRoomNights,
+    adr: occupiedRoomNights > 0 ? round2(earnedRaw / occupiedRoomNights) : 0,
+    revpar: capacity > 0 ? round2(earnedRaw / capacity) : 0,
+    avgOccupancy: capacity > 0 ? round2((occupiedRoomNights / capacity) * 100) : 0,
+    days,
+  };
 }
 
 export function dailyRevenue(bookings: PmsBooking[], dateStr: string, totalRooms: number): DailyRevenue {

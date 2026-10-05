@@ -10,7 +10,7 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { differenceInCalendarDays } from "date-fns";
 import { PROPERTIES } from "@/lib/plix";
-import { dailyRevenue, managerMayViewRevenue, roleMayViewRevenue, withoutRevenue } from "@/lib/pms-revenue.server";
+import { dailyRevenue, managerMayViewRevenue, monthlyRevenue, roleMayViewRevenue, staysOn, withoutRevenue } from "@/lib/pms-revenue.server";
 import { unitsFor } from "@/lib/pms-analytics";
 import { eachNight, isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates";
 import {
@@ -342,6 +342,20 @@ async function revenueAccess(actor: Actor): Promise<boolean> {
   if (!pmsDb) return false;
   const [row] = await pmsDb<{ features: unknown }[]>`SELECT features FROM organizations WHERE id = ${actor.organizationId}`;
   return roleMayViewRevenue(actor.role, managerMayViewRevenue(row?.features));
+}
+
+/** Bookings and room count for a revenue query, limited to the properties the caller may see. */
+async function revenueScope(sql: Sql, actor: Actor, tenantId: string, property: string) {
+  const all = await listBookings(sql, tenantId);
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return null;
+  const orgProps = (await listOrganizationProperties(pmsDb, actor.organizationId)).filter(
+    (p) => isAllProps(actor) || allowedSlugs(actor).includes(p.id),
+  );
+  const scopedProps = property === "all" ? orgProps : orgProps.filter((p) => p.id === property);
+  const bookings = property === "all" ? all : all.filter((b) => b.property_id === property);
+  const scoped = bookings.filter((b) => isAllProps(actor) || allowedSlugs(actor).includes(b.property_id));
+  return { bookings: scoped, units: unitsFor(property, scopedProps) };
 }
 
 async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promise<PmsBooking[]> {
@@ -2607,6 +2621,7 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "owner" |
     case "settings":
       return "any";
     case "dashboard/revenue":
+    case "revenue/history":
       return ["dashboard"];
     case "settings/revenue-access":
       return "admin";
@@ -2856,17 +2871,34 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     }
     if (path === "dashboard/revenue" && request.method === "GET") {
       if (!(await revenueAccess(actor))) return json({});
-      const all = await listBookings(sql, getTenantId(request, actor));
-      const pmsDb = getPmsDb();
-      if (!pmsDb) return json({});
       const property = str(url.searchParams.get("property")) || "all";
-      const orgProps = (await listOrganizationProperties(pmsDb, actor.organizationId)).filter(
-        (p) => isAllProps(actor) || allowedSlugs(actor).includes(p.id),
-      );
-      const scopedProps = property === "all" ? orgProps : orgProps.filter((p) => p.id === property);
-      const bookings = property === "all" ? all : all.filter((b) => b.property_id === property);
-      const scoped = bookings.filter((b) => isAllProps(actor) || allowedSlugs(actor).includes(b.property_id));
-      return json({ revenue: dailyRevenue(scoped, istTodayISO(), unitsFor(property, scopedProps)) });
+      const scope = await revenueScope(sql, actor, getTenantId(request, actor), property);
+      if (!scope) return json({});
+      return json({ revenue: dailyRevenue(scope.bookings, istTodayISO(), scope.units) });
+    }
+    if (path === "revenue/history" && request.method === "GET") {
+      if (!(await revenueAccess(actor))) return json({ error: "Forbidden" }, 403);
+      const date = str(url.searchParams.get("date")) || istTodayISO();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: "date must be YYYY-MM-DD" }, 400);
+      const property = str(url.searchParams.get("propertyId")) || "all";
+      const scope = await revenueScope(sql, actor, getTenantId(request, actor), property);
+      if (!scope) return json({ error: "PMS database not configured" }, 503);
+      if (url.searchParams.get("view") === "monthly") {
+        return json({ view: "monthly", property, ...monthlyRevenue(scope.bookings, date.slice(0, 7), scope.units, istTodayISO()) });
+      }
+      const revenue = dailyRevenue(scope.bookings, date, scope.units);
+      const stays = staysOn(scope.bookings, date).map(({ booking: b, nights, nightlyRate }) => ({
+        id: b.id,
+        ref: b.ref,
+        property_id: b.property_id,
+        guest_name: b.guest_name,
+        rooms: b.rooms,
+        roomTypes: b.room_allocations.map((a) => a.category).filter(Boolean),
+        nights,
+        nightlyRate: Math.round(nightlyRate * 100) / 100,
+      }));
+      const occupancyPercent = revenue.totalRooms > 0 ? Math.round((revenue.occupiedRooms / revenue.totalRooms) * 1000) / 10 : 0;
+      return json({ view: "daily", property, date, revenue, occupancyPercent, stays });
     }
     if (path === "settings/revenue-access" && request.method === "GET") {
       const pmsDb = getPmsDb();

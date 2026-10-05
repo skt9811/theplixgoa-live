@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Component, useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatINR } from "@/lib/plix";
 import { addDays, fmtDate, istToday, pms } from "@/lib/pms-client";
+import { useBackDismiss } from "@/lib/pms-back-stack";
 
 // Drill-down for the dashboard's "Today's revenue" card. Admins and permitted
 // managers only: the server answers 403 for everyone else.
@@ -65,6 +66,47 @@ function monthLabel(month: string): string {
 const navBtn =
   "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40";
 
+/** Only accept a body that has the fields the views read. Anything else is an error, not a render crash. */
+function isRevenueResponse(data: unknown): data is DailyResponse | MonthlyResponse {
+  if (!data || typeof data !== "object") return false;
+  const d = data as { view?: unknown; revenue?: unknown; stays?: unknown; days?: unknown; totalEarned?: unknown };
+  if (d.view === "daily") return !!d.revenue && typeof d.revenue === "object" && Array.isArray(d.stays);
+  if (d.view === "monthly") return Array.isArray(d.days) && typeof d.totalEarned === "number";
+  return false;
+}
+
+/**
+ * Keeps a render error inside the drawer. Without it, one bad field unmounts the
+ * whole PMS app and the screen goes blank until a reload.
+ */
+class DetailBoundary extends Component<{ resetKey: string; children: ReactNode }, { failed: boolean; resetKey: string }> {
+  override state = { failed: false, resetKey: this.props.resetKey };
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+
+  static getDerivedStateFromProps(props: { resetKey: string }, state: { resetKey: string }) {
+    return props.resetKey === state.resetKey ? null : { failed: false, resetKey: props.resetKey };
+  }
+
+  override componentDidCatch(error: Error): void {
+    console.error("[RevenueDrilldown] render failed:", error);
+  }
+
+  override render() {
+    if (this.state.failed) {
+      return (
+        <div className="mt-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <p>This view couldn&apos;t be shown. Try another date or switch views.</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function RevenueDrilldown({
   open,
   onOpenChange,
@@ -82,6 +124,9 @@ export function RevenueDrilldown({
   // Keeps the request key with its response so a stale day or month never renders.
   const [result, setResult] = useState<{ key: string; data: DailyResponse | MonthlyResponse } | null>(null);
   const [error, setError] = useState<{ key: string; message: string } | null>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+
+  useBackDismiss(open, () => onOpenChange(false));
 
   useEffect(() => {
     if (open) {
@@ -95,11 +140,11 @@ export function RevenueDrilldown({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    pms<DailyResponse | MonthlyResponse>(
-      `revenue/history?propertyId=${encodeURIComponent(property)}&date=${date}&view=${view}`,
-    )
+    pms<unknown>(`revenue/history?propertyId=${encodeURIComponent(property)}&date=${date}&view=${view}`)
       .then((data) => {
-        if (!cancelled) setResult({ key, data });
+        if (cancelled) return;
+        if (isRevenueResponse(data)) setResult({ key, data });
+        else setError({ key, message: "Unexpected response from the server." });
       })
       .catch((e: Error) => {
         if (!cancelled) setError({ key, message: e.message || "Could not load revenue" });
@@ -118,16 +163,30 @@ export function RevenueDrilldown({
   const stripDays: string[] = [];
   for (let d = windowStart; d <= today; d = addDays(d, 1)) stripDays.push(d);
 
+  // Centre the selected day inside the strip itself. scrollIntoView would also scroll
+  // the page behind the locked modal.
   useEffect(() => {
-    if (view !== "daily") return;
-    document.getElementById(`rev-day-${date}`)?.scrollIntoView({ inline: "center", block: "nearest" });
+    if (view !== "daily" || !stripRef.current) return;
+    const strip = stripRef.current;
+    const el = strip.querySelector<HTMLElement>(`[data-day="${date}"]`);
+    if (el) strip.scrollLeft = el.offsetLeft - strip.clientWidth / 2 + el.clientWidth / 2;
   }, [date, view, open]);
 
   const isCurrentMonth = date.slice(0, 7) === today.slice(0, 7);
 
+  // A touch inside the drawer would otherwise bubble through React into the
+  // dashboard's pull-to-refresh wrapper.
+  const stopTouch = (e: { stopPropagation: () => void }) => e.stopPropagation();
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full overflow-y-auto p-5 sm:max-w-2xl">
+      <SheetContent
+        side="right"
+        className="w-full overflow-y-auto p-5 sm:max-w-2xl"
+        onTouchStart={stopTouch}
+        onTouchMove={stopTouch}
+        onTouchEnd={stopTouch}
+      >
         <SheetHeader>
           <SheetTitle>Revenue &amp; Daily Performance</SheetTitle>
           <SheetDescription>{propertyLabel}</SheetDescription>
@@ -181,14 +240,14 @@ export function RevenueDrilldown({
               </button>
             </div>
 
-            <div className="mt-3 flex gap-1.5 overflow-x-auto pb-2">
+            <div ref={stripRef} className="mt-3 flex gap-1.5 overflow-x-auto pb-2">
               {stripDays.map((d) => {
                 const [, , dd] = d.split("-");
                 const selected = d === date;
                 return (
                   <button
                     key={d}
-                    id={`rev-day-${d}`}
+                    data-day={d}
                     type="button"
                     onClick={() => setDate(d)}
                     aria-pressed={selected}
@@ -208,7 +267,9 @@ export function RevenueDrilldown({
             {failed && <p className="mt-4 text-sm font-medium text-red-600">{failed}</p>}
             {loading && <p className="mt-4 text-sm text-slate-400">Loading…</p>}
             {current && "stays" in current && (
-              <DailyDetail data={current} isToday={current.date === today} />
+              <DetailBoundary resetKey={key}>
+                <DailyDetail data={current} isToday={current.date === today} />
+              </DetailBoundary>
             )}
           </>
         ) : (
@@ -231,7 +292,11 @@ export function RevenueDrilldown({
 
             {failed && <p className="mt-4 text-sm font-medium text-red-600">{failed}</p>}
             {loading && <p className="mt-4 text-sm text-slate-400">Loading…</p>}
-            {current && "days" in current && <MonthlyDetail data={current} isCurrentMonth={isCurrentMonth} />}
+            {current && "days" in current && (
+              <DetailBoundary resetKey={key}>
+                <MonthlyDetail data={current} isCurrentMonth={isCurrentMonth} />
+              </DetailBoundary>
+            )}
           </>
         )}
       </SheetContent>
@@ -270,11 +335,11 @@ function DailyDetail({ data, isToday }: { data: DailyResponse; isToday: boolean 
       </div>
 
       <h3 className="mt-6 text-sm font-semibold text-slate-900">Stays this night</h3>
-      {data.stays.length === 0 ? (
+      {(data.stays ?? []).length === 0 ? (
         <p className="mt-2 text-sm text-slate-400">No stays occupied this night.</p>
       ) : (
         <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
-          {data.stays.map((s) => (
+          {(data.stays ?? []).map((s) => (
             <li key={s.id} className="flex flex-col gap-1 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-slate-900">{s.guest_name || "Guest"}</p>
@@ -297,10 +362,11 @@ function DailyDetail({ data, isToday }: { data: DailyResponse; isToday: boolean 
 }
 
 function MonthlyDetail({ data, isCurrentMonth }: { data: MonthlyResponse; isCurrentMonth: boolean }) {
-  const max = Math.max(1, ...data.days.map((d) => d.earned));
-  const counted = data.daysCounted;
-  const first = data.days[0];
-  const last = data.days[data.days.length - 1];
+  const days = data.days ?? [];
+  const max = Math.max(1, ...days.map((d) => d.earned));
+  const counted = data.daysCounted ?? 0;
+  const first = days[0];
+  const last = days[days.length - 1];
   return (
     <div className="mt-4">
       <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -324,7 +390,7 @@ function MonthlyDetail({ data, isCurrentMonth }: { data: MonthlyResponse; isCurr
         <>
           <h3 className="mt-6 text-sm font-semibold text-slate-900">Daily earnings</h3>
           <div className="mt-2 flex h-40 items-end gap-px rounded-xl border border-slate-200 bg-white p-3">
-            {data.days.map((d) => (
+            {days.map((d) => (
               <div
                 key={d.date}
                 title={`${fmtDate(d.date)} · ${formatINR(Math.round(d.earned))}`}

@@ -120,15 +120,6 @@ export async function setupPmsPushNotifications(
         vibration: true,
       }),
       PushNotifications.createChannel({
-        id: "pms_booking_alerts",
-        name: "New Booking Alerts",
-        description: "Instant high-priority alerts for new property reservations",
-        importance: 5,
-        visibility: 1,
-        sound: "booking_bell",
-        vibration: true,
-      }),
-      PushNotifications.createChannel({
         id: "pos_channel",
         name: "Restaurant POS Alerts",
         importance: 5,

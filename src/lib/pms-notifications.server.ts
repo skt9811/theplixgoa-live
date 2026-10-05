@@ -16,7 +16,7 @@ import {
 } from "@/lib/portal-session.server";
 import { findPortalOwnerBySlug } from "@/lib/portal-pins.server";
 
-export type NotificationChannel = "bookings_channel" | "pos_channel" | "inquiries_channel" | "pms_booking_alerts";
+export type NotificationChannel = "bookings_channel" | "pos_channel" | "inquiries_channel";
 
 type Messaging = ReturnType<Awaited<typeof import("firebase-admin/messaging")>["getMessaging"]>;
 let messagingPromise: Promise<Messaging | null> | null = null;
@@ -190,7 +190,6 @@ async function dispatch(
   body: string,
   channelId: NotificationChannel,
   data: Record<string, string>,
-  sound = "default",
 ): Promise<{ successCount: number; failureCount: number }> {
   const messaging = await getMessagingClient();
   if (!messaging) {
@@ -207,7 +206,7 @@ async function dispatch(
     tokens: devices.map((d) => d.token),
     notification: { title, body },
     data: { channelId, ...data },
-    android: { notification: { channelId, sound }, priority: "high" },
+    android: { notification: { channelId, sound: "default" }, priority: "high" },
   });
   console.log("[pms-notifications] FCM dispatch result:", {
     successCount: response.successCount,
@@ -254,97 +253,43 @@ export async function sendStaffPushNotification({
 }
 
 /**
- * Staff devices for one property's bookings. Only linked, active accounts
- * that are assigned to this property (or to all properties) and can see
- * bookings. A device with no linked account is never sent booking alerts,
- * because its property access can't be checked. Caretakers are returned in
- * their own audience so their alert can leave out the amount.
+ * A new booking's dual audience: every PMS staff device, plus the specific
+ * property's Plix Partner app device(s) — merged and deduplicated by token
+ * (the rare case where the same phone/device somehow ended up registered in
+ * both tables shouldn't double-buzz). Never throws, same rule as above.
  */
-async function bookingStaffTokens(
+export async function sendBookingNotification(
   propertyId: string,
-  organizationId: string,
-  audience: "managers" | "caretakers",
-): Promise<DeviceToken[]> {
-  const sql = getPmsDb();
-  if (!sql) return [];
+  { title, body, data = {} }: { title: string; body: string; data?: Record<string, string> },
+): Promise<void> {
+  console.log("[Push] dispatching booking notification:", { propertyId, title });
   try {
-    const rows =
-      audience === "caretakers"
-        ? await sql<{ id: string; fcm_token: string }[]>`
-            SELECT sd.id, sd.fcm_token
-            FROM pms_staff_devices sd
-            JOIN pms_users u ON u.id::text = sd.user_id
-            WHERE u.is_active AND u.role = 'caretaker' AND u.organization_id = ${organizationId}
-              AND (${propertyId} = ANY(u.assigned_properties) OR 'all' = ANY(u.assigned_properties))`
-        : await sql<{ id: string; fcm_token: string }[]>`
-            SELECT sd.id, sd.fcm_token
-            FROM pms_staff_devices sd
-            JOIN pms_users u ON u.id::text = sd.user_id
-            WHERE u.is_active AND u.role <> 'caretaker' AND u.organization_id = ${organizationId}
-              AND ('bookings' = ANY(u.allowed_tabs) OR u.role = 'admin')
-              AND (${propertyId} = ANY(u.assigned_properties) OR 'all' = ANY(u.assigned_properties))`;
-    return rows.map((r) => ({ id: r.id, token: r.fcm_token, table: "pms_staff_devices" as const }));
-  } catch (err) {
-    console.error("[pms-notifications] bookingStaffTokens:", err instanceof Error ? err.message : err);
-    return [];
-  }
-}
-
-/** Partner devices registered to this exact property only. The wildcard
- * property ids partnerTokensForProperty also matches would reach every
- * organization's bookings, so booking alerts never use them. */
-async function partnerDevicesForBooking(propertyId: string): Promise<DeviceToken[]> {
-  const sql = getPmsDb();
-  if (!sql) return [];
-  try {
-    const rows = await sql<{ id: string; fcm_token: string }[]>`
-      SELECT id, fcm_token FROM pms_partner_devices WHERE property_id = ${propertyId}`;
-    return rows.map((r) => ({ id: r.id, token: r.fcm_token, table: "pms_partner_devices" as const }));
-  } catch (err) {
-    console.error("[pms-notifications] partnerDevicesForBooking:", err instanceof Error ? err.message : err);
-    return [];
-  }
-}
-
-export type NewBookingAlert = {
-  organizationId: string;
-  bookingId: string;
-  guestName: string;
-  propertyName: string;
-  rooms: number;
-  checkIn: string;
-  checkOut: string;
-  amount: number;
-};
-
-/**
- * One new reservation, from either the website (after verified payment) or
- * PMS manual entry. Managers and partner devices get the amount; caretakers
- * get the same alert without it. Never throws: a failed alert must not break
- * the booking it reports.
- */
-export async function sendNewBookingAlert(propertyId: string, b: NewBookingAlert): Promise<void> {
-  const rooms = `${b.rooms} Room${b.rooms === 1 ? "" : "s"}`;
-  const title = `🛎️ New Booking: ${b.guestName}`;
-  const amount = `₹${Math.round(b.amount).toLocaleString("en-IN")}`;
-  const bodyWithAmount = `${b.propertyName} • ${rooms} • ${b.checkIn} to ${b.checkOut} • ${amount}`;
-  const bodyWithoutAmount = `${b.propertyName} • ${rooms} • ${b.checkIn} to ${b.checkOut}`;
-  const data = { type: "booking", bookingId: b.bookingId, url: `/pms/bookings?highlight=${b.bookingId}` };
-  console.log("[Push] dispatching new booking alert:", { propertyId, bookingId: b.bookingId });
-  try {
-    const [managers, caretakers, partners] = await Promise.all([
-      bookingStaffTokens(propertyId, b.organizationId, "managers"),
-      bookingStaffTokens(propertyId, b.organizationId, "caretakers"),
-      partnerDevicesForBooking(propertyId),
+    const [staffTokens, partnerTokens] = await Promise.all([
+      // POS-only staff (allowed_tabs: ['pos'], no 'bookings' tab) must never
+      // get a room-booking alert — this is the fix for the reported bug:
+      // this call used to omit requireTab entirely, so activeStaffTokens()
+      // fell through to its unfiltered branch and sent to every staff
+      // device regardless of role/tabs, same as pms-inquiries.server.ts
+      // already avoids for Airbnb lead alerts via requireTab: "inquiries".
+      activeStaffTokens("bookings"),
+      partnerTokensForProperty(propertyId),
     ]);
     const seen = new Set<string>();
-    const withAmount = [...managers, ...partners].filter((d) => (seen.has(d.token) ? false : (seen.add(d.token), true)));
-    await Promise.all([
-      dispatch(withAmount, title, bodyWithAmount, "pms_booking_alerts", data, "booking_bell"),
-      dispatch(caretakers, title, bodyWithoutAmount, "pms_booking_alerts", data, "booking_bell"),
-    ]);
+    const merged: DeviceToken[] = [];
+    for (const d of [...staffTokens, ...partnerTokens]) {
+      if (seen.has(d.token)) continue;
+      seen.add(d.token);
+      merged.push(d);
+    }
+    await dispatch(merged, title, body, "bookings_channel", data);
+    console.log(
+      `[Push] Sent booking notification to ${staffTokens.length} staff and ${partnerTokens.length} partner devices.`,
+    );
   } catch (err) {
-    console.error("[pms-notifications] sendNewBookingAlert failed:", err instanceof Error ? err.message : err);
+    console.error(
+      "[pms-notifications] sendBookingNotification failed:",
+      err instanceof Error ? err.message : err,
+    );
   }
 }
 
@@ -378,7 +323,7 @@ async function auditStaffTokens(roles: string[]): Promise<DeviceToken[]> {
 
 /**
  * A booking that already existed being modified or cancelled/deleted —
- * distinct from sendNewBookingAlert (a brand-new reservation), and
+ * distinct from sendBookingNotification (a brand-new reservation), and
  * deliberately narrower on the staff side: admin/manager only, not every
  * receptionist with Bookings-tab access (see auditStaffTokens). Still
  * reaches the property's own Partner-app owner device, same as a new

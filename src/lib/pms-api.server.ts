@@ -66,7 +66,7 @@ import { PMS_COMPANY } from "@/lib/pms-company";
 import { audit } from "@/lib/pms-audit.server";
 import {
   sendBookingAuditNotification,
-  sendNewBookingAlert,
+  sendBookingNotification,
   registerStaffDevice,
 } from "@/lib/pms-notifications.server";
 import {
@@ -869,15 +869,14 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
     checkIn,
     nights,
   );
-  await sendNewBookingAlert(propertySlug, {
-    organizationId: actor.organizationId,
-    bookingId: row?.id ?? "",
-    guestName,
-    propertyName: await bookingPropertyName(actor, propertySlug),
-    rooms,
-    checkIn,
-    checkOut,
-    amount: total,
+  await sendBookingNotification(propertySlug, {
+    title: "🏨 New Booking Received!",
+    body: `${guestName} • ${rooms} Room${rooms === 1 ? "" : "s"} • ${checkIn} to ${checkOut}`,
+    data: {
+      type: "booking",
+      bookingId: row?.id ?? "",
+      url: `/pms/bookings?highlight=${row?.id ?? ""}`,
+    },
   });
   await audit(actor, "CREATE", "booking", row?.id ?? "unknown", {
     property: propertySlug,
@@ -907,7 +906,7 @@ const shortDate = (iso: string) =>
  * or the guest's own name); a save that only touched e.g. notes or
  * payment_status stays quiet. Never awaited by the caller (updateBooking):
  * a notification failure must not slow down or fail the edit itself, same
- * rule sendNewBookingAlert already follows for new bookings.
+ * rule sendBookingNotification already follows for new bookings.
  */
 async function notifyBookingModified(
   before: {
@@ -2304,12 +2303,6 @@ async function partnerPropertyName(pmsDb: PmsSql, organizationId: string, slug: 
   return staticProp ? staticProp.name : null;
 }
 
-async function bookingPropertyName(actor: Actor, slug: string): Promise<string> {
-  const pmsDb = getPmsDb();
-  if (!pmsDb) return slug;
-  return (await partnerPropertyName(pmsDb, actor.organizationId, slug)) ?? slug;
-}
-
 async function listPartners(actor: Actor): Promise<Response> {
   const accounts = await listPartnerAccounts();
   return json({ partners: accounts.filter((a) => canProperty(actor, a.property_slug)) });
@@ -2542,15 +2535,10 @@ async function createVoucher(request: Request, actor: Actor): Promise<Response> 
     checkIn,
     nights,
   );
-  await sendNewBookingAlert(propertySlug, {
-    organizationId: actor.organizationId,
-    bookingId: outcome.id,
-    guestName,
-    propertyName: await bookingPropertyName(actor, propertySlug),
-    rooms,
-    checkIn,
-    checkOut,
-    amount: tariff,
+  await sendBookingNotification(propertySlug, {
+    title: "🏨 New Booking Received!",
+    body: `${guestName} • ${rooms} Room${rooms === 1 ? "" : "s"} • ${checkIn} to ${checkOut}`,
+    data: { type: "booking", bookingId: outcome.id, url: `/pms/bookings?highlight=${outcome.id}` },
   });
   await audit(actor, "CREATE", "voucher", outcome.id, {
     property: propertySlug,

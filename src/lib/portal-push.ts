@@ -57,15 +57,6 @@ export async function registerPushNotifications(phone?: string): Promise<void> {
       sound: "default",
       vibration: true,
     }).catch(() => undefined);
-    await PushNotifications.createChannel({
-      id: "pms_booking_alerts",
-      name: "New Booking Alerts",
-      description: "Instant high-priority alerts for new property reservations",
-      importance: 5,
-      visibility: 1,
-      sound: "booking_bell",
-      vibration: true,
-    }).catch(() => undefined);
     const registered = await withTimeout(
       PushNotifications.register().then(() => true),
       2000,

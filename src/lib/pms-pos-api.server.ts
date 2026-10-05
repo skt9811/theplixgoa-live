@@ -428,7 +428,7 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
       channelId: "pos_channel",
       // Front-desk-only staff (no 'pos' in allowed_tabs) shouldn't get a
       // stream of table-opened/cancelled/settled pings — same symmetric
-      // scoping as sendNewBookingAlert's requireTab: "bookings".
+      // scoping as sendBookingNotification's requireTab: "bookings".
       requireTab: "pos",
       data: {
         type: "pos_open",

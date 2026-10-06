@@ -31,6 +31,7 @@ import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
 import { TaxInvoiceModal } from "@/components/pms/tax-invoice-modal";
 import { EditBookingModal } from "@/components/pms/edit-booking-modal";
 import { PmsPullToRefresh } from "@/components/pms/pms-pull-to-refresh";
+import { triggerPhoneCall } from "@/lib/device-actions";
 
 export type BookingsView = "all" | "arrivals" | "departures" | "inhouse";
 const VIEW_LABEL: Record<BookingsView, string> = {
@@ -346,12 +347,16 @@ function PmsBookings() {
                   </span>
                   {b.guest_phone && (
                     <div className="flex gap-2">
-                      <a
-                        href={`tel:${b.guest_phone}`}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!triggerPhoneCall(b.guest_phone)) toast.error("This booking has no valid phone number.");
+                        }}
                         className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                       >
                         <Phone className="size-3" aria-hidden /> Call
-                      </a>
+                      </button>
                       <a
                         href={waLink(b.guest_phone)}
                         target="_blank"

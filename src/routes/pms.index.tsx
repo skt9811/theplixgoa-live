@@ -20,6 +20,7 @@ import {
   unitsFor,
   type StatusBadge,
 } from "@/lib/pms-analytics";
+import { safeFormatINR } from "@/lib/pms-format";
 import { usePms } from "@/components/pms/pms-context";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
 import { propertyDisplayName } from "@/components/pms/property-selector";
@@ -521,7 +522,9 @@ function PmsDashboard() {
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      {canSeeMoney && <span className="text-sm font-bold text-slate-800">{formatINR(b.total)}</span>}
+                      {typeof b.total === "number" && (
+                        <span className="text-sm font-bold text-slate-800">{safeFormatINR(b.total) ?? "—"}</span>
+                      )}
                       <span
                         className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${BADGE_STYLE[badge]}`}
                       >

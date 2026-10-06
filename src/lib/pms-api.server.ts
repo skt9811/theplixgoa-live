@@ -10,7 +10,15 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { differenceInCalendarDays } from "date-fns";
 import { PROPERTIES } from "@/lib/plix";
-import { dailyRevenue, managerMayViewRevenue, monthlyRevenue, roleMayViewRevenue, staysOn, withoutRevenue } from "@/lib/pms-revenue.server";
+import {
+  dailyRevenue,
+  managerMayViewRevenue,
+  monthlyRevenue,
+  roleMayViewBookingAmounts,
+  roleMayViewRevenue,
+  staysOn,
+  withoutRevenue,
+} from "@/lib/pms-revenue.server";
 import { unitsFor } from "@/lib/pms-analytics";
 import { eachNight, isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates";
 import {
@@ -2866,7 +2874,7 @@ export async function handlePmsApi(request: Request): Promise<Response> {
       const all = await listBookings(sql, getTenantId(request, actor));
       const slugs = new Set(allowedSlugs(actor));
       const visible = isAllProps(actor) ? all : all.filter((b) => slugs.has(b.property_id));
-      const money = await revenueAccess(actor);
+      const money = roleMayViewBookingAmounts(actor.role);
       return json({ bookings: money ? visible : visible.map(withoutRevenue) });
     }
     if (path === "dashboard/revenue" && request.method === "GET") {

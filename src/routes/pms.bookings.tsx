@@ -32,6 +32,7 @@ import { TaxInvoiceModal } from "@/components/pms/tax-invoice-modal";
 import { EditBookingModal } from "@/components/pms/edit-booking-modal";
 import { PmsPullToRefresh } from "@/components/pms/pms-pull-to-refresh";
 import { triggerPhoneCall } from "@/lib/device-actions";
+import { safeFormatINR } from "@/lib/pms-format";
 
 export type BookingsView = "all" | "arrivals" | "departures" | "inhouse";
 const VIEW_LABEL: Record<BookingsView, string> = {
@@ -326,20 +327,23 @@ function PmsBookings() {
                   </div>
                 </div>
 
-                <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-2.5 text-center">
-                  <div>
-                    <p className="text-[10px] text-slate-400">Total</p>
-                    <p className="text-sm font-bold text-slate-800">{formatINR(b.total)}</p>
+                {/* Money fields are absent when the server withholds them for this role. */}
+                {typeof b.total === "number" && (
+                  <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-2.5 text-center">
+                    <div>
+                      <p className="text-[10px] text-slate-400">Total</p>
+                      <p className="text-sm font-bold text-slate-800">{safeFormatINR(b.total) ?? "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400">Advance</p>
+                      <p className="text-sm font-bold text-emerald-600">{safeFormatINR(b.advance) ?? "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400">Balance</p>
+                      <p className="text-sm font-bold text-amber-600">{safeFormatINR(b.balance) ?? "—"}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] text-slate-400">Advance</p>
-                    <p className="text-sm font-bold text-emerald-600">{formatINR(b.advance)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-slate-400">Balance</p>
-                    <p className="text-sm font-bold text-amber-600">{formatINR(b.balance)}</p>
-                  </div>
-                </div>
+                )}
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">

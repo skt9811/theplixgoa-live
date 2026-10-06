@@ -118,6 +118,14 @@ export function roleMayViewRevenue(role: string, managerAllowed: boolean): boole
   return role === "admin" || (role === "manager" && managerAllowed);
 }
 
+/**
+ * Booking amounts (total, advance, balance, rates) are shown to admins and
+ * managers. The org-level toggle only governs the revenue dashboard and metrics.
+ */
+export function roleMayViewBookingAmounts(role: string): boolean {
+  return role === "admin" || role === "manager";
+}
+
 /** Removes every money field from a booking. Used for roles without revenue access. */
 export function withoutRevenue(b: PmsBooking) {
   const {

@@ -22,6 +22,10 @@ export type VoucherDetails = {
   caretakerPhone: string;
   conciergePhones: readonly string[];
   contactLine: string;
+  checkInTime: string;
+  checkOutTime: string;
+  /** Rupees, or null when this property has no deposit — never render ₹0/"N/A" for null. */
+  securityDeposit: number | null;
 };
 
 /**
@@ -60,6 +64,9 @@ export function voucherDetails(propertyId: string): VoucherDetails {
     caretakerPhone,
     conciergePhones: PMS_COMPANY.phones,
     contactLine: hasCaretaker ? `${showName ? caretakerName : "Caretaker"}: ${caretakerPhone}` : `Concierge: ${PMS_COMPANY.phones.join(" / ")}`,
+    checkInTime: config.checkInTime?.trim() || DEFAULT_CHECK_IN_TIME,
+    checkOutTime: config.checkOutTime?.trim() || DEFAULT_CHECK_OUT_TIME,
+    securityDeposit: config.securityDeposit && config.securityDeposit > 0 ? config.securityDeposit : null,
   };
 }
 
@@ -127,15 +134,13 @@ export function buildBookingConfirmationEmail(b: ConfirmationEmailInput): Confir
   const details = voucherDetails(b.propertyId);
   const rules = config.rules && config.rules.length > 0 ? config.rules : DEFAULT_PROPERTY_RULES;
   const cancellationPolicy = config.cancellationPolicy?.trim() || DEFAULT_CANCELLATION_POLICY;
-  const checkInTime = config.checkInTime?.trim() || DEFAULT_CHECK_IN_TIME;
-  const checkOutTime = config.checkOutTime?.trim() || DEFAULT_CHECK_OUT_TIME;
+  const { checkInTime, checkOutTime, securityDeposit } = details;
   const contactName = details.hasCaretaker ? details.caretakerLabel : "Property Manager";
   const contactPhone = details.hasCaretaker ? details.caretakerPhone : PMS_COMPANY.phones[0];
   const guestFirstName = escHtml(b.guestFirstName);
   const guestFullName = escHtml(b.guestFullName);
   const guestPhone = escHtml(b.guestPhone);
   const propertyLine = `${details.propertyName}, ${details.location}`;
-  const securityDeposit = config.securityDeposit && config.securityDeposit > 0 ? config.securityDeposit : null;
   const depositLineHtml =
     securityDeposit !== null
       ? `<li><b>Security Deposit:</b> ₹${inr(securityDeposit)} (Refundable at checkout subject to property inspection)</li>`

@@ -3,8 +3,7 @@ import { toast } from "sonner";
 import { Download, Mail, MessageCircle, Share2 } from "lucide-react";
 import { PROPERTIES, formatINR } from "@/lib/plix";
 import { PMS_COMPANY } from "@/lib/pms-company";
-import { getPropertyPmsConfig } from "@/lib/pms-properties-config";
-import { defaultRoomCategory } from "@/lib/pms-voucher-content";
+import { defaultRoomCategory, voucherDetails } from "@/lib/pms-voucher-content";
 import { channelLabel, fmtDate, pms, waLink, type PmsBooking, type RoomAllocation } from "@/lib/pms-client";
 import { isNativeApp, isPluginMissingError, nativeFileErrorMessage, openPdfNative, openVoucherInSystemBrowser, sharePdfNative } from "@/lib/pms-native-file";
 import { PrintSheet } from "@/components/pms/print-sheet";
@@ -88,11 +87,11 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
   }
 
   const property = PROPERTIES.find((p) => p.slug === booking.property_id);
-  const config = getPropertyPmsConfig(booking.property_id, property?.name.split(" - ")[0]);
-  const propertyName = config.name;
-  const address = config.address.trim() || (property ? `${property.location}, ${property.region}` : "Goa");
-  const caretakerPhone = config.caretakerPhone.trim();
-  const hasCaretaker = caretakerPhone.replace(/\D/g, "").length >= 10;
+  const d = voucherDetails(booking.property_id);
+  const propertyName = d.propertyName;
+  const address = d.address;
+  const caretakerPhone = d.caretakerPhone;
+  const hasCaretaker = d.hasCaretaker;
 
   const rows = occupancyRows(booking);
   const sourceType = booking.source === "online" ? "Online" : "Offline / Manual";
@@ -122,8 +121,8 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
     `Hello ${booking.guest_name}, greetings from ${PMS_COMPANY.brand}!`,
     `Your stay at ${propertyName} is ${booking.status === "confirmed" ? "confirmed" : "reserved"}.`,
     "",
-    `Check-in: ${fmtDate(booking.check_in)} (from 2:00 PM)`,
-    `Check-out: ${fmtDate(booking.check_out)} (by 11:00 AM)`,
+    `Check-in: ${fmtDate(booking.check_in)} (from ${d.checkInTime})`,
+    `Check-out: ${fmtDate(booking.check_out)} (by ${d.checkOutTime})`,
     `Guests: ${booking.adults} adult${booking.adults === 1 ? "" : "s"}${booking.children ? `, ${booking.children} child${booking.children === 1 ? "" : "ren"}` : ""}`,
     "",
     `Address: ${address}`,
@@ -279,6 +278,13 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
       <section className="pms-avoid-break mt-5 rounded-xl border border-slate-200 p-4">
         <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Cancellation Policy</h3>
         <p className="mt-1 text-sm text-slate-700">{CANCELLATION_POLICY}</p>
+        {/* Only Casa Marina, Casa Moana and Casa Meadows collect a deposit —
+            every other property must show no mention of one at all. */}
+        {d.securityDeposit !== null && (
+          <p className="mt-2 text-sm font-medium text-slate-800">
+            Security Deposit: {formatINR(d.securityDeposit)} (Refundable at check-out subject to property inspection)
+          </p>
+        )}
         <div className="mt-4 border-t border-dashed border-slate-200 pt-3 text-center text-xs text-slate-500">
           <p>Please provide Govt. Approved Photo Identity Card of All Adult person at the time of check in.</p>
           <p className="mt-0.5">This is computer generated reservation and does not require any signature.</p>
@@ -298,8 +304,8 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
           <p>GST Number: {PMS_COMPANY.gstin}</p>
         </div>
         <div className="grid gap-0.5 sm:text-right">
-          <p>Check In Time: <span className="font-semibold text-slate-800">14:00 Hrs</span></p>
-          <p>Check Out Time: <span className="font-bold text-red-600">11:00 Hrs</span></p>
+          <p>Check In Time: <span className="font-semibold text-slate-800">{d.checkInTime}</span></p>
+          <p>Check Out Time: <span className="font-bold text-red-600">{d.checkOutTime}</span></p>
         </div>
       </div>
 

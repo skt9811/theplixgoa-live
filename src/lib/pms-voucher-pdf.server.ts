@@ -241,7 +241,15 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
   // box with a hairline border — the closest honest approximation of the
   // requested rounded callout available in this renderer.
   const idNotice = "Please carry a Government-approved Photo ID for every adult guest; it will be requested at check-in.";
-  const calloutLines = [`Cancellation Policy: ${CANCELLATION_POLICY}`, idNotice].flatMap((s) => wrap(s, regular, 9, W - 24));
+  // Only Casa Marina, Casa Moana and Casa Meadows collect a deposit — every
+  // other property must show no mention of one at all.
+  const depositNotice =
+    d.securityDeposit !== null
+      ? `Security Deposit: ${money(d.securityDeposit)} (Refundable at check-out subject to property inspection)`
+      : null;
+  const calloutLines = [`Cancellation Policy: ${CANCELLATION_POLICY}`, idNotice, depositNotice]
+    .filter((s): s is string => s !== null)
+    .flatMap((s) => wrap(s, regular, 9, W - 24));
   const calloutH = calloutLines.length * 12 + 16;
   page.drawRectangle({ x: M, y: y - calloutH, width: W, height: calloutH, color: rgb(0.965, 0.968, 0.973), borderColor: LINE, borderWidth: 0.8 });
   let cy = y - 12;
@@ -276,9 +284,9 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
     y -= 12;
   }
   y = footTop - 13;
-  rightText("Check In Time: 14:00 Hrs", 9.5, regular, INK);
+  rightText(`Check In Time: ${d.checkInTime}`, 9.5, regular, INK);
   y -= 13;
-  rightText("Check Out Time: 11:00 Hrs", 10, bold, RED);
+  rightText(`Check Out Time: ${d.checkOutTime}`, 10, bold, RED);
 
   return pdf.save();
 }

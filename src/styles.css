@@ -213,17 +213,37 @@
 }
 
 @utility animate-splash-in {
-  animation: plix-splash-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: plix-splash-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes plix-splash-in {
   from {
     opacity: 0;
-    transform: scale(0.9);
+    transform: scale(0.97);
   }
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* Each tagline word on the brand splash screen (brand-splash-screen.tsx) —
+   staggered via a per-word animation-delay set inline in React, since a
+   Tailwind utility can't vary by index on its own. */
+@utility animate-splash-word {
+  animation: plix-splash-word 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes plix-splash-word {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(1.5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
   }
 }
 

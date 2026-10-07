@@ -301,7 +301,8 @@ export function StayVoucherModal({ booking, onClose }: { booking: PmsBooking; on
           <p>Landline / Support: {PMS_COMPANY.phones.join(" / ")}</p>
           <p>Email: {PMS_COMPANY.email}</p>
           <p>Website: {PMS_COMPANY.website.replace("https://", "")}</p>
-          <p>GST Number: {PMS_COMPANY.gstin}</p>
+          {/* No GST Number here deliberately — the guest-facing voucher must not carry the
+              company's tax registration; it belongs only on a formal Tax Invoice. */}
         </div>
         <div className="grid gap-0.5 sm:text-right">
           <p>Check In Time: <span className="font-semibold text-slate-800">{d.checkInTime}</span></p>

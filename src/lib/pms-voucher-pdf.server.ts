@@ -270,6 +270,9 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
   const footTop = y;
   text("Thanks & Regards,", M, 9.5, bold);
   y -= 13;
+  // No GST Number line here deliberately — the guest-facing voucher must not
+  // carry the company's tax registration; it belongs only on a formal Tax
+  // Invoice, generated separately (tax-invoice-modal.tsx).
   const left = [
     "Reservation Manager",
     `Add: ${d.address}`,
@@ -277,7 +280,6 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
     `Landline / Support: ${PMS_COMPANY.phones.join(" / ")}`,
     `Email: ${PMS_COMPANY.email}`,
     `Website: ${PMS_COMPANY.website.replace("https://", "")}`,
-    `GST Number: ${PMS_COMPANY.gstin}`,
   ].filter((s): s is string => Boolean(s));
   for (const l of left) {
     text(l, M, 9, regular, GREY);

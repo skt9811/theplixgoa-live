@@ -362,10 +362,9 @@ function drawFooter(page: PDFPage, fonts: Fonts): void {
     "Mobile: +91-9009800809 / +91-9718913248   |   Email: reservations@theplixgoa.com",
     { x: MARGIN, y: y - 36, size: 7.5, font: fonts.regular, color: GRAY_TEXT },
   );
-  page.drawText(
-    "GSTIN: 30AAOCP7135Q1ZV",
-    { x: MARGIN, y: y - 47, size: 7.5, font: fonts.regular, color: GRAY_TEXT },
-  );
+  // No GSTIN here deliberately — the guest-facing voucher/email must not carry
+  // the company's tax registration; it belongs only on a formal Tax Invoice
+  // (tax-invoice-modal.tsx / pms.invoices_.new.tsx), generated separately.
 
   const poweredBy = "Powered By The Plix Goa";
   page.drawText(poweredBy, {

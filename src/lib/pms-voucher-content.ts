@@ -6,7 +6,7 @@ import { DEFAULT_CHECK_IN_TIME, DEFAULT_CHECK_OUT_TIME, getPropertyPmsConfig } f
 export const HOUSE_RULES = [
   "Swimming pool timings: 8:00 AM to 10:00 PM. Swimwear is mandatory in the pool.",
   "No loud music after 10:00 PM.",
-  "A valid government-issued photo ID (Aadhaar, Passport, Driving Licence or PAN) is required from every guest at check-in.",
+  "A valid government photo ID (Aadhaar, Passport, Driving Licence, Voter ID) is required from every guest at check-in.",
   "A refundable security deposit is collected at check-in (cash or UPI) and returned in full within 48 hours of check-out, subject to no damage to the property.",
 ];
 
@@ -41,7 +41,7 @@ export type VoucherDetails = {
 export const DEFAULT_PROPERTY_RULES: { title: string; description: string }[] = [
   { title: "Swimming Pool Timing", description: "8:00 AM to 10:00 PM. Swimwear is mandatory in the pool." },
   { title: "Noise", description: "No loud music after 10:00 PM." },
-  { title: "ID at Check-in", description: "A valid government photo ID (Aadhaar, Passport, Driving Licence or PAN) is required from every guest." },
+  { title: "ID at Check-in", description: "A valid government photo ID (Aadhaar, Passport, Driving Licence, Voter ID) is required from every guest." },
 ];
 
 export const DEFAULT_CANCELLATION_POLICY =

@@ -240,7 +240,7 @@ export async function buildStayVoucherPdf(b: VoucherBooking): Promise<Uint8Array
   // pdf-lib has no rounded-rectangle primitive, so this is a plain filled
   // box with a hairline border — the closest honest approximation of the
   // requested rounded callout available in this renderer.
-  const idNotice = "Please carry a Government-approved Photo ID for every adult guest; it will be requested at check-in.";
+  const idNotice = "A valid government photo ID (Aadhaar, Passport, Driving Licence, Voter ID) is required from every guest at check-in.";
   // Only Casa Marina, Casa Moana and Casa Meadows collect a deposit — every
   // other property must show no mention of one at all.
   const depositNotice =

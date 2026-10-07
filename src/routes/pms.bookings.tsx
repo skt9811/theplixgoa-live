@@ -73,7 +73,7 @@ const STATUS_STYLE: Record<PmsBooking["status"], string> = {
 
 function PmsBookings() {
   const { bookings, error, reload } = usePmsBookings();
-  const { property } = usePms();
+  const { property, setProperty } = usePms();
   const { view = "all", highlight } = Route.useSearch();
   const today = istToday();
 
@@ -91,16 +91,24 @@ function PmsBookings() {
   const highlightRef = useRef<HTMLElement | null>(null);
   const [openedHighlight, setOpenedHighlight] = useState(false);
 
-  // A push notification's deep link lands here with ?highlight=<bookingId> —
-  // scroll to that card and pop its voucher open once, the first time it appears.
+  // A push notification's deep link (or a just-created reservation) lands here
+  // with ?highlight=<bookingId> — scroll to that card and pop its voucher open
+  // once, the first time it appears. The booking can belong to a property other
+  // than the one currently selected (e.g. a Walk-in created while "All
+  // Properties" wasn't selected, or an alert for a different property); switch
+  // the selector so the card is actually in the filtered list, then wait a
+  // couple of frames for that re-render before scrolling to it.
   useEffect(() => {
     if (!highlight || !bookings || openedHighlight) return;
     const b = bookings.find((x) => x.id === highlight);
     if (!b) return;
     setOpenedHighlight(true);
     setVoucherFor(b);
-    highlightRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [highlight, bookings, openedHighlight]);
+    if (property !== "all" && b.property_id !== property) setProperty(b.property_id);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => highlightRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })),
+    );
+  }, [highlight, bookings, openedHighlight, property, setProperty]);
 
   async function togglePartnerVisibility(b: PmsBooking) {
     setTogglingVisibility(b.id);

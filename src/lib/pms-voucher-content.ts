@@ -24,6 +24,22 @@ export type VoucherDetails = {
   contactLine: string;
 };
 
+/**
+ * Default property rules for the confirmation email's "Property Rules"
+ * section — the same ones already shown on every Stay Voucher. No property
+ * has its own distinct list on file yet; add one to PMS_PROPERTIES_CONFIG's
+ * `rules` field when the business supplies it, and it overrides this.
+ */
+export const DEFAULT_PROPERTY_RULES: { title: string; description: string }[] = [
+  { title: "Swimming Pool Timing", description: "8:00 AM to 10:00 PM. Swimwear is mandatory in the pool." },
+  { title: "Noise", description: "No loud music after 10:00 PM." },
+  { title: "ID at Check-in", description: "A valid government photo ID (Aadhaar, Passport, Driving Licence or PAN) is required from every guest." },
+  { title: "Security Deposit", description: "A refundable deposit is collected at check-in (cash or UPI) and returned within 48 hours of check-out, subject to no damage." },
+];
+
+export const DEFAULT_CANCELLATION_POLICY =
+  "This is a non-cancellable booking. In case of cancellation, no refund will be initiated. Modification of booking dates is not permitted and, in certain exceptional circumstances, may be considered subject to availability.";
+
 export function voucherDetails(propertyId: string): VoucherDetails {
   const property = PROPERTIES.find((p) => p.slug === propertyId);
   const config = getPropertyPmsConfig(propertyId, property?.name.split(" - ")[0]);
@@ -60,4 +76,145 @@ export function defaultRoomCategory(propertyId: string, roomsCount: number): str
   if (named) return roomsCount > 1 ? `${roomsCount} x ${named}` : named;
   const property = PROPERTIES.find((p) => p.slug === propertyId);
   return property?.bedrooms ? `${property.bedrooms}BHK Private Villa with Pool` : "Villa";
+}
+
+function escHtml(v: string): string {
+  return v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+}
+
+function fmtEmailDate(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function inr(n: number): string {
+  return Math.round(n).toLocaleString("en-IN");
+}
+
+export type ConfirmationEmailInput = {
+  propertyId: string;
+  referenceNumber: string;
+  guestFirstName: string;
+  guestFullName: string;
+  guestPhone: string;
+  checkIn: string;
+  checkOut: string;
+  bookingType: string;
+  roomCount: number;
+  guestCount: number;
+  totalAmount: number;
+  advancePaid: number;
+  balanceAmount: number;
+};
+
+export type ConfirmationEmail = { subject: string; html: string; text: string };
+
+/**
+ * The guest-facing booking confirmation — one builder shared by the
+ * website's auto-send (confirmBookingAndSendEmails) and the PMS staff's
+ * "Email voucher" action, so every booking gets the same structure. Property
+ * rules and the cancellation policy fall back to the defaults above; a
+ * property's own values (once the business supplies them) go in
+ * PMS_PROPERTIES_CONFIG. The "Contact Person" is the property's caretaker
+ * when one is on file, otherwise the central concierge number — there's no
+ * separate per-property "manager" on file for any property yet.
+ */
+export function buildBookingConfirmationEmail(b: ConfirmationEmailInput): ConfirmationEmail {
+  const property = PROPERTIES.find((p) => p.slug === b.propertyId);
+  const config = getPropertyPmsConfig(b.propertyId, property?.name.split(" - ")[0]);
+  const details = voucherDetails(b.propertyId);
+  const rules = config.rules && config.rules.length > 0 ? config.rules : DEFAULT_PROPERTY_RULES;
+  const cancellationPolicy = config.cancellationPolicy?.trim() || DEFAULT_CANCELLATION_POLICY;
+  const checkInTime = config.checkInTime?.trim() || "2:00 PM";
+  const checkOutTime = config.checkOutTime?.trim() || "11:00 AM";
+  const contactName = details.hasCaretaker ? details.caretakerLabel : "Property Manager";
+  const contactPhone = details.hasCaretaker ? details.caretakerPhone : PMS_COMPANY.phones[0];
+  const guestFirstName = escHtml(b.guestFirstName);
+  const guestFullName = escHtml(b.guestFullName);
+  const guestPhone = escHtml(b.guestPhone);
+  const propertyLine = `${details.propertyName}, ${details.location}`;
+
+  const subject = `Booking Confirmation - ${details.propertyName} (${b.referenceNumber})`;
+
+  const rulesHtml = rules.map((r) => `<li><b>${escHtml(r.title)}:</b> ${escHtml(r.description)}</li>`).join("");
+  const rulesText = rules.map((r) => `- ${r.title}: ${r.description}`).join("\n");
+
+  const html = `<!DOCTYPE html><html><body style="font-family:Manrope,Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1a2238">
+<h1 style="color:#0f766e;font-size:22px;margin-bottom:4px">Booking Confirmation</h1>
+<p>Hi ${guestFirstName},</p>
+<p>Your booking is confirmed at <strong>${propertyLine}</strong>. Please find the booking details below:</p>
+<h2 style="font-size:16px;color:#1a2238;margin-top:24px">Booking Details</h2>
+<ul style="padding-left:18px;line-height:1.7;margin:8px 0">
+<li><b>Guest Name:</b> ${guestFullName}</li>
+<li><b>Contact No.:</b> ${guestPhone}</li>
+<li><b>Check-in Date:</b> ${fmtEmailDate(b.checkIn)}</li>
+<li><b>Check-out Date:</b> ${fmtEmailDate(b.checkOut)}</li>
+<li><b>Booking Type:</b> ${escHtml(b.bookingType)}</li>
+<li><b>Property:</b> ${propertyLine}</li>
+<li><b>No. of Rooms:</b> ${b.roomCount}</li>
+<li><b>Guests:</b> ${b.guestCount}</li>
+</ul>
+<h2 style="font-size:16px;color:#1a2238;margin-top:24px">Payment Details</h2>
+<ul style="padding-left:18px;line-height:1.7;margin:8px 0">
+<li><b>Total Amount:</b> ₹${inr(b.totalAmount)}</li>
+<li><b>Advance Paid:</b> ₹${inr(b.advancePaid)}</li>
+<li><b>Balance Amount:</b> ₹${inr(b.balanceAmount)}</li>
+<li><b>Balance Payment:</b> To be paid at the time of check-in</li>
+</ul>
+<h2 style="font-size:16px;color:#1a2238;margin-top:24px">Check-in &amp; Check-out</h2>
+<ul style="padding-left:18px;line-height:1.7;margin:8px 0">
+<li><b>Check-in Time:</b> ${checkInTime}</li>
+<li><b>Check-out Time:</b> ${checkOutTime}</li>
+</ul>
+<h2 style="font-size:16px;color:#1a2238;margin-top:24px">Property Rules</h2>
+<ul style="padding-left:18px;line-height:1.7;margin:8px 0">${rulesHtml}</ul>
+<h2 style="font-size:16px;color:#1a2238;margin-top:24px">Cancellation &amp; Modification Policy</h2>
+<p>${escHtml(cancellationPolicy)}</p>
+<p style="margin-top:20px;font-weight:600">${propertyLine}</p>
+<h2 style="font-size:16px;color:#1a2238;margin-top:24px">Contact Person</h2>
+<p>${escHtml(contactName)}<br/>📞 ${escHtml(contactPhone)}</p>
+<p style="margin-top:24px;color:#0f766e;font-weight:600">Thanks &amp; Regards,<br/>The Plix Hospitality</p>
+</body></html>`;
+
+  const text = `Booking Confirmation
+
+Hi ${b.guestFirstName},
+
+Your booking is confirmed at ${propertyLine}. Please find the booking details below:
+
+Booking Details
+- Guest Name: ${b.guestFullName}
+- Contact No.: ${b.guestPhone}
+- Check-in Date: ${fmtEmailDate(b.checkIn)}
+- Check-out Date: ${fmtEmailDate(b.checkOut)}
+- Booking Type: ${b.bookingType}
+- Property: ${propertyLine}
+- No. of Rooms: ${b.roomCount}
+- Guests: ${b.guestCount}
+
+Payment Details
+- Total Amount: ₹${inr(b.totalAmount)}
+- Advance Paid: ₹${inr(b.advancePaid)}
+- Balance Amount: ₹${inr(b.balanceAmount)}
+- Balance Payment: To be paid at the time of check-in
+
+Check-in & Check-out
+- Check-in Time: ${checkInTime}
+- Check-out Time: ${checkOutTime}
+
+Property Rules
+${rulesText}
+
+Cancellation & Modification Policy
+${cancellationPolicy}
+
+${propertyLine}
+
+Contact Person
+${contactName}
+${contactPhone}
+
+Thanks & Regards,
+The Plix Hospitality`;
+
+  return { subject, html, text };
 }

@@ -11,6 +11,14 @@ export type PropertyPmsConfig = {
   address: string;
   /** A Google Maps place URL. Empty uses the link already on the property. */
   mapsUrl: string;
+  /** Overrides the confirmation email's Property Rules section. Empty uses DEFAULT_PROPERTY_RULES (pms-voucher-content.ts) — no property has its own list on file yet. */
+  rules?: { title: string; description: string }[];
+  /** Overrides the confirmation email's cancellation policy. Empty uses DEFAULT_CANCELLATION_POLICY. */
+  cancellationPolicy?: string;
+  /** Overrides the confirmation email's stated check-in time. Empty uses "2:00 PM" (same as the Stay Voucher). */
+  checkInTime?: string;
+  /** Overrides the confirmation email's stated check-out time. Empty uses "11:00 AM" (same as the Stay Voucher). */
+  checkOutTime?: string;
 };
 
 const TBD = "Caretaker (TBD)";

@@ -70,8 +70,9 @@ import {
 import { PMS_PROPERTIES_CONFIG } from "@/lib/pms-properties-config";
 import { handlePosApi } from "@/lib/pms-pos-api.server";
 import { buildStayVoucherPdf } from "@/lib/pms-voucher-pdf.server";
-import { defaultRoomCategory, voucherDetails } from "@/lib/pms-voucher-content";
-import { PMS_COMPANY } from "@/lib/pms-company";
+import { buildBookingConfirmationEmail, defaultRoomCategory } from "@/lib/pms-voucher-content";
+import { channelLabel } from "@/lib/pms-client";
+import { formatGuestPhone } from "@/lib/guest-phone";
 import { audit } from "@/lib/pms-audit.server";
 import {
   sendBookingAuditNotification,
@@ -868,7 +869,10 @@ async function notifyBookingDeleted(b: {
   await sendBookingAuditNotification(b.propertySlug, {
     title: `🚨 Booking Cancelled/Deleted — ${propertyName}`,
     body: `${b.guestName} • ${roomName} (${shortDate(b.checkIn)} to ${shortDate(b.checkOut)}) removed by ${b.actorName}`,
-    data: { bookingId: b.id, action: "deleted" },
+    // No url: the booking is gone, so there's nothing to deep-link to — the
+    // client (pms-push.ts) special-cases this type to land on the bookings
+    // list with a toast instead of silently doing nothing on tap.
+    data: { bookingId: b.id, action: "deleted", type: "booking_deleted" },
   });
 }
 
@@ -2342,8 +2346,6 @@ async function voucherPdf(url: URL, actor: Actor | null): Promise<Response> {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const esc = (v: string) =>
-  v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 // Emails the guest their Stay Voucher as a PDF attachment, through the same
 // Resend account and sender the booking confirmations already use.
@@ -2381,16 +2383,23 @@ async function emailVoucher(request: Request, actor: Actor): Promise<Response> {
     return json({ error: "Email is not configured on this server (RESEND_API_KEY missing)" }, 503);
   const from = process.env["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
 
-  const d = voucherDetails(booking.property_id);
   const pdf = await buildStayVoucherPdf(booking);
-  const dates = `${booking.check_in} to ${booking.check_out}`;
-  const html = `<div style="font-family:Arial,sans-serif;max-width:560px;color:#0f172a">
-    <p style="font-size:18px;font-weight:bold;color:#065f46">Plix Hospitality</p>
-    <p>Hello ${esc(booking.guest_name)},</p>
-    <p>Your stay at <b>${esc(d.propertyName)}</b> is ${booking.status === "confirmed" ? "confirmed" : "reserved"}. Your stay voucher is attached as a PDF.</p>
-    <p><b>Check-in:</b> ${esc(booking.check_in)} from 2:00 PM<br/><b>Check-out:</b> ${esc(booking.check_out)} by 11:00 AM<br/><b>Location:</b> ${esc(d.address)}${d.mapUrl ? ` (<a href="${esc(d.mapUrl)}">map</a>)` : ""}<br/>${esc(d.contactLine)}</p>
-    <p>Please carry a valid government photo ID for every guest. We look forward to hosting you.</p>
-    <p style="color:#64748b;font-size:12px">${esc(PMS_COMPANY.name)} - ${esc(PMS_COMPANY.address)}</p></div>`;
+  const guestFirstName = booking.guest_name.trim().split(/\s+/)[0] || booking.guest_name;
+  const { subject, html, text } = buildBookingConfirmationEmail({
+    propertyId: booking.property_id,
+    referenceNumber: booking.ref,
+    guestFirstName,
+    guestFullName: booking.guest_name,
+    guestPhone: formatGuestPhone(booking.guest_phone) ?? booking.guest_phone ?? "",
+    checkIn: booking.check_in,
+    checkOut: booking.check_out,
+    bookingType: channelLabel(booking.channel),
+    roomCount: booking.rooms,
+    guestCount: booking.adults + booking.children,
+    totalAmount: booking.total,
+    advancePaid: booking.advance,
+    balanceAmount: booking.balance,
+  });
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -2399,8 +2408,9 @@ async function emailVoucher(request: Request, actor: Actor): Promise<Response> {
       from: `The Plix Goa <${from}>`,
       to: [to],
       reply_to: from,
-      subject: `Your stay voucher - ${d.propertyName} (${dates})`,
+      subject,
       html,
+      text,
       attachments: [
         {
           filename: `Stay-Voucher-${booking.ref}.pdf`,

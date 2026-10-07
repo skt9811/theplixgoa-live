@@ -11,6 +11,8 @@ import { createSpaceForHost, findSpaceByHostName, INBOX_URL, nativeAirbnbHost, o
 export type PmsPushNav = { to: string; search?: Record<string, string> };
 
 function resolveDeepLink(data: Record<string, string>): PmsPushNav | null {
+  // The booking is gone — nothing to highlight, just land on the list.
+  if (data["type"] === "booking_deleted") return { to: "/pms/bookings", search: {} };
   if (data["type"] === "booking" && data["bookingId"])
     return { to: "/pms/bookings", search: { highlight: data["bookingId"] } };
   if ((data["type"] === "pos_open" || data["type"] === "pos_cancel") && data["tableId"])
@@ -49,6 +51,18 @@ async function tryOpenAirbnbSpaceForNotification(data: Record<string, string>): 
   // internally on any native failure) — this always counts as "handled".
   await openSpaceUrl(space, INBOX_URL);
   return true;
+}
+
+/** Shared by the real-push and local (foreground-banner) tap listeners. */
+async function handleNotificationTap(
+  data: Record<string, string>,
+  onNavigate: (nav: PmsPushNav) => void,
+): Promise<void> {
+  if (await tryOpenAirbnbSpaceForNotification(data)) return;
+  const nav = resolveDeepLink(data);
+  if (!nav) return;
+  if (data["type"] === "booking_deleted") toast.info("That booking was removed.");
+  onNavigate(nav);
 }
 
 // Android deliberately suppresses the system heads-up banner/sound for a
@@ -161,12 +175,7 @@ export async function setupPmsPushNotifications(
     });
 
     await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
-      const data = (action.notification.data ?? {}) as Record<string, string>;
-      void tryOpenAirbnbSpaceForNotification(data).then((handled) => {
-        if (handled) return;
-        const nav = resolveDeepLink(data);
-        if (nav) onNavigate(nav);
-      });
+      void handleNotificationTap((action.notification.data ?? {}) as Record<string, string>, onNavigate);
     });
 
     // Tapping the local (foreground-banner) notification is a separate event
@@ -174,12 +183,7 @@ export async function setupPmsPushNotifications(
     try {
       const { LocalNotifications } = await import("@capacitor/local-notifications");
       await LocalNotifications.addListener("localNotificationActionPerformed", (action) => {
-        const data = (action.notification.extra ?? {}) as Record<string, string>;
-        void tryOpenAirbnbSpaceForNotification(data).then((handled) => {
-          if (handled) return;
-          const nav = resolveDeepLink(data);
-          if (nav) onNavigate(nav);
-        });
+        void handleNotificationTap((action.notification.extra ?? {}) as Record<string, string>, onNavigate);
       });
     } catch {
       // Local notifications are a foreground nicety, not required for setup to succeed.

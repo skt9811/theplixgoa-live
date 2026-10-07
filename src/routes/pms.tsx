@@ -217,9 +217,14 @@ function PmsLayout() {
           {creating && (
             <CreateReservationModal
               onClose={() => setCreating(false)}
-              onCreated={() => {
+              onCreated={(bookingId) => {
                 setCreating(false);
                 setRefreshKey((k) => k + 1);
+                // Land on the new reservation instead of leaving the user back on
+                // whatever view they started from — same ?highlight= deep link a
+                // push notification uses, so the bookings page scrolls to it and
+                // pops its voucher open.
+                if (bookingId) void navigate({ to: "/pms/bookings", search: { highlight: bookingId } });
               }}
             />
           )}

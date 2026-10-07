@@ -10,6 +10,7 @@
 import postgres from "postgres";
 import { generateVoucherPdf, type VoucherBooking } from "@/lib/pdf-voucher";
 import { sendNewBookingAlert } from "@/lib/pms-notifications.server";
+import { buildBookingConfirmationEmail } from "@/lib/pms-voucher-content";
 import { DEFAULT_ORG_ID } from "@/lib/tenant-context.server";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
@@ -203,7 +204,29 @@ export async function confirmBookingAndSendEmails(
     };
   }
 
-  const guestHtml = buildGuestEmail(booking);
+  const guestFirstName = booking.guest_name.trim().split(/\s+/)[0] || booking.guest_name;
+  const {
+    subject: guestSubject,
+    html: guestHtml,
+    text: guestText,
+  } = buildBookingConfirmationEmail({
+    propertyId: booking.property_id,
+    referenceNumber: bookingRef(booking),
+    guestFirstName,
+    guestFullName: booking.guest_name,
+    guestPhone: booking.guest_mobile,
+    checkIn: booking.check_in,
+    checkOut: booking.check_out,
+    // Website bookings pay the full amount through Razorpay before this
+    // email ever fires — there's no partial-payment concept here, unlike a
+    // manual PMS booking, so the whole total is already paid.
+    bookingType: "Direct Website",
+    roomCount: Math.max(1, Number((booking as { rooms?: number | null }).rooms ?? 1)),
+    guestCount: booking.guests,
+    totalAmount: booking.total_amount,
+    advancePaid: booking.total_amount,
+    balanceAmount: 0,
+  });
   const hostHtml = buildHostEmail(booking);
 
   // A PDF generation bug must never block the confirmation emails themselves
@@ -226,7 +249,7 @@ export async function confirmBookingAndSendEmails(
   console.log("Dispatching Booking Email for:", booking.guest_email);
   console.log(
     "Resend request payload (guest):",
-    JSON.stringify({ from: fromEmail, to: [booking.guest_email], subject: "Your Plix Hospitality booking is confirmed", hasAttachment: Boolean(attachments) }),
+    JSON.stringify({ from: fromEmail, to: [booking.guest_email], subject: guestSubject, hasAttachment: Boolean(attachments) }),
   );
   console.log(
     "Resend request payload (host):",
@@ -234,7 +257,7 @@ export async function confirmBookingAndSendEmails(
   );
 
   const [guestResult, hostResult] = await Promise.all([
-    sendResendEmail(resendApiKey, fromEmail, booking.guest_email, "Your Plix Hospitality booking is confirmed", guestHtml, attachments),
+    sendResendEmail(resendApiKey, fromEmail, booking.guest_email, guestSubject, guestHtml, attachments, guestText),
     sendResendEmail(resendApiKey, fromEmail, hostEmail, `New booking: ${booking.property_name} — ${booking.guest_name}`, hostHtml, attachments),
   ]);
 
@@ -269,6 +292,7 @@ async function sendResendEmail(
   subject: string,
   html: string,
   attachments?: { filename: string; content: string; content_type: string }[],
+  text?: string,
 ): Promise<Response> {
   return fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -276,7 +300,7 @@ async function sendResendEmail(
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from, to: Array.isArray(to) ? to : [to], subject, html, attachments }),
+    body: JSON.stringify({ from, to: Array.isArray(to) ? to : [to], subject, html, text, attachments }),
   });
 }
 
@@ -316,29 +340,6 @@ function formatINR(value: number): string {
 // undefined), just inconsistent with what the guest sees everywhere else.
 function bookingRef(b: BookingRow): string {
   return b.id.slice(0, 8).toUpperCase();
-}
-
-function buildGuestEmail(b: BookingRow): string {
-  return `<!DOCTYPE html><html><body style="font-family:Manrope,Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1a2238">
-<h1 style="color:#0f766e;font-size:24px">Booking Confirmed!</h1>
-<p>Hi ${b.guest_name},</p>
-<p>Thank you for booking with Plix Hospitality. Your stay at <strong>${b.property_name}</strong> is confirmed.</p>
-<table style="width:100%;border-collapse:collapse;margin:20px 0">
-<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666">Property</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600">${b.property_name}</td></tr>
-<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666">Location</td><td style="padding:8px;border-bottom:1px solid #eee">${b.property_location}, Goa</td></tr>
-<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666">Check-in</td><td style="padding:8px;border-bottom:1px solid #eee">${b.check_in}</td></tr>
-<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666">Check-out</td><td style="padding:8px;border-bottom:1px solid #eee">${b.check_out}</td></tr>
-<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666">Guests</td><td style="padding:8px;border-bottom:1px solid #eee">${b.guests}</td></tr>
-<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666">Nights</td><td style="padding:8px;border-bottom:1px solid #eee">${b.nights}</td></tr>
-<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666">Subtotal</td><td style="padding:8px;border-bottom:1px solid #eee">${formatINR(b.subtotal)}</td></tr>
-<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666">Taxes & fees</td><td style="padding:8px;border-bottom:1px solid #eee">${formatINR(b.taxes)}</td></tr>
-<tr><td style="padding:12px 8px;font-weight:700;color:#1a2238">Total Paid</td><td style="padding:12px 8px;font-weight:700;font-size:18px;color:#0f766e">${formatINR(b.total_amount)}</td></tr>
-</table>
-<p style="font-size:13px;color:#666">Payment Reference: ${b.razorpay_payment_id ?? "N/A"}</p>
-<p style="font-size:13px;color:#666">Booking Reference: ${bookingRef(b)}</p>
-<p style="margin-top:24px;font-size:13px;color:#666">We look forward to hosting you. For any questions, reply to this email or call us.</p>
-<p style="margin-top:24px;color:#0f766e;font-weight:600">Plix Hospitality Team</p>
-</body></html>`;
 }
 
 function buildHostEmail(b: BookingRow): string {

@@ -42,6 +42,7 @@ import {
 } from "@/lib/pms-billing.server";
 import { slugForPropertyCode } from "@/lib/property-codes";
 import { handleSuperAdminApi } from "@/lib/pms-super-admin.server";
+import { defaultFeaturesForTier, tierForPlan } from "@/lib/tenant-features-config";
 import { handleSignupApi } from "@/lib/pms-signup.server";
 import {
   listPartnerAccounts,
@@ -2705,6 +2706,8 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "owner" |
 // fails to render is a cosmetic miss, not a reason to break the session
 // endpoint every other page's auth check depends on.
 async function sessionInfo(actor: Actor) {
+  // The internal Plix org (and any lookup failure below) gets every feature
+  // on — enterprise-tier defaults — never gated by its own plan matrix.
   const fallback = {
     id: actor.id,
     name: actor.name,
@@ -2715,13 +2718,8 @@ async function sessionInfo(actor: Actor) {
     organizationStatus: "active" as string,
     trialEndsAt: null as string | null,
     isInternal: true,
-    features: {
-      pms_enabled: true,
-      pos_enabled: true,
-      airbnb_spaces_enabled: true,
-      whatsapp_bot_enabled: false,
-      audit_notifications_enabled: true,
-    },
+    planTier: "internal_enterprise" as string,
+    features: defaultFeaturesForTier("enterprise"),
   };
   if (actor.organizationId === DEFAULT_ORG_ID) return fallback;
   const pmsDb = getPmsDb();
@@ -2734,7 +2732,12 @@ async function sessionInfo(actor: Actor) {
       organizationStatus: org.subscription_status,
       trialEndsAt: org.trial_ends_at ? org.trial_ends_at.toISOString() : null,
       isInternal: org.is_internal,
-      features: { ...fallback.features, ...org.features },
+      planTier: org.plan_tier,
+      // Tier-correct defaults (not the enterprise-everything fallback
+      // above) merged with whatever this org's own features JSONB actually
+      // overrides — a Starter tenant who's never touched a flag still sees
+      // Starter's real defaults, not every feature silently on.
+      features: { ...defaultFeaturesForTier(tierForPlan(org.plan_tier)), ...org.features },
     };
   } catch (err) {
     console.error("[pms] sessionInfo org lookup:", err instanceof Error ? err.message : err);

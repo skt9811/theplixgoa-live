@@ -1,16 +1,10 @@
-import { toast } from "sonner";
+import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Clock } from "lucide-react";
 import { usePms } from "@/components/pms/pms-context";
 
 function daysLeft(iso: string | null): number | null {
   if (!iso) return null;
   return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
-}
-
-function offerUpgrade() {
-  toast.message("Ready to upgrade?", {
-    description: "Contact Plix support to move onto a paid plan — Starter, Growth or Pro.",
-  });
 }
 
 // Phase 4 (public signup): a subtle strip for a trialing tenant, a
@@ -21,10 +15,12 @@ function offerUpgrade() {
 // existed before this feature).
 export function TrialBanner() {
   const { user } = usePms();
+  const navigate = useNavigate();
   if (user.isInternal || user.organizationStatus === "active") return null;
 
   const days = daysLeft(user.trialEndsAt);
   const expired = days !== null && days < 0;
+  const goToPlans = () => void navigate({ to: "/pms/subscription" });
 
   if (user.organizationStatus === "suspended") {
     return (
@@ -42,10 +38,10 @@ export function TrialBanner() {
         Your 7-day free trial has expired. New bookings and orders are locked.
         <button
           type="button"
-          onClick={offerUpgrade}
+          onClick={goToPlans}
           className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-red-700 hover:bg-red-50"
         >
-          Upgrade Plan
+          Upgrade Plan ›
         </button>
       </div>
     );
@@ -54,13 +50,13 @@ export function TrialBanner() {
   return (
     <div className="flex flex-wrap items-center justify-center gap-2 bg-amber-100 px-4 py-1.5 text-center text-xs font-semibold text-amber-800">
       <Clock className="size-3.5 shrink-0" aria-hidden />
-      Trial Mode: {days ?? "?"} day{days === 1 ? "" : "s"} remaining
+      Your 7-day trial ends in {days ?? "?"} day{days === 1 ? "" : "s"}.
       <button
         type="button"
-        onClick={offerUpgrade}
+        onClick={goToPlans}
         className="rounded-full bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-amber-700"
       >
-        Upgrade Plan
+        Upgrade Plan ›
       </button>
     </div>
   );

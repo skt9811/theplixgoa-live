@@ -38,7 +38,14 @@ const NAV = [
     exact: false,
     tab: "bookings",
   },
-  { to: "/pms/pos", label: "Restaurant POS", icon: UtensilsCrossed, exact: false, tab: "pos" },
+  {
+    to: "/pms/pos",
+    label: "Restaurant POS",
+    icon: UtensilsCrossed,
+    exact: false,
+    tab: "pos",
+    feature: "pos_enabled",
+  },
   { to: "/pms/expenses", label: "Expenses", icon: Receipt, exact: false, tab: "expenses" },
   { to: "/pms/invoices", label: "Invoices", icon: FileText, exact: false, tab: "invoices" },
   { to: "/pms/vouchers", label: "Vouchers", icon: Ticket, exact: false, tab: "vouchers" },
@@ -54,6 +61,7 @@ const NAV = [
     // booking/POS/inquiry involvement), not a feature that needs its own
     // row in the employee-permissions UI.
     tab: "settings",
+    feature: "airbnb_spaces_enabled",
   },
   { to: "/pms/system", label: "System Health", icon: HeartPulse, exact: false, tab: "settings" },
   { to: "/pms/settings", label: "Settings", icon: Settings, exact: false, tab: "settings" },
@@ -74,9 +82,10 @@ const NAV = [
 
 function navVisible(
   item: (typeof NAV)[number],
-  user: { tabs: string[]; isOwner: boolean },
+  user: { tabs: string[]; isOwner: boolean; features: Record<string, boolean> },
 ): boolean {
   if ("ownerOnly" in item && item.ownerOnly) return user.isOwner;
+  if ("feature" in item && item.feature && user.features[item.feature] === false) return false;
   return user.tabs.includes(item.tab);
 }
 

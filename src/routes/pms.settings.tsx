@@ -80,6 +80,20 @@ function PmsSettings() {
         </div>
         <p className="mt-3 text-xs text-slate-400">Saved on this device and in your PMS account, so it follows you to other devices.</p>
       </section>
+      {!user.isInternal && (
+        <section className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+          <h2 className="font-semibold text-slate-900">Plan &amp; Billing</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            See what your current plan includes and compare Starter, Professional and Enterprise.
+          </p>
+          <Link
+            to="/pms/subscription"
+            className="mt-3 inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
+            View plans
+          </Link>
+        </section>
+      )}
       {user.role === "admin" && (
         <>
           <RevenueAccessCard />

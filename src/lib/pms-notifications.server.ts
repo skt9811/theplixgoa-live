@@ -8,6 +8,7 @@
 import { ensureInquiriesSchema } from "@/lib/pms-schema.server";
 import { getTenantId } from "@/lib/tenant-context.server";
 import { getPmsDb } from "@/lib/pms-db.server";
+import { assertFeatureEnabled } from "@/lib/pms-billing.server";
 import { json, str } from "@/lib/pms-pos-shared.server";
 import type { Actor } from "@/lib/pms-users.server";
 import {
@@ -392,6 +393,21 @@ export async function registerStaffDevice(request: Request, actor: Actor): Promi
   if (!sql) return json({ error: "PMS database not configured" }, 503);
   await ensureInquiriesSchema(sql);
   const tenantId = getTenantId(request, actor);
+  // realtime_push_notifications (stored as audit_notifications_enabled —
+  // see tenant-features-config.ts) is Enterprise-only: a Starter/
+  // Professional org's staff simply never get a device registered, so no
+  // push can ever reach them — "suppress push alert subscriptions" enforced
+  // at the one place every device registration passes through.
+  const feature = await assertFeatureEnabled(
+    sql,
+    tenantId,
+    "audit_notifications_enabled",
+    "Real-time push notifications",
+  );
+  if (!feature.ok) {
+    const { ok: _ok, status, ...rest } = feature;
+    return json(rest, status);
+  }
   await sql`
     INSERT INTO pms_staff_devices (user_id, staff_name, fcm_token, platform, last_seen, organization_id)
     VALUES (${actor.id}, ${staffName}, ${fcmToken}, ${platform}, now(), ${tenantId})

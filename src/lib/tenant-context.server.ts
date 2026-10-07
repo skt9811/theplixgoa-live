@@ -50,6 +50,7 @@ export type PropertyRecord = {
   address: string | null;
   contactPhone: string | null;
   contactEmail: string | null;
+  featureOverrides: Record<string, boolean>;
 };
 
 type PropertyRow = {
@@ -62,6 +63,7 @@ type PropertyRow = {
   address: string | null;
   contact_phone: string | null;
   contact_email: string | null;
+  feature_overrides: Record<string, boolean> | null;
 };
 
 const shapeProperty = (r: PropertyRow): PropertyRecord => ({
@@ -74,6 +76,7 @@ const shapeProperty = (r: PropertyRow): PropertyRecord => ({
   address: r.address,
   contactPhone: r.contact_phone,
   contactEmail: r.contact_email,
+  featureOverrides: r.feature_overrides ?? {},
 });
 
 /** Every property an organization has, straight from `pms_properties` — the
@@ -87,7 +90,7 @@ export async function listOrganizationProperties(
   organizationId: string,
 ): Promise<PropertyRecord[]> {
   const rows = await pmsDb<PropertyRow[]>`
-    SELECT id, name, code, property_type, total_rooms, is_active, address, contact_phone, contact_email
+    SELECT id, name, code, property_type, total_rooms, is_active, address, contact_phone, contact_email, feature_overrides
     FROM pms_properties WHERE organization_id = ${organizationId} ORDER BY created_at`;
   return rows.map(shapeProperty);
 }

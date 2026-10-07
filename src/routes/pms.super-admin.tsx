@@ -1,10 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Building2, Crown, Pencil, Plus, Search, ShieldAlert, Trash2, X } from "lucide-react";
+import {
+  ChevronDown,
+  Building2,
+  Crown,
+  Pencil,
+  Plus,
+  Search,
+  ShieldAlert,
+  Trash2,
+  X,
+} from "lucide-react";
 import { fmtDate, pms } from "@/lib/pms-client";
 import { usePms } from "@/components/pms/pms-context";
 import { useBackDismiss } from "@/lib/pms-back-stack";
+import {
+  defaultFeaturesForTier,
+  FEATURE_CATEGORIES,
+  FEATURE_TIERS,
+  tierForPlan,
+  TIER_LABELS,
+  type FeatureTier,
+} from "@/lib/tenant-features-config";
 
 export const Route = createFileRoute("/pms/super-admin")({
   component: SuperAdminPage,
@@ -20,6 +38,7 @@ type PropertyRecord = {
   address: string | null;
   contactPhone: string | null;
   contactEmail: string | null;
+  featureOverrides: Record<string, boolean>;
 };
 
 type Tenant = {
@@ -63,19 +82,92 @@ const PROPERTY_TYPE_LABELS: Record<string, string> = {
   apartment: "Apartment",
 };
 
-const FEATURE_LABELS: { key: string; label: string }[] = [
-  { key: "pms_enabled", label: "Hotel PMS & Room Tape Chart" },
-  { key: "pos_enabled", label: "Restaurant POS & KOT Billing" },
-  { key: "airbnb_spaces_enabled", label: "Airbnb Host Spaces Launcher" },
-  { key: "whatsapp_bot_enabled", label: "Automated WhatsApp Guest Inquiries" },
-  { key: "audit_notifications_enabled", label: "Real-time Audit Push Notifications" },
-];
-const DEFAULT_FEATURES: Record<string, boolean> = Object.fromEntries(
-  FEATURE_LABELS.map((f) => [
-    f.key,
-    f.key !== "whatsapp_bot_enabled" && f.key !== "airbnb_spaces_enabled",
-  ]),
-);
+/**
+ * Shared grouped feature-toggle UI — accordion sections per
+ * FEATURE_CATEGORIES, each checkbox reading/writing one key of `features`.
+ * Used for an organization's own flags (CreateTenantModal,
+ * ManageTenantDrawer) and, with `overridesOf`, for a single property's
+ * overrides (PropertyFormModal) — `overridesOf` being present switches the
+ * checkbox from on/off to tri-state (Default / On / Off) so "no override,
+ * fall through to the org" stays expressible and distinct from "force off".
+ */
+function FeatureAccordion({
+  features,
+  onChange,
+  onApplyPreset,
+  overridesOf,
+}: {
+  features: Record<string, boolean>;
+  onChange: (key: string, value: boolean | undefined) => void;
+  onApplyPreset?: (tier: FeatureTier) => void;
+  /** When set, this IS the overrides map (not the resolved features) — a
+   * key absent here means "no override", not "off". */
+  overridesOf?: Record<string, boolean>;
+}) {
+  return (
+    <div className="grid gap-2">
+      {onApplyPreset && (
+        <div className="flex flex-wrap gap-1.5">
+          {FEATURE_TIERS.map((tier) => (
+            <button
+              key={tier}
+              type="button"
+              onClick={() => onApplyPreset(tier)}
+              className="rounded-full border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Apply {TIER_LABELS[tier]} preset
+            </button>
+          ))}
+        </div>
+      )}
+      {FEATURE_CATEGORIES.map((category) => (
+        <details key={category.id} className="group rounded-lg border border-slate-200">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-semibold text-slate-700">
+            {category.label}
+            <ChevronDown
+              className="size-4 text-slate-400 transition-transform group-open:rotate-180"
+              aria-hidden
+            />
+          </summary>
+          <div className="grid gap-1.5 border-t border-slate-100 p-2">
+            {category.features.map((f) => {
+              const overrideValue = overridesOf?.[f.key];
+              return (
+                <div
+                  key={f.key}
+                  className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-slate-50"
+                >
+                  <span className="text-xs text-slate-700">{f.label}</span>
+                  {overridesOf ? (
+                    <select
+                      value={overrideValue === undefined ? "default" : overrideValue ? "on" : "off"}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        onChange(f.key, v === "on" ? true : v === "off" ? false : undefined);
+                      }}
+                      className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[11px]"
+                    >
+                      <option value="default">Default (org plan)</option>
+                      <option value="on">Force On</option>
+                      <option value="off">Force Off</option>
+                    </select>
+                  ) : (
+                    <input
+                      type="checkbox"
+                      checked={features[f.key] ?? false}
+                      onChange={(e) => onChange(f.key, e.target.checked)}
+                      className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+}
 
 function daysLeft(iso: string | null): number | null {
   if (!iso) return null;
@@ -369,7 +461,9 @@ function CreateTenantModal({
   const [pin, setPin] = useState("");
   const [planTier, setPlanTier] = useState("starter_21k");
   const [trialDays, setTrialDays] = useState("7");
-  const [features, setFeatures] = useState<Record<string, boolean>>(DEFAULT_FEATURES);
+  const [features, setFeatures] = useState<Record<string, boolean>>(() =>
+    defaultFeaturesForTier(tierForPlan("starter_21k")),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -535,7 +629,11 @@ function CreateTenantModal({
               Plan Tier
               <select
                 value={planTier}
-                onChange={(e) => setPlanTier(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setPlanTier(next);
+                  setFeatures(defaultFeaturesForTier(tierForPlan(next)));
+                }}
                 className={field}
               >
                 {Object.entries(PLAN_LABELS)
@@ -565,21 +663,12 @@ function CreateTenantModal({
           <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">
             Feature Toggles
           </h3>
-          <div className="mt-2 grid gap-2">
-            {FEATURE_LABELS.map((f) => (
-              <label
-                key={f.key}
-                className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2"
-              >
-                <span className="text-sm text-slate-700">{f.label}</span>
-                <input
-                  type="checkbox"
-                  checked={features[f.key] ?? false}
-                  onChange={(e) => setFeatures((prev) => ({ ...prev, [f.key]: e.target.checked }))}
-                  className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                />
-              </label>
-            ))}
+          <div className="mt-2">
+            <FeatureAccordion
+              features={features}
+              onChange={(key, value) => setFeatures((prev) => ({ ...prev, [key]: value ?? false }))}
+              onApplyPreset={(tier) => setFeatures(defaultFeaturesForTier(tier))}
+            />
           </div>
         </div>
 
@@ -615,8 +704,29 @@ function PropertyFormModal({
   const [propertyType, setPropertyType] = useState(property?.propertyType ?? "hotel");
   const [totalRooms, setTotalRooms] = useState(String(property?.totalRooms ?? 1));
   const [isActive, setIsActive] = useState(property?.isActive ?? true);
+  const [overrides, setOverrides] = useState<Record<string, boolean | null>>(
+    property?.featureOverrides ?? {},
+  );
   const [busy, setBusy] = useState(false);
+  const [savingOverrides, setSavingOverrides] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function saveOverrides() {
+    if (!property) return;
+    setSavingOverrides(true);
+    try {
+      const res = await pms<{ success: true; tenant: Tenant }>("super-admin/properties/features", {
+        method: "POST",
+        body: JSON.stringify({ id: property.id, overrides }),
+      });
+      toast.success("Feature overrides saved");
+      onSaved(res.tenant);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save feature overrides");
+    } finally {
+      setSavingOverrides(false);
+    }
+  }
 
   async function submit() {
     setBusy(true);
@@ -711,6 +821,39 @@ function PropertyFormModal({
             properties, the original code keeps working too (it's never removed from the app's own
             compiled list).
           </p>
+        )}
+
+        {!isNew && property && (
+          <div className="rounded-xl border border-slate-200 p-3">
+            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Feature Access — This Property Only
+            </h3>
+            <p className="mt-1 text-[11px] text-slate-400">
+              Overrides the organization&apos;s plan default for just this property. Resolution:
+              this override, else the org&apos;s plan default, else off.
+            </p>
+            <div className="mt-2">
+              <FeatureAccordion
+                features={{}}
+                overridesOf={
+                  Object.fromEntries(
+                    Object.entries(overrides).filter(([, v]) => v !== null && v !== undefined),
+                  ) as Record<string, boolean>
+                }
+                onChange={(key, value) =>
+                  setOverrides((prev) => ({ ...prev, [key]: value ?? null }))
+                }
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => void saveOverrides()}
+              disabled={savingOverrides}
+              className="mt-2 w-full rounded-lg border border-emerald-600 py-2 text-xs font-bold text-emerald-700 disabled:opacity-50"
+            >
+              {savingOverrides ? "Saving..." : "Save Feature Overrides"}
+            </button>
+          </div>
         )}
 
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
@@ -934,21 +1077,12 @@ function ManageTenantDrawer({
         <h3 className="mt-5 text-xs font-bold uppercase tracking-wide text-slate-500">
           Modular Feature Flags
         </h3>
-        <div className="mt-2 grid gap-2">
-          {FEATURE_LABELS.map((f) => (
-            <label
-              key={f.key}
-              className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5"
-            >
-              <span className="text-sm text-slate-700">{f.label}</span>
-              <input
-                type="checkbox"
-                checked={features[f.key] ?? false}
-                onChange={(e) => setFeatures((prev) => ({ ...prev, [f.key]: e.target.checked }))}
-                className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-              />
-            </label>
-          ))}
+        <div className="mt-2">
+          <FeatureAccordion
+            features={features}
+            onChange={(key, value) => setFeatures((prev) => ({ ...prev, [key]: value ?? false }))}
+            onApplyPreset={(tier) => setFeatures(defaultFeaturesForTier(tier))}
+          />
         </div>
 
         <div className="mt-5 flex items-center justify-between">

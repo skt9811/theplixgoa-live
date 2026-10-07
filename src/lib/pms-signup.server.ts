@@ -24,6 +24,7 @@ import { buildPmsSessionCookie } from "@/lib/pms-session.server";
 import { slugForPropertyCode } from "@/lib/property-codes";
 import { audit } from "@/lib/pms-audit.server";
 import { getSessionFromRequest } from "@/lib/session-cookie.server";
+import { MAX_PROPERTIES_BY_TIER, tierForPlan } from "@/lib/tenant-features-config";
 
 type Sql = ReturnType<typeof postgres>;
 
@@ -115,6 +116,15 @@ export async function provisionTenant(
   const orgId = shortId("org");
   const propertyId = shortId("prop");
 
+  // The org's property cap follows its chosen plan tier (Starter 1 /
+  // Professional 2 / Enterprise 5) — this used to be hardcoded to 1
+  // regardless of planTier, which meant the super-admin "Create Tenant"
+  // modal's plan selector had no actual effect on how many properties the
+  // new tenant could add.
+  const maxProperties = p.isInternal
+    ? MAX_PROPERTIES_BY_TIER.enterprise
+    : MAX_PROPERTIES_BY_TIER[tierForPlan(p.planTier)];
+
   let userId: string;
   try {
     userId = await sql.begin(async (tx0) => {
@@ -126,7 +136,7 @@ export async function provisionTenant(
         VALUES
           (${orgId}, ${p.organizationName}, ${orgId}, ${p.planTier}, ${p.isInternal ? "active" : "trialing"},
            now(), now() + ${`${p.trialDays} days`}::interval,
-           1, ${p.ownerName}, ${p.ownerEmail}, ${p.ownerPhone}, ${p.isInternal}, ${tx.json(p.features as never)})`;
+           ${maxProperties}, ${p.ownerName}, ${p.ownerEmail}, ${p.ownerPhone}, ${p.isInternal}, ${tx.json(p.features as never)})`;
       await tx`
         INSERT INTO pms_properties (id, organization_id, name, code, property_type, total_rooms, is_active, contact_email, contact_phone, primary_room_type, base_price)
         VALUES (${propertyId}, ${orgId}, ${p.propertyName}, ${p.propertyCode}, ${p.propertyType}, ${p.totalRooms}, true, ${p.ownerEmail}, ${p.ownerPhone}, ${p.primaryRoomType ?? null}, ${p.basePrice ?? null})`;

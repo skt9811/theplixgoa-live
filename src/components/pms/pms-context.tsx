@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import type { PmsProperty, PmsTab, PmsUser } from "@/lib/pms-client";
+import { defaultFeaturesForTier } from "@/lib/tenant-features-config";
 
 type PmsContextValue = {
   openCreate: () => void;
@@ -31,13 +32,8 @@ const OWNER: PmsUser = {
   organizationStatus: "active",
   trialEndsAt: null,
   isInternal: true,
-  features: {
-    pms_enabled: true,
-    pos_enabled: true,
-    airbnb_spaces_enabled: true,
-    whatsapp_bot_enabled: false,
-    audit_notifications_enabled: true,
-  },
+  planTier: "internal_enterprise",
+  features: defaultFeaturesForTier("enterprise"),
 };
 
 export const PmsContext = createContext<PmsContextValue>({

@@ -150,13 +150,15 @@ export type PmsUser = {
   organizationStatus: string;
   trialEndsAt: string | null;
   isInternal: boolean;
-  features: {
-    pms_enabled: boolean;
-    pos_enabled: boolean;
-    airbnb_spaces_enabled: boolean;
-    whatsapp_bot_enabled: boolean;
-    audit_notifications_enabled: boolean;
-  };
+  /** Raw organizations.plan_tier (e.g. "starter_21k") — pass through
+   * tenant-features-config.ts's tierForPlan() to get the conceptual
+   * Starter/Professional/Enterprise tier. */
+  planTier: string;
+  /** Every key in tenant-features-config.ts's ALL_FEATURE_KEYS, resolved
+   * against this user's organization plan tier + feature overrides
+   * (sessionInfo, pms-api.server.ts). A Record rather than a fixed object
+   * shape since the registry can grow without this type needing to track it. */
+  features: Record<string, boolean>;
 };
 
 export type PmsTab =

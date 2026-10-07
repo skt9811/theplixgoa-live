@@ -386,6 +386,12 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
       // pms-signup.server.ts's own header for why that's unchanged here).
       await sql`ALTER TABLE pms_properties ADD COLUMN IF NOT EXISTS primary_room_type text`;
       await sql`ALTER TABLE pms_properties ADD COLUMN IF NOT EXISTS base_price numeric`;
+      // Per-property feature overrides (tenant-features-config.ts's
+      // resolveFeature): lets a super-admin turn a feature on/off for one
+      // property regardless of its organization's plan default — e.g.
+      // Restaurant POS enabled for "Harbor Court" only. Empty object means
+      // no overrides, so resolution falls through to the org's own flags.
+      await sql`ALTER TABLE pms_properties ADD COLUMN IF NOT EXISTS feature_overrides jsonb NOT NULL DEFAULT '{}'::jsonb`;
       // Seed the 10 real Plix properties as real pms_properties rows, under
       // org_plix_internal, with the exact codes the static login map
       // (property-codes.ts) already resolves — so the Super-Admin tenant

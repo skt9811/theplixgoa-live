@@ -24,6 +24,12 @@ import { seedProperty } from "@/lib/pms-pos-api.server";
 import { seedConfig } from "@/lib/pms-pos-config.server";
 import { slugForPropertyCode } from "@/lib/property-codes";
 import { PROPERTY_CODE_RE, provisionTenant } from "@/lib/pms-signup.server";
+import {
+  ALL_FEATURE_KEYS,
+  defaultFeaturesForTier,
+  MAX_PROPERTIES_BY_TIER,
+  tierForPlan,
+} from "@/lib/tenant-features-config";
 
 type Sql = ReturnType<typeof postgres>;
 
@@ -43,16 +49,13 @@ type OrgRow = {
   created_at: Date;
 };
 
-const DEFAULT_FEATURES = {
-  pms_enabled: true,
-  pos_enabled: true,
-  airbnb_spaces_enabled: true,
-  whatsapp_bot_enabled: false,
-  audit_notifications_enabled: true,
-};
-
 async function shapeTenant(sql: Sql, o: OrgRow, staffCount: number) {
   const properties = await listOrganizationProperties(sql, o.id);
+  // Tier-aware defaults (tenant-features-config.ts), not a single flat
+  // constant — an org created before a given key existed, or one that's
+  // never had it explicitly set, falls back to what ITS plan tier actually
+  // grants rather than one shared default regardless of tier.
+  const tierDefaults = defaultFeaturesForTier(tierForPlan(o.plan_tier));
   return {
     id: o.id,
     name: o.name,
@@ -65,7 +68,7 @@ async function shapeTenant(sql: Sql, o: OrgRow, staffCount: number) {
     trialEndsAt: o.trial_ends_at ? o.trial_ends_at.toISOString() : null,
     maxProperties: o.max_properties,
     isInternal: o.is_internal,
-    features: { ...DEFAULT_FEATURES, ...o.features },
+    features: { ...tierDefaults, ...o.features },
     createdAt: o.created_at.toISOString(),
     propertyCount: properties.length,
     roomCount: properties.reduce((sum, p) => sum + p.totalRooms, 0),
@@ -114,7 +117,7 @@ async function listTenants(sql: Sql, url: URL): Promise<Response> {
 
 const PLAN_TIERS = new Set(["starter_21k", "growth_25k", "pro_30k", "internal_enterprise"]);
 const STATUSES = new Set(["active", "trialing", "past_due", "suspended"]);
-const FEATURE_KEYS = new Set(Object.keys(DEFAULT_FEATURES));
+const FEATURE_KEYS = new Set(ALL_FEATURE_KEYS);
 const PROPERTY_TYPES = new Set(["hotel", "resort", "villa", "apartment"]);
 
 async function updateTenant(request: Request, sql: Sql, actor: Actor): Promise<Response> {
@@ -127,8 +130,9 @@ async function updateTenant(request: Request, sql: Sql, actor: Actor): Promise<R
   }
   const id = str(body["id"]);
   if (!id) return json({ error: "id is required" }, 400);
-  const [existing] = await sql<{ id: string; trial_ends_at: Date | null }[]>`
-    SELECT id, trial_ends_at FROM organizations WHERE id = ${id}`;
+  const [existing] = await sql<
+    { id: string; trial_ends_at: Date | null; max_properties: number }[]
+  >`SELECT id, trial_ends_at, max_properties FROM organizations WHERE id = ${id}`;
   if (!existing) return json({ error: "Organization not found" }, 404);
   // The internal org is the live business itself, not a manageable tenant —
   // refuse anything that could take it off internal/active, independent of
@@ -164,6 +168,12 @@ async function updateTenant(request: Request, sql: Sql, actor: Actor): Promise<R
     const planTier = str(body["planTier"]);
     if (!PLAN_TIERS.has(planTier)) return json({ error: "Invalid plan tier" }, 400);
     set("plan_tier", planTier);
+    // Raises the property cap to match the new tier when it's higher — never
+    // lowers it automatically, so a tenant who already has more properties
+    // than a downgraded tier's default allows is never silently locked out
+    // of the ones they already have.
+    const tierCap = MAX_PROPERTIES_BY_TIER[tierForPlan(planTier)];
+    if (tierCap > existing.max_properties) set("max_properties", tierCap);
   }
   if (body["status"] !== undefined) {
     const status = str(body["status"]);
@@ -260,10 +270,9 @@ async function createTenant(request: Request, sql: Sql, actor: Actor): Promise<R
   const planTier = PLAN_TIERS.has(str(body["planTier"])) ? str(body["planTier"]) : "starter_21k";
   const trialDays = Math.max(0, Math.min(90, Math.floor(num(body["trialDays"], 7))));
   const incomingFeatures = (body["features"] ?? {}) as Record<string, unknown>;
-  const features = { ...DEFAULT_FEATURES };
+  const features = defaultFeaturesForTier(tierForPlan(planTier));
   for (const key of Object.keys(incomingFeatures)) {
-    if (FEATURE_KEYS.has(key))
-      (features as Record<string, boolean>)[key] = incomingFeatures[key] === true;
+    if (FEATURE_KEYS.has(key)) features[key] = incomingFeatures[key] === true;
   }
 
   if (!organizationName) return json({ error: "Organization name is required" }, 400);
@@ -553,6 +562,52 @@ async function deleteTenant(request: Request, sql: Sql, actor: Actor): Promise<R
   return json({ success: true, deletedOrganizationId: id });
 }
 
+/**
+ * Per-property feature overrides (tenant-features-config.ts's
+ * resolveFeature): a super-admin can turn a feature on/off for one specific
+ * property regardless of its organization's plan default. `patch` replaces
+ * only the keys it names — an omitted key's existing override (if any)
+ * stays untouched, and setting a key to `null` clears that one override so
+ * resolution falls back through to the organization's own flag again.
+ */
+async function updatePropertyFeatures(request: Request, sql: Sql, actor: Actor): Promise<Response> {
+  await ensureAccessSchema(sql);
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  const id = str(body["id"]);
+  const [existing] = await sql<
+    { id: string; organization_id: string; feature_overrides: Record<string, boolean> }[]
+  >`SELECT id, organization_id, feature_overrides FROM pms_properties WHERE id = ${id}`;
+  if (!existing) return json({ error: "Property not found" }, 404);
+
+  const patch = (body["overrides"] ?? {}) as Record<string, unknown>;
+  const next = { ...existing.feature_overrides };
+  for (const key of Object.keys(patch)) {
+    if (!FEATURE_KEYS.has(key)) continue;
+    if (patch[key] === null) delete next[key];
+    else next[key] = patch[key] === true;
+  }
+
+  await sql`UPDATE pms_properties SET feature_overrides = ${sql.json(next as never)}, updated_at = now() WHERE id = ${id}`;
+
+  await audit(actor, "UPDATE", "setting", `property:${id}`, {
+    action: "super-admin property feature override",
+    overrides: next,
+  });
+
+  const [row] = await sql<OrgRow[]>`
+    SELECT id, name, owner_name, owner_email, owner_phone, plan_tier, subscription_status,
+           trial_starts_at, trial_ends_at, max_properties, is_internal, features, created_at
+    FROM organizations WHERE id = ${existing.organization_id}`;
+  const [staffRow] = await sql<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM pms_users WHERE organization_id = ${existing.organization_id}`;
+  return json({ success: true, tenant: await shapeTenant(sql, row!, staffRow?.n ?? 0) });
+}
+
 export async function handleSuperAdminApi(
   sub: string,
   request: Request,
@@ -572,5 +627,7 @@ export async function handleSuperAdminApi(
     return addProperty(request, sql, actor);
   if (sub === "properties/update" && request.method === "POST")
     return updateProperty(request, sql, actor);
+  if (sub === "properties/features" && request.method === "POST")
+    return updatePropertyFeatures(request, sql, actor);
   return json({ error: "Not found" }, 404);
 }

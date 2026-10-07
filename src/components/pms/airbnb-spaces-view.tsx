@@ -19,6 +19,7 @@
 // isolation, same as before.
 import { useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ArrowLeft, Calendar, Home, Inbox, MoreVertical, Plus, X } from "lucide-react";
 import { useBackDismiss } from "@/lib/pms-back-stack";
@@ -40,6 +41,7 @@ const CORAL = "#FF385C";
 
 export function AirbnbSpacesView() {
   const { user } = usePms();
+  const navigate = useNavigate();
   // Loaded in an effect, not a useState lazy initializer — this route is
   // server-rendered and localStorage doesn't exist there, so a lazy
   // initializer would make the client's first render disagree with the
@@ -96,7 +98,7 @@ export function AirbnbSpacesView() {
     return <SpaceLauncher space={openSpace} onClose={() => setOpenSpace(null)} />;
   }
 
-  if (!user.features.airbnb_spaces_enabled) {
+  if (!user.features["airbnb_spaces_enabled"]) {
     return (
       <div className="mx-auto max-w-lg py-16 text-center">
         <Home className="mx-auto size-10 text-slate-300" aria-hidden />
@@ -107,11 +109,7 @@ export function AirbnbSpacesView() {
         </p>
         <button
           type="button"
-          onClick={() =>
-            toast.message("Ready to upgrade?", {
-              description: "Contact Plix support to move onto a paid plan.",
-            })
-          }
+          onClick={() => void navigate({ to: "/pms/subscription" })}
           className="mt-4 rounded-lg bg-[#FF385C] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
         >
           Upgrade Plan

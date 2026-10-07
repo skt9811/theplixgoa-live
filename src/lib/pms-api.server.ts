@@ -73,6 +73,7 @@ import { buildStayVoucherPdf } from "@/lib/pms-voucher-pdf.server";
 import { buildBookingConfirmationEmail, defaultRoomCategory } from "@/lib/pms-voucher-content";
 import { channelLabel } from "@/lib/pms-client";
 import { formatGuestPhone } from "@/lib/guest-phone";
+import { PMS_COMPANY } from "@/lib/pms-company";
 import { audit } from "@/lib/pms-audit.server";
 import {
   sendBookingAuditNotification,
@@ -2401,12 +2402,14 @@ async function emailVoucher(request: Request, actor: Actor): Promise<Response> {
     balanceAmount: booking.balance,
   });
 
+  const bcc = to.toLowerCase() === PMS_COMPANY.email.toLowerCase() ? undefined : [PMS_COMPANY.email];
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       from: `The Plix Goa <${from}>`,
       to: [to],
+      bcc,
       reply_to: from,
       subject,
       html,

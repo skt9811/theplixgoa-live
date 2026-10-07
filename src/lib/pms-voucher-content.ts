@@ -1,7 +1,7 @@
 // Content shared by the on-screen Stay Voucher, its PDF and the email.
 import { PROPERTIES } from "@/lib/plix";
 import { PMS_COMPANY } from "@/lib/pms-company";
-import { getPropertyPmsConfig } from "@/lib/pms-properties-config";
+import { DEFAULT_CHECK_IN_TIME, DEFAULT_CHECK_OUT_TIME, getPropertyPmsConfig } from "@/lib/pms-properties-config";
 
 export const HOUSE_RULES = [
   "Swimming pool timings: 8:00 AM to 10:00 PM. Swimwear is mandatory in the pool.",
@@ -30,11 +30,14 @@ export type VoucherDetails = {
  * has its own distinct list on file yet; add one to PMS_PROPERTIES_CONFIG's
  * `rules` field when the business supplies it, and it overrides this.
  */
+// Deliberately no security-deposit rule here: whether one applies is
+// property-specific (PropertyPmsConfig.securityDeposit) and already stated as
+// its own Payment Details line when it does — repeating it here would mention
+// it for every property, including the ones that must have no deposit text at all.
 export const DEFAULT_PROPERTY_RULES: { title: string; description: string }[] = [
   { title: "Swimming Pool Timing", description: "8:00 AM to 10:00 PM. Swimwear is mandatory in the pool." },
   { title: "Noise", description: "No loud music after 10:00 PM." },
   { title: "ID at Check-in", description: "A valid government photo ID (Aadhaar, Passport, Driving Licence or PAN) is required from every guest." },
-  { title: "Security Deposit", description: "A refundable deposit is collected at check-in (cash or UPI) and returned within 48 hours of check-out, subject to no damage." },
 ];
 
 export const DEFAULT_CANCELLATION_POLICY =
@@ -124,14 +127,23 @@ export function buildBookingConfirmationEmail(b: ConfirmationEmailInput): Confir
   const details = voucherDetails(b.propertyId);
   const rules = config.rules && config.rules.length > 0 ? config.rules : DEFAULT_PROPERTY_RULES;
   const cancellationPolicy = config.cancellationPolicy?.trim() || DEFAULT_CANCELLATION_POLICY;
-  const checkInTime = config.checkInTime?.trim() || "2:00 PM";
-  const checkOutTime = config.checkOutTime?.trim() || "11:00 AM";
+  const checkInTime = config.checkInTime?.trim() || DEFAULT_CHECK_IN_TIME;
+  const checkOutTime = config.checkOutTime?.trim() || DEFAULT_CHECK_OUT_TIME;
   const contactName = details.hasCaretaker ? details.caretakerLabel : "Property Manager";
   const contactPhone = details.hasCaretaker ? details.caretakerPhone : PMS_COMPANY.phones[0];
   const guestFirstName = escHtml(b.guestFirstName);
   const guestFullName = escHtml(b.guestFullName);
   const guestPhone = escHtml(b.guestPhone);
   const propertyLine = `${details.propertyName}, ${details.location}`;
+  const securityDeposit = config.securityDeposit && config.securityDeposit > 0 ? config.securityDeposit : null;
+  const depositLineHtml =
+    securityDeposit !== null
+      ? `<li><b>Security Deposit:</b> ₹${inr(securityDeposit)} (Refundable at checkout subject to property inspection)</li>`
+      : "";
+  const depositLineText =
+    securityDeposit !== null
+      ? `\n- Security Deposit: ₹${inr(securityDeposit)} (Refundable at checkout subject to property inspection)`
+      : "";
 
   const subject = `Booking Confirmation - ${details.propertyName} (${b.referenceNumber})`;
 
@@ -159,6 +171,7 @@ export function buildBookingConfirmationEmail(b: ConfirmationEmailInput): Confir
 <li><b>Advance Paid:</b> ₹${inr(b.advancePaid)}</li>
 <li><b>Balance Amount:</b> ₹${inr(b.balanceAmount)}</li>
 <li><b>Balance Payment:</b> To be paid at the time of check-in</li>
+${depositLineHtml}
 </ul>
 <h2 style="font-size:16px;color:#1a2238;margin-top:24px">Check-in &amp; Check-out</h2>
 <ul style="padding-left:18px;line-height:1.7;margin:8px 0">
@@ -195,7 +208,7 @@ Payment Details
 - Total Amount: ₹${inr(b.totalAmount)}
 - Advance Paid: ₹${inr(b.advancePaid)}
 - Balance Amount: ₹${inr(b.balanceAmount)}
-- Balance Payment: To be paid at the time of check-in
+- Balance Payment: To be paid at the time of check-in${depositLineText}
 
 Check-in & Check-out
 - Check-in Time: ${checkInTime}

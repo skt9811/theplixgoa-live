@@ -11,6 +11,7 @@ import postgres from "postgres";
 import { generateVoucherPdf, type VoucherBooking } from "@/lib/pdf-voucher";
 import { sendNewBookingAlert } from "@/lib/pms-notifications.server";
 import { buildBookingConfirmationEmail } from "@/lib/pms-voucher-content";
+import { PMS_COMPANY } from "@/lib/pms-company";
 import { DEFAULT_ORG_ID } from "@/lib/tenant-context.server";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
@@ -256,8 +257,13 @@ export async function confirmBookingAndSendEmails(
     JSON.stringify({ from: fromEmail, to: hostEmail, subject: `New booking: ${booking.property_name} — ${booking.guest_name}`, hasAttachment: Boolean(attachments) }),
   );
 
+  // reservations@ gets a bcc of the guest's own confirmation (this line), as
+  // well as its own internal-summary email (hostEmail below, by default the
+  // same address) — the internal email has different content (revenue, not
+  // what the guest reads), so both go out.
+  const guestBcc = booking.guest_email.toLowerCase() === PMS_COMPANY.email.toLowerCase() ? [] : [PMS_COMPANY.email];
   const [guestResult, hostResult] = await Promise.all([
-    sendResendEmail(resendApiKey, fromEmail, booking.guest_email, guestSubject, guestHtml, attachments, guestText),
+    sendResendEmail(resendApiKey, fromEmail, booking.guest_email, guestSubject, guestHtml, attachments, guestText, guestBcc),
     sendResendEmail(resendApiKey, fromEmail, hostEmail, `New booking: ${booking.property_name} — ${booking.guest_name}`, hostHtml, attachments),
   ]);
 
@@ -293,6 +299,7 @@ async function sendResendEmail(
   html: string,
   attachments?: { filename: string; content: string; content_type: string }[],
   text?: string,
+  bcc?: string[],
 ): Promise<Response> {
   return fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -300,7 +307,7 @@ async function sendResendEmail(
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from, to: Array.isArray(to) ? to : [to], subject, html, text, attachments }),
+    body: JSON.stringify({ from, to: Array.isArray(to) ? to : [to], subject, html, text, bcc, attachments }),
   });
 }
 

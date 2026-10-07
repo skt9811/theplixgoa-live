@@ -349,6 +349,12 @@ function DateDetailSheet({
                 <p className="text-xs text-slate-500">Total Nights</p>
                 <p className="font-medium">{booking.nights}</p>
               </div>
+              <div>
+                <p className="text-xs text-slate-500">Rooms</p>
+                <p className="font-medium">
+                  {booking.rooms_count ?? 1} {(booking.rooms_count ?? 1) === 1 ? "Room" : "Rooms"}
+                </p>
+              </div>
               {!caretaker && (
                 <div>
                   <p className="text-xs text-slate-500">Total Amount</p>

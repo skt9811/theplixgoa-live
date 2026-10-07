@@ -88,6 +88,14 @@ export function defaultRoomCategory(propertyId: string, roomsCount: number): str
   return property?.bedrooms ? `${property.bedrooms}BHK Private Villa with Pool` : "Villa";
 }
 
+// Email clients have no "current page" to resolve a relative path against, so
+// this must be an absolute, publicly reachable URL — relative paths and
+// localhost links render as a broken-image icon. The file is the same
+// transparent logo already live as the site's favicon, just copied to a name
+// without spaces or parentheses (public/plix-transparent.png), since those
+// are a real source of broken images in some email clients' URL handling.
+const LOGO_URL = `${PMS_COMPANY.website}/plix-transparent.png`;
+
 function escHtml(v: string): string {
   return v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
@@ -156,6 +164,16 @@ export function buildBookingConfirmationEmail(b: ConfirmationEmailInput): Confir
   const rulesText = rules.map((r) => `- ${r.title}: ${r.description}`).join("\n");
 
   const html = `<!DOCTYPE html><html><body style="font-family:Manrope,Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1a2238">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;width:100%">
+<tr>
+<td align="left" valign="middle">
+<div style="font-size:22px;font-weight:700;color:#10B981;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">Plix Hospitality</div>
+</td>
+<td align="right" valign="middle">
+<img src="${LOGO_URL}" alt="The Plix Goa" width="85" style="display:block;max-width:85px;width:85px;height:auto;border:0;outline:none;text-decoration:none" />
+</td>
+</tr>
+</table>
 <h1 style="color:#0f766e;font-size:22px;margin-bottom:4px">Booking Confirmation</h1>
 <p>Hi ${guestFirstName},</p>
 <p>Your booking is confirmed at <strong>${propertyLine}</strong>. Please find the booking details below:</p>

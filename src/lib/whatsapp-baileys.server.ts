@@ -40,6 +40,7 @@ import type {
   AuthenticationCreds,
   AuthenticationState,
   SignalDataTypeMap,
+  WAVersion,
 } from "@whiskeysockets/baileys";
 import { getPmsDb } from "@/lib/pms-db.server";
 import { ensureInquiriesSchema } from "@/lib/pms-schema.server";
@@ -130,28 +131,35 @@ export async function isWhatsAppPaired(): Promise<boolean> {
   return creds?.registered === true;
 }
 
-/**
- * Sends one plain-text message and disconnects. Throws (never silently
- * swallows) on any failure — callers decide how to surface that, same
- * convention as the rest of this codebase's "real failure, not a fake
- * success" rule for integrations with real external side effects.
- */
-export async function sendWhatsAppText(jid: string, text: string): Promise<void> {
-  const sql = getPmsDb();
-  if (!sql) throw new Error("PMS database not configured");
-  if (!(await isWhatsAppPaired())) {
-    throw new Error(
-      "WhatsApp is not paired yet — run `npm run pair:whatsapp` locally and scan the QR code once before any dispatch can succeed.",
-    );
-  }
-  const [{ default: makeWASocket, DisconnectReason, fetchLatestBaileysVersion }, { Boom }] =
-    await Promise.all([import("@whiskeysockets/baileys"), import("@hapi/boom")]);
-  const { state, saveCreds } = await dbAuthState(sql);
-  const { version } = await fetchLatestBaileysVersion();
+type BaileysRuntime = {
+  makeWASocket: typeof import("@whiskeysockets/baileys").default;
+  DisconnectReason: typeof import("@whiskeysockets/baileys").DisconnectReason;
+  Boom: typeof import("@hapi/boom").Boom;
+  version: WAVersion;
+};
 
-  await new Promise<void>((resolve, reject) => {
-    const sock = makeWASocket({
-      version,
+// Real stream restarts happen at most once in practice (see pair-whatsapp.ts's
+// own, more detailed note on why 515 happens at all); this caps a genuinely
+// wedged session at a handful of attempts instead of looping forever inside
+// a serverless invocation that must eventually return.
+const MAX_SEND_ATTEMPTS = 3;
+
+async function attemptSend(
+  sql: Sql,
+  jid: string,
+  text: string,
+  runtime: BaileysRuntime,
+  attempt: number,
+): Promise<void> {
+  const { state, saveCreds } = await dbAuthState(sql);
+  // Tracks the most recent in-flight write so a 515 reconnect (below) can
+  // wait for it before re-reading creds from Postgres — see pair-whatsapp.ts
+  // for why that ordering matters.
+  let pendingSave: Promise<void> = Promise.resolve();
+
+  return new Promise<void>((resolve, reject) => {
+    const sock = runtime.makeWASocket({
+      version: runtime.version,
       auth: state,
       // A nightly job has no human watching a terminal for a QR — printing
       // one here would only ever mean pairing was somehow lost, which is a
@@ -169,7 +177,10 @@ export async function sendWhatsAppText(jid: string, text: string): Promise<void>
       else resolve();
     };
 
-    sock.ev.on("creds.update", () => void saveCreds());
+    sock.ev.on("creds.update", () => {
+      pendingSave = saveCreds();
+      void pendingSave.catch(() => {});
+    });
 
     sock.ev.on("connection.update", (update) => {
       const { connection, lastDisconnect, qr } = update;
@@ -187,24 +198,70 @@ export async function sendWhatsAppText(jid: string, text: string): Promise<void>
           .then(() => finish())
           .catch((err: unknown) => finish(err instanceof Error ? err : new Error(String(err))));
       } else if (connection === "close") {
-        const statusCode = (lastDisconnect?.error as InstanceType<typeof Boom> | undefined)?.output
-          ?.statusCode;
-        if (statusCode === DisconnectReason.loggedOut) {
+        if (settled) return;
+        const statusCode = (lastDisconnect?.error as InstanceType<typeof runtime.Boom> | undefined)
+          ?.output?.statusCode;
+
+        // Not a failure — WhatsApp's multi-device protocol can ask any
+        // connection (not just a fresh pairing) to drop and reconnect once
+        // to finish a handshake. Reconnect with the just-flushed creds
+        // instead of surfacing this as a dispatch failure.
+        if (
+          statusCode === runtime.DisconnectReason.restartRequired &&
+          attempt < MAX_SEND_ATTEMPTS
+        ) {
+          settled = true;
+          sock.end(undefined);
+          pendingSave
+            .catch(() => {})
+            .then(() => attemptSend(sql, jid, text, runtime, attempt + 1))
+            .then(resolve, reject);
+          return;
+        }
+
+        if (statusCode === runtime.DisconnectReason.loggedOut) {
           finish(
             new Error(
               "WhatsApp session was logged out from the phone — run `npm run pair:whatsapp` locally to re-pair.",
             ),
           );
-        } else if (!settled) {
+        } else if (statusCode === runtime.DisconnectReason.restartRequired) {
+          finish(
+            new Error(
+              `Still getting a 515 restart after ${MAX_SEND_ATTEMPTS} attempts — giving up.`,
+            ),
+          );
+        } else {
           finish(new Error("WhatsApp connection closed before the message could be sent."));
         }
       }
     });
 
     // A hung handshake must never hold a serverless invocation open
-    // indefinitely — 30s is generous for a WebSocket connect + one send.
+    // indefinitely — 30s is generous for a WebSocket connect + one send,
+    // and each reconnect attempt above gets its own fresh 30s.
     setTimeout(() => finish(new Error("WhatsApp connection timed out after 30s")), 30_000);
   });
+}
+
+/**
+ * Sends one plain-text message and disconnects. Throws (never silently
+ * swallows) on any failure — callers decide how to surface that, same
+ * convention as the rest of this codebase's "real failure, not a fake
+ * success" rule for integrations with real external side effects.
+ */
+export async function sendWhatsAppText(jid: string, text: string): Promise<void> {
+  const sql = getPmsDb();
+  if (!sql) throw new Error("PMS database not configured");
+  if (!(await isWhatsAppPaired())) {
+    throw new Error(
+      "WhatsApp is not paired yet — run `npm run pair:whatsapp` locally and scan the QR code once before any dispatch can succeed.",
+    );
+  }
+  const [{ default: makeWASocket, DisconnectReason, fetchLatestBaileysVersion }, { Boom }] =
+    await Promise.all([import("@whiskeysockets/baileys"), import("@hapi/boom")]);
+  const { version } = await fetchLatestBaileysVersion();
+  await attemptSend(sql, jid, text, { makeWASocket, DisconnectReason, Boom, version }, 1);
 }
 
 /** Only used by scripts/pair-whatsapp.ts (run locally, by a human, never by

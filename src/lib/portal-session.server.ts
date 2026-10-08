@@ -13,7 +13,13 @@
 // native app's durable fallback. Same payload/expiry either way.
 import { decode as decodeSessionJwt, encode as encodeSessionJwt } from "@auth/core/jwt";
 import { isSecureRequest } from "@/lib/session-cookie.server";
-import { PROPERTIES } from "@/lib/plix";
+// PROPERTY_SLUGS, not PROPERTIES from @/lib/plix — this module is on
+// scripts/pair-whatsapp.ts and scripts/test-whatsapp-audit.ts's import
+// chain (pms-notifications.server.ts imports from here), which run under
+// plain Node/tsx and can't execute plix.ts's image imports. Same order as
+// PROPERTIES there, so the "first property" fallback below is unchanged.
+// See property-directory.ts's own header for the full story.
+import { PROPERTY_SLUGS } from "@/lib/property-directory";
 
 const SESSION_MAX_AGE_SECONDS = 90 * 24 * 60 * 60; // 90 days — must never auto-logout on app close/restart, per spec
 const TOKEN_SALT = "plix-portal-token"; // fixed, unlike the cookie's secure-flag-dependent name, since a bearer token has no "cookie name" of its own
@@ -157,8 +163,8 @@ export async function getPortalSessionFromRequest(req: Request): Promise<PortalS
 export function resolveEffectivePropertySlug(req: Request, session: PortalSession): string {
   if (session.role !== "admin") return session.propertySlug;
   const requested = new URL(req.url).searchParams.get("property");
-  const match = requested && PROPERTIES.some((p) => p.slug === requested);
-  return match ? requested! : (PROPERTIES[0]?.slug ?? "");
+  const match = requested && PROPERTY_SLUGS.includes(requested);
+  return match ? requested! : (PROPERTY_SLUGS[0] ?? "");
 }
 
 /** Caretakers may not read or write rates, blocked dates or any other pricing or payout surface. */

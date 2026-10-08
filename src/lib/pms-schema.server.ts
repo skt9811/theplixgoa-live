@@ -3,8 +3,18 @@
 // database. Idempotent, so it is safe to call before any expense query.
 import type postgres from "postgres";
 import { DEFAULT_CATEGORIES } from "@/lib/pms-categories";
-import { PROPERTIES } from "@/lib/plix";
-import { isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates";
+// PROPERTY_SLUGS/PROPERTY_NAMES (not PROPERTIES from @/lib/plix) and
+// isMultiRoomProperty/maxRoomsForProperty (not from @/lib/rates) — both of
+// those pull in plix.ts's ~100 unconditional image imports, which breaks
+// `tsx scripts/pair-whatsapp.ts` / `tsx scripts/test-whatsapp-audit.ts`
+// (this module is on both scripts' import chain, via ensureInquiriesSchema/
+// ensureAccessSchema). See property-directory.ts's own header for why.
+import {
+  PROPERTY_SLUGS,
+  PROPERTY_NAMES,
+  isMultiRoomProperty,
+  maxRoomsForProperty,
+} from "@/lib/property-directory";
 import { PRIMARY_PROPERTY_CODES } from "@/lib/property-codes";
 
 type Sql = ReturnType<typeof postgres>;
@@ -409,14 +419,15 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
       // and lives in compiled code, not this table — rewiring the static
       // array itself out of the live booking/login path is a separate,
       // larger change this phase deliberately didn't attempt.
-      for (const p of PROPERTIES) {
-        const code = PRIMARY_PROPERTY_CODES[p.slug];
-        if (!code) continue;
-        const totalRooms = isMultiRoomProperty(p.slug) ? maxRoomsForProperty(p.slug) : 1;
-        const displayName = p.name.split(" - ")[0] ?? p.name;
+      for (const slug of PROPERTY_SLUGS) {
+        const code = PRIMARY_PROPERTY_CODES[slug];
+        const name = PROPERTY_NAMES[slug];
+        if (!code || !name) continue;
+        const totalRooms = isMultiRoomProperty(slug) ? maxRoomsForProperty(slug) : 1;
+        const displayName = name.split(" - ")[0] ?? name;
         await sql`
           INSERT INTO pms_properties (id, organization_id, name, code, property_type, total_rooms, is_active)
-          VALUES (${p.slug}, 'org_plix_internal', ${displayName}, ${code}, ${isMultiRoomProperty(p.slug) ? "hotel" : "villa"}, ${totalRooms}, true)
+          VALUES (${slug}, 'org_plix_internal', ${displayName}, ${code}, ${isMultiRoomProperty(slug) ? "hotel" : "villa"}, ${totalRooms}, true)
           ON CONFLICT (id) DO NOTHING`;
       }
     })().catch((err) => {

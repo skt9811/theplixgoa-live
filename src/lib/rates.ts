@@ -239,27 +239,18 @@ export async function autoBlockDatesForStay(
   return result;
 }
 
-export function isMultiRoomProperty(propertyId: string): boolean {
-  return (
-    propertyId === "harbor-court" ||
-    propertyId === "morjim-pride" ||
-    propertyId === "the-plix-resort-morjim" ||
-    propertyId === "vivenda-chico"
-  );
-}
+// Relocated to property-directory.ts (pure, no @/lib/plix import) so
+// server modules on the WhatsApp night-audit's import chain — which must
+// stay importable by plain Node/tsx, not just Vite — can use these two
+// without also pulling in this file's own gstRateForRoomRate import above
+// (and, through it, plix.ts's ~100 unconditional image imports). Re-exported
+// here so every existing `from "@/lib/rates"` import keeps working unchanged.
+export { isMultiRoomProperty, maxRoomsForProperty } from "@/lib/property-directory";
 
 export const GUESTS_PER_ROOM = 3;
 
 export function maxGuestsForRooms(rooms: number, propertyMaxGuests: number): number {
   return Math.min(rooms * GUESTS_PER_ROOM, propertyMaxGuests);
-}
-
-export function maxRoomsForProperty(propertyId: string): number {
-  if (propertyId === "harbor-court") return 10;
-  if (propertyId === "morjim-pride") return 22;
-  if (propertyId === "the-plix-resort-morjim") return 10;
-  if (propertyId === "vivenda-chico") return 8;
-  return 1;
 }
 
 // Every other multi-room property's checkout charges base_price x nights

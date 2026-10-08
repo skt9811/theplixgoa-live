@@ -4,6 +4,7 @@ import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { handleRazorpayWebhook } from "./lib/razorpay-webhook.server";
 import { handleInquiryWebhook } from "./lib/pms-inquiries.server";
+import { handleNightAuditCron } from "./lib/night-audit-cron.server";
 import { handleSubscribeRequest } from "./lib/subscribe-newsletter.server";
 import { handleContactEnquiryRequest } from "./lib/contact-enquiry.server";
 import { handleSitemapRequest } from "./lib/sitemap.server";
@@ -200,6 +201,25 @@ export default {
         return await handleInquiryWebhook(request);
       } catch (error) {
         console.error("[airbnb-inquiry-webhook] unhandled error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    // Vercel's own Cron Jobs feature always sends GET (vercel.json's
+    // `crons` config has no way to request POST) — a manual/script-
+    // triggered test dispatch can use either. See night-audit-cron.
+    // server.ts for the Authorization: Bearer auth and night-audit.
+    // server.ts for the digest itself.
+    if (
+      url.pathname === "/api/cron/night-audit" &&
+      (request.method === "GET" || request.method === "POST")
+    ) {
+      try {
+        return await handleNightAuditCron(request);
+      } catch (error) {
+        console.error("[night-audit-cron] unhandled error:", error);
         return new Response(JSON.stringify({ error: "Internal error" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },

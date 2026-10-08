@@ -13,7 +13,9 @@
     "outreach:preview": "node scripts/outreach/mailer.ts --preview",
     "outreach:send": "node scripts/outreach/mailer.ts --send",
     "outreach:reply": "node scripts/outreach/mailer.ts --reply",
-    "outreach:export": "node scripts/outreach/export-csv.ts"
+    "outreach:export": "node scripts/outreach/export-csv.ts",
+    "pair:whatsapp": "tsx scripts/pair-whatsapp.ts",
+    "test:audit-dispatch": "tsx scripts/test-whatsapp-audit.ts"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",
@@ -67,6 +69,7 @@
     "@types/nodemailer": "^8.0.2",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -80,6 +83,7 @@
     "pdf-lib": "^1.17.1",
     "pg": "^8.23.0",
     "postgres": "^3.4.9",
+    "qrcode-terminal": "^0.12.0",
     "react": "^19.2.0",
     "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.0",
@@ -102,6 +106,7 @@
     "@lovable.dev/vite-tanstack-config": "^2.12.0",
     "@types/node": "^22.16.5",
     "@types/pg": "^8.23.1",
+    "@types/qrcode-terminal": "^0.12.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.2.0",
@@ -114,6 +119,7 @@
     "nitro": "3.0.260603-beta",
     "prettier": "^3.7.3",
     "sharp": "^0.35.3",
+    "tsx": "^4.23.15",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.2.0"

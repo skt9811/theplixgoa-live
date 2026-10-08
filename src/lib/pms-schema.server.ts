@@ -494,6 +494,20 @@ export function ensureInquiriesSchema(sql: Sql): Promise<void> {
         await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_staff_devices_token_key ON pms_staff_devices (fcm_token)`;
         await sql`ALTER TABLE pms_staff_devices ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
         await sql`CREATE INDEX IF NOT EXISTS idx_pms_staff_devices_org_id ON pms_staff_devices (organization_id)`;
+        // Baileys (WhatsApp) session credentials — see whatsapp-baileys.server.ts.
+        // A plain key/value table, not files: Vercel's serverless functions have
+        // no persistent local disk between invocations, so Baileys' own
+        // useMultiFileAuthState helper (which writes creds.json/*.json to a
+        // folder) can't survive a cold start here. This is the DB-backed
+        // equivalent that helper's own source comment recommends for
+        // production use — one row per credential/signal-key entry, keyed
+        // the same way the file-based version keys its filenames.
+        await sql`
+          CREATE TABLE IF NOT EXISTS pms_whatsapp_auth_state (
+            key text PRIMARY KEY,
+            value jsonb NOT NULL,
+            updated_at timestamptz NOT NULL DEFAULT now()
+          )`;
         // A property owner's device on the Plix Partner app (com.plix.partner)
         // — keyed by property_id rather than phone, since a booking notification
         // needs "everyone watching this property", not "everyone at this phone".

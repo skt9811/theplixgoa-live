@@ -75,13 +75,19 @@ export async function listInquiries(request: Request, actor: Actor): Promise<Res
   // them. So source = 'airbnb' rows are always included regardless of the
   // actor's allowed slugs; this table has no non-Airbnb source today, so in
   // practice every staff member now sees the full inquiries list.
+  // Mirrors the 48h retention pruneOldAirbnbInquiries enforces at the database
+  // level — a defense-in-depth filter for the brief window between an insert
+  // and the next prune run, not an independent, stricter limit. The row cap
+  // stays a flat LIMIT (not the per-property top-10 the prune enforces): this
+  // query spans every property in the org at once, so a flat 10 here would
+  // hide legitimate rows from the other properties a multi-property org has.
   const rows = isAllProps(actor)
     ? await sql<
         InquiryRow[]
-      >`SELECT ${sql.unsafe(INQUIRY_COLUMNS)} FROM pms_inquiries WHERE organization_id = ${tenantId} ORDER BY created_at DESC LIMIT 300`
+      >`SELECT ${sql.unsafe(INQUIRY_COLUMNS)} FROM pms_inquiries WHERE organization_id = ${tenantId} AND created_at >= now() - interval '2 days' ORDER BY created_at DESC LIMIT 300`
     : await sql<
         InquiryRow[]
-      >`SELECT ${sql.unsafe(INQUIRY_COLUMNS)} FROM pms_inquiries WHERE organization_id = ${tenantId} AND (property_id = ANY(${slugs}) OR property_id IS NULL OR source = 'airbnb') ORDER BY created_at DESC LIMIT 300`;
+      >`SELECT ${sql.unsafe(INQUIRY_COLUMNS)} FROM pms_inquiries WHERE organization_id = ${tenantId} AND created_at >= now() - interval '2 days' AND (property_id = ANY(${slugs}) OR property_id IS NULL OR source = 'airbnb') ORDER BY created_at DESC LIMIT 300`;
   return json({ inquiries: rows.map(mapInquiry) });
 }
 
@@ -181,6 +187,46 @@ export async function deleteInquiries(request: Request, url: URL, actor: Actor):
   });
 
   return json({ success: true, deletedCount: deleted.length });
+}
+
+/**
+ * Automated retention for the Airbnb inquiry CRM: permanently deletes any row
+ * older than 48 hours, and any row beyond the 10 most recent per
+ * (organization, property) — regardless of status. This is deliberately
+ * status-blind: an unresolved "new" or "contacted" lead is purged the same as
+ * a "converted_offline"/"dropped" one once it's past the window or the cap.
+ * No soft-delete, no archive — this is permanent. Scope to one organization
+ * with `orgId`; omit it to prune every organization at once. Never throws —
+ * called fire-and-forget right after a webhook insert.
+ */
+export async function pruneOldAirbnbInquiries(orgId?: string): Promise<{ deleted: number }> {
+  const sql = getPmsDb();
+  if (!sql) return { deleted: 0 };
+  const orgFilter = orgId ?? null;
+  try {
+    await ensureInquiriesSchema(sql);
+    const deleted = await sql<{ id: string }[]>`
+      WITH ranked AS (
+        SELECT id, organization_id, created_at,
+          ROW_NUMBER() OVER (PARTITION BY organization_id, property_id ORDER BY created_at DESC) AS rn
+        FROM pms_inquiries
+      )
+      DELETE FROM pms_inquiries p
+      USING ranked r
+      WHERE p.id = r.id
+        AND (r.rn > 10 OR r.created_at < now() - interval '2 days')
+        AND (${orgFilter}::text IS NULL OR p.organization_id = ${orgFilter})
+      RETURNING p.id`;
+    if (deleted.length > 0) {
+      console.log(
+        `[pms-inquiries] pruned ${deleted.length} inquiry row(s)${orgId ? ` for org ${orgId}` : ""} (48h TTL / top-10-per-property cap).`,
+      );
+    }
+    return { deleted: deleted.length };
+  } catch (err) {
+    console.error("[pms-inquiries] prune failed:", err instanceof Error ? err.message : err);
+    return { deleted: 0 };
+  }
 }
 
 // --- Airbnb inbound email parsing ---
@@ -741,6 +787,10 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
         hostName: getHostDisplayName(recipientEmail) ?? "",
       },
     });
+    // Fire-and-forget: a genuinely new row just landed, so this is the moment
+    // the 48h TTL / top-10 cap can put the table back over its limit — prune
+    // now rather than waiting for the next insert.
+    void pruneOldAirbnbInquiries(DEFAULT_ORG_ID);
   }
 
   if (usedRawRecovery) {

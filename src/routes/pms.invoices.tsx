@@ -9,6 +9,7 @@ import { inr2, propertyLabel } from "@/lib/pms-format";
 import { usePms } from "@/components/pms/pms-context";
 import { TaxInvoiceModal } from "@/components/pms/tax-invoice-modal";
 import { useBackDismiss } from "@/lib/pms-back-stack";
+import { CancellationReasonModal } from "@/components/pms/cancellation-reason-modal";
 
 export const Route = createFileRoute("/pms/invoices")({
   validateSearch: (search: Record<string, unknown>): { open?: string | undefined } => ({
@@ -95,10 +96,11 @@ function PmsInvoices() {
     if (open) void openInvoice(open);
   }, [open]);
 
-  async function confirmDelete() {
+  async function confirmDelete(reason: string, notes?: string) {
     if (!deleting) return;
     try {
-      await pms(`invoices?id=${deleting.id}`, { method: "DELETE" });
+      const params = new URLSearchParams({ id: deleting.id, reason, ...(notes ? { notes } : {}) });
+      await pms(`invoices?${params.toString()}`, { method: "DELETE" });
       toast.success("Draft deleted");
       setDeleting(null);
       await load();
@@ -264,22 +266,13 @@ function PmsInvoices() {
 
       {viewing && <TaxInvoiceModal invoice={viewing} onClose={() => setViewing(null)} />}
       {deleting && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setDeleting(null)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold">Delete draft {deleting.invoice_number}?</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              {deleting.guest_name} · {inr2(deleting.grand_total)}. Only drafts can be deleted, and this cannot be undone.
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setDeleting(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
-                Cancel
-              </button>
-              <button type="button" onClick={() => void confirmDelete()} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-[#fff] hover:bg-red-700">
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <CancellationReasonModal
+          title={`Delete Draft ${deleting.invoice_number}`}
+          entityType="invoice"
+          isOpen
+          onClose={() => setDeleting(null)}
+          onConfirm={(reason, notes) => confirmDelete(reason, notes)}
+        />
       )}
     </div>
   );

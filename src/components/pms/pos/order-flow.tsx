@@ -32,6 +32,7 @@ import { usePos } from "@/components/pms/pos/pos-context";
 import { usePms } from "@/components/pms/pms-context";
 import { EMPTY_GUEST, GuestModal, type Guest } from "@/components/pms/pos/guest-modal";
 import { PaymentScreen } from "@/components/pms/pos/payment-screen";
+import { CancellationReasonModal } from "@/components/pms/cancellation-reason-modal";
 
 type Draft = { key: string; itemId: string | null; name: string; qty: number; unitPrice: number; categoryName: string; taxPercent: number; taxType: CategoryTaxType; isTaxInclusive: boolean; notes: string };
 type View = "menu" | "review" | "payment";
@@ -429,10 +430,18 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
     }
   }
 
-  async function voidLine(line: PosLine, reason: string) {
+  async function voidLine(line: PosLine, reason: string, notes?: string) {
     if (!orderId) return;
     try {
-      hydrate(await posAction({ orderId, action: "void_item", lineId: line.id, reason: reason || "Voided" }));
+      hydrate(
+        await posAction({
+          orderId,
+          action: "void_item",
+          lineId: line.id,
+          reason: reason || "Voided",
+          notes,
+        }),
+      );
       toast.success("Item voided");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not void the item");
@@ -601,7 +610,16 @@ export function OrderFlow({ tableId, tableName, orderId: initialOrderId, startAt
           onSubmit={(v) => { setDrafts((p) => p.map((d) => (d.key === modal.noteFor ? { ...d, notes: v } : d))); setDirty(true); setModal(null); }} />
       )}
       {modal && typeof modal === "object" && "voidLine" in modal && (
-        <Prompt title={`Void ${modal.voidLine.item_name}?`} label="Reason" confirm="Void item" onClose={() => setModal(null)} onSubmit={(v) => { void voidLine(modal.voidLine, v); setModal(null); }} />
+        <CancellationReasonModal
+          title={`Void ${modal.voidLine.item_name}?`}
+          entityType="pos_item"
+          isOpen
+          onClose={() => setModal(null)}
+          onConfirm={async (reason, notes) => {
+            await voidLine(modal.voidLine, reason, notes);
+            setModal(null);
+          }}
+        />
       )}
     </>
   );

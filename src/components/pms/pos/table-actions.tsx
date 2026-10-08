@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { ArrowLeft, X } from "lucide-react";
 import { inr, posAction, posOrder, type PosLine, type PosTable } from "@/lib/pms-pos-client";
 import { useBackDismiss } from "@/lib/pms-back-stack";
+import { CancellationReasonModal } from "@/components/pms/cancellation-reason-modal";
 
 type Mode = "menu" | "move" | "merge" | "split" | "kot" | "transfer" | "cancel";
 
@@ -23,7 +24,6 @@ export function TableActionsSheet({ table, tables, onClose, onView, onPay, onCha
   const [lines, setLines] = useState<PosLine[] | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [kot, setKot] = useState<number | null>(null);
-  const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const order = table.order!;
 
@@ -120,11 +120,19 @@ export function TableActionsSheet({ table, tables, onClose, onView, onPay, onCha
         {mode === "cancel" && (
           <>
             <p className="text-sm text-slate-600">This cancels the whole order ({inr(order.total)}) and frees the table. It is recorded in the Cancelled Invoices report.</p>
-            <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional)" className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-red-400" />
             <div className="mt-4 flex gap-2">
               <button type="button" onClick={() => setMode("menu")} className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-medium text-slate-600">Keep order</button>
-              <button type="button" disabled={busy} onClick={() => void run({ action: "cancel", reason }, "Order cancelled")} className="flex-1 rounded-lg bg-red-600 py-2.5 text-sm font-bold text-white disabled:opacity-50">Cancel order</button>
             </div>
+            <CancellationReasonModal
+              title={`Cancel Order #${order.order_number}`}
+              entityType="pos_order"
+              isOpen
+              onClose={() => setMode("menu")}
+              onConfirm={async (reason, notes) => {
+                await run({ action: "cancel", reason, notes }, "Order cancelled");
+                setMode("menu");
+              }}
+            />
           </>
         )}
       </div>

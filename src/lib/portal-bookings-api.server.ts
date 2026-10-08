@@ -156,13 +156,18 @@ let lifecycleSchemaReady: Promise<void> | null = null;
 
 // Check-in / check-out timestamps and the housekeeping flag, added once and
 // kept additive. The Partner App's own check-in and check-out write these.
-function ensureLifecycleSchema(sql: ReturnType<typeof getSql> & object): Promise<void> {
+export function ensureLifecycleSchema(sql: ReturnType<typeof getSql> & object): Promise<void> {
   if (!lifecycleSchemaReady) {
     lifecycleSchemaReady = (async () => {
       await sql`ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS checked_in_at timestamptz`;
       await sql`ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS checked_out_at timestamptz`;
       await sql`ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS housekeeping_status text`;
       await sql`ALTER TABLE public.portal_bookings ADD COLUMN IF NOT EXISTS housekeeping_status text`;
+      // Mandatory cancellation reason (cancelBooking, pms-api.server.ts) —
+      // additive on both the online and manual booking tables, same pattern
+      // as every other column here.
+      await sql`ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancellation_reason text`;
+      await sql`ALTER TABLE public.portal_bookings ADD COLUMN IF NOT EXISTS cancellation_reason text`;
     })().catch((err) => {
       lifecycleSchemaReady = null;
       throw err;

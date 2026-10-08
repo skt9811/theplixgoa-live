@@ -309,7 +309,7 @@ export async function handlePosAdminApi(
     const { from, to } = range(url);
     const user = str(url.searchParams.get("user"));
     const rows =
-      await sql`SELECT id, station_id, user_name, action, created_at FROM pms_pos_activity_logs
+      await sql`SELECT id, station_id, user_name, action, details, created_at FROM pms_pos_activity_logs
       WHERE property_id = ${propertyQ} AND ${sql.unsafe(dayOf("created_at"))} BETWEEN ${from} AND ${to} AND (${user} = '' OR user_name = ${user}) ORDER BY created_at DESC LIMIT 300`;
     const users = await sql<
       { user_name: string }[]

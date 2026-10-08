@@ -30,6 +30,7 @@ import { propertyDisplayName } from "@/components/pms/property-selector";
 import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
 import { TaxInvoiceModal } from "@/components/pms/tax-invoice-modal";
 import { EditBookingModal } from "@/components/pms/edit-booking-modal";
+import { CancellationReasonModal } from "@/components/pms/cancellation-reason-modal";
 import { PmsPullToRefresh } from "@/components/pms/pms-pull-to-refresh";
 import { triggerPhoneCall } from "@/lib/device-actions";
 import { safeFormatINR } from "@/lib/pms-format";
@@ -84,6 +85,7 @@ function PmsBookings() {
   const [viewInvoice, setViewInvoice] = useState<PmsInvoice | null>(null);
   const [editing, setEditing] = useState<PmsBooking | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<PmsBooking | null>(null);
   const [togglingVisibility, setTogglingVisibility] = useState<string | null>(null);
   const [invoiceNumbers, setInvoiceNumbers] = useState<
     Record<string, { id: string; number: string; finalized: boolean }>
@@ -125,20 +127,15 @@ function PmsBookings() {
     }
   }
 
-  async function cancelBooking(b: PmsBooking) {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete this booking? This will release the blocked dates for ${b.guest_name}'s stay.`,
-      )
-    )
-      return;
+  async function cancelBooking(b: PmsBooking, reason: string, notes?: string) {
     setCancelling(b.id);
     try {
       await pms("bookings/cancel", {
         method: "POST",
-        body: JSON.stringify({ id: b.id, source: b.source }),
+        body: JSON.stringify({ id: b.id, source: b.source, reason, notes }),
       });
       toast.success("Booking cancelled");
+      setCancelTarget(null);
       await reload();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not cancel the booking");
@@ -440,7 +437,7 @@ function PmsBookings() {
                     <button
                       type="button"
                       disabled={cancelling === b.id}
-                      onClick={() => void cancelBooking(b)}
+                      onClick={() => setCancelTarget(b)}
                       className="flex items-center gap-1 rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
                     >
                       <Trash2 className="size-3" aria-hidden />{" "}
@@ -467,6 +464,15 @@ function PmsBookings() {
               setEditing(null);
               void reload();
             }}
+          />
+        )}
+        {cancelTarget && (
+          <CancellationReasonModal
+            title="Cancel Reservation"
+            entityType="booking"
+            isOpen
+            onClose={() => setCancelTarget(null)}
+            onConfirm={(reason, notes) => cancelBooking(cancelTarget, reason, notes)}
           />
         )}
       </div>

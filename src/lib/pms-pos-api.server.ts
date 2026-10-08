@@ -438,15 +438,28 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
     });
   }
   if (result.kotNumber) {
-    const n = saved.lines.filter(
+    const kotLines = saved.lines.filter(
       (l) => l.kot_number === result.kotNumber && l.status === "active",
-    ).length;
+    );
+    // Same item name + unit price collapses into one "Nx Item" entry — two
+    // separate presses of the same menu item are one line to a KOT reader,
+    // not two. A genuinely different price (a manual override) stays its
+    // own entry, same distinction the receipt/KOT slip itself already makes.
+    const grouped = new Map<string, { name: string; qty: number; price: number }>();
+    for (const l of kotLines) {
+      const key = `${l.item_name}|${l.unit_price}`;
+      const existing = grouped.get(key);
+      if (existing) existing.qty += l.quantity;
+      else grouped.set(key, { name: l.item_name, qty: l.quantity, price: l.unit_price });
+    }
+    const items = [...grouped.values()];
+    const itemsSummary = items.map((i) => `${i.qty}x ${i.name}`).join(", ");
     await logPos(
       sql,
       actor,
       property,
-      `KOT #${result.kotNumber} Sent (Table ${saved.order.table_name}, ${n} item${n === 1 ? "" : "s"})`,
-      { orderId: result.orderId, kot: result.kotNumber },
+      `KOT #${result.kotNumber} Sent (Table ${saved.order.table_name}, ${kotLines.length} item${kotLines.length === 1 ? "" : "s"}) — Items: ${itemsSummary}`,
+      { orderId: result.orderId, kot: result.kotNumber, items },
       station,
     );
   }
@@ -507,6 +520,13 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
     ? (body["lineIds"] as unknown[]).filter((x): x is string => typeof x === "string")
     : [];
 
+  // Set by the "void_item"/"cancel"/"cancel_settled" cases below to carry a
+  // reason and the real item list into the catch-all logPos call at the end
+  // of this function — every other action keeps that call's original
+  // generic message/details, unchanged.
+  let logMessage: string | null = null;
+  let logDetails: Record<string, unknown> | null = null;
+
   switch (action) {
     case "to_billing":
       await sql`UPDATE pms_pos_orders SET status = 'billing' WHERE id = ${order.id}`;
@@ -516,6 +536,7 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
       break;
     case "void_item": {
       const reason = str(body["reason"]) || "Voided";
+      const notes = str(body["notes"]) || undefined;
       const [line] = await sql<
         LineRow[]
       >`SELECT id, order_id, kot_number, item_id, item_name, quantity, unit_price, total_price, notes, status, tax_rate, added_by, voided_by, void_reason, kot_at, stock_deducted, tax_group FROM pms_pos_order_items WHERE id = ${str(body["lineId"])} AND order_id = ${order.id} AND status = 'active'`;
@@ -532,11 +553,24 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
         item: line.item_name,
         qty: line.quantity,
         reason,
+        ...(notes ? { notes } : {}),
       });
+      logMessage = `Item Removed: ${line.item_name} x${line.quantity} — Reason: ${reason} (Table ${order.table_name})`;
+      logDetails = {
+        orderId: order.id,
+        action,
+        reason,
+        ...(notes ? { notes } : {}),
+        items: [{ name: line.item_name, qty: line.quantity, price: Number(line.unit_price) }],
+      };
       break;
     }
     case "cancel": {
       const reason = str(body["reason"]) || "Cancelled";
+      const notes = str(body["notes"]) || undefined;
+      const cancelledLines = await sql<
+        { item_name: string; quantity: number; unit_price: string }[]
+      >`SELECT item_name, quantity, unit_price FROM pms_pos_order_items WHERE order_id = ${order.id} AND status = 'active'`;
       await restoreStock(sql, order.id);
       await sql`UPDATE pms_pos_orders SET status = 'cancelled', cancel_reason = ${reason}, settled_at = now() WHERE id = ${order.id}`;
       await freeTable(sql, order.table_id);
@@ -544,8 +578,23 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
         kind: "cancel_order",
         table: order.table_name,
         reason,
+        ...(notes ? { notes } : {}),
         total: Number(order["total_amount"]),
       });
+      logMessage = `Order Cancelled (Table ${order.table_name}, Order #${order["order_number"]}) — Reason: ${reason}`;
+      logDetails = {
+        orderId: order.id,
+        action,
+        table: order.table_name,
+        reason,
+        ...(notes ? { notes } : {}),
+        items: cancelledLines.map((l) => ({
+          name: l.item_name,
+          qty: l.quantity,
+          price: Number(l.unit_price),
+        })),
+        total_amount: Number(order["total_amount"]),
+      };
       await sendStaffPushNotification({
         title: `⚠️ Table ${order.table_name} Cancelled`,
         body: `Table was cancelled by ${actor.name}.${reason ? ` Reason: ${reason}` : ""}`,
@@ -658,13 +707,32 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
       if (order.status !== "completed")
         throw new PosError("Only a completed order can be cancelled this way");
       const reason = str(body["reason"]) || "Cancelled after settlement";
+      const notes = str(body["notes"]) || undefined;
+      const settledLines = await sql<
+        { item_name: string; quantity: number; unit_price: string }[]
+      >`SELECT item_name, quantity, unit_price FROM pms_pos_order_items WHERE order_id = ${order.id} AND status = 'active'`;
       await sql`UPDATE pms_pos_orders SET status = 'cancelled', cancel_reason = ${reason} WHERE id = ${order.id}`;
       await audit(actor, "DELETE", "pos", order.id, {
         kind: "cancel_settled_order",
         table: order.table_name,
         reason,
+        ...(notes ? { notes } : {}),
         total: Number(order["total_amount"]),
       });
+      logMessage = `Invoice Cancelled (Table ${order.table_name}, Order #${order["order_number"]}) — Reason: ${reason}`;
+      logDetails = {
+        orderId: order.id,
+        action,
+        table: order.table_name,
+        reason,
+        ...(notes ? { notes } : {}),
+        items: settledLines.map((l) => ({
+          name: l.item_name,
+          qty: l.quantity,
+          price: Number(l.unit_price),
+        })),
+        total_amount: Number(order["total_amount"]),
+      };
       break;
     }
     // Switches a settled order's recorded payment mode (e.g. it was logged
@@ -701,8 +769,9 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
     sql,
     actor,
     order.property_id,
-    `Order ${action.replace(/_/g, " ")} (Table ${order.table_name}, Order #${order["order_number"]})`,
-    { orderId: order.id, action },
+    logMessage ??
+      `Order ${action.replace(/_/g, " ")} (Table ${order.table_name}, Order #${order["order_number"]})`,
+    logDetails ?? { orderId: order.id, action },
     station,
   );
   return json(await loadOrder(sql, order.id));

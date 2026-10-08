@@ -44,6 +44,7 @@ import { slugForPropertyCode } from "@/lib/property-codes";
 import { handleSuperAdminApi } from "@/lib/pms-super-admin.server";
 import { defaultFeaturesForTier, tierForPlan } from "@/lib/tenant-features-config";
 import { handleSignupApi } from "@/lib/pms-signup.server";
+import { ensureLifecycleSchema } from "@/lib/portal-bookings-api.server";
 import {
   listPartnerAccounts,
   movePartnerAccount,
@@ -887,7 +888,10 @@ async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<
   }
   const id = str(body["id"]);
   const source = str(body["source"]);
+  const reason = str(body["reason"]);
+  if (!reason) return json({ error: "A cancellation reason is required" }, 400);
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid booking id" }, 400);
+  await ensureLifecycleSchema(sql);
 
   if (source === "manual") {
     const [existing] = await sql<
@@ -904,12 +908,13 @@ async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<
     if (!canProperty(actor, existing.property_id))
       return json({ error: "You do not have access to this property" }, 403);
     if (existing.status === "cancelled") return json({ success: true });
-    await sql`UPDATE public.portal_bookings SET status = 'cancelled' WHERE id = ${id}::uuid`;
+    await sql`UPDATE public.portal_bookings SET status = 'cancelled', cancellation_reason = ${reason} WHERE id = ${id}::uuid`;
     await sql`DELETE FROM public.blocked_dates WHERE property_id = ${existing.property_id} AND reason = ${manualBlockReason(id)}`;
     await audit(actor, "DELETE", "booking", id, {
       property: existing.property_id,
       guest: existing.guest_name,
       source: "manual",
+      reason,
     });
     void notifyBookingDeleted({
       id,
@@ -938,7 +943,7 @@ async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<
     if (!canProperty(actor, existing.property_id))
       return json({ error: "You do not have access to this property" }, 403);
     if (existing.payment_status === "cancelled") return json({ success: true });
-    await sql`UPDATE public.bookings SET payment_status = 'cancelled' WHERE id = ${id}::uuid`;
+    await sql`UPDATE public.bookings SET payment_status = 'cancelled', cancellation_reason = ${reason} WHERE id = ${id}::uuid`;
     // Whole-villa properties only: multi-room resorts never had a blocked_dates
     // row for this booking in the first place (see autoBlockDatesForStayCore).
     if (!isMultiRoomProperty(existing.property_id)) {
@@ -951,6 +956,7 @@ async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<
       property: existing.property_id,
       guest: existing.guest_name,
       source: "online",
+      reason,
     });
     void notifyBookingDeleted({
       id,
@@ -1956,6 +1962,9 @@ async function deleteInvoice(url: URL, actor: Actor): Promise<Response> {
   if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
   const id = url.searchParams.get("id") ?? "";
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
+  const reason = str(url.searchParams.get("reason") ?? "");
+  if (!reason) return json({ error: "A cancellation reason is required" }, 400);
+  const notes = str(url.searchParams.get("notes") ?? "") || undefined;
   await ensureInvoicesSchema(pmsDb);
   const [existing] = await pmsDb<
     { property_id: string; invoice_number: string }[]
@@ -1968,6 +1977,8 @@ async function deleteInvoice(url: URL, actor: Actor): Promise<Response> {
   await audit(actor, "DELETE", "invoice", id, {
     number: existing?.invoice_number,
     property: existing?.property_id,
+    reason,
+    ...(notes ? { notes } : {}),
   });
   return json({ success: true });
 }

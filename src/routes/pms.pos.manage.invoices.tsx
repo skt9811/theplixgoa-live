@@ -15,6 +15,7 @@ import {
 } from "@/components/pms/pos/pos-ui";
 import { BillPreview } from "@/components/pms/pos/bill-preview";
 import { OrderFlow } from "@/components/pms/pos/order-flow";
+import { CancellationReasonModal } from "@/components/pms/cancellation-reason-modal";
 
 export const Route = createFileRoute("/pms/pos/manage/invoices")({ component: Invoices });
 
@@ -46,6 +47,7 @@ function Invoices() {
   const [rebilling, setRebilling] = useState<{ orderId: string; tableName: string } | null>(null);
   const [payingFor, setPayingFor] = useState<Row | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState<Row | null>(null);
 
   const load = useCallback(async () => {
     setRows(null);
@@ -87,12 +89,12 @@ function Invoices() {
     }
   }
 
-  async function cancelOrder(r: Row) {
-    if (!window.confirm(`Cancel invoice #${r.order_number}? This voids the bill.`)) return;
+  async function cancelOrder(r: Row, reason: string, notes?: string) {
     setBusyId(r.id);
     try {
-      await posAction({ orderId: r.id, action: "cancel_settled" });
+      await posAction({ orderId: r.id, action: "cancel_settled", reason, notes });
       toast.success("Invoice cancelled");
+      setCancelling(null);
       await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not cancel this invoice");
@@ -211,7 +213,7 @@ function Invoices() {
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => void cancelOrder(r)}
+                      onClick={() => setCancelling(r)}
                       className="flex items-center gap-1 rounded-full border border-red-200 px-2.5 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
                     >
                       <XCircle className="size-3" aria-hidden /> Cancel Order
@@ -258,6 +260,16 @@ function Invoices() {
       </div>
 
       {preview && <BillPreview data={preview} onClose={() => setPreview(null)} />}
+
+      {cancelling && (
+        <CancellationReasonModal
+          title={`Cancel Invoice #${cancelling.order_number}`}
+          entityType="pos_order"
+          isOpen
+          onClose={() => setCancelling(null)}
+          onConfirm={(reason, notes) => cancelOrder(cancelling, reason, notes)}
+        />
+      )}
 
       {rebilling && (
         <OrderFlow

@@ -15,6 +15,7 @@ import { collectGuardWarnings, type GuardWarning } from "@/lib/pms-guards";
 import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
 import { EditBookingModal } from "@/components/pms/edit-booking-modal";
 import { useBackDismiss } from "@/lib/pms-back-stack";
+import { CancellationReasonModal } from "@/components/pms/cancellation-reason-modal";
 
 export const Route = createFileRoute("/pms/vouchers")({
   component: PmsVouchers,
@@ -295,13 +296,17 @@ function PmsVouchers() {
   const [voucher, setVoucher] = useState<PmsBooking | null>(null);
   const [editing, setEditing] = useState<PmsBooking | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<PmsBooking | null>(null);
 
-  async function cancelVoucher(b: PmsBooking) {
-    if (!window.confirm(`Are you sure you want to delete this voucher? This will release the blocked dates for ${b.guest_name}'s stay.`)) return;
+  async function cancelVoucher(b: PmsBooking, reason: string, notes?: string) {
     setCancelling(b.id);
     try {
-      await pms("bookings/cancel", { method: "POST", body: JSON.stringify({ id: b.id, source: b.source }) });
+      await pms("bookings/cancel", {
+        method: "POST",
+        body: JSON.stringify({ id: b.id, source: b.source, reason, notes }),
+      });
       toast.success("Voucher cancelled");
+      setCancelTarget(null);
       await reload();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not cancel the voucher");
@@ -358,7 +363,7 @@ function PmsVouchers() {
               <button type="button" onClick={() => setEditing(b)} className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                 <Pencil className="size-3" aria-hidden /> Edit
               </button>
-              <button type="button" disabled={cancelling === b.id} onClick={() => void cancelVoucher(b)} className="flex items-center gap-1 rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">
+              <button type="button" disabled={cancelling === b.id} onClick={() => setCancelTarget(b)} className="flex items-center gap-1 rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">
                 <Trash2 className="size-3" aria-hidden /> {cancelling === b.id ? "Cancelling..." : "Delete"}
               </button>
             </div>
@@ -386,6 +391,15 @@ function PmsVouchers() {
             setEditing(null);
             void reload();
           }}
+        />
+      )}
+      {cancelTarget && (
+        <CancellationReasonModal
+          title="Cancel Voucher"
+          entityType="voucher"
+          isOpen
+          onClose={() => setCancelTarget(null)}
+          onConfirm={(reason, notes) => cancelVoucher(cancelTarget, reason, notes)}
         />
       )}
     </div>

@@ -14,8 +14,8 @@
     "outreach:send": "node scripts/outreach/mailer.ts --send",
     "outreach:reply": "node scripts/outreach/mailer.ts --reply",
     "outreach:export": "node scripts/outreach/export-csv.ts",
-    "pair:whatsapp": "tsx scripts/pair-whatsapp.ts",
-    "test:audit-dispatch": "tsx scripts/test-whatsapp-audit.ts"
+    "pair:whatsapp": "tsx --env-file=.env.local scripts/pair-whatsapp.ts",
+    "test:audit-dispatch": "tsx --env-file=.env.local scripts/test-whatsapp-audit.ts"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",

@@ -9,7 +9,7 @@
 // app's own server code (or an agent) triggers on its own.
 import { stripSurroundingQuotes } from "@/lib/pms-notifications.server";
 import { buildNightAuditDigest } from "@/lib/night-audit.server";
-import { sendWhatsAppText } from "@/lib/whatsapp-baileys.server";
+import { authStateDebugInfo, sendWhatsAppText } from "@/lib/whatsapp-baileys.server";
 
 async function main() {
   const jid = stripSurroundingQuotes(process.env["WHATSAPP_OPERATIONS_GROUP_JID"]);
@@ -18,6 +18,14 @@ async function main() {
       "WHATSAPP_OPERATIONS_GROUP_JID is not set in .env.local — add it first (see .env.example).",
     );
   }
+
+  // Raw DB state before Baileys gets touched at all, so "not paired yet"
+  // and "no DB row was ever written" (wrong NEON_PMS_DATABASE_URL, env file
+  // not loaded, wrong Postgres instance, etc) don't look identical.
+  const auth = await authStateDebugInfo();
+  console.log(
+    `[Auth Check] Found session key in DB: ${auth.hasCredsRow}, keys count: ${auth.rowCount}`,
+  );
 
   console.log("Building tonight's digest...");
   const digest = await buildNightAuditDigest();

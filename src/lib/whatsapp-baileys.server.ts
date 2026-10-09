@@ -120,15 +120,44 @@ export async function dbAuthState(
 }
 
 /** True once a real pairing (scripts/pair-whatsapp.ts, run locally) has
- * actually happened — `creds.registered` is Baileys' own flag for "this
- * device is linked to a real WhatsApp account", not just "a creds row
- * exists" (a fresh initAuthCreds() always exists once dbAuthState runs
- * once, paired or not). */
+ * actually happened — checked via `creds.me?.id`, not `creds.registered`.
+ * Both look like "the" pairing flag, but `creds.registered` is set `true`
+ * in exactly one place in this whole package
+ * (node_modules/@whiskeysockets/baileys/lib/Socket/messages-recv.js, the
+ * `link_code_companion_reg` case) — and that's the numeric *pairing-code*
+ * flow (requestPairingCode()), not the *QR-code* flow this script actually
+ * uses (listens for the `qr` connection-update event). For QR pairing,
+ * confirmed by reading Socket/socket.js directly: the `pair-success`
+ * handler's creds.update sets `{ account, me, signalIdentities, platform }`
+ * — never `registered` — and nothing later in that flow sets it either, so
+ * `creds.registered` stays `false` forever even after a fully successful
+ * QR pairing (reproduced: a real paired session's own `creds` row had
+ * `registered: false` with `me.id` already populated). `creds.me?.id` is
+ * Baileys' own sanctioned "is this socket authenticated" check instead —
+ * see its own assertMeId() helper's doc comment in Utils/auth-utils.js
+ * ("Use this anywhere we'd otherwise reach for creds.me!.id"). Checking
+ * both here costs nothing and covers either pairing method. */
 export async function isWhatsAppPaired(): Promise<boolean> {
   const sql = getPmsDb();
   if (!sql) return false;
   const creds = await readAuthValue<AuthenticationCreds>(sql, "creds");
-  return creds?.registered === true;
+  return creds?.registered === true || !!creds?.me?.id;
+}
+
+/** Raw diagnostic snapshot of pms_whatsapp_auth_state — scripts/test-
+ * whatsapp-audit.ts logs this before touching Baileys at all, so "not
+ * paired yet" can be told apart from "no DB row ever got written" at a
+ * glance instead of guessing from isWhatsAppPaired()'s single boolean. */
+export async function authStateDebugInfo(): Promise<{ hasCredsRow: boolean; rowCount: number }> {
+  const sql = getPmsDb();
+  if (!sql) return { hasCredsRow: false, rowCount: 0 };
+  await ensureInquiriesSchema(sql);
+  const [countRow] = await sql<
+    { n: string }[]
+  >`SELECT count(*)::int AS n FROM pms_whatsapp_auth_state`;
+  const [credsRow] = await sql<{ key: string }[]>`
+    SELECT key FROM pms_whatsapp_auth_state WHERE key = 'creds'`;
+  return { hasCredsRow: !!credsRow, rowCount: Number(countRow?.n ?? 0) };
 }
 
 type BaileysRuntime = {

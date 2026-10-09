@@ -64,11 +64,21 @@ function connectAndPair(sql: Sql, version: WAVersion, attempt: number): Promise<
 
         if (connection === "open") {
           settled = true;
-          console.log("\n✅ WhatsApp pairing fully verified and connection open!");
-          console.log("Session saved to the PMS database. You can now run:");
-          console.log("  npm run test:audit-dispatch");
           sock.end(undefined);
-          resolve();
+          // `main()` resolving triggers `process.exit(0)` below — which
+          // would truncate the LAST creds.update write Baileys just fired
+          // (sock.ev's own CB:success handler emits one right before this
+          // "open" event) if it were still in flight. Must wait for it to
+          // actually land in Postgres before resolving, not just before
+          // ending the socket.
+          pendingSave
+            .catch(() => {}) // surfaced to the user via isWhatsAppPaired() on the next run if it ever actually fails; don't block a real pairing success on it
+            .then(() => {
+              console.log("\n✅ WhatsApp pairing fully verified and connection open!");
+              console.log("Session saved to the PMS database. You can now run:");
+              console.log("  npm run test:audit-dispatch");
+              resolve();
+            });
           return;
         }
 

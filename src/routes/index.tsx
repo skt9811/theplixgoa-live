@@ -45,7 +45,7 @@ export const Route = createFileRoute("/")({
           "Book luxury private pool villas in Vagator, Anjuna, Assagao and Morjim direct with The Plix. Real photos, local hosts, quick WhatsApp replies.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: SITE_URL },
+      { property: "og:url", content: canonicalUrl("/") },
       { property: "og:site_name", content: SITE_NAME },
       { property: "og:image", content: `${SITE_URL}/og-home.jpg` },
       { name: "twitter:card", content: "summary_large_image" },

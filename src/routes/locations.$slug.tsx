@@ -27,9 +27,11 @@ import {
 // (e.g. "Casa Marina Vagator | ..."), so spotlighting them on the Vagator
 // hub matches the site's own established branding rather than the raw
 // location field.
+// casa-marina and casa-meadows removed from vagator (B2): both are in
+// Anjuna, confirmed by the business. Not added to anjuna's own spotlight —
+// that would be a new editorial choice, not the locality fix this task was.
 const SPOTLIGHT_SLUGS: Record<string, string[]> = {
   candolim: ["vivenda-chico"],
-  vagator: ["casa-marina", "casa-meadows"],
   assagao: ["the-plix-villa"],
 };
 

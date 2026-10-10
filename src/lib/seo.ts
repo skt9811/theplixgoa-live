@@ -272,14 +272,14 @@ export function websiteJsonLd() {
 // matches the one declared in public/entities.json, and hasMap is the same
 // CID link Casa Marina, Casa Moana and Casa Meadows all carry as their own
 // google_maps_url (one shared Google Business Profile, see plix.ts).
-// `locality` is the neighborhood the compound is branded under — Vagator, per
-// those properties' own hand-set seo_titles — not the raw Property.location
-// ("Anjuna") they're recorded under.
+// `locality` matches Property.location ("Anjuna") for all three — confirmed
+// by the business (B2) after an earlier, now-resolved discrepancy where this
+// compound's own public-facing copy (llms.txt, entities.json) said Vagator.
 export const ENCLAVE_ENTITIES: Record<string, { id: string; hasMap: string; locality: string }> = {
   "Marina Villas by The Plix": {
     id: `${SITE_URL}/#marina-villas`,
     hasMap: "https://www.google.com/maps?cid=10368503730610958977",
-    locality: "Vagator",
+    locality: "Anjuna",
   },
 };
 

@@ -41,15 +41,15 @@ export const Route = createFileRoute("/stays_/private-pool-villas")({
     };
   },
   head: ({ loaderData }) => {
-    const title = "Luxury Private Pool Villas in North Goa | The Plix [2026]";
-    // "Power backup" dropped from the literal draft: 4 of these 7 properties
-    // (Casa Marina, Casa Moana, Casa Meadows, Vivenda Chico) have no Power
-    // Backup amenity tag in src/lib/plix.ts, so claiming it for the whole
-    // collection would misstate a real amenity for most of them — the same
-    // per-property amenity check already applied in propertySeoDescription's
-    // fallback (src/lib/seo.ts).
+    const title = "Private Pool Villas in North Goa – Book Direct";
+    // "Morjim" dropped from the brief's literal description: PRIVATE_POOL_SLUGS
+    // above has no Morjim property in it (Morjim Pride and The Plix Resort
+    // Morjim are shared-pool resorts, not in this collection at all) — stating
+    // Morjim here would claim a location this page doesn't actually cover.
+    // "Power backup" stays dropped from the brief's draft for the same reason
+    // as before: 4 of these 7 properties have no Power Backup amenity tag.
     const description =
-      "Handpicked private pool villas in Vagator, Anjuna, Assagao & Candolim. 100% private pools and full caretaker hospitality. Book direct with The Plix.";
+      "Private pool villas in Vagator, Anjuna, Assagao and Candolim for families and groups. Photos, prices and live availability.";
     const url = `${SITE_URL}/stays/private-pool-villas`;
     const items = loaderData?.items ?? [];
     const schema = collectionPageJsonLd({

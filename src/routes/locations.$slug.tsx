@@ -33,6 +33,27 @@ const SPOTLIGHT_SLUGS: Record<string, string[]> = {
   assagao: ["the-plix-villa"],
 };
 
+// Real property counts: Vagator 2, Assagao 1, Anjuna 4 (src/lib/plix.ts).
+// Candolim has no entry here and keeps the generic templated title/description below.
+const LOCATION_META: Record<string, { title: string; description: string }> = {
+  vagator: {
+    title: "Villas in Vagator, Goa – Private Pool Stays",
+    description: "Private villas in Vagator near the beach and clubs. Compare 2 Plix stays by size, pool and price, with a local area guide.",
+  },
+  assagao: {
+    title: "Villas & Stays in Assagao, Goa – The Plix",
+    description: "Quiet, green Assagao: 1 private villa near the cafes, close to Vagator and Anjuna. Photos, prices, direct booking.",
+  },
+  anjuna: {
+    title: "Villas in Anjuna, Goa – Private Pool Stays",
+    description: "Private villas in Anjuna near the flea market and beach. Compare Plix stays by size, pool and price.",
+  },
+  morjim: {
+    title: "Stays in Morjim, Goa – Resort & Villas",
+    description: "Stay in Morjim, North Goa's quiet beach: The Plix Resort, Morjim Pride and more. Things to do, restaurants and distances.",
+  },
+};
+
 export const Route = createFileRoute("/locations/$slug")({
   loader: async ({ context, params }) => {
     const hub = findLocationHub(params.slug);
@@ -69,8 +90,14 @@ export const Route = createFileRoute("/locations/$slug")({
     }
     const { hub, localProperties, heroImage } = loaderData;
     const propertyCount = localProperties.length;
-    const title = `Luxury Villas & Boutique Stays in ${hub.name} | The Plix`;
-    const description = `${propertyCount} handpicked private-pool villas and boutique stays in ${hub.name}, North Goa. Best price guaranteed, book direct with The Plix.`;
+    // Vagator, Assagao, Anjuna and Morjim have hand-set titles/descriptions
+    // (each written to that neighborhood's own search intent); Candolim,
+    // not covered by that task, keeps the generic template below.
+    const override = LOCATION_META[hub.slug];
+    const title = override?.title ?? `Luxury Villas & Boutique Stays in ${hub.name} | The Plix`;
+    const description =
+      override?.description ??
+      `${propertyCount} handpicked private-pool villas and boutique stays in ${hub.name}, North Goa. Best price guaranteed, book direct with The Plix.`;
     const url = `${SITE_URL}/locations/${hub.slug}`;
     // heroImage is a bundled asset path ("/assets/…"), which must be made
     // absolute for og:image/twitter:image.

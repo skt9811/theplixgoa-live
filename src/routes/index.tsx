@@ -36,29 +36,29 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "The Plix Goa | Boutique Resorts & Luxury Private Villas" },
+      { title: "Private Pool Villas in North Goa – The Plix Goa" },
       {
         name: "description",
         content:
-          "Stay at The Plix in North Goa. Explore boutique resorts and luxury private pool villas across Anjuna, Vagator & Morjim. Book direct for the best tariff.",
+          "Book luxury private pool villas in Vagator, Anjuna, Assagao and Morjim direct with The Plix. Real photos, local hosts, quick WhatsApp replies.",
       },
       { name: "robots", content: "index, follow, max-image-preview:large" },
-      { property: "og:title", content: "The Plix Goa | Boutique Resorts & Luxury Private Villas" },
+      { property: "og:title", content: "Private Pool Villas in North Goa – The Plix Goa" },
       {
         property: "og:description",
         content:
-          "Stay at The Plix in North Goa. Explore boutique resorts and luxury private pool villas across Anjuna, Vagator & Morjim. Book direct for the best tariff.",
+          "Book luxury private pool villas in Vagator, Anjuna, Assagao and Morjim direct with The Plix. Real photos, local hosts, quick WhatsApp replies.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: SITE_URL },
       { property: "og:site_name", content: SITE_NAME },
       { property: "og:image", content: `${SITE_URL}/og-home.jpg` },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "The Plix Goa | Boutique Resorts & Luxury Private Villas" },
+      { name: "twitter:title", content: "Private Pool Villas in North Goa – The Plix Goa" },
       {
         name: "twitter:description",
         content:
-          "Stay at The Plix in North Goa. Explore boutique resorts and luxury private pool villas across Anjuna, Vagator & Morjim. Book direct for the best tariff.",
+          "Book luxury private pool villas in Vagator, Anjuna, Assagao and Morjim direct with The Plix. Real photos, local hosts, quick WhatsApp replies.",
       },
       { name: "twitter:image", content: `${SITE_URL}/og-home.jpg` },
     ],

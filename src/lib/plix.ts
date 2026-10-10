@@ -947,9 +947,9 @@ export const PROPERTIES: Property[] = [
     tagline: "ANJUNA, NORTH GOA • 3 BHK BOUTIQUE POOL VILLA",
     description:
       "Contemporary sanctuary for intimate escapes. Casa Marina is an elegant 3 BHK private pool villa in Vagator for up to 6 guests, combining modern aesthetics with cozy privacy. Featuring bespoke interior design, floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes, it offers a tranquil garden setting minutes from Anjuna and Vagator beaches. Each of the three bathrooms carries the same attention to detail as the living spaces, and the villa's elevated position affords genuinely panoramic views across the surrounding greenery. Anjuna's famous flea market is just a six-minute drive away, making it easy to spend a morning browsing stalls before returning to the pool.",
-    seo_title: "Marina Villas by The Plix, Anjuna | Private Pool Villa",
+    seo_title: "Marina Villas by The Plix, Anjuna – Book Direct",
     seo_description:
-      "Book direct at Marina Villas in Anjuna by The Plix. Private pool, luxury amenities, 24/7 caretaker & best direct rates. Reserve your Goa stay today.",
+      "Marina Villas by The Plix (Casa Marina) in Anjuna, Goa. 3 BHK, private pool, photos and guest reviews. Book direct with The Plix.",
     seo_keywords: ["3 BHK Villa Vagator", "Boutique Pool Villa Goa", "Private Pool Villa Vagator", "Couple Friendly Villa North Goa", "Luxury Holiday Home Anjuna"],
     enclave: "Marina Villas by The Plix",
     bedrooms: 3,
@@ -1033,9 +1033,9 @@ export const PROPERTIES: Property[] = [
     tagline: "ANJUNA / VAGATOR, NORTH GOA • 4 BHK PRIVATE POOL VILLA",
     description:
       "Contemporary sanctuary for intimate escapes and large groups. Casa Moana is a refined 4 BHK private pool villa featuring floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes. Accommodating up to 8 guests near Anjuna and Vagator beaches, it offers panoramic pool views, premium luxury amenities, and a fully private garden setting perfect for family reunions and group celebrations. All four bedrooms come with air conditioning, and a backup power supply keeps the villa running smoothly through Goa's occasional monsoon outages. Ozran Beach — one of North Goa's most scenic viewpoints — is a short 16-minute drive, alongside the more well-known Anjuna and Vagator stretches.",
-    seo_title: "Casa Moana by The Plix | 4 BHK Boutique Private Pool Villa Anjuna",
+    seo_title: "Casa Moana Goa – Private Villa by The Plix",
     seo_description:
-      "Book Casa Moana by The Plix direct. Contemporary 4 BHK boutique villa in Anjuna with private pool, garden, and direct booking perks.",
+      "Casa Moana in Anjuna, Goa: 4 BHK villa with a private pool. Photos, guest reviews and direct booking with The Plix.",
     seo_keywords: ["4 BHK Villa Anjuna", "Private Pool Villa Goa", "Family Villa North Goa", "Group Stay Anjuna", "Luxury Villa near Vagator Beach"],
     enclave: "Marina Villas by The Plix",
     bedrooms: 4,
@@ -1216,9 +1216,9 @@ export const PROPERTIES: Property[] = [
     tagline: "VAGATOR, NORTH GOA • BOUTIQUE RESORT NEAR BEACH & NIGHTLIFE",
     description:
       "A charming sanctuary in the heart of Vagator. Nestled close to Vagator Beach, Harbor Court combines classic Goan warmth with boutique comfort, featuring a swimming pool, lush garden spaces, and a full-service on-site restaurant. Situated less than 1 km from Vagator Beach and close to famous nightlife spots like Chapora Fort, it provides an ideal retreat for couples, families, and solo travelers seeking effortless coastal living.",
-    seo_title: "Harbor Court Vagator | Boutique Resort with Pool by The Plix",
+    seo_title: "Harbour Court Vagator, Goa – Photos & Rates",
     seo_description:
-      "Boutique luxury resort in Vagator featuring private balconies, central pool, and lush gardens. 5 mins from Ozran Beach. Book direct & save.",
+      "Harbour Court (Harbor Court), Vagator: a 10-room boutique resort near Vagator beach. Photos, amenities and direct booking.",
     seo_keywords: ["3 Star Hotel Vagator", "Resort near Vagator Beach", "Hotel near Chapora Fort", "Boutique Resort North Goa", "AC Rooms Vagator"],
     enclave: null,
     bedrooms: 10,
@@ -1320,9 +1320,9 @@ export const PROPERTIES: Property[] = [
     tagline: "ASSAGAO, NORTH GOA • 3 BHK LUXURY PRIVATE POOL VILLA",
     description:
       "Exclusive private pool haven in Assagao. Set amidst lush greenery, The Plix Villa is an exclusive 3 BHK retreat designed for seamless indoor-outdoor living with a private pool and full-time caretaker. Surrounded by greenery and minutes away from Goa's finest dining cafes, the villa features a private swimming pool, landscaped gardens, high-speed Wi-Fi, fully equipped kitchen, and dedicated full-time housekeeping for up to 6 guests. Air conditioning runs throughout all three bedrooms, and three well-appointed bathrooms mean no queuing during a full house. Chapora Fort is just an 8-minute drive, with Vagator's beach clubs and sunset spots equally close at 10 minutes.",
-    seo_title: "The Plix Villa Assagao | 3 BHK Luxury Pool Villa Goa",
+    seo_title: "The Plix Villa Assagao, Goa – Private Pool Villa",
     seo_description:
-      "Ultra-luxury 3 BHK private pool villa in Assagao. Designer interiors, private patio, and 24/7 butler service. Save 15% booking direct.",
+      "The Plix Villa in Assagao: 3 BHK private pool villa for families and groups. Photos, amenities, rates and direct booking.",
     seo_keywords: ["3 BHK Villa Assagao", "Luxury Private Pool Villa Goa", "Villa in Assagao near Cafes", "Private Pool Holiday Home"],
     enclave: null,
     bedrooms: 3,
@@ -1401,9 +1401,9 @@ export const PROPERTIES: Property[] = [
     tagline: "MORJIM, NORTH GOA • BEACHFRONT RESORT NEAR MORJIM BEACH",
     description:
       "Coastal serenity steps from Morjim Beach. A tranquil getaway defined by calm coastal vibes, modern rooms, and a sparkling pool. Located in the serene coastal enclave of Madhlawada, Morjim, Morjim Pride is a premier boutique resort just minutes from pristine Morjim Beach and the famous Olive Ridley turtle nesting grounds. The resort offers well-appointed air-conditioned rooms, a swimming pool, and delicious local and international dining — ideal for relaxing family vacations and peaceful beach getaways.",
-    seo_title: "Morjim Pride Resort | Boutique Beachside Stay Morjim",
+    seo_title: "Morjim Pride Goa – Photos, Reviews & Rates",
     seo_description:
-      "Boutique luxury stay steps from Morjim Beach. Elegant rooms, swimming pool, and on-site dining for couples and families. Book direct.",
+      "Morjim Pride, Goa: a boutique resort near Morjim beach. Real guest photos and reviews, room rates and direct booking with The Plix.",
     seo_keywords: ["Resort near Morjim Beach", "3 Star Hotel Morjim", "Peaceful Stay North Goa", "Hotel with Pool Morjim", "Morjim Beach Stay"],
     enclave: null,
     bedrooms: 22,
@@ -1482,9 +1482,9 @@ export const PROPERTIES: Property[] = [
     tagline: "CANDOLIM, NORTH GOA • BOUTIQUE RESORT • BOOK BY ROOM OR THE WHOLE BUNGALOW",
     description:
       "A heritage estate that books your way. Vivenda Chico is now a boutique resort with 8 individually bookable rooms (up to 3 guests each) sharing a private pool, dining halls, and sprawling lawns — book just the rooms you need, or reserve the entire bungalow (up to 24 guests) for weddings, reunions, and large group celebrations in North Goa.",
-    seo_title: "Vivenda Chico Candolim | 8 BHK Heritage Bungalow by The Plix",
+    seo_title: "Vivenda Chico Goa – Private Villa, Book Direct",
     seo_description:
-      "Book Vivenda Chico Candolim by The Plix. An 8-bedroom heritage resort near Candolim beach for up to 24 guests. Private pool, sprawling lawns, and dining.",
+      "Vivenda Chico: 8 BHK private villa in Candolim, Goa, managed by The Plix. Photos, amenities and live availability. Book direct.",
     seo_keywords: ["8 BHK Villa Candolim", "Heritage Bungalow Goa", "Wedding Venue Candolim", "Large Group Villa North Goa", "Villa with Pool Candolim"],
     enclave: null,
     bedrooms: 8,
@@ -1549,9 +1549,9 @@ export const PROPERTIES: Property[] = [
     tagline: "MORJIM, NORTH GOA • BEACHSIDE RESORT WITH POOL",
     description:
       "Welcome to The Plix Resort - Morjim, our serene beachside retreat just 100 meters from the ocean. Our resort features a swimming pool and chill-out area for unwinding. With 10 cozy rooms, your stay promises tranquility and scenic beauty. Wake up to the soothing sound of waves and indulge in coastal charm. The Plix Resort - Morjim offers the ideal escape for unforgettable memories by the sea.",
-    seo_title: "The Plix Resort Morjim, Goa | Boutique Coastal Stays",
+    seo_title: "The Plix Resort Morjim, Goa – Official Site",
     seo_description:
-      "Experience The Plix Resort in Morjim, North Goa. Close to Morjim beach, featuring serene rooms, pool access, and authentic Goan hospitality. Book direct.",
+      "Official site of The Plix Resort, Morjim. See real photos, guest reviews, rooms and rates, and book direct for the best price.",
     seo_keywords: ["Resort near Morjim Beach", "Beachside Resort Morjim", "Swimming Pool Resort Goa", "Morjim Beach Stay", "North Goa Resort with Bar"],
     enclave: null,
     bedrooms: 10,

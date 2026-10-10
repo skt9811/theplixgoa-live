@@ -22,19 +22,23 @@ declare global {
 
 export const GOOGLE_ADS_ACCOUNT_ID = "AW-18001047926";
 
-/** TODO (user): set in .env.local / Vercel — the GA4 property's own
- * Measurement ID (GA4 Admin → Data Streams → your stream → "Measurement
- * ID", looks like "G-XXXXXXXXXX"). Unset means GA4 simply isn't configured
- * yet — __root.tsx skips the `gtag('config', ...)` call for it entirely,
- * same graceful-degradation pattern this codebase already uses for every
- * other optional integration (RESEND_API_KEY, VITE_FCM_CONFIGURED, ...).
- * Note: Vercel's env vars already have an unrelated-looking
- * VITE_GA_MEASUREMENT_ID set (checked .env.local) — that's a different,
- * older name (no "4"), quite possibly a leftover from the GA4 setup that
- * __root.tsx's history says was "removed entirely" at some point. This
- * reads VITE_GA4_ID specifically, as asked; worth confirming with whoever
- * set that older var before assuming it's the same property. */
-export const GA4_MEASUREMENT_ID = (import.meta.env["VITE_GA4_ID"] as string | undefined) || "";
+/** The GA4 property's own Measurement ID (GA4 Admin → Data Streams → your
+ * stream → "Measurement ID", looks like "G-XXXXXXXXXX"). Reads VITE_GA4_ID
+ * first (the name this engagement standardized on), falling back to the
+ * older VITE_GA_MEASUREMENT_ID (no "4") that was already set in .env.local/
+ * Vercel — a leftover from the GA4 setup __root.tsx's own history says was
+ * "removed entirely" at some point, carrying a real value this whole time
+ * while unused. Confirmed real (non-empty) in .env.local; still worth
+ * confirming with whoever set it that it's the intended property before
+ * relying on it long-term. Unset (both names) means GA4 simply isn't
+ * configured — __root.tsx skips the `gtag('config', ...)` call for it
+ * entirely, same graceful-degradation pattern this codebase already uses
+ * for every other optional integration (RESEND_API_KEY, VITE_FCM_CONFIGURED,
+ * ...). */
+export const GA4_MEASUREMENT_ID =
+  (import.meta.env["VITE_GA4_ID"] as string | undefined) ||
+  (import.meta.env["VITE_GA_MEASUREMENT_ID"] as string | undefined) ||
+  "";
 
 /** Clarity was already live before any of this GA4/funnel work (see
  * __root.tsx's loadDeferredAnalytics), hardcoded to project id

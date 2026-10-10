@@ -11,12 +11,16 @@ const quickLinks = [
   // No dedicated partner-inquiry page exists yet — routes to the real
   // contact form rather than a dead link or a placeholder page.
   { label: "Partner With Us", to: "/contact" as const },
-  { label: "Terms & Conditions", to: "/terms" as const },
+  // Not duplicated here: the legal bar at the very bottom of the footer
+  // already has "Terms Of Services", paired with Privacy Policy — the
+  // standard place for it. Two Terms links to the same /terms page is the
+  // redundancy, not either one on its own.
   { label: "Blogs", to: "/blog" as const },
   { label: "FAQs", to: "/faq" as const },
-  // Same reasoning: no standalone gallery page — /stays is the closest
-  // real page (every property's full photo set) to what "Plix Gallery" means.
-  { label: "Plix Gallery", to: "/stays" as const },
+  // Renamed from "Plix Gallery": no standalone gallery page exists — this
+  // goes to /stays (every property's full photo set), so the label now
+  // says what it actually is instead of implying a dedicated gallery page.
+  { label: "All Properties", to: "/stays" as const },
   { label: "Large Group Stays", to: "/stays/large-groups" as const },
   { label: "Private Pool Villas", to: "/stays/private-pool-villas" as const },
   { label: "Cancellation Policy", to: "/cancellation" as const },

@@ -947,9 +947,13 @@ export const PROPERTIES: Property[] = [
     tagline: "ANJUNA, NORTH GOA • 3 BHK BOUTIQUE POOL VILLA",
     description:
       "Contemporary sanctuary for intimate escapes. Casa Marina is an elegant 3 BHK private pool villa in Vagator for up to 6 guests, combining modern aesthetics with cozy privacy. Featuring bespoke interior design, floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes, it offers a tranquil garden setting minutes from Anjuna and Vagator beaches. Each of the three bathrooms carries the same attention to detail as the living spaces, and the villa's elevated position affords genuinely panoramic views across the surrounding greenery. Anjuna's famous flea market is just a six-minute drive away, making it easy to spend a morning browsing stalls before returning to the pool.",
-    seo_title: "Casa Marina, Anjuna – Book Direct",
+    // Locality-neutral on purpose: the data has "Anjuna" here but the page body
+    // and llms.txt say "Vagator" (B2, awaiting the owner's decision). Settling
+    // on either in a title/description before that answer risks stating the
+    // wrong one in a way Google indexes immediately.
+    seo_title: "Casa Marina – 3BHK Private Pool Villa | Book Direct",
     seo_description:
-      "Casa Marina in Anjuna, Goa. 3 BHK, private pool, photos and guest reviews. Book direct with The Plix.",
+      "Casa Marina: 3 BHK private pool villa with photos and guest reviews. Book direct with The Plix.",
     seo_keywords: ["3 BHK Villa Vagator", "Boutique Pool Villa Goa", "Private Pool Villa Vagator", "Couple Friendly Villa North Goa", "Luxury Holiday Home Anjuna"],
     enclave: "Marina Villas by The Plix",
     bedrooms: 3,

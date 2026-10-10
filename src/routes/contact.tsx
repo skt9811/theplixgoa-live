@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Car, Mail, MapPin, Phone, Plane } from "lucide-react";
+import { Car, CircleCheck, Mail, MapPin, Phone, Plane } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ObfuscatedEmail, ObfuscatedEmailText } from "@/components/plix/obfuscated-email";
@@ -289,6 +289,18 @@ function Contact() {
               >
                 {sending ? "Sending…" : sent ? "Message sent" : "Send enquiry"}
               </button>
+              {/* A11: a persistent on-page confirmation, not just the toast
+                  above (which auto-dismisses) — "a few hours" matches the
+                  toast's own existing, already-live wording; the brief's
+                  approval still had an unfilled [YOUR TIME] placeholder,
+                  so this reuses that established value rather than ship
+                  literal placeholder text. */}
+              {sent && (
+                <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  <CircleCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
+                  <p>Thanks for reaching out! Our team will get back to you within a few hours.</p>
+                </div>
+              )}
             </div>
           </form>
         </div>

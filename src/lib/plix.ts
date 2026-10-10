@@ -946,10 +946,10 @@ export const PROPERTIES: Property[] = [
     region: "North Goa",
     tagline: "ANJUNA, NORTH GOA • 3 BHK BOUTIQUE POOL VILLA",
     description:
-      "Also listed as Casa Marina. Contemporary sanctuary for intimate escapes — Marina Villas by The Plix is an elegant 3 BHK private pool villa in Vagator for up to 6 guests, combining modern aesthetics with cozy privacy. Featuring bespoke interior design, floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes, it offers a tranquil garden setting minutes from Anjuna and Vagator beaches. Each of the three bathrooms carries the same attention to detail as the living spaces, and the villa's elevated position affords genuinely panoramic views across the surrounding greenery. Anjuna's famous flea market is just a six-minute drive away, making it easy to spend a morning browsing stalls before returning to the pool.",
-    seo_title: "Marina Villas by The Plix, Anjuna – Book Direct",
+      "Contemporary sanctuary for intimate escapes. Casa Marina is an elegant 3 BHK private pool villa in Vagator for up to 6 guests, combining modern aesthetics with cozy privacy. Featuring bespoke interior design, floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes, it offers a tranquil garden setting minutes from Anjuna and Vagator beaches. Each of the three bathrooms carries the same attention to detail as the living spaces, and the villa's elevated position affords genuinely panoramic views across the surrounding greenery. Anjuna's famous flea market is just a six-minute drive away, making it easy to spend a morning browsing stalls before returning to the pool.",
+    seo_title: "Casa Marina, Anjuna – Book Direct",
     seo_description:
-      "Marina Villas by The Plix (Casa Marina) in Anjuna, Goa. 3 BHK, private pool, photos and guest reviews. Book direct with The Plix.",
+      "Casa Marina in Anjuna, Goa. 3 BHK, private pool, photos and guest reviews. Book direct with The Plix.",
     seo_keywords: ["3 BHK Villa Vagator", "Boutique Pool Villa Goa", "Private Pool Villa Vagator", "Couple Friendly Villa North Goa", "Luxury Holiday Home Anjuna"],
     enclave: "Marina Villas by The Plix",
     bedrooms: 3,
@@ -1216,9 +1216,9 @@ export const PROPERTIES: Property[] = [
     tagline: "VAGATOR, NORTH GOA • BOUTIQUE RESORT NEAR BEACH & NIGHTLIFE",
     description:
       "A charming sanctuary in the heart of Vagator. Nestled close to Vagator Beach, Harbor Court combines classic Goan warmth with boutique comfort, featuring a swimming pool, lush garden spaces, and a full-service on-site restaurant. Situated less than 1 km from Vagator Beach and close to famous nightlife spots like Chapora Fort, it provides an ideal retreat for couples, families, and solo travelers seeking effortless coastal living.",
-    seo_title: "Harbour Court Vagator, Goa – Photos & Rates",
+    seo_title: "Harbor Court Vagator, Goa – Photos & Rates",
     seo_description:
-      "Harbour Court (Harbor Court), Vagator: a 10-room boutique resort near Vagator beach. Photos, amenities and direct booking.",
+      "Harbor Court, Vagator: a 10-room boutique resort near Vagator beach. Photos, amenities and direct booking.",
     seo_keywords: ["3 Star Hotel Vagator", "Resort near Vagator Beach", "Hotel near Chapora Fort", "Boutique Resort North Goa", "AC Rooms Vagator"],
     enclave: null,
     bedrooms: 10,

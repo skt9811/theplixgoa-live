@@ -1,10 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { FaqAccordion } from "@/components/plix/faq-accordion";
 import { ChevronRight } from "lucide-react";
 import {
   SITE_URL,
@@ -188,22 +183,14 @@ function FaqPage() {
             <h2 className="text-xl font-semibold text-navy md:text-2xl">
               {group.title}
             </h2>
-            <Accordion type="single" collapsible className="mt-4">
-              {group.items.map((item, i) => (
-                <AccordionItem
-                  key={`${group.id}-${i}`}
-                  value={`item-${i}`}
-                  className="border-b border-border"
-                >
-                  <AccordionTrigger className="py-4 text-left text-sm font-medium text-foreground hover:no-underline md:text-base">
-                    {item.q}
-                  </AccordionTrigger>
-                  <AccordionContent className="text-sm leading-relaxed text-muted-foreground">
-                    {item.a}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+            <div className="mt-4">
+              <FaqAccordion
+                items={group.items}
+                itemClassName="border-b border-border"
+                triggerClassName="py-4 text-left text-sm font-medium text-foreground hover:no-underline md:text-base"
+                contentClassName="pb-4 pt-0 text-sm leading-relaxed text-muted-foreground"
+              />
+            </div>
           </section>
         ))}
       </div>

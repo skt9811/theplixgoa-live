@@ -33,16 +33,23 @@ export function PropertyFaq({ faqs }: Props) {
                   aria-hidden
                 />
               </button>
-              {isOpen && (
-                <div
-                  id={panelId}
-                  role="region"
-                  aria-labelledby={triggerId}
-                  className="px-5 pb-4 text-sm leading-relaxed text-muted-foreground"
-                >
-                  {faq.a}
-                </div>
-              )}
+              {/* Always rendered, never conditionally mounted: the previous
+                  {isOpen && <div>...} put every answer but the first
+                  (openIndex defaults to 0) completely out of the server-
+                  rendered HTML — a crawler reading raw HTML saw the question
+                  with no answer. `hidden` keeps the same visual behaviour
+                  (collapsed until clicked) while the text stays in the DOM,
+                  which is what Google's FAQ structured-data guidelines say is
+                  fine to crawl. */}
+              <div
+                id={panelId}
+                role="region"
+                aria-labelledby={triggerId}
+                hidden={!isOpen}
+                className="px-5 pb-4 text-sm leading-relaxed text-muted-foreground"
+              >
+                {faq.a}
+              </div>
             </div>
           );
         })}

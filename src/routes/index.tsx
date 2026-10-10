@@ -17,12 +17,7 @@ import {
   fetchActiveLocationGrids,
   type LocationGrid,
 } from "@/lib/locations-data";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { FaqAccordion } from "@/components/plix/faq-accordion";
 import {
   SITE_URL,
   SITE_NAME,
@@ -615,18 +610,13 @@ function Home() {
       {config?.section_faqs_visible !== false && (
       <section className="mx-auto max-w-3xl px-4 py-16 md:px-6">
         <SectionHeading eyebrow="Good to know" title="Frequently asked questions" />
-        <Accordion type="single" collapsible className="mt-6">
-          {faqs.map((f) => (
-            <AccordionItem key={f.q} value={f.q}>
-              <AccordionTrigger className="text-left text-base font-medium text-navy">
-                {f.q}
-              </AccordionTrigger>
-              <AccordionContent className="text-sm leading-relaxed text-muted-foreground">
-                {f.a}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+        <div className="mt-6">
+          <FaqAccordion
+            items={faqs}
+            triggerClassName="text-left text-base font-medium text-navy"
+            contentClassName="pb-4 pt-0 text-sm leading-relaxed text-muted-foreground"
+          />
+        </div>
       </section>
       )}
 

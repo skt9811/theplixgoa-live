@@ -287,7 +287,7 @@ function Contact() {
                 disabled={sending}
                 className="rounded-full bg-bronze px-6 py-3.5 text-sm font-semibold text-bronze-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:opacity-60"
               >
-                {sending ? "Sending…" : sent ? "Message sent" : "Plan Your Event"}
+                {sending ? "Sending…" : sent ? "Message sent" : "Send enquiry"}
               </button>
             </div>
           </form>

@@ -297,20 +297,24 @@ export const LOCATION_POSTAL_CODES: Record<string, string> = {
   Candolim: "403515",
 };
 
-// Exact brand-stacked <h1> text for the Marina Villas enclave pages — hand-set
-// per property (each villa's own descriptor line), not a derived formula, so
-// a lookup rather than a template. Every other property falls back to its
-// plain name; this only changes the visible H1, not property.name itself
-// (still used for booking, cards, the admin panel, etc. everywhere else).
-const BRAND_STACKED_H1: Record<string, string> = {
-  "casa-marina": "Casa Marina by The Plix — 3 BHK Luxury Private Pool Villa",
-  "casa-moana": "Casa Moana by The Plix — 4 BHK Boutique Private Pool Villa",
-  "casa-meadows": "Casa Meadows by The Plix — 5 BHK Grand Private Pool Villa",
-  "harbor-court": "Harbor Court Vagator by The Plix — Boutique Resort with Pool",
-  "vivenda-chico": "Vivenda Chico Candolim by The Plix — 8 BHK Heritage Bungalow",
+// The descriptor phrase that used to be stacked into these 5 properties'
+// <h1> alongside the name ("Casa Marina by The Plix — 3 BHK Luxury Private
+// Pool Villa") — the brand-search brief requires the H1 to be the exact
+// plain name instead (so Google's name-match for brand searches is never
+// diluted by extra text), so this text moved to a subtitle directly under
+// the H1 rather than being dropped. Still a hand-set lookup, not a derived
+// formula — the original marketing phrasing ("Luxury", "Grand", "Boutique")
+// isn't something propertyIntroParagraph's plain factual sentence should
+// try to regenerate.
+const PROPERTY_TAGLINE: Record<string, string> = {
+  "casa-marina": "3 BHK Luxury Private Pool Villa",
+  "casa-moana": "4 BHK Boutique Private Pool Villa",
+  "casa-meadows": "5 BHK Grand Private Pool Villa",
+  "harbor-court": "Boutique Resort with Pool",
+  "vivenda-chico": "8 BHK Heritage Bungalow",
 };
-export function propertyDisplayH1(p: Property): string {
-  return BRAND_STACKED_H1[p.slug] ?? p.name;
+export function propertyTagline(p: Property): string | undefined {
+  return PROPERTY_TAGLINE[p.slug];
 }
 
 // Short anchor-text form of the same brand lock, for cross-links (e.g. the

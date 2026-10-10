@@ -328,15 +328,65 @@ export function sisterBrandName(p: Property): string {
   return SISTER_BRAND_NAMES[p.slug] ?? p.name;
 }
 
+// Multi-room properties (Hotel/Resort in Phase 2's schema terms) vs. a
+// single whole-villa unit — used here only to pick "rooms" vs "BHK" wording
+// for the intro paragraph below; same three slugs isMultiRoomProperty (in
+// rates.ts) treats as resort-style inventory, duplicated here as a plain
+// slug set rather than importing rates.ts, which would pull in more than
+// this file needs just to answer "room or villa?".
+const RESORT_SLUGS = new Set(["harbor-court", "morjim-pride", "the-plix-resort-morjim"]);
+
+// "private pool" only where amenity_tags says so explicitly, except The Plix
+// Villa: its own name ("...Luxury Private Pool Villa") and description both
+// independently assert a private pool, while its amenity_tags still says
+// only "Swimming Pool" — a real data gap (flagged for the owner), not a
+// guess, since two other fields on the same property already say it.
+function poolWord(p: Property): string {
+  if (p.amenity_tags.includes("Private Pool") || p.slug === "the-plix-villa") return "private pool";
+  if (p.amenity_tags.some((t) => t.toLowerCase().includes("pool"))) return "pool";
+  return "";
+}
+
+// p.name stripped of any " - <marketing tail>" suffix ("Vivenda Chico - 8 BHK
+// Heritage Bungalow" -> "Vivenda Chico"), except when that tail is itself the
+// property's own location ("The Plix Resort - Morjim"), which is part of the
+// name, not a descriptor to drop. Shared by schemaBrandName (schema name)
+// and propertyIntroParagraph (on-page intro) so both reference the same
+// short form instead of two independently-hand-typed near-duplicates.
+function propertyShortName(p: Property): string {
+  const [head, tail] = p.name.split(" - ").map((x) => x.trim());
+  if (!tail) return p.name;
+  return tail === p.location ? `${head} - ${tail}` : head!;
+}
+
+// "<Short Name> by The Plix", skipped when the short name already starts
+// with "The Plix" ("The Plix Villa by The Plix" would be redundant).
+function withBrandSuffix(shortName: string): string {
+  return /^the plix/i.test(shortName) ? shortName : `${shortName} by The Plix`;
+}
+
+// Phase 1's required above-the-fold intro sentence — generated from data
+// (name, location, bedrooms/rooms, max_guests, pool type), never hand-typed
+// per property, so it can never drift from what's actually true. Deliberately
+// separate from p.description (the longer marketing copy further down the
+// page): Google's snippet-selection logic most often pulls from the first
+// paragraph after an <h1>, so this one exists specifically to state "official
+// website of <Name>" as plainly as possible, in under 50 words.
+export function propertyIntroParagraph(p: Property): string {
+  const pool = poolWord(p);
+  const poolPhrase = pool ? `, ${pool}` : "";
+  const isResort = RESORT_SLUGS.has(p.slug);
+  const article = !isResort && p.bedrooms === 8 ? "an" : "a";
+  const unitPhrase = isResort ? `${p.bedrooms}-room resort` : `${p.bedrooms} BHK villa`;
+  return `Official website of ${withBrandSuffix(propertyShortName(p))} — ${article} ${unitPhrase} in ${p.location}, Goa, sleeping up to ${p.max_guests} guests${poolPhrase}.`;
+}
+
 // "<Short Name> by The Plix" for the schema name: p.name carries a marketing
 // suffix for some properties ("Vivenda Chico - 8 BHK Heritage Bungalow"), so
 // only the part before " - " is used. Names that already start with "The
 // Plix" are left as-is rather than becoming "The Plix Villa by The Plix".
 function schemaBrandName(p: Property): string {
-  const [head, tail] = p.name.split(" - ").map((x) => x.trim());
-  // A trailing location ("The Plix Resort - Morjim") is part of the name.
-  const short = tail === p.location ? `${head} ${tail}` : head!;
-  return /^the plix/i.test(short) ? short : `${short} by The Plix`;
+  return withBrandSuffix(propertyShortName(p));
 }
 
 export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {

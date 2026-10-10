@@ -65,6 +65,7 @@ import {
   propertySeoTitle,
   propertySeoDescription,
   propertyDisplayH1,
+  propertyIntroParagraph,
   propertyOgImage,
   vacationRentalJsonLd,
   breadcrumbJsonLd,
@@ -159,23 +160,28 @@ export const Route = createFileRoute("/properties/$slug")({
           },
         ]
       : [];
-    const keywords = loaderData.seo_keywords?.join(", ") ?? "";
+    // Google has ignored the keywords meta tag for over a decade — never
+    // emitted (removed entirely per the brand-search brief, not just left
+    // empty for unkeyworded properties the way the old spread-conditional did).
+    const imageAlt = `${p ? p.name : loaderData.name} — official photo, ${p ? p.location : loaderData.location}, Goa`;
     return {
       meta: [
         { title },
         { name: "description", content: description },
-        ...(keywords ? [{ name: "keywords", content: keywords }] : []),
-        { name: "robots", content: "index, follow, max-image-preview:large" },
+        { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1" },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:type", content: "website" },
-        { property: "og:url", content: `${SITE_URL}/properties/${slug}` },
+        { property: "og:url", content: canonicalUrl(`/properties/${slug}`) },
         { property: "og:site_name", content: SITE_NAME },
         { property: "og:image", content: ogImage },
+        { property: "og:image:alt", content: imageAlt },
+        { property: "og:locale", content: "en_IN" },
         { name: "twitter:card", content: "summary_large_image" },
         { name: "twitter:title", content: title },
         { name: "twitter:description", content: description },
         { name: "twitter:image", content: ogImage },
+        { name: "twitter:image:alt", content: imageAlt },
       ],
       links: [{ rel: "canonical", href: canonicalUrl(`/properties/${slug}`) }],
       scripts,
@@ -466,6 +472,13 @@ function PropertyDetail() {
               </span>
             </>
           )}
+        </p>
+        {/* Brand-search Phase 1: the first paragraph after the H1 is the text
+            Google most often pulls as the SERP snippet — generated from data
+            (propertyIntroParagraph in seo.ts), not hand-typed, so it always
+            states the plain official name, locality and real key facts. */}
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-foreground/90">
+          {propertyIntroParagraph(property)}
         </p>
       </header>
 

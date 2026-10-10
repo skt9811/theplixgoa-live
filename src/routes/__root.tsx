@@ -224,7 +224,7 @@ function RootShell({ children }: { children: ReactNode }) {
   const isInternalRoute =
     pathname.startsWith("/pms") || pathname.startsWith("/portal") || pathname.startsWith("/admin");
   return (
-    <html lang="en">
+    <html lang="en-IN">
       <head>
         {/* React 19 auto-hoists <title>/<meta>/<link> above manually placed
             elements regardless of source order, so this doesn't render as

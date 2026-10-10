@@ -303,10 +303,10 @@ export const LOCATION_POSTAL_CODES: Record<string, string> = {
 // plain name; this only changes the visible H1, not property.name itself
 // (still used for booking, cards, the admin panel, etc. everywhere else).
 const BRAND_STACKED_H1: Record<string, string> = {
-  "casa-marina": "Casa Marina by The Plix — 3 BHK Luxury Private Pool Villa",
+  "casa-marina": "Marina Villas by The Plix — 3 BHK Luxury Private Pool Villa",
   "casa-moana": "Casa Moana by The Plix — 4 BHK Boutique Private Pool Villa",
   "casa-meadows": "Casa Meadows by The Plix — 5 BHK Grand Private Pool Villa",
-  "harbor-court": "Harbor Court Vagator by The Plix — Boutique Resort with Pool",
+  "harbor-court": "Harbour Court Vagator by The Plix — Boutique Resort with Pool",
   "vivenda-chico": "Vivenda Chico Candolim by The Plix — 8 BHK Heritage Bungalow",
 };
 export function propertyDisplayH1(p: Property): string {
@@ -318,10 +318,10 @@ export function propertyDisplayH1(p: Property): string {
 // too long. Falls back to the plain property name for the 7 properties not
 // covered by this entity-lock task.
 const SISTER_BRAND_NAMES: Record<string, string> = {
-  "casa-marina": "Casa Marina by The Plix",
+  "casa-marina": "Marina Villas by The Plix",
   "casa-moana": "Casa Moana by The Plix",
   "casa-meadows": "Casa Meadows by The Plix",
-  "harbor-court": "Harbor Court Vagator by The Plix",
+  "harbor-court": "Harbour Court Vagator by The Plix",
   "vivenda-chico": "Vivenda Chico Candolim by The Plix",
 };
 export function sisterBrandName(p: Property): string {

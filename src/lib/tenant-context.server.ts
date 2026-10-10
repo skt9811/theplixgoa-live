@@ -16,12 +16,7 @@
 // tenant's writes land under their own organization instead of silently
 // defaulting into Plix's real internal one.
 import type postgres from "postgres";
-// PROPERTY_SLUGS, not PROPERTIES from @/lib/plix — this module is on
-// scripts/pair-whatsapp.ts and scripts/test-whatsapp-audit.ts's import
-// chain (night-audit.server.ts, pms-notifications.server.ts both import
-// from here), which run under plain Node/tsx and can't execute plix.ts's
-// image imports. See property-directory.ts's own header for the full story.
-import { PROPERTY_SLUGS } from "@/lib/property-directory";
+import { PROPERTIES } from "@/lib/plix";
 
 type Sql = ReturnType<typeof postgres>;
 
@@ -125,7 +120,7 @@ export async function isBookablePropertyForOrg(
   propertyIdOrCode: string,
   organizationId: string,
 ): Promise<boolean> {
-  if (PROPERTY_SLUGS.includes(propertyIdOrCode)) return true;
+  if (PROPERTIES.some((p) => p.slug === propertyIdOrCode)) return true;
   if (!propertyIdOrCode.trim()) return false;
   const [row] = await pmsDb<{ id: string }[]>`
     SELECT id FROM pms_properties

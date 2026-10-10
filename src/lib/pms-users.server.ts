@@ -1,12 +1,7 @@
 // Server-only. PMS users, PIN hashing, permissions and lockout. Everything
 // here lives in the PMS database; the website database is never involved.
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
-// PROPERTY_SLUGS, not PROPERTIES from @/lib/plix — this module is on
-// scripts/pair-whatsapp.ts and scripts/test-whatsapp-audit.ts's import
-// chain (pms-pos-shared.server.ts value-imports canProperty from here),
-// which run under plain Node/tsx and can't execute plix.ts's image
-// imports. See property-directory.ts's own header for the full story.
-import { PROPERTY_SLUGS } from "@/lib/property-directory";
+import { PROPERTIES } from "@/lib/plix";
 import { getPmsDb } from "@/lib/pms-db.server";
 import { ensureAccessSchema } from "@/lib/pms-schema.server";
 import { getPmsSession } from "@/lib/pms-session.server";
@@ -67,7 +62,8 @@ export const isAdmin = (a: Actor) => a.role === "admin" && canTab(a, "settings")
  * re-validate against PROPERTIES, which silently hid every booking/expense/
  * invoice/inquiry a dynamic tenant's own admin had just created from their
  * own list — not a safety net, a bug once a second organization existed. */
-export const allowedSlugs = (a: Actor): string[] => (isAllProps(a) ? [...PROPERTY_SLUGS] : a.props);
+export const allowedSlugs = (a: Actor): string[] =>
+  isAllProps(a) ? PROPERTIES.map((p) => p.slug) : a.props;
 
 export function hashPin(pin: string): string {
   const salt = randomBytes(16);

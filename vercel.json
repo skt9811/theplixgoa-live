@@ -1,5 +1,4 @@
 {
-  "crons": [{ "path": "/api/cron/night-audit", "schedule": "45 18 * * *" }],
   "headers": [
     {
       "source": "/(.*)",

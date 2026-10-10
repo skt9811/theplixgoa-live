@@ -3,18 +3,8 @@
 // database. Idempotent, so it is safe to call before any expense query.
 import type postgres from "postgres";
 import { DEFAULT_CATEGORIES } from "@/lib/pms-categories";
-// PROPERTY_SLUGS/PROPERTY_NAMES (not PROPERTIES from @/lib/plix) and
-// isMultiRoomProperty/maxRoomsForProperty (not from @/lib/rates) — both of
-// those pull in plix.ts's ~100 unconditional image imports, which breaks
-// `tsx scripts/pair-whatsapp.ts` / `tsx scripts/test-whatsapp-audit.ts`
-// (this module is on both scripts' import chain, via ensureInquiriesSchema/
-// ensureAccessSchema). See property-directory.ts's own header for why.
-import {
-  PROPERTY_SLUGS,
-  PROPERTY_NAMES,
-  isMultiRoomProperty,
-  maxRoomsForProperty,
-} from "@/lib/property-directory";
+import { PROPERTIES } from "@/lib/plix";
+import { isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates";
 import { PRIMARY_PROPERTY_CODES } from "@/lib/property-codes";
 
 type Sql = ReturnType<typeof postgres>;
@@ -419,15 +409,14 @@ export function ensureAccessSchema(sql: Sql): Promise<void> {
       // and lives in compiled code, not this table — rewiring the static
       // array itself out of the live booking/login path is a separate,
       // larger change this phase deliberately didn't attempt.
-      for (const slug of PROPERTY_SLUGS) {
-        const code = PRIMARY_PROPERTY_CODES[slug];
-        const name = PROPERTY_NAMES[slug];
-        if (!code || !name) continue;
-        const totalRooms = isMultiRoomProperty(slug) ? maxRoomsForProperty(slug) : 1;
-        const displayName = name.split(" - ")[0] ?? name;
+      for (const p of PROPERTIES) {
+        const code = PRIMARY_PROPERTY_CODES[p.slug];
+        if (!code) continue;
+        const totalRooms = isMultiRoomProperty(p.slug) ? maxRoomsForProperty(p.slug) : 1;
+        const displayName = p.name.split(" - ")[0] ?? p.name;
         await sql`
           INSERT INTO pms_properties (id, organization_id, name, code, property_type, total_rooms, is_active)
-          VALUES (${slug}, 'org_plix_internal', ${displayName}, ${code}, ${isMultiRoomProperty(slug) ? "hotel" : "villa"}, ${totalRooms}, true)
+          VALUES (${p.slug}, 'org_plix_internal', ${displayName}, ${code}, ${isMultiRoomProperty(p.slug) ? "hotel" : "villa"}, ${totalRooms}, true)
           ON CONFLICT (id) DO NOTHING`;
       }
     })().catch((err) => {
@@ -505,20 +494,6 @@ export function ensureInquiriesSchema(sql: Sql): Promise<void> {
         await sql`CREATE UNIQUE INDEX IF NOT EXISTS pms_staff_devices_token_key ON pms_staff_devices (fcm_token)`;
         await sql`ALTER TABLE pms_staff_devices ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
         await sql`CREATE INDEX IF NOT EXISTS idx_pms_staff_devices_org_id ON pms_staff_devices (organization_id)`;
-        // Baileys (WhatsApp) session credentials — see whatsapp-baileys.server.ts.
-        // A plain key/value table, not files: Vercel's serverless functions have
-        // no persistent local disk between invocations, so Baileys' own
-        // useMultiFileAuthState helper (which writes creds.json/*.json to a
-        // folder) can't survive a cold start here. This is the DB-backed
-        // equivalent that helper's own source comment recommends for
-        // production use — one row per credential/signal-key entry, keyed
-        // the same way the file-based version keys its filenames.
-        await sql`
-          CREATE TABLE IF NOT EXISTS pms_whatsapp_auth_state (
-            key text PRIMARY KEY,
-            value jsonb NOT NULL,
-            updated_at timestamptz NOT NULL DEFAULT now()
-          )`;
         // A property owner's device on the Plix Partner app (com.plix.partner)
         // — keyed by property_id rather than phone, since a booking notification
         // needs "everyone watching this property", not "everyone at this phone".

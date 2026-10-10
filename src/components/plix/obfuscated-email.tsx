@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 
 const USER = "reservations";
 const DOMAIN = "theplixgoa";
@@ -14,10 +14,11 @@ function buildLabel(): string {
 
 // Every character as a numeric character reference (&#114;&#101;…). Browsers
 // render it as the ordinary address, but the server-rendered HTML never
-// contains the address as a literal string, so a scraper (or audit) that
-// regex-matches the raw source doesn't find one. It is NOT protection
-// against a scraper that parses the DOM — the click target is what does
-// that: href stays "#" until the link is hovered, focused or clicked.
+// contains the address as a literal string in the visible text, so a
+// scraper that regex-matches raw source text for an "@…" pattern doesn't
+// find one there. It is NOT protection against a scraper that specifically
+// parses mailto: href attributes — ObfuscatedEmail's own href is a plain,
+// real mailto: link (see its comment below for why).
 function encodeAsEntities(text: string): string {
   return Array.from(text)
     .map((char) => `&#${char.codePointAt(0)};`)
@@ -37,23 +38,19 @@ type ObfuscatedEmailProps = {
 };
 
 export function ObfuscatedEmail({ className, style, ariaLabel, children }: ObfuscatedEmailProps) {
-  const [hovered, setHovered] = useState(false);
   const label = children ?? <ObfuscatedEmailText />;
+  // A real mailto: href from first paint — the previous hover/focus/click-
+  // gated href="#" meant no href attribute ever reached the server-rendered
+  // HTML, which broke right-click "copy email address", open-in-new-tab,
+  // and read it as a dead link to anything checking href values rather than
+  // simulating a click. React has no way to emit raw HTML entities inside an
+  // attribute value (dangerouslySetInnerHTML only covers element content),
+  // so the href itself can't carry the same entity-reference obfuscation the
+  // visible text still does — this trades some protection against a scraper
+  // that specifically parses mailto: hrefs for a link that behaves like a
+  // real link. The visible text stays obfuscated against plain-text scraping.
   return (
-    <a
-      href={hovered ? buildHref() : "#"}
-      onClick={(e) => {
-        if (!hovered) {
-          e.preventDefault();
-          window.location.href = buildHref();
-        }
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onFocus={() => setHovered(true)}
-      aria-label={ariaLabel ?? "Email us"}
-      className={className}
-      style={style}
-    >
+    <a href={buildHref()} aria-label={ariaLabel ?? "Email us"} className={className} style={style}>
       {label}
     </a>
   );

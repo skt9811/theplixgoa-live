@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Bath, BedDouble, ChevronLeft, ChevronRight, MapPin, Users, Waves } from "lucide-react";
 import { useState } from "react";
 import { formatINR, resolveImages, type Property } from "@/lib/plix";
+import { isMultiRoomProperty } from "@/lib/rates";
 import { SmartImage } from "@/components/plix/smart-image";
 
 function propertyCardSubtitle(p: Property): string {
@@ -145,7 +146,10 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
             <span className="text-2xl font-semibold text-navy">
               {formatINR(displayRate)}
             </span>
-            <span className="text-sm text-muted-foreground"> / night</span>
+            <span className="text-sm text-muted-foreground">
+              {" "}
+              / night{isMultiRoomProperty(property.slug) ? ", per room" : ", entire villa"}
+            </span>
             {searchRate ? (
               <p className="text-xs text-muted-foreground">
                 {formatINR(searchRate.total)} for {searchRate.nights}{" "}

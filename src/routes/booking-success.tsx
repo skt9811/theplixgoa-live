@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarCheck, CircleCheck as CheckCircle2, Download, Hop as Home, Loader as Loader2, MapPin, Receipt, Users } from "lucide-react";
 import { fetchBookingById } from "@/lib/booking";
+import { trackClarityEvent, trackPurchaseConversion } from "@/lib/gtag";
 
 type BookingSuccessSearch = {
   id?: string;
@@ -43,6 +44,24 @@ function BookingSuccess() {
   const [downloading, setDownloading] = useState(false);
 
   const hasRealBookingId = Boolean(s.id);
+
+  // The ONLY place the Google Ads "Purchase" conversion and the GA4
+  // purchase event fire — not checkout-modal.tsx (payment-success handler
+  // there used to fire a Google Ads event too, but without a conversion
+  // label; see its own comment) — deliberately, per the real guest-facing
+  // confirmation screen being the one unambiguous "a purchase happened"
+  // moment, and because trackPurchaseConversion's own localStorage dedup
+  // (by booking ID) means a reload or revisit of this exact URL — browser
+  // back button, bookmark, refresh — can never double-count it. Also tags
+  // the Clarity session recording so "reached_checkout" (checkout-modal.tsx)
+  // without a matching "completed_booking" tag is a real, filterable
+  // abandonment — see trackClarityEvent's own comment on why it's not
+  // deduped the way the conversion above is.
+  useEffect(() => {
+    if (!s.id) return;
+    trackPurchaseConversion(s.id, Number(s.total ?? 0));
+    trackClarityEvent("completed_booking");
+  }, [s.id, s.total]);
 
   async function handleDownloadVoucher() {
     if (!s.id) return;

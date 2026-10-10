@@ -4,6 +4,7 @@ import { ArrowUp, Facebook, Instagram, MessageCircle } from "lucide-react";
 import { ObfuscatedEmail } from "@/components/plix/obfuscated-email";
 import { whatsappLink, SITE_ADDRESS } from "@/lib/seo";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
+import { trackFunnelEvent } from "@/lib/gtag";
 
 const quickLinks = [
   { label: "About Us", to: "/about" as const },
@@ -113,6 +114,7 @@ export function SiteFooter() {
                   href={whatsappLink(whatsapp)}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => trackFunnelEvent("click_whatsapp", { location: "footer_social" })}
                   aria-label="WhatsApp"
                   className="flex size-9 items-center justify-center rounded-full border border-white/20 text-navy-foreground/80 transition-colors hover:border-bronze hover:text-bronze"
                 >
@@ -153,12 +155,14 @@ export function SiteFooter() {
                 </span>
                 <a
                   href={`tel:${phone1}`}
+                  onClick={() => trackFunnelEvent("click_call", { location: "footer" })}
                   className="w-fit text-navy-foreground/80 transition-colors hover:text-white"
                 >
                   {phone1}
                 </a>
                 <a
                   href={`tel:${phone2}`}
+                  onClick={() => trackFunnelEvent("click_call", { location: "footer" })}
                   className="w-fit text-navy-foreground/80 transition-colors hover:text-white"
                 >
                   {phone2}
@@ -205,6 +209,7 @@ export function SiteFooter() {
           href={whatsappLink(whatsapp, "Hi The Plix Goa, I have an inquiry regarding a booking.")}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => trackFunnelEvent("click_whatsapp", { location: "floating_button" })}
           aria-label="Chat on WhatsApp"
           className="flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-105"
         >

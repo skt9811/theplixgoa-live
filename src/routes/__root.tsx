@@ -17,9 +17,11 @@ import { SiteHeader } from "@/components/plix/site-header";
 import { SiteFooter } from "@/components/plix/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { BrandSplashScreen } from "@/components/plix/brand-splash-screen";
+import { CookieNotice } from "@/components/plix/cookie-notice";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { SITE_NAME, websiteJsonLd, jsonLdScript } from "@/lib/seo";
+import { GA4_MEASUREMENT_ID, CLARITY_PROJECT_ID, captureUtmParams } from "@/lib/gtag";
 import { chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
 import {
   hidePortalSplash,
@@ -49,7 +51,7 @@ function loadDeferredAnalytics() {
       c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
       t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
       y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "y5emlw3hfs");
+    })(window, document, "clarity", "script", "${CLARITY_PROJECT_ID}");
   `;
   document.head.appendChild(inlineScript);
 }
@@ -159,9 +161,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://checkout.razorpay.com" },
     ],
     scripts: [
-      // The GA4 measurement tag has been removed entirely — Google Ads
-      // (AW-18001047926, hardcoded in RootShell below) is now the only
-      // tracking snippet on the site.
+      // Google Ads (AW-18001047926, hardcoded in RootShell below) is the
+      // only snippet hardcoded into the static shell. GA4 rides the same
+      // shared gtag/dataLayer (see gtag.ts) once VITE_GA4_ID is set —
+      // RootShell below, not here, since it also needs isInternalRoute.
       // WebSite (sitelinks search box) only, globally — this is safe to
       // repeat on every page since it isn't a business entity Google could
       // confuse with a page's own primary schema. The brand LodgingBusiness
@@ -242,12 +245,20 @@ function RootShell({ children }: { children: ReactNode }) {
         {!isInternalRoute && (
           <>
             <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18001047926" />
+            {/* Consent Mode v2: default must be pushed before any config/event
+                call so gtag.js (loading async above) picks it up from its
+                first read of dataLayer — both storage types start denied
+                until CookieNotice calls gtag('consent','update', ...).
+                GA4's own config call is appended here (same shared script,
+                zero extra network request) only once a real measurement ID
+                is supplied — see gtag.ts for why it's blank today. */}
             <script
               dangerouslySetInnerHTML={{
                 __html: `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
+gtag('consent', 'default', { ad_storage: 'denied', analytics_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', wait_for_update: 500 });
 gtag('js', new Date());
-gtag('config', 'AW-18001047926');`,
+gtag('config', 'AW-18001047926');${GA4_MEASUREMENT_ID ? `\ngtag('config', '${GA4_MEASUREMENT_ID}');` : ""}`,
               }}
             />
           </>
@@ -300,6 +311,13 @@ function RootComponent() {
     }
     window.addEventListener("load", loadDeferredAnalytics, { once: true });
     return () => window.removeEventListener("load", loadDeferredAnalytics);
+  }, []);
+
+  // Captures utm_* params from the landing URL once, so funnel events and
+  // (eventually) the booking record can attribute the session correctly even
+  // after client-side navigation strips them from later URLs.
+  useEffect(() => {
+    captureUtmParams();
   }, []);
 
   // Safety net for the native splash (see capacitor.config.ts's
@@ -391,6 +409,7 @@ function RootComponent() {
         <SiteFooter />
       </div>
       <Toaster position="top-center" richColors />
+      <CookieNotice />
       <SpeedInsights />
       <Analytics />
     </QueryClientProvider>

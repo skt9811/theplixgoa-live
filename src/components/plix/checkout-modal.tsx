@@ -12,7 +12,7 @@ import {
 } from "@/lib/booking";
 import { redeemCoupon, validateCoupon, type CouponValidationResult } from "@/lib/coupons";
 import { getGuestUser, onGuestAuthChange, type GuestUser } from "@/lib/guest-auth";
-import { GOOGLE_ADS_ACCOUNT_ID, trackConversion } from "@/lib/gtag";
+import { trackClarityEvent, trackFunnelEvent } from "@/lib/gtag";
 import { formatINR, gstLabel, type Property } from "@/lib/plix";
 import { autoBlockDatesForStay, isMultiRoomProperty, quoteWithDiscount } from "@/lib/rates";
 
@@ -71,6 +71,19 @@ export function CheckoutModal({
   useEffect(() => {
     setGuestUser(getGuestUser());
     return onGuestAuthChange(() => setGuestUser(getGuestUser()));
+  }, []);
+
+  // This component only mounts while the parent's checkoutOpen is true, so a
+  // one-time mount effect is exactly "checkout page reached" for this
+  // modal-based flow (there's no separate /checkout route to attach it to).
+  useEffect(() => {
+    trackFunnelEvent("begin_checkout", { property_slug: property.slug });
+    // Tags this Clarity recording so a session with "reached_checkout" but
+    // no matching "completed_booking" (booking-success.tsx) is a real,
+    // filterable checkout abandonment — not deduped (see trackClarityEvent's
+    // own comment): a session tag, not a counted conversion.
+    trackClarityEvent("reached_checkout");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberate one-time mount effect, same as the guestUser effect below
   }, []);
 
   useEffect(() => {
@@ -135,6 +148,7 @@ export function CheckoutModal({
   // is already filled in by the time either caller reaches here.
   async function proceedToCheckout() {
     setStatus("creating_order");
+    trackFunnelEvent("add_guest_details", { property_slug: property.slug });
 
     let order: CreateOrderResponse;
     try {
@@ -162,12 +176,17 @@ export function CheckoutModal({
       // path from this catch block to new window.Razorpay(...).
       console.error("[RAZORPAY ORDER CREATION FAILED]", error);
       setStatus("error");
+      trackFunnelEvent("begin_checkout", {
+        property_slug: property.slug,
+        failure_reason: "checkout_error",
+      });
       const message = error instanceof Error ? error.message : "We couldn't start the checkout. Please try again or contact us.";
       toast.error(message);
       return;
     }
 
     setStatus("checkout_open");
+    trackFunnelEvent("add_payment_info", { property_slug: property.slug });
 
     try {
       await openRazorpayCheckout({
@@ -179,11 +198,19 @@ export function CheckoutModal({
         onSuccess: (result) => handlePaymentSuccess(order, result),
         onDismiss: () => {
           setStatus("idle");
+          trackFunnelEvent("add_payment_info", {
+            property_slug: property.slug,
+            failure_reason: "payment_abandoned",
+          });
           toast.error("Payment cancelled. Your booking was not completed.");
         },
       });
     } catch (error) {
       console.error("[Razorpay Init Error]:", error);
+      trackFunnelEvent("add_payment_info", {
+        property_slug: property.slug,
+        failure_reason: "payment_failed",
+      });
       setStatus("error");
       toast.error("Could not open Razorpay checkout. Please try again.");
     }
@@ -232,11 +259,14 @@ export function CheckoutModal({
       void autoBlockDatesForStay(property.id, checkIn, checkOut);
     }
 
-    trackConversion(GOOGLE_ADS_ACCOUNT_ID, {
-      value: total,
-      currency: "INR",
-      transaction_id: order.booking_id,
-    });
+    // The Google Ads "Purchase" conversion + GA4 purchase event now fire
+    // from booking-success.tsx instead (trackPurchaseConversion in
+    // gtag.ts) — deduplicated by booking ID there, which a fire-here would
+    // need its own guard against anyway (e.g. a double-click or a retried
+    // webhook re-running this same handler). This call used to be here,
+    // passing GOOGLE_ADS_ACCOUNT_ID alone as `send_to` — see trackConversion's
+    // own doc comment in gtag.ts for why that never attributed to a real
+    // Conversion Action in Google Ads in the first place.
 
     if (!emailResult.ok) {
       console.error("[handlePaymentSuccess] confirmation email dispatch failed:", emailResult.error ?? emailResult.emailsFailed);

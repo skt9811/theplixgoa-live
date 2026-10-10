@@ -9,7 +9,7 @@ import {
   Tag,
   Users,
 } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { toast } from "sonner";
 import { PropertyImageCarousel } from "@/components/plix/property-image-carousel";
 import { PropertyAirportFares } from "@/components/plix/property-airport-fares";
@@ -68,6 +68,7 @@ import {
   jsonLdScript,
 } from "@/lib/seo";
 import { buildPropertyFaqs } from "@/lib/property-faqs";
+import { trackFunnelEvent } from "@/lib/gtag";
 
 type PropertySearch = {
   checkIn?: string | undefined;
@@ -228,6 +229,9 @@ function PropertyDetail() {
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResult | null>(null);
   const [couponChecking, setCouponChecking] = useState(false);
+  // Dedupes check_availability so it fires once per distinct date range, not
+  // on every re-render while blockedDates/availability are still settling.
+  const lastAvailabilityEventRef = useRef<string | null>(null);
 
   const isMultiRoom = isMultiRoomProperty(property?.id ?? "");
   const maxRooms = property ? maxRoomsForProperty(property.id) : 1;
@@ -301,6 +305,38 @@ function PropertyDetail() {
     void loadRazorpayScript();
   }, []);
 
+  useEffect(() => {
+    if (!property) return;
+    trackFunnelEvent("view_property", { property_slug: property.slug });
+    // Deliberately scoped to the property identity only (not checkIn/checkOut
+    // etc.) — this should fire once per page load/property, not on every
+    // widget interaction.
+  }, [property?.slug]);
+
+  // "Reviews section reached" — PropertyReviewsSection renders nothing (and
+  // never mounts <section id="guest-reviews">) when the property has zero
+  // reviews, so the observer simply never finds a target to fire on; no
+  // separate has-reviews check needed here.
+  useEffect(() => {
+    if (!property) return;
+    const target = document.getElementById("guest-reviews");
+    if (!target) return;
+    let fired = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (fired) return;
+        if (entries.some((e) => e.isIntersecting)) {
+          fired = true;
+          trackFunnelEvent("view_reviews", { property_slug: property.slug });
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [property?.slug]);
+
   // Booking the entire bungalow always reserves all of its rooms — keeps
   // `rooms` (and therefore price + availability + guest cap, all derived
   // from it) in sync whenever the guest switches modes or the property
@@ -347,6 +383,17 @@ function PropertyDetail() {
       window.removeEventListener("storage", onStorageChange);
     };
   }, [loadRatesAndAvailability]);
+
+  useEffect(() => {
+    if (!property || !datesTouched || nights === 0) return;
+    const key = `${property.slug}:${checkIn}:${checkOut}`;
+    if (lastAvailabilityEventRef.current === key) return;
+    lastAvailabilityEventRef.current = key;
+    trackFunnelEvent("check_availability", {
+      property_slug: property.slug,
+      ...(datesBlocked ? { failure_reason: "no_availability" } : {}),
+    });
+  }, [property, datesTouched, nights, checkIn, checkOut, datesBlocked]);
 
   if (!property) return <Fallback title="We couldn't find that stay" />;
 
@@ -537,7 +584,11 @@ function PropertyDetail() {
             <p className="mt-1 text-sm text-muted-foreground">
               {property.location}, {property.region}
               {LOCATION_POSTAL_CODES[property.location] && ` ${LOCATION_POSTAL_CODES[property.location]}`} · Concierge:{" "}
-              <a href={`tel:${SITE_PHONE_2}`} className="font-medium text-primary hover:underline">
+              <a
+                href={`tel:${SITE_PHONE_2}`}
+                onClick={() => trackFunnelEvent("click_call", { property_slug: property.slug, location: "concierge_line" })}
+                className="font-medium text-primary hover:underline"
+              >
                 {SITE_PHONE_2}
               </a>
             </p>
@@ -634,6 +685,7 @@ function PropertyDetail() {
                   onChange={(e) => {
                     setCheckIn(e.target.value);
                     setDatesTouched(true);
+                    trackFunnelEvent("select_dates", { property_slug: property.slug, field: "check_in" });
                   }}
                   className={`${input} min-h-[44px]`}
                 />
@@ -647,6 +699,7 @@ function PropertyDetail() {
                   onChange={(e) => {
                     setCheckOut(e.target.value);
                     setDatesTouched(true);
+                    trackFunnelEvent("select_dates", { property_slug: property.slug, field: "check_out" });
                   }}
                   className={`${input} min-h-[44px]`}
                 />
@@ -812,7 +865,10 @@ function PropertyDetail() {
 
             <button
               disabled={nights === 0 || datesBlocked || Boolean(guestError)}
-              onClick={() => setCheckoutOpen(true)}
+              onClick={() => {
+                trackFunnelEvent("click_book", { property_slug: property.slug, location: "desktop_widget" });
+                setCheckoutOpen(true);
+              }}
               className="mt-5 w-full rounded-full bg-gradient-emerald px-6 py-4 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 min-h-[44px]"
             >
               {nights === 0 ? "Select Dates" : datesBlocked ? "Dates unavailable" : "Book Direct Now"}
@@ -826,7 +882,7 @@ function PropertyDetail() {
           </div>
 
           <div className="mt-4">
-            <PropertyConnectHostCard propertyName={property.name} />
+            <PropertyConnectHostCard propertyName={property.name} propertySlug={property.slug} />
           </div>
         </aside>
       </div>
@@ -854,6 +910,7 @@ function PropertyDetail() {
             if (nights === 0 || datesBlocked || guestError) {
               document.getElementById("book")?.scrollIntoView({ behavior: "smooth", block: "start" });
             } else {
+              trackFunnelEvent("click_book", { property_slug: property.slug, location: "mobile_sticky_bar" });
               setCheckoutOpen(true);
             }
           }}

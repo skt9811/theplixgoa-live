@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { SmartImage } from "@/components/plix/smart-image";
 import { PropertyGalleryModal } from "@/components/plix/property-gallery-modal";
 import { SITE_PHONE_1 } from "@/lib/seo";
+import { trackFunnelEvent } from "@/lib/gtag";
 
 type Props = {
   images: string[];
@@ -62,6 +63,7 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
   function openGallery(filter: "All" | "Videos" = "All") {
     setGalleryInitialFilter(filter);
     setGalleryOpen(true);
+    trackFunnelEvent("view_gallery", { property_slug: propertySlug });
   }
 
   function toggleWishlist(e: React.MouseEvent) {
@@ -140,7 +142,13 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
             </button>
             <a
               href={`tel:${SITE_PHONE_1}`}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                trackFunnelEvent("click_call", {
+                  property_slug: propertySlug,
+                  location: "hero_gallery",
+                });
+              }}
               aria-label="Call us"
               className="flex size-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/75"
             >

@@ -8,6 +8,7 @@ type Props = {
   imageKeys: string[];
   videos?: string[];
   propertyName: string;
+  location: string;
   initialFilter?: Filter;
   onClose: () => void;
 };
@@ -29,6 +30,7 @@ export function PropertyGalleryModal({
   imageKeys,
   videos = [],
   propertyName,
+  location,
   initialFilter = "All",
   onClose,
 }: Props) {
@@ -120,18 +122,30 @@ export function PropertyGalleryModal({
               No {activeFilter.toLowerCase()} photos tagged for this property yet.
             </p>
           ) : (
-            filtered.map(({ key, src }, i) => (
+            filtered.map(({ key, src }, i) => {
+              // C2: real, human-reviewed category when photo-categories.ts
+              // has one for this key (verified by actually looking at the
+              // photo, see that file's own header comment) -- the task's
+              // "existing caption, file name or category" case. Falls back
+              // to the location-only form the task specifies for "no
+              // caption exists", never a guessed room/area.
+              const category = categoryForImageKey(key);
+              const alt = category
+                ? `${propertyName} ${category.toLowerCase()} — ${location}, North Goa`
+                : `${propertyName} — ${location}, North Goa`;
+              return (
               <div key={key} className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl shadow-soft">
                 <SmartImage
                   src={src}
-                  alt={`${propertyName} — photo ${i + 1} of ${filtered.length}`}
+                  alt={alt}
                   loading={i < 2 ? "eager" : "lazy"}
                   width={1200}
                   height={750}
                   className="block h-full w-full object-cover"
                 />
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

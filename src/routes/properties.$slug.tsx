@@ -435,6 +435,7 @@ function PropertyDetail() {
           videos={property.videos ?? []}
           propertyName={property.name}
           propertySlug={property.slug}
+          location={property.location}
         />
       </section>
 
@@ -476,7 +477,7 @@ function PropertyDetail() {
 
           <PropertyRefundTimeline />
 
-          <PropertyImageCarousel images={images} propertyName={property.name} />
+          <PropertyImageCarousel images={images} propertyName={property.name} location={property.location} />
 
           <PropertyReviewsSection propertyId={property.id} propertyName={property.name} />
 

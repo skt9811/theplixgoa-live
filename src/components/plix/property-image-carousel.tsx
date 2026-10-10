@@ -6,6 +6,7 @@ import { SmartImage } from "@/components/plix/smart-image";
 type Props = {
   images: string[];
   propertyName: string;
+  location: string;
 };
 
 const AUTOPLAY_INTERVAL_MS = 3500;
@@ -16,7 +17,7 @@ const AUTOPLAY_INTERVAL_MS = 3500;
  * `image_keys` (see properties.$slug.tsx), so this component never mixes
  * in photos from any other property.
  */
-export function PropertyImageCarousel({ images, propertyName }: Props) {
+export function PropertyImageCarousel({ images, propertyName, location }: Props) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: images.length > 1, align: "start" });
   const [selectedIndex, setSelectedIndex] = useState(0);
   // Refs, not state — autoplay just reads these on each tick, so toggling
@@ -95,7 +96,12 @@ export function PropertyImageCarousel({ images, propertyName }: Props) {
                   <SmartImage
                     src={src}
                     fallbackSrc={images[0]}
-                    alt={`${propertyName} — photo ${i + 1} of ${images.length}`}
+                    // C2: no per-image category/caption data reaches this
+                    // component (it only receives resolved image URLs, not
+                    // the original keys categoryForImageKey needs) -- this
+                    // is the "no caption exists" safe fallback the task
+                    // itself specifies, not a guess at room/area content.
+                    alt={`${propertyName} — ${location}, North Goa`}
                     loading={i < 4 ? "eager" : "lazy"}
                     width={1000}
                     height={480}

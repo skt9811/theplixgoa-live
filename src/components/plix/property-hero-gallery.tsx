@@ -11,6 +11,7 @@ type Props = {
   videos?: string[];
   propertyName: string;
   propertySlug: string;
+  location: string;
 };
 
 const WISHLIST_LS_KEY = "plix_wishlist_slugs";
@@ -39,7 +40,7 @@ function writeWishlist(slugs: Set<string>): void {
  * property's own resolved gallery (see properties.$slug.tsx), never mixed
  * with another property's photos.
  */
-export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyName, propertySlug }: Props) {
+export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyName, propertySlug, location }: Props) {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryInitialFilter, setGalleryInitialFilter] = useState<"All" | "Videos">("All");
   const [wishlisted, setWishlisted] = useState(false);
@@ -315,6 +316,7 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
           imageKeys={imageKeys}
           videos={videos}
           propertyName={propertyName}
+          location={location}
           initialFilter={galleryInitialFilter}
           onClose={() => setGalleryOpen(false)}
         />

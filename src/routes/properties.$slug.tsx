@@ -24,6 +24,10 @@ import { PropertyQuickFacts } from "@/components/plix/property-quick-facts";
 import { PropertyRefundTimeline } from "@/components/plix/property-refund-timeline";
 import { PropertyFaq } from "@/components/plix/property-faq";
 import { PropertyConnectHostCard } from "@/components/plix/property-connect-host-card";
+import { PropertyTrustStrip } from "@/components/plix/property-trust-strip";
+import { PropertyRatingBadge } from "@/components/plix/property-rating-badge";
+import { PropertyAlsoListed } from "@/components/plix/property-also-listed";
+import { PropertyHostBlock } from "@/components/plix/property-host-block";
 import { PropertyConciergeWidget } from "@/components/plix/property-concierge-widget";
 import { PropertyCheckinRulesCard } from "@/components/plix/property-checkin-rules-card";
 import { amenityIcon } from "@/components/plix/amenity-icons";
@@ -879,10 +883,16 @@ function PropertyDetail() {
                 See cancellation policy
               </Link>
             </p>
+            <PropertyRatingBadge propertySlug={property.slug} />
+            <PropertyTrustStrip propertyName={property.name} />
+            <PropertyAlsoListed propertySlug={property.slug} />
           </div>
 
           <div className="mt-4">
             <PropertyConnectHostCard propertyName={property.name} propertySlug={property.slug} />
+          </div>
+          <div className="mt-4">
+            <PropertyHostBlock />
           </div>
         </aside>
       </div>

@@ -206,6 +206,15 @@ function PropertyDetail() {
   const { data: property } = useSuspenseQuery(propertyQuery(slug));
   const [checkIn, setCheckIn] = useState(urlSearch.checkIn ?? todayISO(3));
   const [checkOut, setCheckOut] = useState(urlSearch.checkOut ?? todayISO(5));
+  // checkIn/checkOut are pre-filled with placeholder dates (today+3/+5) so the
+  // widget has something to compute with before the guest picks real ones —
+  // but that silently produced a specific, confident-looking total ("2 nights
+  // – ₹19,000 + GST = ₹19,950") for dates nobody chose. This tracks whether
+  // the guest has actually touched a date field (or arrived with dates
+  // already in the URL, e.g. from a search results page), without changing
+  // nights/subtotal/taxes/total themselves at all — only which of the two
+  // blocks below renders.
+  const [datesTouched, setDatesTouched] = useState(Boolean(urlSearch.checkIn || urlSearch.checkOut));
   const [guests, setGuests] = useState(urlSearch.guests ?? 2);
   const [rooms, setRooms] = useState(urlSearch.rooms ?? 1);
   // Only meaningful for a property where scalesPriceByRooms is true
@@ -391,10 +400,20 @@ function PropertyDetail() {
             {LOCATION_POSTAL_CODES[property.location] && `, ${LOCATION_POSTAL_CODES[property.location]}`}
           </span>
           {property.distance_to_beach && (
-            <span className="flex items-center gap-1.5">
-              <Footprints className="size-4 text-primary" aria-hidden />
-              {property.distance_to_beach}
-            </span>
+            <>
+              {/* A real separator character, not just the parent's CSS gap:
+                  the postcode span above and this one are visually spaced by
+                  gap-x-4 alone, with no actual text between them — fine on
+                  screen, but "403512" and "2 mins walk" concatenate into
+                  "4035122 mins walk" for anything reading text content
+                  rather than rendered layout (a crawler's text snapshot,
+                  some screen-reader modes, copy-paste). */}
+              <span aria-hidden className="text-muted-foreground/60">·</span>
+              <span className="flex items-center gap-1.5">
+                <Footprints className="size-4 text-primary" aria-hidden />
+                {property.distance_to_beach}
+              </span>
+            </>
           )}
         </p>
       </header>
@@ -407,7 +426,9 @@ function PropertyDetail() {
       />
 
       <section id="photo-gallery">
-        <h2 className="sr-only">Photo Gallery &amp; Real Images of {property.name}</h2>
+        {/* No heading of its own here: PropertyImageCarousel below already
+            renders a real, visible "Photo gallery" <h2> for this same
+            section — a duplicate heading, not two distinct ones. */}
         <PropertyHeroGallery
           images={images}
           imageKeys={property.image_keys}
@@ -609,7 +630,10 @@ function PropertyDetail() {
                   type="date"
                   min={todayISO()}
                   value={checkIn}
-                  onChange={(e) => setCheckIn(e.target.value)}
+                  onChange={(e) => {
+                    setCheckIn(e.target.value);
+                    setDatesTouched(true);
+                  }}
                   className={`${input} min-h-[44px]`}
                 />
               </label>
@@ -619,7 +643,10 @@ function PropertyDetail() {
                   type="date"
                   min={checkIn}
                   value={checkOut}
-                  onChange={(e) => setCheckOut(e.target.value)}
+                  onChange={(e) => {
+                    setCheckOut(e.target.value);
+                    setDatesTouched(true);
+                  }}
                   className={`${input} min-h-[44px]`}
                 />
               </label>
@@ -683,6 +710,13 @@ function PropertyDetail() {
               <p className="mt-1 text-xs text-red-600">{guestError}</p>
             )}
 
+            {!datesTouched ? (
+              // Empty-state only: same base_price and gstLabel()/gstRate the
+              // real breakdown below uses, no calculation of its own.
+              <div className="mt-5 border-t border-border pt-4 text-sm text-muted-foreground">
+                from {formatINR(property.base_price)}/night{isMultiRoom ? ", per room" : ", entire villa"} + {gstLabel(gstRate)}
+              </div>
+            ) : (
             <div className="mt-5 space-y-2 border-t border-border pt-4 text-sm">
               {nights > 0 && hasCustomRate ? (
                 <div className="space-y-1">
@@ -765,6 +799,7 @@ function PropertyDetail() {
                 <span>{formatINR(total)}</span>
               </div>
             </div>
+            )}
 
             {datesBlocked && (
               <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

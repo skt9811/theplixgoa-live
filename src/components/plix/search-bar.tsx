@@ -189,13 +189,19 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
 
       <label className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2.5 md:rounded-full md:py-1.5 md:hover:bg-gray-50">
         <Users className="size-3.5 shrink-0 text-bronze" aria-hidden />
-        <span className="sr-only">Guests</span>
+        {/* aria-label on the input itself, not a separate sr-only span: an
+            <input>'s value is never part of its element's text content, so
+            the old "Guests" span and the visible "guests" span, with nothing
+            extractable between them, concatenated into "Guestsguests" for
+            any tool reading the page's text rather than its accessibility
+            tree (a real screen reader read it correctly either way). */}
         <input
           type="number"
           min={1}
           max={effectiveMaxGuests}
           value={guests}
           onChange={(e) => handleGuestsChange(Number(e.target.value))}
+          aria-label="Guests"
           className={`${fieldClass} w-12 text-center`}
         />
         <span className="text-xs text-muted-foreground">guests</span>

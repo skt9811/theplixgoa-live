@@ -124,6 +124,76 @@ export const LOCATION_HUBS: LocationHub[] = [
       "November to February for the driest, coolest weather — turtle nesting season typically runs roughly November through March, a specific draw for this stretch of coast.",
     idealStay:
       "4–6 nights suits Morjim's slower rhythm — enough time to properly unwind, with day trips north to Ashwem or south to Anjuna's flea market.",
+    h1: "Villas & Stays in Morjim, Goa",
+    // Distances/times below are each property's own real `nearby` entry
+    // (src/lib/plix.ts) — Morjim Pride and The Plix Resort - Morjim have
+    // identical nearby lists, so either is cited interchangeably.
+    longformSections: [
+      {
+        heading: "Who Morjim suits",
+        paragraphs: [
+          "Morjim has two Plix stays, and both are resorts built for groups rather than a couple's quiet weekend: Morjim Pride has 22 bedrooms and sleeps up to 50 guests, The Plix Resort - Morjim has 10 bedrooms and sleeps up to 30. Both are a genuine fit for a wedding, a large family reunion, or any group big enough that a single private villa wouldn't hold everyone — with a pool, restaurant and bar on site at each, so the group doesn't need to leave the property for either.",
+          "Both also run as proper boutique resorts day to day, not just event venues — a front desk, room service and housekeeping throughout a stay, which suits a group that wants the coordination of a resort rather than managing a large villa themselves. Morjim Pride's own amenity list includes family rooms specifically, and The Plix Resort - Morjim lists kids' meals and board games, so both read as set up for multi-generational groups travelling with children, not only couples or large groups of adults.",
+          "What makes Morjim itself the right location for that kind of stay is the beach on the doorstep: both resorts are about a 2-minute walk from Morjim Beach, which is wider and quieter than the beaches further south, so a big group can spread out on the sand without it feeling crowded.",
+        ],
+      },
+      {
+        heading: "The beach and turtle nesting season",
+        paragraphs: [
+          "Morjim Beach is a long, uncrowded stretch, and Morjim is known in particular for its Olive Ridley turtle nesting season, which typically runs roughly November through March. Forest department patrols protect the nesting sites during that window, and guests visiting in season can often see cordoned-off nesting areas along stretches of the beach — a genuine point of difference from the busier beaches further south.",
+          "Outside nesting season, the beach is simply a quiet stretch of sand — fewer shacks and less footfall than Anjuna or Candolim further south, which is part of why Morjim tends to suit a group that wants its own resort grounds to gather in rather than a beach scene to be out in all day.",
+        ],
+      },
+      {
+        heading: "Nearby: Ashwem, Chapora Fort and Anjuna",
+        paragraphs: [
+          "Ashwem Beach, the next stretch of coast north of Morjim and known for its own quieter beach-shack scene, is about an 8-minute drive from either Plix resort. Chapora Fort is around 20 minutes away, and the Anjuna flea market (Wednesdays, roughly November to April) is about 25 minutes — both reachable as a day trip rather than a quick visit, given the distance from Morjim itself. That distance is the trade-off for Morjim's own quiet: it's further from Vagator and Anjuna's nightlife and shopping than staying in either of those neighbourhoods directly, which is exactly what suits a group here for the resort itself rather than the wider area's nightlife.",
+        ],
+      },
+      {
+        heading: "Food and atmosphere",
+        paragraphs: [
+          "Both Plix resorts in Morjim have their own restaurant and bar on site, so a meal or a drink doesn't require leaving the property — useful for a group this size coordinating meals together, and Morjim Pride adds breakfast-in-room and a dedicated garden and terrace for it too. Morjim's own beachfront has a long-standing reputation as a quieter, more international stretch of coast than the party beaches further south, with cafes built around that slower pace rather than nightlife.",
+          "For a group staying at one of these resorts, that combination — the beach two minutes away, the resort's own restaurant and bar for everything else — means there's rarely a real need to arrange transport just to eat or have a drink, which matters more here than in a neighbourhood like Vagator or Anjuna where everything is already within a short walk or drive.",
+        ],
+      },
+      {
+        heading: "Best time to visit",
+        paragraphs: [
+          "November to February is the driest, coolest stretch across North Goa, and Morjim's own turtle nesting season — roughly November through March — overlaps with most of it, making this window a specific additional draw for this stretch of coast beyond the weather alone. A group timing a wedding or reunion for nesting season gets both the best weather and a genuine point of interest for guests with downtime between events.",
+          "Goa's monsoon runs roughly June through September, when the beach-shack scene scales back for the season; outside of nesting season, Morjim's pace is quiet enough that the distinction between peak and shoulder season matters less here than it does in a busier neighbourhood.",
+        ],
+      },
+      {
+        heading: "Getting there",
+        paragraphs: [
+          "Goa's international airport at Mopa is about a 40-minute drive from both Plix resorts in Morjim — most guests arrange a pre-booked taxi for the transfer rather than relying on finding one on arrival. Dabolim, Goa's older, southern airport, is a longer drive; exact timing is TODO.",
+          "Within the area, a rented scooter or a taxi/app-based cab are the usual ways to reach Ashwem, Chapora Fort or Anjuna, though for a resort stay built around the property itself, day trips out are more optional here than they would be from a villa in a busier neighbourhood.",
+        ],
+      },
+    ],
+    faqs: [
+      {
+        q: "Which Plix stays are in Morjim?",
+        a: "Two resorts: Morjim Pride (22 bedrooms, up to 50 guests) and The Plix Resort - Morjim (10 bedrooms, up to 30 guests). Both are about a 2-minute walk from Morjim Beach.",
+      },
+      {
+        q: "When is turtle nesting season in Morjim?",
+        a: "Roughly November through March, when Olive Ridley turtles nest on Morjim Beach under forest department protection — a specific draw for this stretch of coast beyond the weather alone.",
+      },
+      {
+        q: "Is Morjim good for a large group or wedding?",
+        a: "Yes — both Plix resorts here are built for groups: Morjim Pride sleeps up to 50 across 22 bedrooms, The Plix Resort - Morjim sleeps up to 30 across 10, each with its own pool, restaurant and bar on site.",
+      },
+      {
+        q: "How far is Ashwem Beach from a Plix resort in Morjim?",
+        a: "About an 8-minute drive — the next stretch of coast north of Morjim, known for its own quieter beach-shack scene.",
+      },
+      {
+        q: "How far is Morjim from Goa's airport?",
+        a: "About 40 minutes' drive to Mopa, Goa's international airport, from either Plix resort in Morjim.",
+      },
+    ],
   },
   {
     slug: "anjuna",

@@ -256,11 +256,12 @@ export function brandJsonLd() {
       BRAND_LISTING_LINKS.googleBusinessProfile,
       BRAND_LISTING_LINKS.airbnbHostProfile,
     ].filter((url): url is string => Boolean(url)),
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.9",
-      reviewCount: "6",
-    },
+    // No aggregateRating here: Google's structured data guidelines treat a
+    // self-reported rating on an Organization/LodgingBusiness entity (not
+    // backed by individual Review items anyone can inspect) as exactly the
+    // kind of self-serving rating they ignore or flag as spam — see
+    // vacationRentalJsonLd below, which only emits one when real
+    // (reviews.length > 0) Review items back it up, same rule applied here.
   };
 }
 

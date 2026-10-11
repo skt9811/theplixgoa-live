@@ -135,6 +135,77 @@ export const LOCATION_HUBS: LocationHub[] = [
       "November to February for peak-season weather; the Wednesday flea market runs through the dry season and is one of the area's signature draws.",
     idealStay:
       "3–4 nights covers the beach, the flea market (best visited on a Wednesday), and a short drive to Vagator or Assagao.",
+    h1: "Villas & Stays in Anjuna, Goa",
+    // Distances/times below are each property's own real `nearby` entry
+    // (src/lib/plix.ts) — Casa Marina/Casa Meadows' reading is used where
+    // the 4 properties differ, since it's the closest of the four to most
+    // of what's described. Flea market season corrected to "roughly
+    // November to April" throughout, not just the Nov-Feb weather window.
+    longformSections: [
+      {
+        heading: "Who Anjuna suits",
+        paragraphs: [
+          "Anjuna has four Plix stays, and three of them — Casa Marina (3 bedrooms), Casa Moana (4 bedrooms) and Casa Meadows (5 bedrooms) — sit together in the same villa enclave, Marina Villas by The Plix, which makes Anjuna the right pick for a bigger group that wants separate private-pool villas close to each other rather than one large shared property, or for extended family travelling together but wanting their own space each night. Villa Madera is the standalone option: a 3-bedroom villa on its own, for a single family or small group of friends who'd rather not share a compound with other bookings.",
+          "Either way, you're choosing Anjuna for its position: minutes from its own well-known flea market and beach, and a short drive from both Vagator's cliffs and Assagao's village cafes, so it works as well as a base for exploring the wider area as it does for staying put. It's the most central of Plix's North Goa locations in that sense — not the quietest neighbourhood on its own, but the one from which the rest of the area is easiest to reach.",
+        ],
+      },
+      {
+        heading: "The beach and the Wednesday flea market",
+        paragraphs: [
+          "Anjuna Beach itself is a long stretch backed by beach shacks and sunset bars, about 6–10 minutes' drive from Plix's Anjuna villas depending on which one you're staying at. The bigger draw for most first-time visitors is the Anjuna Flea Market, running every Wednesday roughly from November to April — stalls selling clothing, jewellery, textiles and curios that trace back to the market's hippie-era origins in the 1960s and 70s, now one of the most recognisable fixtures of a North Goa trip. It's about a 6–8 minute drive from Casa Marina, Casa Moana or Casa Meadows, and best reached early if you'd rather shop before the midday crowds build up.",
+          "Beyond the Wednesday market, Anjuna Beach has its own quieter rhythm the rest of the week — a long run of shacks for lunch or a sunset drink, without the single-day spike in footfall the market brings. The market itself is worth setting aside a few hours for rather than a quick pass-through: it spans a large stretch of the beachfront, and bargaining over the asking price is the norm rather than the exception.",
+        ],
+      },
+      {
+        heading: "Nearby: Vagator and Chapora Fort",
+        paragraphs: [
+          "Anjuna sits right next to Vagator, and the two neighbourhoods are easy to combine on the same trip. Vagator Beach is about a 12–14 minute drive from Plix's Anjuna villas, and Chapora Fort — the headland fort between Vagator's two beaches, built by the Portuguese in 1617 on the site of an earlier pre-Portuguese fort — is around 15 minutes from Casa Marina or Casa Meadows. Casa Moana's own nearby list also puts Ozran Beach, Little Vagator's quieter cove, at about 16 minutes. It's close enough for an evening out without making Anjuna feel like the wrong base.",
+          "For a villa in the Marina Villas enclave, that means a guest can spend a morning at the Anjuna flea market, an afternoon at the beach, and still make it to Chapora Fort for sunset — all without the day feeling rushed.",
+        ],
+      },
+      {
+        heading: "Food and atmosphere",
+        paragraphs: [
+          "Anjuna shares Vagator's history as one of the places Goa trance music grew out of in the 1990s, and still has a cafe and beach-shack scene built around that same laid-back, international crowd — alongside the yoga and wellness studios that have become a bigger part of the neighbourhood's identity in recent years. Between the flea market, the beach shacks, and its cafes, Anjuna has more going on day to day than it needs its neighbours for, while still keeping Vagator and Assagao within easy reach.",
+          "That mix is part of why Anjuna works as a base rather than just a day-trip stop: you can spend an entire visit without leaving the neighbourhood and still have a different kind of day each time, from the market to the beach to a quiet cafe morning.",
+        ],
+      },
+      {
+        heading: "Best time to visit",
+        paragraphs: [
+          "November to February is the driest, coolest stretch across North Goa, Anjuna included — the flea market itself runs longer, roughly November through April, so a visit in March or early April still catches it with thinner crowds than peak season. Goa's monsoon runs roughly June through September, when the market closes for the season and the beach-shack scene scales back.",
+        ],
+      },
+      {
+        heading: "Getting there",
+        paragraphs: [
+          "Goa's international airport at Mopa is about a 40-minute drive from Plix's Anjuna villas — most guests arrange a pre-booked taxi for the transfer rather than relying on finding one on arrival. Dabolim, Goa's older, southern airport, is a longer drive from Anjuna — ask your caretaker for a current estimate when planning airport transfers.",
+          "Within the area, Vagator and Assagao are both a short drive away, and a rented scooter or a taxi/app-based cab are the usual ways to get around day to day. Casa Marina, Casa Moana and Casa Meadows share the same compound, so once you've arrived there's no need for a second transfer between them even if you're splitting a group across more than one villa.",
+        ],
+      },
+    ],
+    faqs: [
+      {
+        q: "Which Plix villas are in Anjuna?",
+        a: "Four: Casa Marina, Casa Moana and Casa Meadows, which share one villa enclave (Marina Villas by The Plix), and Villa Madera, a standalone 3-bedroom villa.",
+      },
+      {
+        q: "When is the Anjuna flea market open?",
+        a: "Every Wednesday, roughly November through April. It's about a 6–8 minute drive from Casa Marina, Casa Moana or Casa Meadows.",
+      },
+      {
+        q: "How far is Vagator from a Plix villa in Anjuna?",
+        a: "About 12–14 minutes' drive, depending on which villa you're staying at — close enough for an easy evening out at Chapora Fort or Vagator's beaches.",
+      },
+      {
+        q: "Is Anjuna good for a larger group?",
+        a: "Yes — Casa Marina, Casa Moana and Casa Meadows sit in the same enclave (Marina Villas by The Plix), so a group can book separate private-pool villas close to one another rather than splitting across unrelated properties.",
+      },
+      {
+        q: "How far is Anjuna from Goa's airport?",
+        a: "About 40 minutes' drive to Mopa, Goa's international airport, from Plix's Anjuna villas.",
+      },
+    ],
   },
   {
     slug: "candolim",

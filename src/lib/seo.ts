@@ -417,7 +417,10 @@ export function propertySearchVariantSentence(p: Property): string | undefined {
 // independently assert a private pool, while its amenity_tags still says
 // only "Swimming Pool" — a real data gap (flagged for the owner), not a
 // guess, since two other fields on the same property already say it.
-function poolWord(p: Property): string {
+// Exported as the single source of truth for "private pool" vs "shared
+// pool" vs "no pool" wherever that fact is shown — the key facts strip,
+// this intro paragraph, and nowhere else should each independently guess.
+export function poolWord(p: Property): string {
   if (p.amenity_tags.includes("Private Pool") || p.slug === "the-plix-villa") return "private pool";
   if (p.amenity_tags.some((t) => t.toLowerCase().includes("pool"))) return "pool";
   return "";

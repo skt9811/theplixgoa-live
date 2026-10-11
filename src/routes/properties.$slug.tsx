@@ -18,7 +18,8 @@ import { PropertyReviewsSection } from "@/components/plix/property-reviews-secti
 import { PROPERTY_REVIEWS } from "@/lib/property-reviews-data";
 import { PropertyHeroGallery } from "@/components/plix/property-hero-gallery";
 import { PropertyKeyFacts } from "@/components/plix/property-key-facts";
-import { locationSlug } from "@/lib/locations";
+import { locationSlug, postMentionsLocation } from "@/lib/locations";
+import { blogsQuery } from "@/lib/blog";
 import { PropertySubNav, SUB_NAV_HEIGHT } from "@/components/plix/property-sub-nav";
 import { PropertyQuickFacts } from "@/components/plix/property-quick-facts";
 import { PropertyRefundTimeline } from "@/components/plix/property-refund-timeline";
@@ -94,6 +95,10 @@ export const Route = createFileRoute("/properties/$slug")({
     const property = await context.queryClient.ensureQueryData(propertyQuery(params.slug));
     if (!property) throw notFound();
     const reviews = await context.queryClient.ensureQueryData(reviewsQuery);
+    // Prefetched, not read here — the component reads it via useSuspenseQuery
+    // (same pattern as locations.$slug.tsx) to build the Phase 3 "Nearby"
+    // section's 2-3 relevant blog-guide links.
+    await context.queryClient.ensureQueryData(blogsQuery);
     const propertyReviews = reviews.filter((r) => r.property_id === property.id);
     return {
       name: property.name,
@@ -217,6 +222,7 @@ function PropertyDetail() {
   const { slug } = Route.useParams();
   const urlSearch = Route.useSearch();
   const { data: property } = useSuspenseQuery(propertyQuery(slug));
+  const { data: blogPosts } = useSuspenseQuery(blogsQuery);
   const [checkIn, setCheckIn] = useState(urlSearch.checkIn ?? todayISO(3));
   const [checkOut, setCheckOut] = useState(urlSearch.checkOut ?? todayISO(5));
   // checkIn/checkOut are pre-filled with placeholder dates (today+3/+5) so the
@@ -410,6 +416,11 @@ function PropertyDetail() {
   if (!property) return <Fallback title="We couldn't find that stay" />;
 
   const enclaveEntity = property.enclave ? ENCLAVE_ENTITIES[property.enclave] : undefined;
+  // Phase 3's "Nearby" section: 2-3 real blog guides that already mention
+  // this property's area — same matching locations.$slug.tsx's own "Travel
+  // Guides & Local Insights" section uses, so a post never gets linked from
+  // two different pages under two different claims about what it covers.
+  const relatedPosts = blogPosts.filter((post) => postMentionsLocation(post, property.location)).slice(0, 3);
 
   const input =
     "mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-ring/40 min-h-[44px]";
@@ -512,8 +523,8 @@ function PropertyDetail() {
 
       <section id="photo-gallery">
         {/* No heading of its own here: PropertyImageCarousel below already
-            renders a real, visible "Photo gallery" <h2> for this same
-            section — a duplicate heading, not two distinct ones. */}
+            renders a real, visible "{name} photo gallery" <h2> for this
+            same section — a duplicate heading, not two distinct ones. */}
         <PropertyHeroGallery
           images={images}
           imageKeys={property.image_keys}
@@ -555,19 +566,19 @@ function PropertyDetail() {
           </div>
 
           <section id="overview" className="mt-10">
-            <h2 className="text-2xl font-semibold text-navy">About this sanctuary</h2>
+            <h2 className="text-2xl font-semibold text-navy">{property.name} overview</h2>
             <p className="mt-3 leading-relaxed text-muted-foreground">{property.description}</p>
             <PropertyCheckinRulesCard />
           </section>
 
-          <PropertyRefundTimeline />
+          <PropertyRefundTimeline propertyName={property.name} />
 
           <PropertyImageCarousel images={images} propertyName={property.name} location={property.location} />
 
           <PropertyReviewsSection propertyId={property.id} propertyName={property.name} />
 
           <section id="amenities" className="mt-10">
-            <h2 className="text-2xl font-semibold text-navy">Amenities</h2>
+            <h2 className="text-2xl font-semibold text-navy">{property.name} amenities</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
               {property.amenity_tags.map((a) => {
                 const Icon = amenityIcon(a);
@@ -589,7 +600,7 @@ function PropertyDetail() {
           </section>
 
           <section id="meals" className="mt-10">
-            <h2 className="text-2xl font-semibold text-navy">Meals</h2>
+            <h2 className="text-2xl font-semibold text-navy">{property.name} dining &amp; meals</h2>
             {hasRestaurant ? (
               <p className="mt-3 leading-relaxed text-muted-foreground">
                 {property.name} has an on-site restaurant serving local and international dishes, so
@@ -613,7 +624,7 @@ function PropertyDetail() {
           <PropertyAirportFares />
 
           <section id="location" className="mt-10">
-            <h2 className="text-2xl font-semibold text-navy">Where you'll be staying</h2>
+            <h2 className="text-2xl font-semibold text-navy">{property.name} location</h2>
             {enclaveEntity && (
               <p className="mt-1 text-sm text-foreground">
                 Located within <span className="font-medium">{property.enclave}</span>, {enclaveEntity.locality}
@@ -679,7 +690,7 @@ function PropertyDetail() {
           </section>
 
           <section id="experiences" className="mt-10">
-            <h2 className="text-2xl font-semibold text-navy">Nearby attractions & experiences</h2>
+            <h2 className="text-2xl font-semibold text-navy">{property.name} nearby attractions &amp; experiences</h2>
             <ul className="mt-4 divide-y divide-border rounded-2xl border border-border bg-card">
               {property.nearby.map((n) => (
                 <li key={n.name} className="flex items-center justify-between px-5 py-3.5 text-sm">
@@ -688,9 +699,28 @@ function PropertyDetail() {
                 </li>
               ))}
             </ul>
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+              <Link
+                to="/locations/$slug"
+                params={{ slug: locationSlug(property.location) }}
+                className="font-medium text-primary hover:underline"
+              >
+                More on staying in {property.location} →
+              </Link>
+              {relatedPosts.map((post) => (
+                <Link
+                  key={post.id}
+                  to="/blog/$slug"
+                  params={{ slug: post.slug }}
+                  className="text-foreground/80 hover:text-primary hover:underline"
+                >
+                  {post.title}
+                </Link>
+              ))}
+            </div>
           </section>
 
-          <PropertyFaq faqs={buildPropertyFaqs(property)} />
+          <PropertyFaq faqs={buildPropertyFaqs(property)} propertyName={property.name} />
         </div>
 
         <aside

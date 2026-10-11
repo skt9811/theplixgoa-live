@@ -50,6 +50,23 @@ export function buildPropertyFaqs(property: Property): PropertyFaqItem[] {
     : `${property.name} doesn't list dedicated on-site parking — contact our concierge team for nearby parking options.`;
 
   return [
+    // Brand-search brief: these 3 are explicitly required, verbatim-adjacent
+    // to the given wording ("Is <Name> the official website?", "How do I
+    // book <Name> direct?", "Where is <Name> located?") — answered from
+    // real data (location/region/distance_to_beach) and the booking flow
+    // already described elsewhere on this page, never invented.
+    {
+      q: `Is ${property.name} the official website?`,
+      a: `Yes — this is the official direct-booking website for ${property.name}, run by The Plix. Booking here means no OTA commission and direct support from our team, not a third-party listing.`,
+    },
+    {
+      q: `How do I book ${property.name} direct?`,
+      a: `Pick your check-in and check-out dates on this page, review the price breakdown (nightly rate plus GST, no hidden fees), and pay securely via Razorpay. You'll get an instant confirmation and booking voucher by email.`,
+    },
+    {
+      q: `Where is ${property.name} located?`,
+      a: `${property.name} is in ${property.location}, ${property.region}${property.distance_to_beach ? `, ${property.distance_to_beach}` : ""}.`,
+    },
     {
       q: `What are the check-in and check-out times at ${property.name}?`,
       a: "Standard check-in is at 2:00 PM and check-out is at 11:00 AM. Early check-in or late check-out is subject to availability and prior notice.",

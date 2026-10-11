@@ -66,7 +66,7 @@ export function PropertyGalleryModal({
     <div className="fixed inset-0 z-[200] overflow-y-auto bg-background" role="dialog" aria-modal="true">
       <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6">
-          <h2 className="text-lg font-semibold text-navy sm:text-2xl">Photo gallery</h2>
+          <h2 className="text-lg font-semibold text-navy sm:text-2xl">{propertyName} photo gallery</h2>
           <button
             type="button"
             onClick={onClose}

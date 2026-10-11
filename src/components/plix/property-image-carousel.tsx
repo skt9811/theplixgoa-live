@@ -75,7 +75,7 @@ export function PropertyImageCarousel({ images, propertyName, location }: Props)
 
   return (
     <section id="spaces" className="mt-10">
-      <h2 className="text-2xl font-semibold text-navy">Photo gallery</h2>
+      <h2 className="text-2xl font-semibold text-navy">{propertyName} photo gallery</h2>
       <div
         className="relative mt-4"
         onMouseEnter={() => {

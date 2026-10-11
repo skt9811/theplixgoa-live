@@ -4,14 +4,15 @@ import type { PropertyFaqItem } from "@/lib/property-faqs";
 
 type Props = {
   faqs: PropertyFaqItem[];
+  propertyName: string;
 };
 
-export function PropertyFaq({ faqs }: Props) {
+export function PropertyFaq({ faqs, propertyName }: Props) {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
     <section id="faqs" className="mt-10">
-      <h2 className="text-2xl font-semibold text-navy">Frequently asked questions</h2>
+      <h2 className="text-2xl font-semibold text-navy">{propertyName} FAQs</h2>
       <div className="mt-4 divide-y divide-border rounded-2xl border border-border bg-card">
         {faqs.map((faq, i) => {
           const isOpen = openIndex === i;

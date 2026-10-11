@@ -1,4 +1,5 @@
 import type { Property } from "@/lib/plix";
+import { poolWord } from "@/lib/seo";
 
 type Props = {
   property: Property;
@@ -40,11 +41,12 @@ export function PropertyKeyFacts({ property, isMultiRoom, roomsLabel, roomsCount
     : `${property.location}, North Goa`;
 
   const amenities = primaryAmenities(property.amenity_tags);
+  const pool = poolWord(property);
 
   return (
     <section aria-labelledby="key-facts-heading" className="mt-6 rounded-2xl bg-navy p-5 text-navy-foreground shadow-card sm:p-6">
       <h2 id="key-facts-heading" className="text-xs font-semibold uppercase tracking-wider text-primary">
-        Key Facts &amp; Highlights
+        {property.name} Key Facts &amp; Highlights
       </h2>
       <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
         <div>
@@ -60,6 +62,16 @@ export function PropertyKeyFacts({ property, isMultiRoom, roomsLabel, roomsCount
           <dd className="mt-0.5 text-sm font-semibold">
             Up to {property.max_guests} Guests ({roomsCount} {roomsLabel}, {property.bathrooms} Baths)
           </dd>
+        </div>
+        {pool && (
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-navy-foreground/60">Pool</dt>
+            <dd className="mt-0.5 text-sm font-semibold capitalize">{pool}</dd>
+          </div>
+        )}
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-navy-foreground/60">Check-in / Check-out</dt>
+          <dd className="mt-0.5 text-sm font-semibold">2:00 PM / 11:00 AM</dd>
         </div>
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-navy-foreground/60">Primary Amenities</dt>

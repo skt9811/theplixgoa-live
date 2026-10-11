@@ -35,7 +35,7 @@ export const Route = createFileRoute("/stays_/large-groups")({
   head: ({ loaderData }) => {
     const title = "Large Group Luxury Villas in Goa (15-50 Guests) | The Plix";
     const description =
-      "Browse luxury private pool villas and boutique estates in North Goa for large groups, family reunions, and corporate offsites. Direct bookings via The Plix.";
+      "Browse luxury private pool villas in North Goa for large groups, family reunions, and corporate offsites. Direct bookings via The Plix.";
     const url = `${SITE_URL}/stays/large-groups`;
     const items = loaderData?.items ?? [];
     const schema = collectionPageJsonLd({

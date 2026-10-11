@@ -12,7 +12,7 @@ import {
 
 export const Route = createFileRoute("/faq")({
   head: () => {
-    const title = "Frequently Asked Questions & Villa Policies | The Plix Goa";
+    const title = "FAQs & Villa Policies | The Plix Goa";
     const description =
       "Find answers to common questions about booking luxury villas, check-in policies, amenities, chef services, and cancellations at The Plix Goa.";
     const faqs = faqGroups.flatMap((g) => g.items);

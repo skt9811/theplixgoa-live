@@ -1,4 +1,5 @@
 import { resolveImages, type Property } from "./plix";
+import { PROPERTY_LISTING_LINKS, BRAND_LISTING_LINKS } from "./listing-links";
 
 type ReviewData = {
   id: string;
@@ -215,7 +216,7 @@ export function brandJsonLd() {
     // Legal entity name (matches the footer and public/entities.json);
     // "Plix Hospitality" / "The Plix" stay as alternate names.
     name: "Plix Hospitality Private Limited",
-    alternateName: ["Plix Hospitality", "The Plix", "The Plix Goa"],
+    alternateName: ["Plix Hospitality", "The Plix", "The Plix Goa", "Plix Goa", "Plex Goa"],
     legalName: "Plix Hospitality Private Limited",
     description:
       "Luxury private pool villas, boutique resorts, and sprawling bungalows in Anjuna, Vagator, Assagao, Morjim, and Candolim, North Goa. Book direct and skip commission.",
@@ -225,6 +226,9 @@ export function brandJsonLd() {
     telephone: SITE_PHONE_2,
     email: SITE_EMAIL,
     priceRange: PRICE_RANGE,
+    // TODO: SITE_ADDRESS is the Candolim address, still open per B1 (the
+    // conflicting-NAP review from the trust-fixes phase of this engagement)
+    // — not resolved here, left exactly as-is pending that decision.
     address: {
       "@type": "PostalAddress",
       streetAddress: SITE_ADDRESS.street,
@@ -238,12 +242,20 @@ export function brandJsonLd() {
       { "@type": "ContactPoint", telephone: SITE_PHONE_2, contactType: "reservations", areaServed: "IN" },
       { "@type": "ContactPoint", telephone: SITE_PHONE_1, contactType: "customer service", areaServed: "IN" },
     ],
+    // YouTube/LinkedIn/Google Business Profile/Airbnb host profile stay out
+    // until BRAND_LISTING_LINKS (listing-links.ts) has a real URL for each —
+    // same "never a guessed/placeholder URL" rule as the property-level
+    // sameAs below.
     sameAs: [
       "https://www.facebook.com/theplixgoa",
       "https://www.instagram.com/theplixgoa",
       "https://x.com/theplixgoa",
       "https://api.whatsapp.com/send?phone=919009800809",
-    ],
+      BRAND_LISTING_LINKS.youtube,
+      BRAND_LISTING_LINKS.linkedin,
+      BRAND_LISTING_LINKS.googleBusinessProfile,
+      BRAND_LISTING_LINKS.airbnbHostProfile,
+    ].filter((url): url is string => Boolean(url)),
     aggregateRating: {
       "@type": "AggregateRating",
       ratingValue: "4.9",
@@ -258,8 +270,12 @@ export function websiteJsonLd() {
     "@type": "WebSite",
     "@id": `${SITE_URL}/#website`,
     name: SITE_NAME,
-    alternateName: ["The Plix Goa", "ThePlix"],
+    alternateName: ["The Plix Goa", "ThePlix", "Plix Goa", "Plex Goa"],
     url: `${SITE_URL}/`,
+    // References brandJsonLd's own Organization entity by @id rather than
+    // duplicating its fields — same pattern vacationRentalJsonLd's
+    // parentOrganization already uses.
+    publisher: { "@type": "Organization", "@id": `${SITE_URL}/#business` },
     potentialAction: {
       "@type": "SearchAction",
       target: `${SITE_URL}/stays?location={search_term_string}`,
@@ -340,6 +356,61 @@ export function sisterBrandName(p: Property): string {
 // this file needs just to answer "room or villa?".
 const RESORT_SLUGS = new Set(["harbor-court", "morjim-pride", "the-plix-resort-morjim"]);
 
+// schema.org @type for each property's structured data: the 3 multi-room
+// resort properties get the more specific "Resort" (already a real
+// schema.org LodgingBusiness subtype — reused from the enclave
+// containedInPlace entity below, not introduced here), every whole-villa
+// property gets "VacationRental". Both are valid, more specific subtypes of
+// LodgingBusiness than the generic literal this used to emit everywhere.
+export function propertySchemaType(p: Property): "VacationRental" | "Resort" {
+  return RESORT_SLUGS.has(p.slug) ? "Resort" : "VacationRental";
+}
+
+// Search variants from the brand-search brief's own table — real, given
+// data (what guests actually type, spelling variants included), never
+// invented. Per Hard Rule: these only ever appear as schema alternateName
+// or in one natural on-page sentence (see propertySearchVariantSentence
+// below) — never as the displayed name, H1, slug or anywhere repeated.
+const ALTERNATE_NAMES: Record<string, string[]> = {
+  "casa-marina": ["Marina Villas by The Plix", "Casa Marina Goa"],
+  "casa-moana": ["Casa Moyon", "Moana Casa", "Casa Moana Goa"],
+  "casa-meadows": ["Casa Meadows Goa"],
+  "harbor-court": ["Harbour Court", "Harbor Court Vagator"],
+  "the-plix-villa": ["The Plix Villa Goa"],
+  "morjim-pride": ["Morjim Pride Goa"],
+  "vivenda-chico": ["Chico", "Chico Estate", "Vivenda Chico Goa"],
+  "the-plix-resort-morjim": ["The Plix Resort", "Plix Resort", "Plex Resort", "Plex Resort Goa"],
+  "villa-madera": ["Villa Madera Goa"],
+  "casa-serenita": ["Casa Serenita Goa"],
+};
+export function propertyAlternateNames(p: Property): string[] {
+  return ALTERNATE_NAMES[p.slug] ?? [];
+}
+
+// The one natural on-page sentence Hard Rule 1 allows for spelling/aka
+// variants — only the real "also searched as" names from the table above
+// (never the plain "<Name> Goa" entries, which aren't variants of the name,
+// just a qualifier), and only when there's at least one. Deliberately not
+// rendered for every property: Casa Meadows, Morjim Pride, Villa Madera,
+// The Plix Villa and Casa Serenita have no true spelling/aka variant in the
+// brief's table, so they get no sentence rather than an invented one.
+const SEARCH_VARIANT_MENTIONS: Record<string, string[]> = {
+  "casa-marina": ["Marina Villas by The Plix"],
+  "casa-moana": ["Casa Moyon", "Moana Casa"],
+  "harbor-court": ["Harbour Court"],
+  "vivenda-chico": ["Chico", "Chico Estate"],
+  "the-plix-resort-morjim": ["The Plix Resort", "Plex Resort"],
+};
+export function propertySearchVariantSentence(p: Property): string | undefined {
+  const names = SEARCH_VARIANT_MENTIONS[p.slug];
+  if (!names || names.length === 0) return undefined;
+  const list =
+    names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
+  return `Also searched as ${list}.`;
+}
+
 // "private pool" only where amenity_tags says so explicitly, except The Plix
 // Villa: its own name ("...Luxury Private Pool Villa") and description both
 // independently assert a private pool, while its amenity_tags still says
@@ -396,14 +467,18 @@ function schemaBrandName(p: Property): string {
 export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
   const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
-    // Every property uniformly, not just bedrooms >= 8 — a plain string, not
-    // an array. Google's own Rich Results test only recognizes a single
-    // string @type here; ["LodgingBusiness","VacationRental"] is valid
-    // schema.org but silently fails that check (and this repo's own
-    // scripts/seo-audit.mjs, which does a strict === "LodgingBusiness" match).
-    "@type": "LodgingBusiness",
+    // A plain string, not an array — Google's own Rich Results test only
+    // recognizes a single string @type here; ["LodgingBusiness","VacationRental"]
+    // is valid schema.org but silently fails that check. "VacationRental"
+    // for a whole-villa property, "Resort" (itself a LodgingBusiness
+    // subtype, already used below for the enclave containedInPlace entity)
+    // for the 3 multi-room resort properties — both more specific than the
+    // generic "LodgingBusiness" this emitted everywhere before. seo-audit.mjs
+    // updated to match (accepts any of these, not just a literal match).
+    "@type": propertySchemaType(p),
     "@id": `${SITE_URL}/properties/${p.slug}#lodging`,
     name: schemaBrandName(p),
+    alternateName: propertyAlternateNames(p),
     description: p.description,
     url: `${SITE_URL}/properties/${p.slug}`,
     // Full resolved gallery, not just the single OG cover shot — an LLM/AI
@@ -467,9 +542,19 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
   // no CID in their embed data, so their google_maps_url is a coordinate
   // link instead — still real and accurate, just not tied to a specific
   // verified listing the way the CID-based ones are.
+  // Listing-site sameAs values start empty (see listing-links.ts) until the
+  // owner fills in a real Airbnb/Agoda/Booking URL for this property —
+  // spread in only when actually set, same "never a guessed/placeholder
+  // URL" rule as the rest of this function.
+  const listingLinks = PROPERTY_LISTING_LINKS[p.slug] ?? {};
+  const sameAs = [p.google_maps_url, listingLinks.airbnb, listingLinks.agoda, listingLinks.booking].filter(
+    (url): url is string => Boolean(url),
+  );
   if (p.google_maps_url) {
     schema["hasMap"] = p.google_maps_url;
-    schema["sameAs"] = [p.google_maps_url];
+  }
+  if (sameAs.length > 0) {
+    schema["sameAs"] = sameAs;
   }
 
   // Keyed lookup rather than a hardcoded slug check: Property.enclave is

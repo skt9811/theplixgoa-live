@@ -66,6 +66,7 @@ import {
   propertySeoDescription,
   propertyTagline,
   propertyIntroParagraph,
+  propertySearchVariantSentence,
   propertyOgImage,
   vacationRentalJsonLd,
   breadcrumbJsonLd,
@@ -149,6 +150,7 @@ export const Route = createFileRoute("/properties/$slug")({
               breadcrumbJsonLd([
                 { name: "Home", url: "/" },
                 { name: "Stays", url: "/stays" },
+                { name: p.location, url: `/locations/${locationSlug(p.location)}` },
                 { name: p.name, url: `/properties/${p.slug}` },
               ]),
             ),
@@ -435,8 +437,16 @@ function PropertyDetail() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 pb-24 md:px-6 md:pb-8">
       <nav className="text-sm text-muted-foreground">
+        <Link to="/" className="hover:text-primary">
+          Home
+        </Link>
+        <span className="px-2">/</span>
         <Link to="/stays" className="hover:text-primary">
           Stays
+        </Link>
+        <span className="px-2">/</span>
+        <Link to="/locations/$slug" params={{ slug: locationSlug(property.location) }} className="hover:text-primary">
+          {property.location}
         </Link>
         <span className="px-2">/</span>
         <span className="text-foreground">{property.name}</span>
@@ -483,6 +493,14 @@ function PropertyDetail() {
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-foreground/90">
           {propertyIntroParagraph(property)}
         </p>
+        {/* Hard Rule: spelling/aka variants appear only in schema
+            alternateName and at most one natural sentence on the page —
+            never as the displayed name, and never repeated elsewhere. */}
+        {propertySearchVariantSentence(property) && (
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            {propertySearchVariantSentence(property)}
+          </p>
+        )}
       </header>
 
       <PropertyKeyFacts

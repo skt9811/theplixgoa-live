@@ -127,13 +127,19 @@ function auditPage(route, expectedUrl, body) {
     ),
   ].map((m) => m[1].trim());
 
+  // Property pages now emit a more specific LodgingBusiness subtype
+  // (VacationRental for a whole villa, Resort for the 3 multi-room
+  // properties) instead of the literal "LodgingBusiness" string everywhere
+  // — all three are valid schema.org types for this check, not just an
+  // exact match on the old generic one.
+  const LODGING_TYPES = new Set(["LodgingBusiness", "VacationRental", "Resort"]);
   const lodgingBlocks = [];
   for (const raw of ldBlocks) {
     try {
       const parsed = JSON.parse(raw);
       const types = Array.isArray(parsed) ? parsed : [parsed];
       for (const t of types) {
-        if (t["@type"] === "LodgingBusiness") {
+        if (LODGING_TYPES.has(t["@type"])) {
           const dupes = findDuplicateKeys(raw);
           lodgingBlocks.push({ raw, dupes });
         }
@@ -145,7 +151,7 @@ function auditPage(route, expectedUrl, body) {
 
   if (route.startsWith("/properties/")) {
     if (lodgingBlocks.length === 0) {
-      issues.push("No LodgingBusiness JSON-LD block found");
+      issues.push("No LodgingBusiness/VacationRental/Resort JSON-LD block found");
     } else if (lodgingBlocks.length > 1) {
       issues.push(`${lodgingBlocks.length} LodgingBusiness blocks found (expected 1)`);
     } else if (lodgingBlocks[0].dupes.length > 0) {

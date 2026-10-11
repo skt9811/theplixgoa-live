@@ -21,6 +21,8 @@ import {
   SITE_NAME,
   EDGE_CACHE_CONTROL,
   canonicalUrl,
+  breadcrumbJsonLd,
+  jsonLdScript,
 } from "@/lib/seo";
 
 type StaySearch = {
@@ -88,7 +90,19 @@ export const Route = createFileRoute("/stays")({
       // duplicate-description finding without re-opening that problem.
       links: [{ rel: "canonical", href: canonicalUrl("/stays") }],
       // The brand-level schema is already rendered globally in __root.tsx —
-      // this page has no schema unique to it.
+      // this page's only page-specific schema is its own breadcrumb trail.
+      scripts: [
+        {
+          type: "application/ld+json",
+          id: "stays-breadcrumb-jsonld",
+          children: jsonLdScript(
+            breadcrumbJsonLd([
+              { name: "Home", url: "/" },
+              { name: "Stays", url: "/stays" },
+            ]),
+          ),
+        },
+      ],
     };
   },
   // Cached at the edge only when real data loaded — never an empty/error page.

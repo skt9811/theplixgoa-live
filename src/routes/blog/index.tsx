@@ -10,6 +10,7 @@ import {
   canonicalUrl,
   blogJsonLd,
   blogPostingJsonLd,
+  breadcrumbJsonLd,
   jsonLdScript,
 } from "@/lib/seo";
 
@@ -64,8 +65,18 @@ export const Route = createFileRoute("/blog/")({
     // real article this page presents in full (typed as both Article and
     // BlogPosting: the latter is a subtype of the former, but checkers that
     // look for a literal "Article" don't follow that hierarchy).
-    scripts:
-      loaderData && loaderData.recent.length > 0
+    scripts: [
+      {
+        type: "application/ld+json",
+        id: "blog-breadcrumb-jsonld",
+        children: jsonLdScript(
+          breadcrumbJsonLd([
+            { name: "Home", url: "/" },
+            { name: "Blog", url: "/blog" },
+          ]),
+        ),
+      },
+      ...(loaderData && loaderData.recent.length > 0
         ? [
             {
               type: "application/ld+json",
@@ -100,7 +111,8 @@ export const Route = createFileRoute("/blog/")({
                 ]
               : []),
           ]
-        : [],
+        : []),
+    ],
   }),
   // The list itself changes at most a few times a day (new/edited posts);
   // it doesn't need to be recomputed on every single request. s-maxage

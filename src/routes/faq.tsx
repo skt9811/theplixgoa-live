@@ -6,6 +6,7 @@ import {
   SITE_NAME,
   canonicalUrl,
   faqPageJsonLd,
+  breadcrumbJsonLd,
   jsonLdScript,
   EDGE_CACHE_CONTROL_LONG,
 } from "@/lib/seo";
@@ -34,6 +35,16 @@ export const Route = createFileRoute("/faq")({
       links: [{ rel: "canonical", href: canonicalUrl("/faq") }],
       scripts: [
         { type: "application/ld+json", children: jsonLdScript(faqPageJsonLd(faqs)) },
+        {
+          type: "application/ld+json",
+          id: "faq-breadcrumb-jsonld",
+          children: jsonLdScript(
+            breadcrumbJsonLd([
+              { name: "Home", url: "/" },
+              { name: "FAQ", url: "/faq" },
+            ]),
+          ),
+        },
       ],
     };
   },

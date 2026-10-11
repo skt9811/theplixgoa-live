@@ -14,6 +14,7 @@ import {
   canonicalUrl,
   blogSeoTitle,
   blogPostingJsonLd,
+  breadcrumbJsonLd,
   jsonLdScript,
 } from "@/lib/seo";
 
@@ -64,6 +65,11 @@ export const Route = createFileRoute("/blog/$slug")({
       publishedAt: post.published_at,
       url,
     });
+    const breadcrumbs = breadcrumbJsonLd([
+      { name: "Home", url: "/" },
+      { name: "Blog", url: "/blog" },
+      { name: post.title, url: `/blog/${post.slug}` },
+    ]);
     return {
       meta: [
         { title: seoTitle },
@@ -81,7 +87,14 @@ export const Route = createFileRoute("/blog/$slug")({
         { name: "twitter:image", content: resolvedOgImage },
       ],
       links: [{ rel: "canonical", href: canonicalUrl(`/blog/${post.slug}`) }],
-      scripts: [{ type: "application/ld+json", id: "blog-post-jsonld", children: jsonLdScript(schema) }],
+      scripts: [
+        { type: "application/ld+json", id: "blog-post-jsonld", children: jsonLdScript(schema) },
+        {
+          type: "application/ld+json",
+          id: "blog-post-breadcrumb-jsonld",
+          children: jsonLdScript(breadcrumbs),
+        },
+      ],
     };
   },
   notFoundComponent: () => <BlogPostNotFound />,

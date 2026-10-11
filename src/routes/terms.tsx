@@ -6,6 +6,7 @@ import {
   SITE_NAME,
   canonicalUrl,
   jsonLdScript,
+  breadcrumbJsonLd,
   EDGE_CACHE_CONTROL_LONG,
 } from "@/lib/seo";
 
@@ -30,6 +31,13 @@ export const Route = createFileRoute("/terms")({
         { name: "twitter:description", content: description },
       ],
       links: [{ rel: "canonical", href: canonicalUrl("/terms") }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          id: "terms-breadcrumb-jsonld",
+          children: jsonLdScript(breadcrumbJsonLd([{ name: "Home", url: "/" }, { name: "Terms", url: "/terms" }])),
+        },
+      ],
     };
   },
   // Static page: cached at the edge for a day (see EDGE_CACHE_CONTROL_LONG).

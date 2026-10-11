@@ -17,6 +17,7 @@ import {
   SITE_NAME,
   canonicalUrl,
   jsonLdScript,
+  breadcrumbJsonLd,
   EDGE_CACHE_CONTROL_LONG,
 } from "@/lib/seo";
 
@@ -43,6 +44,18 @@ export const Route = createFileRoute("/about")({
       { name: "twitter:title", content: "About Plix Hospitality | Luxury Stays & Villas in Goa" },
     ],
     links: [{ rel: "canonical", href: canonicalUrl("/about") }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        id: "about-breadcrumb-jsonld",
+        children: jsonLdScript(
+          breadcrumbJsonLd([
+            { name: "Home", url: "/" },
+            { name: "About", url: "/about" },
+          ]),
+        ),
+      },
+    ],
   }),
   // Static page: cached at the edge for a day (see EDGE_CACHE_CONTROL_LONG).
   // The server entry strips cache directives from any non-200 response.

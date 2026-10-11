@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { SearchBar } from "@/components/plix/search-bar";
 import { AuthModal } from "@/components/plix/auth-modal";
 import { PROPERTIES } from "@/lib/plix";
-import { locationSlug } from "@/lib/locations";
 import { getGuestUser, onGuestAuthChange, signOutGuest, type GuestUser } from "@/lib/guest-auth";
 
 const links = [
@@ -93,8 +92,8 @@ export function SiteHeader() {
               {PROPERTIES.map((p) => (
                 <Link
                   key={p.id}
-                  to="/locations/$slug"
-                  params={{ slug: locationSlug(p.location) }}
+                  to="/properties/$slug"
+                  params={{ slug: p.slug }}
                   className="block rounded-lg px-3 py-2 text-sm text-foreground/80 transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   {p.name}
@@ -214,8 +213,8 @@ export function SiteHeader() {
             {PROPERTIES.map((p) => (
               <Link
                 key={p.id}
-                to="/locations/$slug"
-                params={{ slug: locationSlug(p.location) }}
+                to="/properties/$slug"
+                params={{ slug: p.slug }}
                 onClick={() => setOpen(false)}
                 className={`rounded-lg px-3 py-3 pl-6 ${isHome ? "text-white/70 hover:bg-white/15" : "text-foreground/70 hover:bg-accent"}`}
               >

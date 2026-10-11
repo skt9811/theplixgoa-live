@@ -4,7 +4,8 @@ import { ArrowLeft, ArrowRight, Calendar, Clock, Facebook, Hop as Home, Link2, M
 import { useState } from "react";
 import { toast } from "sonner";
 import { blogQuery, blogSummariesQuery, estimateReadingTime, formatDate, type BlogSummary } from "@/lib/blog";
-import { matchLocationForPost } from "@/lib/locations";
+import { matchLocationForPost, propertiesInLocation } from "@/lib/locations";
+import { PROPERTIES } from "@/lib/plix";
 import { BlogArticleBody, BlogStayCallout, BLOG_STAY_CALLOUT_SLUGS } from "@/components/plix/blog-stay-callout";
 import {
   SITE_URL,
@@ -144,6 +145,18 @@ function BlogPostPage() {
 
   const related = relatedGuides(allBlogs, post.id);
   const matchedHub = matchLocationForPost({ title: post.title, excerpt: post.excerpt });
+  // Phase 4 "Stay nearby" block, every post: real properties in the area
+  // this post's own title/excerpt already names (same matchedHub the
+  // "Explore Stays in {Area}" link below already uses) — never a guessed
+  // or unrelated pick. Posts with no location match, or whose area has no
+  // properties in it (e.g. an Assagao-only post), simply get no block
+  // rather than a forced one. Skipped when BLOG_STAY_CALLOUT_SLUGS already
+  // renders a hand-curated version for this specific post, so it's never
+  // shown twice.
+  const nearbyProperties =
+    !BLOG_STAY_CALLOUT_SLUGS.has(post.slug) && matchedHub
+      ? propertiesInLocation(PROPERTIES, matchedHub.name).slice(0, 3)
+      : [];
   const shareUrl = `${SITE_URL}/blog/${post.slug}`;
 
   return (
@@ -209,6 +222,27 @@ function BlogPostPage() {
         <BlogArticleBody html={post.content} slug={post.slug} />
 
         {BLOG_STAY_CALLOUT_SLUGS.has(post.slug) && <BlogStayCallout />}
+
+        {nearbyProperties.length > 0 && (
+          <aside className="mt-10 rounded-2xl border border-border bg-card p-5 sm:p-6" aria-labelledby="stay-nearby-title">
+            <h2 id="stay-nearby-title" className="font-display text-xl font-semibold text-foreground">
+              Stay nearby in {matchedHub!.name}
+            </h2>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {nearbyProperties.map((p) => (
+                <Link
+                  key={p.id}
+                  to="/properties/$slug"
+                  params={{ slug: p.slug }}
+                  className="flex flex-col rounded-xl border border-border bg-background p-4 transition-colors hover:border-primary"
+                >
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{p.location}</p>
+                  <p className="mt-1 font-semibold text-foreground">{p.name}</p>
+                </Link>
+              ))}
+            </div>
+          </aside>
+        )}
 
         {matchedHub && (
           <Link

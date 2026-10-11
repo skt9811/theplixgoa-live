@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowUp, Facebook, Instagram, MessageCircle } from "lucide-react";
 import { ObfuscatedEmail } from "@/components/plix/obfuscated-email";
 import { whatsappLink, SITE_ADDRESS } from "@/lib/seo";
+import { PROPERTIES } from "@/lib/plix";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 import { trackFunnelEvent } from "@/lib/gtag";
 
@@ -79,7 +80,7 @@ export function SiteFooter() {
           </div>
 
           {/* Main 3-column content */}
-          <div className="grid gap-10 py-12 md:grid-cols-3 md:gap-12">
+          <div className="grid gap-10 py-12 md:grid-cols-2 md:gap-12 lg:grid-cols-4">
             {/* Column 1 — company overview & transparency */}
             <div>
               <p className="max-w-sm text-sm leading-relaxed text-navy-foreground/80">
@@ -141,7 +142,29 @@ export function SiteFooter() {
               </div>
             </div>
 
-            {/* Column 3 — address & contact */}
+            {/* Column 3 — every property, exact name as anchor text, linking
+                to its own page (not the location hub) — on every page's
+                server-rendered footer, so every property gets a real
+                internal link from the whole site, not just a hover dropdown. */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-navy-foreground/60">
+                Our Properties
+              </p>
+              <div className="mt-4 grid gap-2.5 text-sm">
+                {PROPERTIES.map((p) => (
+                  <Link
+                    key={p.id}
+                    to="/properties/$slug"
+                    params={{ slug: p.slug }}
+                    className="w-fit text-navy-foreground/80 transition-colors hover:text-white"
+                  >
+                    {p.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Column 4 — address & contact */}
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-navy-foreground/60">
                 Address &amp; Contact

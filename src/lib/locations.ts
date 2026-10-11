@@ -66,7 +66,7 @@ export const LOCATION_HUBS: LocationHub[] = [
       {
         heading: "Chapora Fort",
         paragraphs: [
-          "The ruined fort on the headland between the two beaches is Vagator's single most recognisable landmark — laterite walls, no roof left, built in the 17th century and taken over by the Portuguese not long after, with a 360-degree view over the Chapora River mouth on one side and the open Arabian Sea on the other. It's also the fort that appeared in the Bollywood film Dil Chahta Hai, which is a large part of why it's such a well-known stop on any North Goa itinerary today.",
+          "The current laterite fort was built by the Portuguese in 1617, on the site of an earlier pre-Portuguese fort. It's Vagator's single most recognisable landmark — no roof left, a 360-degree view over the Chapora River mouth on one side and the open Arabian Sea on the other. It's also the fort that appeared in the Bollywood film Dil Chahta Hai, which is a large part of why it's such a well-known stop on any North Goa itinerary today.",
           "It's a short, easy walk up from the road, free to enter, and at its best in the hour before sunset — which is also when it's at its busiest, so arriving a little earlier and staying through the crowd thinning out afterwards is the better plan if you want some quiet time at the top. From a Plix villa in Vagator it's one of the closest real landmarks on the doorstep — Harbor Court puts it at around an 8-minute drive.",
         ],
       },
@@ -86,8 +86,8 @@ export const LOCATION_HUBS: LocationHub[] = [
       {
         heading: "Getting there",
         paragraphs: [
-          "Goa's international airport at Mopa is roughly a 35-minute drive from Plix's Vagator properties — the shortest airport run of any of the neighbourhoods Plix covers, and most guests arrange a pre-booked taxi for the transfer rather than relying on finding one on arrival. Dabolim (Goa's older, southern airport) is a longer drive from Vagator; exact timing is TODO.",
-          "Within the area, Anjuna's Wednesday flea market is about 10–15 minutes away depending on which villa you're staying at, and both of Vagator's own beaches are a short drive or, from Harbor Court, close enough to reach on foot. A rented scooter is the most common way to get around North Goa day to day once you've arrived, with taxis or app-based cabs as the alternative for anyone who'd rather not drive.",
+          "About 35 minutes' drive to Mopa, Goa's international airport, from Plix's Vagator properties — most guests arrange a pre-booked taxi for the transfer rather than relying on finding one on arrival. Dabolim (Goa's older, southern airport) is a longer drive from Vagator; exact timing is TODO.",
+          "Within the area, Anjuna's Wednesday flea market (in season, roughly November to April) is about 10–15 minutes away depending on which villa you're staying at, and both of Vagator's own beaches are a short drive. A rented scooter is the most common way to get around North Goa day to day once you've arrived, with taxis or app-based cabs as the alternative for anyone who'd rather not drive.",
         ],
       },
     ],
@@ -110,7 +110,7 @@ export const LOCATION_HUBS: LocationHub[] = [
       },
       {
         q: "How far is Vagator from Goa's airport?",
-        a: "About 35 minutes' drive from Plix's Vagator properties to Mopa, Goa's international airport — the shortest airport run of any of the areas Plix covers.",
+        a: "About 35 minutes' drive to Mopa, Goa's international airport.",
       },
     ],
   },

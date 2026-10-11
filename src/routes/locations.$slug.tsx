@@ -3,7 +3,12 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { CalendarDays, MapPin, MoonStar, BookOpen } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
 import { propertiesQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
-import { findLocationHub, propertiesInLocation, postMentionsLocation, LOCATION_HUBS } from "@/lib/locations";
+import {
+  findLocationHub,
+  propertiesInLocation,
+  postMentionsLocation,
+  LOCATION_HUBS,
+} from "@/lib/locations";
 import { resolveImages, type Property } from "@/lib/plix";
 import { blogsQuery } from "@/lib/blog";
 import { SmartImage } from "@/components/plix/smart-image";
@@ -40,19 +45,23 @@ const SPOTLIGHT_SLUGS: Record<string, string[]> = {
 const LOCATION_META: Record<string, { title: string; description: string }> = {
   vagator: {
     title: "Villas in Vagator, Goa – Private Pool Stays",
-    description: "Private villas in Vagator near the beach and clubs. Compare 2 Plix stays by size, pool and price, with a local area guide.",
+    description:
+      "Private villas in Vagator near the beach and clubs. Compare 2 Plix stays by size, pool and price, with a local area guide.",
   },
   assagao: {
     title: "Villas & Stays in Assagao, Goa – The Plix",
-    description: "Quiet, green Assagao: 1 private villa near the cafes, close to Vagator and Anjuna. Photos, prices, direct booking.",
+    description:
+      "Quiet, green Assagao: 1 private villa near the cafes, close to Vagator and Anjuna. Photos, prices, direct booking.",
   },
   anjuna: {
     title: "Villas in Anjuna, Goa – Private Pool Stays",
-    description: "Private villas in Anjuna near the flea market and beach. Compare Plix stays by size, pool and price.",
+    description:
+      "Private villas in Anjuna near the flea market and beach. Compare Plix stays by size, pool and price.",
   },
   morjim: {
     title: "Stays in Morjim, Goa – Resort & Villas",
-    description: "Stay in Morjim, North Goa's quiet beach: The Plix Resort, Morjim Pride and more. Things to do, restaurants and distances.",
+    description:
+      "Stay in Morjim, North Goa's quiet beach: The Plix Resort, Morjim Pride and more. Things to do, restaurants and distances.",
   },
 };
 
@@ -73,7 +82,9 @@ export const Route = createFileRoute("/locations/$slug")({
     // so og:image shows a real photo of an actual villa in this specific
     // location rather than the generic sitewide fallback whenever one
     // exists.
-    const heroImage = localProperties[0] ? resolveImages(localProperties[0].image_keys)[0] : undefined;
+    const heroImage = localProperties[0]
+      ? resolveImages(localProperties[0].image_keys)[0]
+      : undefined;
     return {
       hub,
       heroImage,
@@ -87,7 +98,10 @@ export const Route = createFileRoute("/locations/$slug")({
   head: ({ loaderData }) => {
     if (!loaderData) {
       return {
-        meta: [{ title: "Destination not found — The Plix Goa" }, { name: "robots", content: "noindex" }],
+        meta: [
+          { title: "Destination not found — The Plix Goa" },
+          { name: "robots", content: "noindex" },
+        ],
       };
     }
     const { hub, localProperties, heroImage } = loaderData;
@@ -112,7 +126,10 @@ export const Route = createFileRoute("/locations/$slug")({
       name: title,
       description,
       url,
-      items: localProperties.map((p) => ({ name: p.name, url: `${SITE_URL}/properties/${p.slug}` })),
+      items: localProperties.map((p) => ({
+        name: p.name,
+        url: `${SITE_URL}/properties/${p.slug}`,
+      })),
       datePublished: "2026-01-01",
       dateModified: today,
       withPublisher: true,
@@ -122,7 +139,10 @@ export const Route = createFileRoute("/locations/$slug")({
       { name: "Stays", url: "/stays" },
       { name: hub.name, url: `/locations/${hub.slug}` },
     ]);
-    const hubFaqs = [
+    // hub.faqs (5 real Q&As, written for this specific hub) when it
+    // exists; otherwise the shorter, 3-question set derived from the
+    // hub's own data fields — same fallback pattern as h1/longformSections.
+    const hubFaqs = hub.faqs ?? [
       { q: `What's the best time to visit ${hub.name}?`, a: hub.bestMonths },
       { q: `How many nights should I stay in ${hub.name}?`, a: hub.idealStay },
       {
@@ -151,15 +171,29 @@ export const Route = createFileRoute("/locations/$slug")({
       ],
       links: [{ rel: "canonical", href: canonicalUrl(`/locations/${hub.slug}`) }],
       scripts: [
-        { type: "application/ld+json", id: "location-collection-jsonld", children: jsonLdScript(schema) },
-        { type: "application/ld+json", id: "location-breadcrumb-jsonld", children: jsonLdScript(breadcrumbs) },
-        { type: "application/ld+json", id: "location-faq-jsonld", children: jsonLdScript(faqPageJsonLd(hubFaqs)) },
+        {
+          type: "application/ld+json",
+          id: "location-collection-jsonld",
+          children: jsonLdScript(schema),
+        },
+        {
+          type: "application/ld+json",
+          id: "location-breadcrumb-jsonld",
+          children: jsonLdScript(breadcrumbs),
+        },
+        {
+          type: "application/ld+json",
+          id: "location-faq-jsonld",
+          children: jsonLdScript(faqPageJsonLd(hubFaqs)),
+        },
       ],
     };
   },
   // Cached at the edge only when real data loaded — never an empty/error page.
   headers: ({ loaderData }) =>
-    loaderData && loaderData.localProperties.length > 0 ? { "Cache-Control": EDGE_CACHE_CONTROL_LONG } : undefined,
+    loaderData && loaderData.localProperties.length > 0
+      ? { "Cache-Control": EDGE_CACHE_CONTROL_LONG }
+      : undefined,
   notFoundComponent: () => <LocationNotFound />,
   component: LocationHubPage,
 });
@@ -168,7 +202,10 @@ function LocationNotFound() {
   return (
     <div className="mx-auto max-w-xl px-4 py-24 text-center">
       <h1 className="text-2xl font-semibold text-navy">We couldn't find that destination</h1>
-      <Link to="/stays" className="mt-6 inline-block rounded-full bg-gradient-emerald px-6 py-3 text-sm font-semibold text-primary-foreground">
+      <Link
+        to="/stays"
+        className="mt-6 inline-block rounded-full bg-gradient-emerald px-6 py-3 text-sm font-semibold text-primary-foreground"
+      >
         Browse all stays
       </Link>
     </div>
@@ -185,8 +222,10 @@ function LocationHubPage() {
   if (!hub) return <LocationNotFound />;
 
   const localProperties = propertiesInLocation(properties, hub.name);
-  const heroImage = localProperties[0] ? resolveImages(localProperties[0].image_keys)[0] : undefined;
-  const relatedPosts = blogPosts.filter((post) => postMentionsLocation(post, hub.name)).slice(0, 3);
+  const heroImage = localProperties[0]
+    ? resolveImages(localProperties[0].image_keys)[0]
+    : undefined;
+  const relatedPosts = blogPosts.filter((post) => postMentionsLocation(post, hub.name)).slice(0, 5);
   const spotlightSlugs = SPOTLIGHT_SLUGS[hub.slug] ?? [];
   const spotlightProperties = spotlightSlugs
     .map((slug) => properties.find((p) => p.slug === slug))
@@ -221,18 +260,26 @@ function LocationHubPage() {
               <MapPin className="size-3.5" aria-hidden /> North Goa
             </p>
             <h1 className="mt-2 text-3xl font-semibold text-navy-foreground sm:text-4xl">
-              Luxury Villas &amp; Boutique Stays in {hub.name}
+              {hub.h1 ?? `Luxury Villas & Boutique Stays in ${hub.name}`}
             </h1>
           </div>
         </div>
-        <p className="p-6 leading-relaxed text-navy-foreground/90 sm:p-10 sm:pt-6">{hub.overview}</p>
+        <p className="p-6 leading-relaxed text-navy-foreground/90 sm:p-10 sm:pt-6">
+          {hub.overview}
+        </p>
       </header>
 
       {/* Editorial spotlight — hand-picked property call-outs, see
           SPOTLIGHT_SLUGS above. */}
       {spotlightProperties.length > 0 && (
-        <section aria-labelledby="spotlight-heading" className="mt-6 flex flex-wrap items-center gap-2">
-          <span id="spotlight-heading" className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+        <section
+          aria-labelledby="spotlight-heading"
+          className="mt-6 flex flex-wrap items-center gap-2"
+        >
+          <span
+            id="spotlight-heading"
+            className="text-xs font-semibold uppercase tracking-[0.22em] text-primary"
+          >
             Editorial Pick
           </span>
           {spotlightProperties.map((p) => (
@@ -249,14 +296,22 @@ function LocationHubPage() {
       )}
 
       {/* High-density local facts block */}
-      <section aria-labelledby="local-facts-heading" className="mt-8 rounded-2xl border border-border bg-card p-5 shadow-soft sm:p-6">
-        <h2 id="local-facts-heading" className="text-xs font-semibold uppercase tracking-wider text-primary">
+      <section
+        aria-labelledby="local-facts-heading"
+        className="mt-8 rounded-2xl border border-border bg-card p-5 shadow-soft sm:p-6"
+      >
+        <h2
+          id="local-facts-heading"
+          className="text-xs font-semibold uppercase tracking-wider text-primary"
+        >
           {hub.name} at a Glance
         </h2>
         <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
           {hub.localHighlights.length > 0 && (
             <div className="sm:col-span-2">
-              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Nearby</dt>
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Nearby
+              </dt>
               <dd className="mt-1.5 flex flex-wrap gap-2">
                 {hub.localHighlights.map((h) => (
                   <span
@@ -305,6 +360,78 @@ function LocationHubPage() {
         )}
       </section>
 
+      {/* Long-form neighborhood guide — written per hub (see
+          locations.ts's LocationHub.longformSections), not templated. A
+          hub without one yet simply renders nothing here. */}
+      {hub.longformSections && hub.longformSections.length > 0 && (
+        <section className="mt-12 space-y-8" aria-labelledby="guide-heading">
+          <h2 id="guide-heading" className="text-2xl font-semibold text-navy">
+            {hub.name} Guide
+          </h2>
+          {hub.longformSections.map((s) => (
+            <div key={s.heading}>
+              <h3 className="text-lg font-semibold text-navy">{s.heading}</h3>
+              {s.paragraphs.map((p, i) => (
+                <p key={i} className="mt-2 leading-relaxed text-muted-foreground">
+                  {p}
+                </p>
+              ))}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* Map — each local property's own real Google Maps embed (already
+          used on that property's own page), shown together here rather
+          than a single multi-pin map this codebase has no real way to
+          generate without guessing at coordinates. */}
+      {localProperties.some((p) => p.google_maps_embed_url) && (
+        <section className="mt-12" aria-labelledby="map-heading">
+          <h2 id="map-heading" className="text-2xl font-semibold text-navy">
+            {hub.name} on the map
+          </h2>
+          <div className="mt-6 grid gap-6 sm:grid-cols-2">
+            {localProperties
+              .filter((p) => p.google_maps_embed_url)
+              .map((p) => (
+                <div
+                  key={p.slug}
+                  className="overflow-hidden rounded-2xl border border-border shadow-soft"
+                >
+                  <p className="border-b border-border bg-card px-4 py-2.5 text-sm font-semibold text-navy">
+                    {p.name}
+                  </p>
+                  <iframe
+                    src={p.google_maps_embed_url ?? undefined}
+                    title={`Map of ${p.name}`}
+                    loading="lazy"
+                    className="aspect-[4/3] w-full"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
+
+      {/* Visible FAQs — the same hub.faqs array also feeds the FAQPage
+          schema in head() above, so the two can never drift apart. */}
+      {hub.faqs && hub.faqs.length > 0 && (
+        <section className="mt-12" aria-labelledby="faq-heading">
+          <h2 id="faq-heading" className="text-2xl font-semibold text-navy">
+            {hub.name} FAQs
+          </h2>
+          <dl className="mt-6 space-y-5">
+            {hub.faqs.map((f) => (
+              <div key={f.q}>
+                <dt className="font-semibold text-navy">{f.q}</dt>
+                <dd className="mt-1 leading-relaxed text-muted-foreground">{f.a}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+
       {/* Travel guides & local insights — cross-links real blog posts already
           about this neighborhood, matched by title/excerpt (see
           postMentionsLocation in lib/locations.ts). */}
@@ -338,8 +465,12 @@ function LocationHubPage() {
                   </span>
                 </div>
                 <div className="flex flex-1 flex-col p-5">
-                  <h3 className="font-serif text-lg font-normal leading-snug text-navy">{post.title}</h3>
-                  <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{post.excerpt}</p>
+                  <h3 className="font-serif text-lg font-normal leading-snug text-navy">
+                    {post.title}
+                  </h3>
+                  <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                    {post.excerpt}
+                  </p>
                 </div>
               </Link>
             ))}
@@ -349,7 +480,9 @@ function LocationHubPage() {
 
       {/* Other destinations */}
       <section className="mt-16">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">Explore other destinations</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+          Explore other destinations
+        </h2>
         <div className="mt-4 flex flex-wrap gap-2">
           {LOCATION_HUBS.filter((l) => l.slug !== hub.slug).map((l) => (
             <Link

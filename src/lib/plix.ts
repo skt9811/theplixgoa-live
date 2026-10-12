@@ -1620,7 +1620,7 @@ export const PROPERTIES: Property[] = [
       "Outdoor Swimming Pool",
       "Free WiFi",
       "Free Parking",
-      "Airport Shuttle",
+      "Airport transfers (paid, on request)",
       "Room Service",
       "Restaurant",
       "Non-Smoking Rooms",

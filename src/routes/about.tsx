@@ -79,7 +79,7 @@ const corePillars = [
   {
     icon: MapPin,
     title: "Handpicked Coastal Locations",
-    blurb: "Exclusive luxury private pool villas across Morjim, Anjuna, Vagator, and Arpora.",
+    blurb: "Exclusive luxury private pool villas across Anjuna, Vagator, Assagao, Morjim and Candolim.",
   },
   {
     icon: ConciergeBell,

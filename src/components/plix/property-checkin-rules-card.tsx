@@ -5,7 +5,7 @@ type TabId = "checkin" | "rules" | "meals" | "faqs";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "checkin", label: "Check-In" },
-  { id: "rules", label: "Villa Rules" },
+  { id: "rules", label: "House Rules" },
   { id: "meals", label: "Meals" },
   { id: "faqs", label: "FAQs" },
 ];

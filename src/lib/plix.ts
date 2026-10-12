@@ -1283,7 +1283,7 @@ export const PROPERTIES: Property[] = [
       "Room Service",
       "Game Room",
       "Beach Facing",
-      "Airport/Station Shuttle",
+      "Airport transfers (paid, on request)",
       // Shared by every room — owner-confirmed; see SHARED_POOL_SLUGS in seo.ts.
       "Swimming Pool (shared)",
       "Lawn",

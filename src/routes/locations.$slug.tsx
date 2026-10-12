@@ -51,8 +51,9 @@ const SPOTLIGHT_SLUGS: Record<string, string[]> = {
   assagao: ["the-plix-villa"],
 };
 
-// Real property counts: Vagator 2, Assagao 1, Anjuna 4 (src/lib/plix.ts).
-// Candolim has no entry here and keeps the generic templated title/description below.
+// Real property counts: Vagator 2, Assagao 1, Anjuna 4, Morjim 2, Candolim 1
+// (src/lib/plix.ts). Any hub without an entry here falls back to the
+// generic templated title/description below.
 const LOCATION_META: Record<string, { title: string; description: string }> = {
   vagator: {
     title: "Villas & Stays in Vagator, Goa – The Plix",
@@ -68,6 +69,11 @@ const LOCATION_META: Record<string, { title: string; description: string }> = {
     title: "Villas in Anjuna, Goa – Private Pool Stays",
     description:
       "Private villas in Anjuna near the flea market and beach. Compare Plix stays by size, pool and price.",
+  },
+  candolim: {
+    title: "Villas & Stays in Candolim, Goa – The Plix",
+    description:
+      "Vivenda Chico, an 8-bedroom heritage bungalow in Candolim: book a room or the whole bungalow for up to 24. 6 min to Candolim Beach.",
   },
   morjim: {
     title: "Stays in Morjim, Goa – Resort & Villas",
@@ -130,9 +136,9 @@ export const Route = createFileRoute("/locations/$slug")({
     }
     const { hub, localProperties, heroImage } = loaderData;
     const propertyCount = localProperties.length;
-    // Vagator, Assagao, Anjuna and Morjim have hand-set titles/descriptions
-    // (each written to that neighborhood's own search intent); Candolim,
-    // not covered by that task, keeps the generic template below.
+    // Every current hub has a hand-set title/description (each written to
+    // that neighborhood's own search intent); the template below is only a
+    // fallback for a future hub without one.
     const override = LOCATION_META[hub.slug];
     const title = override?.title ?? `Luxury Villas & Boutique Stays in ${hub.name} | The Plix`;
     const description =

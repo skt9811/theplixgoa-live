@@ -286,6 +286,78 @@ export const LOCATION_HUBS: LocationHub[] = [
     bestMonths: "November to February for the best weather and full beach-shack season.",
     idealStay:
       "3–4 nights, with day trips to Fort Aguada, Sinquerim, and Calangute all within a short drive.",
+    h1: "Villas & Stays in Candolim, Goa",
+    // One property: Vivenda Chico (location: "Candolim"). Every distance
+    // below is its own real `nearby` entry (src/lib/plix.ts). Its nearby
+    // list has Dabolim (GOI) but no Mopa figure, so Mopa isn't mentioned.
+    longformSections: [
+      {
+        heading: "Who Candolim suits",
+        paragraphs: [
+          "Candolim has one Plix stay, Vivenda Chico — an 8-bedroom heritage bungalow that books two ways. Each of its 8 rooms can be booked on its own, for up to 3 guests per room, or the whole bungalow can be reserved together for up to 24 guests. That makes it a fit both for a smaller booking that needs only a room or two, and for a wedding, reunion or large group celebration that wants the entire estate.",
+          "Every room comes with air conditioning, a fridge, a geyser and a hairdryer, whether it's booked on its own or as part of the whole bungalow. Shared spaces include the pool, lawns, a gazebo, a BBQ grill and board games, which suits a group that wants to spend real time together on the property between outings, not just sleep there.",
+          "Vivenda Chico is also pet friendly, which is worth knowing if you're travelling with a dog — mention it when you book so the team can prepare.",
+          "You choose Candolim over Plix's villages further north for its position on this stretch of coast: three beaches and a 17th-century fort all within a quarter of an hour, and the beach road's restaurants close by. It's a practical base for a group that wants plenty to do nearby without long drives, and for guests who'd rather have a lively beach a few minutes away than a remote one.",
+        ],
+      },
+      {
+        heading: "The beaches",
+        paragraphs: [
+          "Candolim Beach is about a 6-minute drive from Vivenda Chico. It's a long, sandy stretch with beach shacks, restaurants and water-sports operators along it in season, and it tends to feel more relaxed than its busier neighbour to the north.",
+          "Two other beaches are each about 10 minutes away in opposite directions. Sinquerim, at the southern end near Fort Aguada, is the quieter choice; Calangute, to the north, is busier and more commercial, with more shops, restaurants and nightlife. Having both within the same short drive means you can decide each morning what kind of beach day you want, rather than having it decided by where you're staying.",
+        ],
+      },
+      {
+        heading: "Fort Aguada",
+        paragraphs: [
+          "Fort Aguada is about a 15-minute drive from Vivenda Chico. The Portuguese completed it in 1612 on the headland above Sinquerim, overlooking the mouth of the Mandovi River, and its lighthouse is still a landmark on this stretch of coast.",
+          "The ramparts look back along the shore toward Sinquerim and Candolim, and the fort is an easy half-day outing — go in the late afternoon, when the light is softer, and pair it with an evening at Sinquerim on the way back.",
+        ],
+      },
+      {
+        heading: "A heritage bungalow",
+        paragraphs: [
+          "Candolim's older lanes, away from the main beach road, still have the Portuguese-era houses this part of Bardez is known for, alongside newer restaurants and shops. Vivenda Chico belongs to that heritage tradition: a bungalow rather than a purpose-built resort block.",
+          "For a celebration, that matters more than an amenity list suggests. With the whole bungalow reserved, the lawns and gazebo work as gathering spaces for a group of up to 24, the BBQ grill covers an evening in, and extra mattresses are available when family arrive in larger numbers than planned. Booked by the room, the same spaces give a smaller party more room to spread out than a standard hotel room would.",
+        ],
+      },
+      {
+        heading: "Best time to visit",
+        paragraphs: [
+          "November to February is the driest, coolest stretch across North Goa, and the time when Candolim's beach shacks and water-sports operators are fully open. October and March work as shoulder-season options with thinner crowds.",
+          "Goa's monsoon runs roughly June through September. Much of Candolim's activity is beach-based, so the shack scene scales back substantially in those months, though the bungalow's own lawns and pool make it a comfortable base for a quieter, greener trip.",
+        ],
+      },
+      {
+        heading: "Getting there",
+        paragraphs: [
+          "Dabolim (GOI) is about a 45-minute drive from Vivenda Chico. Most guests arrange a pre-booked taxi for the transfer rather than finding one on arrival — for a large group, booking vehicles in advance is the simplest way to arrive together.",
+          "Once you're there, Candolim Beach, Sinquerim, Calangute and Fort Aguada are all within about 15 minutes, so a rented scooter, a taxi or an app-based cab covers most days. That short radius also makes it straightforward to organise transport for everyone at once when the whole bungalow is booked for an event.",
+        ],
+      },
+    ],
+    faqs: [
+      {
+        q: "Can I book just a few rooms at Vivenda Chico, or does it have to be the whole property?",
+        a: "Both are possible. Each of Vivenda Chico's 8 rooms can be booked on its own (up to 3 guests per room), or the whole bungalow can be reserved for up to 24 guests.",
+      },
+      {
+        q: "How far is Candolim Beach from Vivenda Chico?",
+        a: "About a 6-minute drive. Sinquerim Beach and Calangute Beach are each about 10 minutes away.",
+      },
+      {
+        q: "How far is Fort Aguada from Vivenda Chico?",
+        a: "About a 15-minute drive. The Portuguese completed the fort in 1612, overlooking the mouth of the Mandovi River.",
+      },
+      {
+        q: "Is Vivenda Chico pet friendly?",
+        a: "Yes. Let the team know when you book so they can prepare for your pet.",
+      },
+      {
+        q: "How far is Candolim from Goa's airport?",
+        a: "About 45 minutes' drive from Vivenda Chico to Dabolim (GOI).",
+      },
+    ],
   },
   {
     slug: "assagao",

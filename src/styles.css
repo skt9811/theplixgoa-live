@@ -327,6 +327,28 @@
   .prose-blog li {
     margin-bottom: 0.5rem;
   }
+  .prose-blog .table-wrap {
+    margin: 1.5rem 0;
+    overflow-x: auto;
+  }
+  .prose-blog table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .prose-blog th,
+  .prose-blog td {
+    border-bottom: 1px solid var(--border);
+    padding: 0.6rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  .prose-blog thead th,
+  .prose-blog tbody th {
+    color: var(--foreground);
+    font-weight: 600;
+  }
   .prose-blog img {
     display: block;
     margin: 2rem auto;

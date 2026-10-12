@@ -19,10 +19,12 @@ export type BlogPost = {
   author: string;
   published_at: string;
   created_at: string;
+  /** Set when a post's content is edited after publishing (null/absent if never). */
+  updated_at?: string | null;
 };
 
 /** Card-sized shape for the blog index — no `content`, so the listing page never ships every post's full HTML body to the client. */
-export type BlogSummary = Omit<BlogPost, "content" | "created_at"> & { reading_time_minutes: number };
+export type BlogSummary = Omit<BlogPost, "content" | "created_at" | "updated_at"> & { reading_time_minutes: number };
 
 export const BLOG_CATEGORIES = [
   "All",

@@ -28,13 +28,21 @@ export type BlogPostRow = {
   author: string;
   published_at: string | Date;
   created_at: string | Date;
+  /** ISO string after normalize(); the driver returns a Date. Null if never edited. */
+  updated_at?: string | null;
 };
+
+function toIsoOrNull(value: unknown): string | null {
+  if (value instanceof Date) return value.toISOString();
+  return typeof value === "string" ? value : null;
+}
 
 function normalize(row: BlogPostRow): BlogPostRow {
   return {
     ...row,
     published_at: row.published_at instanceof Date ? row.published_at.toISOString() : row.published_at,
     created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    updated_at: toIsoOrNull(row.updated_at as unknown),
   };
 }
 
@@ -44,7 +52,7 @@ export const fetchAllBlogsServerFn = createServerFn({ method: "GET" }).handler(
     if (!sql) return [];
     try {
       const rows = await sql<BlogPostRow[]>`
-        SELECT id, title, slug, excerpt, content, cover_image, category, author, published_at, created_at
+        SELECT id, title, slug, excerpt, content, cover_image, category, author, published_at, created_at, updated_at
         FROM public.blogs ORDER BY published_at DESC
       `;
       return rows.map(normalize);
@@ -55,7 +63,7 @@ export const fetchAllBlogsServerFn = createServerFn({ method: "GET" }).handler(
   },
 );
 
-type BlogSummarySourceRow = Omit<BlogPostRow, "created_at">;
+type BlogSummarySourceRow = Omit<BlogPostRow, "created_at" | "updated_at">;
 
 export type BlogSummaryRow = Omit<BlogSummarySourceRow, "content"> & { reading_time_minutes: number };
 
@@ -119,7 +127,7 @@ export const fetchBlogBySlugServerFn = createServerFn({ method: "GET" })
     if (!sql) return null;
     try {
       const rows = await sql<BlogPostRow[]>`
-        SELECT id, title, slug, excerpt, content, cover_image, category, author, published_at, created_at
+        SELECT id, title, slug, excerpt, content, cover_image, category, author, published_at, created_at, updated_at
         FROM public.blogs WHERE slug = ${data.slug} LIMIT 1
       `;
       const row = rows[0];
@@ -171,7 +179,7 @@ export const saveBlogPostServerFn = createServerFn({ method: "POST" })
           UPDATE public.blogs SET
             title = ${p.title}, slug = ${p.slug}, category = ${p.category},
             cover_image = ${p.cover_image}, excerpt = ${p.excerpt}, content = ${p.content},
-            author = ${p.author}, published_at = ${p.published_at}
+            author = ${p.author}, published_at = ${p.published_at}, updated_at = now()
           WHERE id = ${data.id}
         `;
         return { id: data.id, error: null };

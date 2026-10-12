@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, MapPin } from "lucide-react";
+import type { StayNearby } from "@/lib/blog-stay-nearby";
 
 // Blog posts about North Goa's coastline recommend a Plix stay in the area
 // they describe. Posts are rendered from HTML, so the cards are placed between
@@ -12,23 +13,17 @@ type Pick = { slug: PickSlug; name: string; area: string; blurb: string };
 const PICKS: Record<PickSlug, Pick> = {
   "harbor-court": {
     slug: "harbor-court",
-    name: "Harbor Court",
+    name: "Harbor Court - Boutique Resort Vagator",
     area: "Vagator",
-    blurb: "A boutique resort with a central pool, 5 minutes from Ozran Beach.",
+    blurb: "A 10-room boutique resort with a shared pool, 4 minutes' drive from Vagator Beach.",
   },
   "casa-marina": {
     slug: "casa-marina",
-    name: "Marina Villas",
+    name: "Casa Marina",
     area: "Anjuna",
-    blurb: "Private-pool villas in Anjuna, in the same area as the spots in this guide.",
+    blurb: "A 3-bedroom private-pool villa in Anjuna, in the same area as the spots in this guide.",
   },
 };
-
-// Posts that get the closing "Planning your stay" card.
-export const BLOG_STAY_CALLOUT_SLUGS = new Set([
-  "top-7-sunset-clubs-beach-shacks-anjuna-vagator",
-  "vagator-vs-anjuna-vs-morjim-which-north-goa-neighborhood-suits-you-best",
-]);
 
 // Posts that get a card placed after a matching section heading.
 const INLINE_PICKS: Record<string, { heading: RegExp; pick: PickSlug }[]> = {
@@ -67,16 +62,39 @@ export function BlogVillaCard({ slug }: { slug: PickSlug }) {
   );
 }
 
-export function BlogStayCallout() {
+/** The closing "Stay nearby" block every post ends with — see blog-stay-nearby.ts. */
+export function BlogStayNearby({ stay }: { stay: StayNearby }) {
+  if (stay.properties.length === 0) return null;
   return (
-    <aside className="mt-10 rounded-2xl border border-border bg-card p-5 sm:p-6" aria-labelledby="stay-callout-title">
-      <h2 id="stay-callout-title" className="font-display text-xl font-semibold text-foreground">
-        Planning your stay near Anjuna &amp; Vagator?
+    <aside className="mt-10 rounded-2xl border border-border bg-card p-5 sm:p-6" aria-labelledby="stay-nearby-title">
+      <h2 id="stay-nearby-title" className="font-display text-xl font-semibold text-foreground">
+        Stay nearby
       </h2>
-      <p className="mt-1 text-sm text-muted-foreground">Two Plix stays in the area. Book direct for the best rate.</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <PickCard pick={PICKS["harbor-court"]} />
-        <PickCard pick={PICKS["casa-marina"]} />
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {stay.properties.map((p) => (
+          <Link
+            key={p.slug}
+            to="/properties/$slug"
+            params={{ slug: p.slug }}
+            className="flex flex-col rounded-xl border border-border bg-background p-4 transition-colors hover:border-primary"
+          >
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{p.location}</p>
+            <p className="mt-1 font-semibold text-foreground">{p.name}</p>
+          </Link>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {stay.hubs.map((h) => (
+          <Link
+            key={h.slug}
+            to="/locations/$slug"
+            params={{ slug: h.slug }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-accent"
+          >
+            <MapPin className="size-3.5" aria-hidden />
+            {h.h1 ?? `Stays in ${h.name}`}
+          </Link>
+        ))}
       </div>
     </aside>
   );

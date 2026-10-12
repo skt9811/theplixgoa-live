@@ -665,6 +665,7 @@ export function blogPostingJsonLd(input: {
   coverImage: string;
   author: string;
   publishedAt: string;
+  modifiedAt?: string | null | undefined;
   url: string;
 }) {
   return {
@@ -675,6 +676,7 @@ export function blogPostingJsonLd(input: {
     image: input.coverImage,
     author: { "@type": "Organization", name: input.author },
     datePublished: input.publishedAt,
+    dateModified: input.modifiedAt ?? input.publishedAt,
     mainEntityOfPage: input.url,
     publisher: {
       "@type": "Organization",

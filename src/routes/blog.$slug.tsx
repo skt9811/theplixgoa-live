@@ -4,9 +4,8 @@ import { ArrowLeft, ArrowRight, Calendar, Clock, Facebook, Hop as Home, Link2, M
 import { useState } from "react";
 import { toast } from "sonner";
 import { blogQuery, blogSummariesQuery, estimateReadingTime, formatDate, type BlogSummary } from "@/lib/blog";
-import { matchLocationForPost, propertiesInLocation } from "@/lib/locations";
-import { PROPERTIES } from "@/lib/plix";
-import { BlogArticleBody, BlogStayCallout, BLOG_STAY_CALLOUT_SLUGS } from "@/components/plix/blog-stay-callout";
+import { stayNearbyForPost } from "@/lib/blog-stay-nearby";
+import { BlogArticleBody, BlogStayNearby } from "@/components/plix/blog-stay-callout";
 import {
   SITE_URL,
   SITE_NAME,
@@ -64,6 +63,7 @@ export const Route = createFileRoute("/blog/$slug")({
       coverImage: resolvedOgImage,
       author: post.author,
       publishedAt: post.published_at,
+      modifiedAt: post.updated_at,
       url,
     });
     const breadcrumbs = breadcrumbJsonLd([
@@ -144,19 +144,7 @@ function BlogPostPage() {
   if (!post) return <BlogPostNotFound />;
 
   const related = relatedGuides(allBlogs, post.id);
-  const matchedHub = matchLocationForPost({ title: post.title, excerpt: post.excerpt });
-  // Phase 4 "Stay nearby" block, every post: real properties in the area
-  // this post's own title/excerpt already names (same matchedHub the
-  // "Explore Stays in {Area}" link below already uses) — never a guessed
-  // or unrelated pick. Posts with no location match, or whose area has no
-  // properties in it (e.g. an Assagao-only post), simply get no block
-  // rather than a forced one. Skipped when BLOG_STAY_CALLOUT_SLUGS already
-  // renders a hand-curated version for this specific post, so it's never
-  // shown twice.
-  const nearbyProperties =
-    !BLOG_STAY_CALLOUT_SLUGS.has(post.slug) && matchedHub
-      ? propertiesInLocation(PROPERTIES, matchedHub.name).slice(0, 3)
-      : [];
+  const stay = stayNearbyForPost(post);
   const shareUrl = `${SITE_URL}/blog/${post.slug}`;
 
   return (
@@ -184,6 +172,9 @@ function BlogPostPage() {
               <Calendar className="size-3.5" />
               {formatDate(post.published_at)}
             </span>
+            {post.updated_at && new Date(post.updated_at) > new Date(post.published_at) && (
+              <span>Updated {formatDate(post.updated_at)}</span>
+            )}
             <span className="flex items-center gap-1.5">
               <Clock className="size-3.5" />
               {estimateReadingTime(post.content)} min read
@@ -221,46 +212,14 @@ function BlogPostPage() {
 
         <BlogArticleBody html={post.content} slug={post.slug} />
 
-        {BLOG_STAY_CALLOUT_SLUGS.has(post.slug) && <BlogStayCallout />}
-
-        {nearbyProperties.length > 0 && (
-          <aside className="mt-10 rounded-2xl border border-border bg-card p-5 sm:p-6" aria-labelledby="stay-nearby-title">
-            <h2 id="stay-nearby-title" className="font-display text-xl font-semibold text-foreground">
-              Stay nearby in {matchedHub!.name}
-            </h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {nearbyProperties.map((p) => (
-                <Link
-                  key={p.id}
-                  to="/properties/$slug"
-                  params={{ slug: p.slug }}
-                  className="flex flex-col rounded-xl border border-border bg-background p-4 transition-colors hover:border-primary"
-                >
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{p.location}</p>
-                  <p className="mt-1 font-semibold text-foreground">{p.name}</p>
-                </Link>
-              ))}
-            </div>
-          </aside>
-        )}
-
-        {matchedHub && (
-          <Link
-            to="/locations/$slug"
-            params={{ slug: matchedHub.slug }}
-            className="mt-8 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-accent"
-          >
-            <MapPin className="size-3.5" aria-hidden />
-            Explore Stays in {matchedHub.name}
-          </Link>
-        )}
+        <BlogStayNearby stay={stay} />
 
         <div className="mt-10 rounded-2xl border border-border bg-gradient-to-br from-navy to-[#1a2a1a] p-8 text-center text-navy-foreground">
           <h3 className="font-serif text-xl font-normal md:text-2xl">
             Book Your Luxury Stay in North Goa
           </h3>
           <p className="mx-auto mt-2 max-w-md text-sm text-navy-foreground/80">
-            Private pool villas, boutique resorts, and heritage bungalows across Anjuna, Vagator, Assagao, and Morjim.
+            Private pool villas, boutique resorts, and heritage bungalows across Anjuna, Vagator, Assagao, Morjim and Candolim.
           </p>
           <Link
             to="/stays"

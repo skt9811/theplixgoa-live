@@ -297,6 +297,77 @@ export const LOCATION_HUBS: LocationHub[] = [
       "November to February for the driest, most comfortable weather to explore the village on foot.",
     idealStay:
       "3–5 nights, split between the village's cafes and a short drive out to the beaches at Vagator or Anjuna.",
+    h1: "Villas & Stays in Assagao, Goa",
+    // One property: The Plix Villa (location: "Assagao"). Every distance
+    // below is its own real `nearby` entry (src/lib/plix.ts). No Dabolim
+    // figure exists in that data, so Dabolim isn't mentioned at all.
+    longformSections: [
+      {
+        heading: "Who Assagao suits",
+        paragraphs: [
+          "Assagao has one Plix stay, The Plix Villa: a 3-bedroom, 3-bathroom villa with a private pool, sleeping up to 6 guests. It suits a family, two or three couples travelling together, or a small group of friends who want a whole house to themselves rather than rooms in a resort — a bedroom and a bathroom each, air conditioning in all three bedrooms, and the pool for the hours in between plans.",
+          "You choose Assagao over the beach villages for its pace. It sits inland, among green, residential lanes, so the evenings are quieter than in Vagator or Anjuna, while both are still a short drive away when you want the sea or a night out. It's the right base for a trip where the villa is the point and the beaches are an outing, not the other way round.",
+          "Day to day, the villa is looked after rather than left to you: housekeeping, 24-hour security and CCTV, power backup for Goa's occasional outages, and parking on site, which matters if you're driving yourselves around North Goa or renting a car for the week. For a group of six, that's the practical difference between a holiday home and a rental you have to manage.",
+        ],
+      },
+      {
+        heading: "The village itself",
+        paragraphs: [
+          "Assagao is a village rather than a resort town. Its older lanes are lined with Portuguese-era houses, many now converted into cafes, restaurants, small shops and private homes, and it has become one of North Goa's better-known places to eat out without heading to the coast. The centre of the village is about a 3-minute drive from The Plix Villa, close enough to go out for breakfast or dinner without it turning into a trip.",
+          "There's no beach in Assagao, and no beach-shack strip either, which is exactly why it stays quieter after dark than the coastal villages a few minutes away. Expect quiet lanes rather than music carrying from a club — and expect that the best way to find a favourite cafe here is to walk or ride the lanes and stop where it looks busy.",
+        ],
+      },
+      {
+        heading: "Beaches and Chapora Fort",
+        paragraphs: [
+          "Vagator Beach is about a 10-minute drive from The Plix Villa, the nearest stretch of sand to the villa. Vagator's coast is cliff-backed and split by the headland Chapora Fort stands on, with shacks along the back of the beach and the quieter Ozran cove around the headland.",
+          "Chapora Fort itself is about 8 minutes from the villa — the Portuguese-built laterite fort above the mouth of the Chapora River, free to enter and a short walk up from the road. It's at its best in the hour before sunset, so a late-afternoon drive from Assagao, a walk up to the ramparts and dinner back in the village makes for an easy evening that never strays far from the villa.",
+        ],
+      },
+      {
+        heading: "Anjuna and the Wednesday flea market",
+        paragraphs: [
+          "The Anjuna Flea Market is about a 12-minute drive from The Plix Villa. It runs every Wednesday in season, roughly November to April, with stalls selling clothing, jewellery, textiles and souvenirs along the Anjuna beachfront, and it's best reached early, before the midday heat and crowds.",
+          "Between Vagator, Chapora Fort and Anjuna, everything most visitors come to this corner of North Goa for is within roughly a quarter of an hour of the villa, so a stay in Assagao gives up very little in access. What it gives you in return is a quiet place to come back to at the end of each day.",
+        ],
+      },
+      {
+        heading: "Best time to visit",
+        paragraphs: [
+          "November to February is North Goa's driest, coolest stretch, and the most comfortable time to walk the village and spend long afternoons by the pool. October and March are good shoulder-season options with thinner crowds, if you don't mind a little more heat.",
+          "Goa's monsoon runs roughly June through September. Assagao turns very green in those months, and because the village doesn't depend on beach shacks the way the coast does, it changes less than the coastal villages do — though the flea market and much of the beach scene pause for the season.",
+        ],
+      },
+      {
+        heading: "Getting there",
+        paragraphs: [
+          "Mopa (GOX), Goa's newer international airport, is about a 35-minute drive from The Plix Villa. Most guests arrange a pre-booked taxi for the transfer rather than finding one on arrival.",
+          "Once you're settled, a rented scooter or car, or a taxi or app-based cab, are the usual ways to get around. With the village centre 3 minutes away and the coast within about 10 to 12 minutes, most days need only short drives, and the villa's own parking makes a rental car an easy choice for a group.",
+        ],
+      },
+    ],
+    faqs: [
+      {
+        q: "Which Plix stay is in Assagao?",
+        a: "The Plix Villa — a 3-bedroom, 3-bathroom villa with a private pool, sleeping up to 6 guests.",
+      },
+      {
+        q: "Does Assagao have its own beach?",
+        a: "No, Assagao is an inland village. Vagator Beach, the nearest, is about a 10-minute drive from The Plix Villa.",
+      },
+      {
+        q: "How far are Chapora Fort and the Anjuna flea market from The Plix Villa?",
+        a: "Chapora Fort is about an 8-minute drive and the Anjuna Flea Market about 12 minutes. The flea market runs on Wednesdays, roughly November to April.",
+      },
+      {
+        q: "Is The Plix Villa good for a family or a small group?",
+        a: "Yes — it has 3 air-conditioned bedrooms and 3 bathrooms for up to 6 guests, a private pool, housekeeping, power backup and parking on site.",
+      },
+      {
+        q: "How far is Assagao from Goa's airport?",
+        a: "About 35 minutes' drive from The Plix Villa to Mopa (GOX), Goa's newer international airport.",
+      },
+    ],
   },
 ];
 

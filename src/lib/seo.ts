@@ -423,14 +423,35 @@ export function propertySearchVariantSentence(p: Property): string | undefined {
 
 // Owner-confirmed: these properties' pools are shared by every room and
 // booking, never exclusive-use. Whatever pool tag the DB row or plix.ts
-// carries is displayed as SHARED_POOL_TAG (see normalizeSharedPoolTags,
-// applied to every property list in properties-data.ts).
-export const SHARED_POOL_SLUGS: ReadonlySet<string> = new Set(["harbor-court"]);
+// carries is displayed as SHARED_POOL_TAG (see normalizePoolTags, applied
+// to every property list in properties-data.ts).
+export const SHARED_POOL_SLUGS: ReadonlySet<string> = new Set([
+  "harbor-court",
+  "the-plix-resort-morjim",
+  "morjim-pride",
+]);
 export const SHARED_POOL_TAG = "Swimming Pool (shared)";
 
-export function normalizeSharedPoolTags<T extends { slug: string; amenity_tags: string[] }>(p: T): T {
-  if (!SHARED_POOL_SLUGS.has(p.slug)) return p;
-  const tags = p.amenity_tags.map((t) => (/pool/i.test(t) ? SHARED_POOL_TAG : t));
+// Owner-confirmed: Vivenda Chico's rooms also book individually, so its pool
+// is private only when the whole bungalow is booked. It stays in the
+// private-pool collection (PRIVATE_POOL_SLUGS) with this qualified label.
+export const CONDITIONAL_PRIVATE_POOL_TAGS: Record<string, string> = {
+  "vivenda-chico": "Private pool (when booking the whole bungalow)",
+};
+
+/** The pool label to show for a property on cards, or undefined if it has no pool. */
+export function poolDisplayLabel(p: { slug: string; amenity_tags: string[] }): string | undefined {
+  if (!p.amenity_tags.some((t) => /pool/i.test(t))) return undefined;
+  if (SHARED_POOL_SLUGS.has(p.slug)) return SHARED_POOL_TAG;
+  return CONDITIONAL_PRIVATE_POOL_TAGS[p.slug] ?? "Private Pool";
+}
+
+export function normalizePoolTags<T extends { slug: string; amenity_tags: string[] }>(p: T): T {
+  const label = SHARED_POOL_SLUGS.has(p.slug)
+    ? SHARED_POOL_TAG
+    : CONDITIONAL_PRIVATE_POOL_TAGS[p.slug];
+  if (!label) return p;
+  const tags = p.amenity_tags.map((t) => (/pool/i.test(t) ? label : t));
   return { ...p, amenity_tags: Array.from(new Set(tags)) };
 }
 
@@ -444,6 +465,8 @@ export function normalizeSharedPoolTags<T extends { slug: string; amenity_tags: 
 // this intro paragraph, and nowhere else should each independently guess.
 export function poolWord(p: Property): string {
   if (SHARED_POOL_SLUGS.has(p.slug)) return "shared swimming pool";
+  const conditional = CONDITIONAL_PRIVATE_POOL_TAGS[p.slug];
+  if (conditional) return conditional.toLowerCase();
   if (p.amenity_tags.includes("Private Pool") || p.slug === "the-plix-villa") return "private pool";
   if (p.amenity_tags.some((t) => t.toLowerCase().includes("pool"))) return "pool";
   return "";

@@ -7,7 +7,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { PROPERTIES, formatINR, type Property } from "@/lib/plix";
 import { fetchPropertiesWithOverrides } from "@/lib/properties-data";
-import { SITE_PHONE_1, SITE_PHONE_2, SHARED_POOL_SLUGS, whatsappLink as buildWhatsappLink } from "@/lib/seo";
+import {
+  SITE_PHONE_1,
+  SITE_PHONE_2,
+  SHARED_POOL_SLUGS,
+  CONDITIONAL_PRIVATE_POOL_TAGS,
+  whatsappLink as buildWhatsappLink,
+} from "@/lib/seo";
 
 export type ConciergeCardTab = { label: string; bullets: string[] };
 export type ConciergeCard = {
@@ -43,6 +49,9 @@ function petPolicyLine(property: Property): string {
 function poolPolicyLine(property: Property): string {
   if (SHARED_POOL_SLUGS.has(property.slug)) {
     return "The swimming pool is shared by all guests staying at the property — pool hours and safety guidelines are shared at check-in.";
+  }
+  if (CONDITIONAL_PRIVATE_POOL_TAGS[property.slug]) {
+    return "The pool is private to your group when you book the whole bungalow; when rooms are booked individually, it's shared with the other guests staying.";
   }
   if (property.amenity_tags.includes("Private Pool")) {
     return "The pool is private and exclusively for your group during your stay.";

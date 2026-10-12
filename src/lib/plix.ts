@@ -1445,7 +1445,7 @@ export const PROPERTIES: Property[] = [
       "morjimpride29",
     ],
     amenity_tags: [
-      "Outdoor Swimming Pool",
+      "Swimming Pool (shared)",
       "Free WiFi",
       "Room Service",
       "Restaurant",
@@ -1510,7 +1510,7 @@ export const PROPERTIES: Property[] = [
       "vivendachico1", "vivendachico2", "vivendachico3", "vivendachico4", "vivendachico5", "vivendachico6", "vivendachico7", "vivendachico8", "vivendachico9", "vivendachico10", "vivendachico11", "vivendachico12", "vivendachico13", "vivendachico14", "vivendachico15", "vivendachico16", "vivendachico17", "vivendachico18", "vivendachico19", "vivendachico20", "vivendachico21", "vivendachico22", "vivendachico23", "vivendachico24", "vivendachico25", "vivendachico26", "vivendachico27", "vivendachico28", "vivendachico29", "vivendachico30", "vivendachico31", "vivendachico32", "vivendachico33", "vivendachico34", "vivendachico35", "vivendachico36", "vivendachico37", "vivendachico38", "vivendachico39", "vivendachico40", "vivendachico41", "vivendachico42",
     ],
     amenity_tags: [
-      "Private Pool",
+      "Private pool (when booking the whole bungalow)",
       "Lawn",
       "Gazebo",
       "BBQ Grill",
@@ -1617,7 +1617,7 @@ export const PROPERTIES: Property[] = [
       "plixresortnew56",
     ],
     amenity_tags: [
-      "Outdoor Swimming Pool",
+      "Swimming Pool (shared)",
       "Free WiFi",
       "Free Parking",
       "Airport transfers (paid, on request)",

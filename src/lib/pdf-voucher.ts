@@ -1,4 +1,5 @@
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb, type RGB } from "pdf-lib";
+import { getPropertyPmsConfig } from "@/lib/pms-properties-config";
 
 // Client-side booking voucher generator — runs entirely in the browser, no
 // server involved. Ported from the (undeployed) supabase/functions/_shared
@@ -8,6 +9,13 @@ import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb, type RGB } from "pdf
 
 export type VoucherBooking = {
   id: string;
+  /** Looked up against PMS_PROPERTIES_CONFIG (pms-properties-config.ts) for
+   * a refundable security deposit, the same source the confirmation email
+   * and PMS stay voucher already read from — only Casa Marina, Casa Moana
+   * and Casa Meadows currently have one on file. Optional: older callers
+   * that don't pass it simply get no deposit line, same as a property with
+   * none configured. */
+  property_id?: string;
   property_name: string;
   property_location: string;
   guest_name: string;
@@ -84,7 +92,7 @@ export async function generateVoucherPdf(booking: VoucherBooking): Promise<Uint8
   y -= 26;
   y = drawBreakdownTable(page, fonts, booking, y);
   y -= 28;
-  y = drawPolicies(page, fonts, y);
+  y = drawPolicies(page, fonts, y, booking.property_id ? getPropertyPmsConfig(booking.property_id).securityDeposit : undefined);
   drawFooter(page, fonts);
 
   return pdfDoc.save();
@@ -286,10 +294,14 @@ function drawBreakdownTable(page: PDFPage, fonts: Fonts, b: VoucherBooking, star
   // Totals
   const paid = b.payment_status === "paid" ? b.total_amount : 0;
   const due = b.total_amount - paid;
+  const securityDeposit = b.property_id ? getPropertyPmsConfig(b.property_id).securityDeposit : undefined;
   const totals: [string, string][] = [
     ["Grand Total", formatINR(b.total_amount)],
     ["Paid Amount (Razorpay)", formatINR(paid)],
     ["Due Amount (Payable at Check-in)", formatINR(due)],
+    ...(securityDeposit && securityDeposit > 0
+      ? ([["Refundable Security Deposit", formatINR(securityDeposit)]] as [string, string][])
+      : []),
   ];
   y -= 6;
   for (const [label, value] of totals) {
@@ -319,16 +331,20 @@ function drawBreakdownTable(page: PDFPage, fonts: Fonts, b: VoucherBooking, star
   return y;
 }
 
-function drawPolicies(page: PDFPage, fonts: Fonts, startY: number): number {
+function drawPolicies(page: PDFPage, fonts: Fonts, startY: number, securityDeposit?: number): number {
   let y = startY;
   page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_WIDTH - MARGIN, y }, thickness: 0.75, color: GRAY_LINE });
   y -= 18;
 
   page.drawText("CANCELLATION POLICY", { x: MARGIN, y, size: 9, font: fonts.bold, color: NAVY });
   y -= 13;
+  // The real tiered policy (cancellation.tsx, property-faqs.ts) — this PDF
+  // previously stated a different, wrong "free up to 14 days" policy that
+  // contradicted it; fixed to match while touching this file for the
+  // security deposit line below.
   const cancellationLines = wrapText(
-    "Free cancellation up to 14 days before check-in with a full refund. Cancellations within 14 days of " +
-      "check-in are non-refundable; a credit toward a future stay may be offered at management's discretion.",
+    "Cancellations made 30+ days before check-in receive a 100% refund, 15-29 days before receive 50%, " +
+      "7-14 days before receive 25%, and cancellations made less than 7 days before check-in are non-refundable.",
     fonts.regular,
     8,
     CONTENT_WIDTH,
@@ -345,6 +361,23 @@ function drawPolicies(page: PDFPage, fonts: Fonts, startY: number): number {
     "Please provide Govt. Approved Photo Identity Card of all adult guests at check-in.",
     { x: MARGIN, y, size: 8, font: fonts.regular, color: GRAY_TEXT },
   );
+  y -= 11;
+
+  if (securityDeposit && securityDeposit > 0) {
+    y -= 8;
+    page.drawText("SECURITY DEPOSIT", { x: MARGIN, y, size: 9, font: fonts.bold, color: NAVY });
+    y -= 13;
+    const depositLines = wrapText(
+      `A refundable security deposit of ${formatINR(securityDeposit)} is collected at check-in via UPI/Cash/Card and refunded at check-out, subject to a property inspection finding no damage.`,
+      fonts.regular,
+      8,
+      CONTENT_WIDTH,
+    );
+    for (const line of depositLines) {
+      page.drawText(line, { x: MARGIN, y, size: 8, font: fonts.regular, color: GRAY_TEXT });
+      y -= 11;
+    }
+  }
 
   return y - 14;
 }

@@ -201,7 +201,7 @@ async function recalc(sql: Sql, orderId: string) {
 async function loadOrder(sql: Sql, orderId: string) {
   const [o] = await sql<
     OrderRow[]
-  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held, legacy_bill_no FROM pms_pos_orders WHERE id = ${orderId}`;
+  >`SELECT id, order_number, property_id, table_id, table_name, guest_name, guest_phone, guest_count, status, subtotal, tax_amount, discount_amount, other_charges, total_amount, payment_method, remarks, created_at, settled_at, discount_type, discount_value, discount_reason, is_commercial, address_type, address, city, zipcode, received_amount, round_off, booking_id, created_by, cancel_reason, order_type, billed_by_user, daily_number, tax_breakdown, tax_details, is_held, legacy_bill_no FROM pms_pos_orders WHERE id = ${orderId}`;
   if (!o) throw new PosError("Order not found", 404);
   const lines = await sql<
     LineRow[]
@@ -903,6 +903,30 @@ async function settle(request: Request, actor: Actor, sql: Sql, station: string)
   });
 }
 
+// Lets staff apply or change a discount right at the settlement screen,
+// just before Settle — deliberately separate from saveOrder (which deletes
+// and re-inserts every not-yet-KOT'd draft line from the request body, so
+// calling it here with no drafts would wipe out any unsent items) and from
+// settle itself (which only finalizes whatever discount is already stored).
+// Only touches the 3 discount columns, then reuses the exact same recalc()
+// every other discount path already goes through, so tax is recalculated
+// on the discounted subtotal the same way everywhere in this app.
+async function applyDiscount(request: Request, actor: Actor, sql: Sql) {
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const order = await ownedOrder(sql, actor, str(body["orderId"]));
+  if (order.status !== "running" && order.status !== "billing")
+    throw new PosError("This order is already closed", 409);
+  const discountType =
+    body["discountType"] === "percent" || body["discountType"] === "fixed"
+      ? (body["discountType"] as string)
+      : null;
+  const discountValue = Math.max(0, num(body["discountValue"]));
+  const discountReason = str(body["discountReason"]).slice(0, 255) || null;
+  await sql`UPDATE pms_pos_orders SET discount_type = ${discountType}, discount_value = ${discountValue}, discount_reason = ${discountReason} WHERE id = ${order.id}`;
+  await recalc(sql, order.id);
+  return json(await loadOrder(sql, order.id));
+}
+
 async function menuApi(request: Request, actor: Actor, sql: Sql, station: string) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const property = str(body["property"]);
@@ -1121,6 +1145,8 @@ export async function handlePosApi(
       return await orderAction(request, actor, sql, station);
     if (sub === "order/settle" && request.method === "POST")
       return await settle(request, actor, sql, station);
+    if (sub === "order/discount" && request.method === "POST")
+      return await applyDiscount(request, actor, sql);
     const manages = canManage(actor);
     if (sub === "menu" && request.method === "POST") {
       if (!manages) return json({ error: "Only a manager or admin can change the menu" }, 403);

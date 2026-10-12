@@ -1,18 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Check, Printer } from "lucide-react";
+import { ArrowLeft, Check, Printer, Tag } from "lucide-react";
 import { istToday, pms, type PmsBooking } from "@/lib/pms-client";
-import { inr, posAction, posSettle, type PosOrderData } from "@/lib/pms-pos-client";
+import { inr, posAction, posDiscount, posSettle, type PosOrderData } from "@/lib/pms-pos-client";
 import { printOrder } from "@/components/pms/pos/print-order";
 import { round2 } from "@/lib/pms-pos-calc";
 import { usePos } from "@/components/pms/pos/pos-context";
 
 const field = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-emerald-500";
+const PERCENT_CHIPS = [5, 10, 15];
+const FIXED_CHIPS = [100, 250, 500];
 
 export function PaymentScreen({ property, propertyName, data, onBack, onDone }: { property: string; propertyName: string; data: PosOrderData; onBack: () => void; onDone: () => void }) {
-  const o = data.order;
+  // Local override, not a rewrite of `data` itself: applying a discount here
+  // just refreshes this component's own view of the order (subtotal/
+  // discount_amount/tax_amount/total_amount all come back recalculated from
+  // the same recalc() every other discount path uses) — the parent screen's
+  // own copy of `data` is untouched until Settle actually closes the order.
+  const [orderOverride, setOrderOverride] = useState<PosOrderData["order"] | null>(null);
+  const o = orderOverride ?? data.order;
   const base = o.total_amount;
   const { state } = usePos();
+  const [discountOpen, setDiscountOpen] = useState(false);
+  const [discountType, setDiscountType] = useState<"fixed" | "percent">(o.discount_type ?? "fixed");
+  const [discountValue, setDiscountValue] = useState(o.discount_value || 0);
+  const [discountReason, setDiscountReason] = useState(o.discount_reason ?? "");
+  const [discountBusy, setDiscountBusy] = useState(false);
   const MODES = (state?.config.paymentMethods ?? []).filter((m) => m.is_allowed).map((m) => m.payment_type);
   const [method, setMethod] = useState<string>(MODES[0] ?? "Cash");
   const noPayment = method === "Account" || method === "NC";
@@ -47,6 +60,37 @@ export function PaymentScreen({ property, propertyName, data, onBack, onDone }: 
   }, [method, bookings, property]);
 
   const lines = useMemo(() => (settled ?? data).lines.filter((l) => l.status === "active"), [settled, data]);
+
+  async function applyDiscount() {
+    setDiscountBusy(true);
+    try {
+      const res = await posDiscount({ orderId: o.id, discountType, discountValue, discountReason });
+      setOrderOverride(res.order);
+      setDiscountOpen(false);
+      toast.success(discountValue > 0 ? "Discount applied" : "Discount removed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not apply the discount");
+    } finally {
+      setDiscountBusy(false);
+    }
+  }
+
+  async function removeDiscount() {
+    setDiscountType("fixed");
+    setDiscountValue(0);
+    setDiscountReason("");
+    setDiscountBusy(true);
+    try {
+      const res = await posDiscount({ orderId: o.id, discountType: null, discountValue: 0, discountReason: "" });
+      setOrderOverride(res.order);
+      setDiscountOpen(false);
+      toast.success("Discount removed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not remove the discount");
+    } finally {
+      setDiscountBusy(false);
+    }
+  }
 
   async function settle() {
     setBusy(true);
@@ -99,8 +143,43 @@ export function PaymentScreen({ property, propertyName, data, onBack, onDone }: 
 
       <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
         {row("SubTotal", inr(o.subtotal))}
-        {o.discount_amount > 0 && row("Discount", `-${inr(o.discount_amount)}`)}
+        <div className="flex items-center justify-between py-1.5 text-sm">
+          <button type="button" onClick={() => setDiscountOpen((v) => !v)} className="flex items-center gap-1 text-slate-600">
+            <Tag className="size-3.5" aria-hidden />
+            Discount{o.discount_reason ? ` (${o.discount_reason})` : ""}
+          </button>
+          <span className={o.discount_amount > 0 ? "text-slate-900" : "text-slate-400"}>
+            {o.discount_amount > 0 ? `-${inr(o.discount_amount)}` : "None"}
+          </span>
+        </div>
+        {discountOpen && (
+          <div className="my-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="flex gap-2">
+              {([["fixed", "₹ Amount"], ["percent", "% Percentage"]] as const).map(([t, l]) => (
+                <button key={t} type="button" onClick={() => setDiscountType(t)} className={`flex-1 rounded-lg border py-2 text-xs font-semibold ${discountType === t ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-600"}`}>{l}</button>
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {(discountType === "percent" ? PERCENT_CHIPS : FIXED_CHIPS).map((v) => (
+                <button key={v} type="button" onClick={() => setDiscountValue(v)} className={`rounded-full border px-3 py-1 text-xs font-semibold ${discountValue === v ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-600"}`}>
+                  {discountType === "percent" ? `${v}%` : `₹${v}`}
+                </button>
+              ))}
+            </div>
+            <input className={`${field} mt-2`} type="number" inputMode="decimal" min={0} placeholder="Custom value" value={discountValue || ""} onChange={(e) => setDiscountValue(Math.max(0, Number(e.target.value) || 0))} />
+            <input className={`${field} mt-2`} placeholder="Reason / authorization (optional)" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} />
+            <div className="mt-2 flex gap-2">
+              {o.discount_amount > 0 && (
+                <button type="button" disabled={discountBusy} onClick={() => void removeDiscount()} className="flex-1 rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-600 disabled:opacity-50">Remove</button>
+              )}
+              <button type="button" disabled={discountBusy || discountValue <= 0} onClick={() => void applyDiscount()} className="flex-1 rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white disabled:opacity-50">
+                {discountBusy ? "Applying..." : "Apply"}
+              </button>
+            </div>
+          </div>
+        )}
         {o.other_charges > 0 && row("Other charges", inr(o.other_charges))}
+        {row("Taxable Amount", inr(o.subtotal - o.discount_amount))}
         {row("Tax", inr(o.tax_amount))}
         {roundOff !== 0 && row("Round off", `${roundOff > 0 ? "+" : ""}${roundOff.toFixed(2)}`)}
         <div className="my-1 border-t border-dashed border-slate-200" />

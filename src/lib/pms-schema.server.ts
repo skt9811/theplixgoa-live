@@ -589,6 +589,10 @@ export function ensurePosSchema(sql: Sql): Promise<void> {
         )`;
       await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS discount_type varchar(10)`;
       await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS discount_value numeric(10, 2) DEFAULT 0.00`;
+      // Optional note on who/why authorized a discount applied at the
+      // settlement screen (e.g. "Manager Goodwill", "Guest Complaint") —
+      // free text, never parsed, just printed on reports/vouchers.
+      await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS discount_reason varchar(255)`;
       await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS is_commercial boolean DEFAULT false`;
       await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS address_type varchar(20)`;
       await sql`ALTER TABLE pms_pos_orders ADD COLUMN IF NOT EXISTS address text`;

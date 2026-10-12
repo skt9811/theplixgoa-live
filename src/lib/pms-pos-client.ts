@@ -77,7 +77,7 @@ export type PosLine = {
 };
 export type PosOrder = {
   id: string; order_number: number; property_id: string; table_id: string | null; table_name: string; guest_name: string | null; guest_phone: string | null; guest_count: number;
-  status: "running" | "billing" | "completed" | "cancelled"; subtotal: number; tax_amount: number; discount_amount: number; discount_type: "fixed" | "percent" | null; discount_value: number;
+  status: "running" | "billing" | "completed" | "cancelled"; subtotal: number; tax_amount: number; discount_amount: number; discount_type: "fixed" | "percent" | null; discount_value: number; discount_reason: string | null;
   other_charges: number; total_amount: number; round_off: number; payment_method: string | null; remarks: string | null; created_at: string; settled_at: string | null;
   tax_breakdown: Record<string, number> | null;
   tax_details: { slabs: TaxSlab[]; totalTax: number } | null;
@@ -101,6 +101,7 @@ export const posOrder = (id: string) => posFetch<PosOrderData>(`order?id=${encod
 export const posSave = (body: Record<string, unknown>) => posPost<PosOrderData>("order", body);
 export const posAction = (body: Record<string, unknown>) => posPost<PosOrderData>("order/action", body);
 export const posSettle = (body: Record<string, unknown>) => posPost<PosOrderData>("order/settle", body);
+export const posDiscount = (body: Record<string, unknown>) => posPost<PosOrderData>("order/discount", body);
 export const posMenu = (body: Record<string, unknown>) => posPost<{ success: boolean; note?: string }>("menu", body);
 
 export const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

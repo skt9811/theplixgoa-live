@@ -4,24 +4,24 @@ import { Plane } from "lucide-react";
 // per-property data, so no props here.
 const AIRPORT_FARES = [
   {
-    label: "Airport Drop to GOI",
+    label: "Airport Drop to GOI (Dabolim)",
     price: "₹2,000 + taxes",
     detail: "Property to Dabolim Airport (Night charges extra, if applicable)",
   },
   {
-    label: "Airport Drop to GOX",
+    label: "Airport Drop to GOX (Mopa)",
     price: "₹1,400 + taxes",
-    detail: "Property to MOPA Airport (Night charges extra, if applicable)",
+    detail: "Property to Mopa Airport (Night charges extra, if applicable)",
   },
   {
-    label: "Airport Pickup from GOI",
+    label: "Airport Pickup from GOI (Dabolim)",
     price: "₹2,050 + taxes",
     detail: "Dabolim Airport to Property (Night charges extra, if applicable)",
   },
   {
-    label: "Airport Pickup from GOX",
+    label: "Airport Pickup from GOX (Mopa)",
     price: "₹1,400 + taxes",
-    detail: "MOPA Airport to Property (Night charges extra, if applicable)",
+    detail: "Mopa Airport to Property (Night charges extra, if applicable)",
   },
 ] as const;
 

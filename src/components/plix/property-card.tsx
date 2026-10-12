@@ -148,7 +148,7 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
             </span>
             <span className="text-sm text-muted-foreground">
               {" "}
-              / night{isMultiRoomProperty(property.slug) ? ", per room" : ", entire villa"}
+              /night{isMultiRoomProperty(property.slug) ? ", per room" : ", entire villa"}
             </span>
             {searchRate ? (
               <p className="text-xs text-muted-foreground">

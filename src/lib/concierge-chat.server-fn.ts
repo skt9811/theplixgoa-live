@@ -89,7 +89,7 @@ function pricingCard(property: Property): ConciergeCard {
   return {
     title: "Pricing & Availability",
     bullets: [
-      `Starting from ${formatINR(price)} / night — the rate varies by date and season.`,
+      `Starting from ${formatINR(price)}/night — the rate varies by date and season.`,
       "This is the direct rate — zero OTA commission baked in.",
       `Sleeps up to ${property.max_guests} guests.`,
     ],

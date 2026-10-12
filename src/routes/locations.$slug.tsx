@@ -24,6 +24,17 @@ import {
   jsonLdScript,
 } from "@/lib/seo";
 
+// Shared safety net for hub.faqs: locations.ts's own convention is to mark
+// an unconfirmed fact "TODO" directly in the copy rather than guess at it
+// (same convention longformSections uses, filtered separately below) — this
+// must never reach a visitor or the FAQPage schema as literal text, so any
+// Q&A still carrying that marker is dropped from both at once, keeping the
+// visible list and the schema in sync the way the rest of this file already
+// relies on hub.faqs being a single shared source for.
+function dropTodoFaqs(faqs: { q: string; a: string }[]): { q: string; a: string }[] {
+  return faqs.filter((f) => !/\bTODO\b/i.test(f.a));
+}
+
 // Editorial curation — hand-picked, not derived from the location filter —
 // for hubs where a specific property deserves a direct call-out beyond its
 // place in the regular grid below. Casa Marina and Casa Meadows are
@@ -86,7 +97,20 @@ export const Route = createFileRoute("/locations/$slug")({
       ? resolveImages(localProperties[0].image_keys)[0]
       : undefined;
     return {
-      hub,
+      // Filtered copy, not the raw hub object: loaderData gets serialized
+      // into the page for client hydration, so an unfiltered hub here would
+      // put longformSections'/faqs' literal "TODO" text in the page's raw
+      // HTML source even though dropTodoFaqs and the longformSections
+      // render filter already keep it out of what's actually painted on
+      // screen — a real visitor's "view source" shouldn't see it either.
+      hub: {
+        ...hub,
+        longformSections: hub.longformSections?.map((s) => ({
+          ...s,
+          paragraphs: s.paragraphs.filter((p) => !/\bTODO\b/i.test(p)),
+        })),
+        faqs: hub.faqs ? dropTodoFaqs(hub.faqs) : hub.faqs,
+      },
       heroImage,
       // Lightweight — just enough for the ItemList schema in head(). The
       // component re-reads the full property list itself from the same
@@ -142,22 +166,24 @@ export const Route = createFileRoute("/locations/$slug")({
     // hub.faqs (5 real Q&As, written for this specific hub) when it
     // exists; otherwise the shorter, 3-question set derived from the
     // hub's own data fields — same fallback pattern as h1/longformSections.
-    const hubFaqs = hub.faqs ?? [
-      { q: `What's the best time to visit ${hub.name}?`, a: hub.bestMonths },
-      { q: `How many nights should I stay in ${hub.name}?`, a: hub.idealStay },
-      {
-        q: `What's near a Plix villa in ${hub.name}?`,
-        a:
-          hub.localHighlights.length > 0
-            ? `${hub.localHighlights.map((h) => `${h.name} (${h.distance})`).join(", ")}.`
-            : `Contact our concierge team for the closest attractions to your specific villa in ${hub.name}.`,
-      },
-    ];
+    const hubFaqs = dropTodoFaqs(
+      hub.faqs ?? [
+        { q: `What's the best time to visit ${hub.name}?`, a: hub.bestMonths },
+        { q: `How many nights should I stay in ${hub.name}?`, a: hub.idealStay },
+        {
+          q: `What's near a Plix villa in ${hub.name}?`,
+          a:
+            hub.localHighlights.length > 0
+              ? `${hub.localHighlights.map((h) => `${h.name} (${h.distance})`).join(", ")}.`
+              : `Contact our concierge team for the closest attractions to your specific villa in ${hub.name}.`,
+        },
+      ],
+    );
     return {
       meta: [
         { title },
         { name: "description", content: description },
-        { name: "robots", content: "index, follow, max-image-preview:large" },
+        { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1" },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:type", content: "website" },
@@ -181,11 +207,15 @@ export const Route = createFileRoute("/locations/$slug")({
           id: "location-breadcrumb-jsonld",
           children: jsonLdScript(breadcrumbs),
         },
-        {
-          type: "application/ld+json",
-          id: "location-faq-jsonld",
-          children: jsonLdScript(faqPageJsonLd(hubFaqs)),
-        },
+        ...(hubFaqs.length > 0
+          ? [
+              {
+                type: "application/ld+json",
+                id: "location-faq-jsonld",
+                children: jsonLdScript(faqPageJsonLd(hubFaqs)),
+              },
+            ]
+          : []),
       ],
     };
   },
@@ -368,16 +398,27 @@ function LocationHubPage() {
           <h2 id="guide-heading" className="text-2xl font-semibold text-navy">
             {hub.name} Guide
           </h2>
-          {hub.longformSections.map((s) => (
-            <div key={s.heading}>
-              <h3 className="text-lg font-semibold text-navy">{s.heading}</h3>
-              {s.paragraphs.map((p, i) => (
-                <p key={i} className="mt-2 leading-relaxed text-muted-foreground">
-                  {p}
-                </p>
-              ))}
-            </div>
-          ))}
+          {hub.longformSections.map((s) => {
+            // Safety net, not the fix itself: longformSections.ts's own
+            // convention is to mark an unconfirmed fact "TODO" directly in
+            // the copy rather than guess at it. That's fine for an editor
+            // reading the source, but must never reach a visitor as literal
+            // text — so any paragraph still carrying that marker is hidden
+            // here rather than printed, for every hub, not just the ones
+            // that have been hand-reviewed so far.
+            const paragraphs = s.paragraphs.filter((p) => !/\bTODO\b/i.test(p));
+            if (paragraphs.length === 0) return null;
+            return (
+              <div key={s.heading}>
+                <h3 className="text-lg font-semibold text-navy">{s.heading}</h3>
+                {paragraphs.map((p, i) => (
+                  <p key={i} className="mt-2 leading-relaxed text-muted-foreground">
+                    {p}
+                  </p>
+                ))}
+              </div>
+            );
+          })}
         </section>
       )}
 
@@ -415,14 +456,16 @@ function LocationHubPage() {
       )}
 
       {/* Visible FAQs — the same hub.faqs array also feeds the FAQPage
-          schema in head() above, so the two can never drift apart. */}
-      {hub.faqs && hub.faqs.length > 0 && (
+          schema in head() above, so the two can never drift apart. Both
+          go through dropTodoFaqs so a not-yet-confirmed answer never
+          reaches a visitor or the schema. */}
+      {hub.faqs && dropTodoFaqs(hub.faqs).length > 0 && (
         <section className="mt-12" aria-labelledby="faq-heading">
           <h2 id="faq-heading" className="text-2xl font-semibold text-navy">
             {hub.name} FAQs
           </h2>
           <dl className="mt-6 space-y-5">
-            {hub.faqs.map((f) => (
+            {dropTodoFaqs(hub.faqs).map((f) => (
               <div key={f.q}>
                 <dt className="font-semibold text-navy">{f.q}</dt>
                 <dd className="mt-1 leading-relaxed text-muted-foreground">{f.a}</dd>

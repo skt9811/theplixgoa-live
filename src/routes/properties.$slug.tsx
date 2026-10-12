@@ -733,7 +733,7 @@ function PropertyDetail() {
               <span className="text-3xl font-semibold text-navy">
                 {formatINR(rateOverrides[checkIn] ?? property.base_price)}
               </span>
-              <span className="pb-1 text-sm text-muted-foreground">/ night</span>
+              <span className="pb-1 text-sm text-muted-foreground">/night</span>
             </div>
             {hasCustomRate && (
               <p className="mt-1 text-xs text-primary">Seasonal pricing applied for selected dates</p>
@@ -974,7 +974,7 @@ function PropertyDetail() {
             <span className="text-lg font-semibold text-navy">
               {formatINR(rateOverrides[checkIn] ?? property.base_price)}
             </span>
-            <span className="text-xs text-muted-foreground">/ night</span>
+            <span className="text-xs text-muted-foreground">/night</span>
           </div>
           <p className="text-[11px] text-muted-foreground">+ taxes</p>
         </div>

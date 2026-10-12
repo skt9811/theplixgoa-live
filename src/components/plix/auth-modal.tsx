@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { CircleCheck as CheckCircle2, Loader as Loader2, Mail, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
-import { heroImage } from "@/lib/plix";
+import { heroImage, PROPERTIES, formatINR } from "@/lib/plix";
 import {
   getGuestUser,
   MIN_PASSWORD_LENGTH,
@@ -20,6 +20,14 @@ type Props = {
 
 type Mode = "signin" | "signup";
 type Status = "form" | "check-email" | "done";
+
+// The real lowest base_price across every property, computed from the same
+// data every booking widget reads — not a hand-typed marketing figure. The
+// old hardcoded "₹9,500*" was both stale and wrong (the actual lowest price
+// is Vivenda Chico's, not Casa Marina's), with a dangling asterisk and no
+// footnote anywhere on the page. A correct, unqualified number needs no
+// asterisk.
+const LOWEST_BASE_PRICE = Math.min(...PROPERTIES.map((p) => p.base_price));
 
 export function AuthModal({ open, onClose, onSuccess }: Props) {
   const [mode, setMode] = useState<Mode>("signin");
@@ -137,7 +145,7 @@ export function AuthModal({ open, onClose, onSuccess }: Props) {
               Book a Villa. Enjoy A Luxury Getaway
             </h2>
             <span className="mt-5 inline-block rounded-full border border-white/30 bg-white/10 px-4 py-2 text-xs font-semibold backdrop-blur-sm">
-              Villas Starting at ₹9,500*
+              Villas Starting at {formatINR(LOWEST_BASE_PRICE)}
             </span>
           </div>
         </div>

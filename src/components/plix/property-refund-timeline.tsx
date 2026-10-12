@@ -10,7 +10,7 @@ const TIERS = [
     color: "text-emerald-600",
     ring: "ring-emerald-200",
     bg: "bg-emerald-50",
-    label: "Full Refund",
+    label: "Full",
     detail: "100% refund",
     window: "30+ days before check-in",
   },

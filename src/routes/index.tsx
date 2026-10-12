@@ -35,14 +35,14 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Book luxury private pool villas in Vagator, Anjuna, Assagao and Morjim direct with The Plix. Real photos, local hosts, quick WhatsApp replies.",
+          "Book luxury private pool villas in Vagator, Anjuna, Assagao, Morjim and Candolim direct with The Plix. Real photos, local hosts, quick WhatsApp replies.",
       },
-      { name: "robots", content: "index, follow, max-image-preview:large" },
+      { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1" },
       { property: "og:title", content: "Private Pool Villas in North Goa – The Plix Goa" },
       {
         property: "og:description",
         content:
-          "Book luxury private pool villas in Vagator, Anjuna, Assagao and Morjim direct with The Plix. Real photos, local hosts, quick WhatsApp replies.",
+          "Book luxury private pool villas in Vagator, Anjuna, Assagao, Morjim and Candolim direct with The Plix. Real photos, local hosts, quick WhatsApp replies.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: canonicalUrl("/") },
@@ -53,7 +53,7 @@ export const Route = createFileRoute("/")({
       {
         name: "twitter:description",
         content:
-          "Book luxury private pool villas in Vagator, Anjuna, Assagao and Morjim direct with The Plix. Real photos, local hosts, quick WhatsApp replies.",
+          "Book luxury private pool villas in Vagator, Anjuna, Assagao, Morjim and Candolim direct with The Plix. Real photos, local hosts, quick WhatsApp replies.",
       },
       { name: "twitter:image", content: `${SITE_URL}/og-home.jpg` },
     ],
@@ -76,7 +76,7 @@ export const Route = createFileRoute("/")({
             { q: "Do you charge any booking or platform fees?", a: "No. Booking direct with The Plix Goa means you pay the nightly rate plus applicable taxes — nothing else." },
             { q: "Is the entire villa private to my group?", a: "Yes. Every Plix stay is booked as a whole property, so the pool, kitchen and garden are exclusively yours." },
             { q: "Are pets allowed?", a: "Selected villas including Morjim Pride are pet friendly. Look for the 'Pet Friendly' tag on the property card." },
-            { q: "What is the cancellation policy?", a: "Free cancellation up to 14 days before check-in with a full refund. Within 14 days we offer a credit for a future stay." },
+            { q: "What is the cancellation policy?", a: "Cancellations made 30+ days before check-in receive a 100% refund, 15–29 days before receive 50%, 7–14 days before receive 25%, and cancellations made less than 7 days before check-in are non-refundable." },
           ]),
         ),
       },
@@ -140,7 +140,7 @@ const faqs = [
   },
   {
     q: "What is the cancellation policy?",
-    a: "Free cancellation up to 14 days before check-in with a full refund. Within 14 days we offer a credit for a future stay.",
+    a: "Cancellations made 30+ days before check-in receive a 100% refund, 15–29 days before receive 50%, 7–14 days before receive 25%, and cancellations made less than 7 days before check-in are non-refundable.",
   },
 ];
 

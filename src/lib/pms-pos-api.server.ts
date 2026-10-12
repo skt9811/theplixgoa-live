@@ -1099,9 +1099,14 @@ async function reports(url: URL, actor: Actor, sql: Sql) {
           FROM pms_pos_orders o WHERE o.status = 'completed' AND o.property_id = ANY(${slugs}) AND ${sql.unsafe(day("o.settled_at"))} BETWEEN ${from} AND ${to}
           GROUP BY 1, 2 ORDER BY 1 DESC, 2`;
       case "sales_tax":
+        // Discount is post-tax (applied to subtotal+tax at settlement, see
+        // computeTotals' own doc comment) — it no longer reduces what's
+        // taxable, so taxable/tax here are each item's own full amount and
+        // rate, not prorated by discount_amount the way they were under the
+        // old pre-tax model.
         return sql`SELECT ${sql.unsafe(day("o.settled_at"))}::text AS day, i.tax_rate::float AS rate,
-          sum(i.total_price * CASE WHEN o.subtotal > 0 THEN (o.subtotal - o.discount_amount) / o.subtotal ELSE 0 END)::float AS taxable,
-          sum(i.total_price * CASE WHEN o.subtotal > 0 THEN (o.subtotal - o.discount_amount) / o.subtotal ELSE 0 END * i.tax_rate / 100)::float AS tax
+          sum(i.total_price)::float AS taxable,
+          sum(i.total_price * i.tax_rate / 100)::float AS tax
           FROM pms_pos_order_items i JOIN pms_pos_orders o ON o.id = i.order_id
           WHERE o.status = 'completed' AND i.status = 'active' AND o.property_id = ANY(${slugs}) AND ${sql.unsafe(day("o.settled_at"))} BETWEEN ${from} AND ${to}
           GROUP BY 1, 2 ORDER BY 1 DESC, 2`;

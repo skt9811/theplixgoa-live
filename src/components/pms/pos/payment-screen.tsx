@@ -143,6 +143,8 @@ export function PaymentScreen({ property, propertyName, data, onBack, onDone }: 
 
       <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
         {row("SubTotal", inr(o.subtotal))}
+        {row("Tax", inr(o.tax_amount))}
+        {row("Total (Inc. Tax)", inr(round2(o.subtotal + o.tax_amount)))}
         <div className="flex items-center justify-between py-1.5 text-sm">
           <button type="button" onClick={() => setDiscountOpen((v) => !v)} className="flex items-center gap-1 text-slate-600">
             <Tag className="size-3.5" aria-hidden />
@@ -179,8 +181,6 @@ export function PaymentScreen({ property, propertyName, data, onBack, onDone }: 
           </div>
         )}
         {o.other_charges > 0 && row("Other charges", inr(o.other_charges))}
-        {row("Taxable Amount", inr(o.subtotal - o.discount_amount))}
-        {row("Tax", inr(o.tax_amount))}
         {roundOff !== 0 && row("Round off", `${roundOff > 0 ? "+" : ""}${roundOff.toFixed(2)}`)}
         <div className="my-1 border-t border-dashed border-slate-200" />
         {row("Payment", inr(total), true)}

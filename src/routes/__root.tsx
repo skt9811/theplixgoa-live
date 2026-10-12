@@ -21,7 +21,13 @@ import { CookieNotice } from "@/components/plix/cookie-notice";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { SITE_NAME, websiteJsonLd, jsonLdScript } from "@/lib/seo";
-import { GA4_MEASUREMENT_ID, CLARITY_PROJECT_ID, captureUtmParams } from "@/lib/gtag";
+import {
+  GA4_MEASUREMENT_ID,
+  CLARITY_PROJECT_ID,
+  captureUtmParams,
+  isUntrackedPath,
+  trackPageView,
+} from "@/lib/gtag";
 import { chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
 import {
   hidePortalSplash,
@@ -44,7 +50,21 @@ const PORTAL_AUTO_RESUME_SCRIPT = `(function(){try{var p=window.location.pathnam
 const GOOGLE_FONTS_HREF =
   "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap";
 
+// Vercel Analytics' own route filter — drops every event on a staff/internal
+// path (see isUntrackedPath in gtag.ts) before it's sent.
+function dropUntrackedVercelEvents<T extends { url: string }>(event: T): T | null {
+  try {
+    return isUntrackedPath(new URL(event.url).pathname) ? null : event;
+  } catch {
+    return event;
+  }
+}
+
+let clarityLoaded = false;
+
 function loadDeferredAnalytics() {
+  if (clarityLoaded) return;
+  clarityLoaded = true;
   const inlineScript = document.createElement("script");
   inlineScript.textContent = `
     (function(c,l,a,r,i,t,y){
@@ -161,10 +181,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://checkout.razorpay.com" },
     ],
     scripts: [
-      // Google Ads (AW-18001047926, hardcoded in RootShell below) is the
-      // only snippet hardcoded into the static shell. GA4 rides the same
-      // shared gtag/dataLayer (see gtag.ts) once VITE_GA4_ID is set —
-      // RootShell below, not here, since it also needs isInternalRoute.
+      // Google Ads (AW-18001047926) and GA4 (GA4_MEASUREMENT_ID) are both
+      // hardcoded into the static shell by RootShell below, not here, since
+      // they also need isInternalRoute.
       // WebSite (sitelinks search box) only, globally — this is safe to
       // repeat on every page since it isn't a business entity Google could
       // confuse with a page's own primary schema. The brand LodgingBusiness
@@ -213,16 +232,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  // Staff/internal traffic (PMS, the partner portal, the admin dashboard)
-  // must never reach the Google Ads tag: it's a marketing measurement/
-  // remarketing surface for the public site and booking funnel, and a
-  // logged-in team member reloading /pms all day would otherwise register as
-  // repeat "visits" polluting that account's real traffic and conversion
-  // data. Checked by pathname (not an auth check) since staff-only content
-  // only ever lives under these three prefixes — nothing gated further in.
+  // Staff/internal traffic (PMS, the partner portal, the admin dashboard,
+  // the guest account area) must never reach Google Ads or GA4: they
+  // measure the public site and booking funnel, and a logged-in team member
+  // reloading /pms all day would otherwise register as repeat "visits"
+  // polluting real traffic and conversion data. See isUntrackedPath.
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isInternalRoute =
-    pathname.startsWith("/pms") || pathname.startsWith("/portal") || pathname.startsWith("/admin");
+  const isInternalRoute = isUntrackedPath(pathname);
   return (
     <html lang="en-IN">
       <head>
@@ -234,8 +250,7 @@ function RootShell({ children }: { children: ReactNode }) {
             is the actual flash-prevention requirement — see the comment on
             PORTAL_AUTO_RESUME_SCRIPT above. */}
         <script dangerouslySetInnerHTML={{ __html: PORTAL_AUTO_RESUME_SCRIPT }} />
-        {/* Google Ads Tag — the ONLY tracking snippet on the site (GA4 was
-            removed entirely). Hardcoded directly in the static shell, not
+        {/* Google Ads + GA4 tags (one shared gtag.js). Hardcoded directly in the static shell, not
             via the dynamic head() scripts config below, so it's present on
             the raw response body of every GET request independent of the
             per-route head-config mechanism — except on internal routes,
@@ -249,16 +264,17 @@ function RootShell({ children }: { children: ReactNode }) {
                 call so gtag.js (loading async above) picks it up from its
                 first read of dataLayer — both storage types start denied
                 until CookieNotice calls gtag('consent','update', ...).
-                GA4's own config call is appended here (same shared script,
-                zero extra network request) only once a real measurement ID
-                is supplied — see gtag.ts for why it's blank today. */}
+                GA4's config disables its automatic page_view: RootComponent
+                sends one per route (including the first) via trackPageView,
+                so client-side navigations are counted exactly once. */}
             <script
               dangerouslySetInnerHTML={{
                 __html: `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('consent', 'default', { ad_storage: 'denied', analytics_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', wait_for_update: 500 });
 gtag('js', new Date());
-gtag('config', 'AW-18001047926');${GA4_MEASUREMENT_ID ? `\ngtag('config', '${GA4_MEASUREMENT_ID}');` : ""}`,
+gtag('config', 'AW-18001047926');
+gtag('config', '${GA4_MEASUREMENT_ID}', { send_page_view: false });`,
               }}
             />
           </>
@@ -288,6 +304,8 @@ function RootComponent() {
       s.location.pathname.startsWith("/portal") || s.location.pathname.startsWith("/pms"),
   });
   const isPmsRoute = useRouterState({ select: (s) => s.location.pathname.startsWith("/pms") });
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isUntracked = isUntrackedPath(pathname);
 
   // Same "which screen is really correct" signal hidePortalSplash/hidePmsSplash
   // already fire from every entry route — reused here (rather than a fresh
@@ -304,14 +322,24 @@ function RootComponent() {
     () => false,
   );
 
+  // Clarity: public routes only, loaded once (a later hop onto a public
+  // route still loads it if the session started on an internal one).
   useEffect(() => {
+    if (isUntracked) return;
     if (document.readyState === "complete") {
       loadDeferredAnalytics();
       return;
     }
     window.addEventListener("load", loadDeferredAnalytics, { once: true });
     return () => window.removeEventListener("load", loadDeferredAnalytics);
-  }, []);
+  }, [isUntracked]);
+
+  // GA4 page_view on the first render and every client-side route change
+  // (the inline config sets send_page_view: false). trackPageView itself
+  // no-ops on internal routes.
+  useEffect(() => {
+    trackPageView(pathname, window.location.search);
+  }, [pathname]);
 
   // Captures utm_* params from the landing URL once, so funnel events and
   // (eventually) the booking record can attribute the session correctly even
@@ -393,7 +421,7 @@ function RootComponent() {
         <BrandSplashScreen ready={isPmsRoute ? pmsSplashReady : portalSplashReady} />
         <Toaster position="top-center" richColors />
         <SpeedInsights />
-        <Analytics />
+        <Analytics beforeSend={dropUntrackedVercelEvents} />
       </QueryClientProvider>
     );
   }
@@ -411,7 +439,7 @@ function RootComponent() {
       <Toaster position="top-center" richColors />
       <CookieNotice />
       <SpeedInsights />
-      <Analytics />
+      <Analytics beforeSend={dropUntrackedVercelEvents} />
     </QueryClientProvider>
   );
 }

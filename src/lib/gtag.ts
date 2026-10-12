@@ -1,7 +1,7 @@
-// gtag.js itself is loaded globally in src/routes/__root.tsx — Google Ads
-// (AW-18001047926) always; GA4 alongside it, through the exact same
-// gtag/dataLayer (one script, a second `gtag('config', ...)` call — not a
-// second tracking system), once VITE_GA4_ID is set. This is the one home
+// gtag.js itself is loaded in src/routes/__root.tsx on every public route —
+// Google Ads (AW-18001047926) and GA4 (GA4_MEASUREMENT_ID below) through the
+// exact same gtag/dataLayer (one script, a second `gtag('config', ...)` call
+// — not a second tracking system). This is the one home
 // for every helper that fires an event against either tag, or tags the
 // Clarity session recording, from anywhere in the app — most importantly
 // the booking funnel (property page → checkout → booking-success).
@@ -23,22 +23,51 @@ declare global {
 export const GOOGLE_ADS_ACCOUNT_ID = "AW-18001047926";
 
 /** The GA4 property's own Measurement ID (GA4 Admin → Data Streams → your
- * stream → "Measurement ID", looks like "G-XXXXXXXXXX"). Reads VITE_GA4_ID
- * first (the name this engagement standardized on), falling back to the
- * older VITE_GA_MEASUREMENT_ID (no "4") that was already set in .env.local/
- * Vercel — a leftover from the GA4 setup __root.tsx's own history says was
- * "removed entirely" at some point, carrying a real value this whole time
- * while unused. Confirmed real (non-empty) in .env.local; still worth
- * confirming with whoever set it that it's the intended property before
- * relying on it long-term. Unset (both names) means GA4 simply isn't
- * configured — __root.tsx skips the `gtag('config', ...)` call for it
- * entirely, same graceful-degradation pattern this codebase already uses
- * for every other optional integration (RESEND_API_KEY, VITE_FCM_CONFIGURED,
- * ...). */
-export const GA4_MEASUREMENT_ID =
-  (import.meta.env["VITE_GA4_ID"] as string | undefined) ||
-  (import.meta.env["VITE_GA_MEASUREMENT_ID"] as string | undefined) ||
-  "";
+ * stream → "Measurement ID"). Reads VITE_GA4_ID first, then the older
+ * VITE_GA_MEASUREMENT_ID, then falls back to the real, public property ID
+ * hardcoded below — so GA4 can never silently go dark just because an env
+ * var is missing. An env value that isn't shaped like a GA4 ID ("G-…") is
+ * ignored rather than trusted: .env.local's VITE_GA_MEASUREMENT_ID has held
+ * a non-GA4 value, which would otherwise override the real ID and send
+ * every hit nowhere. */
+const GA4_FALLBACK_MEASUREMENT_ID = "G-98T2N1CNMW";
+
+function validGa4Id(value: unknown): string | undefined {
+  return typeof value === "string" && /^G-[A-Z0-9]+$/.test(value.trim()) ? value.trim() : undefined;
+}
+
+export const GA4_MEASUREMENT_ID: string =
+  validGa4Id(import.meta.env["VITE_GA4_ID"]) ??
+  validGa4Id(import.meta.env["VITE_GA_MEASUREMENT_ID"]) ??
+  GA4_FALLBACK_MEASUREMENT_ID;
+
+/** Staff/internal sections (PMS, partner portal, admin dashboard, the
+ * signed-in guest account area). None of GA4, Google Ads, Clarity or
+ * Vercel Analytics may track these — see RootShell in __root.tsx. Checked
+ * by pathname, not auth, since this content only ever lives under these
+ * prefixes. */
+const UNTRACKED_PATH_PREFIXES = ["/pms", "/portal", "/admin", "/account"] as const;
+
+export function isUntrackedPath(pathname: string): boolean {
+  return UNTRACKED_PATH_PREFIXES.some((p) => pathname.startsWith(p));
+}
+
+/**
+ * Sends a GA4 page_view for a client-side route change. The inline gtag
+ * config in __root.tsx sets send_page_view: false, so every page_view —
+ * including the first — comes from here, exactly once per path. No-ops on
+ * untracked paths: gtag.js stays loaded after a client-side hop from a
+ * public page into /pms etc., so this check is what keeps those out.
+ */
+export function trackPageView(pathname: string, search = ""): void {
+  if (typeof window === "undefined" || typeof window.gtag !== "function") return;
+  if (isUntrackedPath(pathname)) return;
+  window.gtag("event", "page_view", {
+    send_to: GA4_MEASUREMENT_ID,
+    page_path: pathname + search,
+    page_location: window.location.href,
+  });
+}
 
 /** Clarity was already live before any of this GA4/funnel work (see
  * __root.tsx's loadDeferredAnalytics), hardcoded to project id
@@ -221,8 +250,8 @@ function markPurchaseConversionFired(bookingId: string): void {
 /**
  * Fires the Google Ads "Purchase" conversion (if
  * GOOGLE_ADS_PURCHASE_CONVERSION_LABEL is configured) and the GA4
- * `purchase` funnel event (always, via trackFunnelEvent — GA4 itself still
- * only receives it once VITE_GA4_ID is set), exactly once per bookingId.
+ * `purchase` funnel event (always, via trackFunnelEvent), exactly once per
+ * bookingId.
  * Safe to call unconditionally on every mount of the booking-success page,
  * including a reload or revisit of the same URL — see the dedup helpers
  * above. Call this instead of trackConversion directly for a purchase.

@@ -70,7 +70,7 @@ const CANONICAL_PROPERTY_OVERRIDES: Record<string, Partial<Property>> = {
   "casa-moana": {
     name: "Casa Moana",
     location: "Anjuna",
-    tagline: "ANJUNA / VAGATOR, NORTH GOA • 4 BHK PRIVATE POOL VILLA",
+    tagline: "ANJUNA, NORTH GOA • 4 BHK PRIVATE POOL VILLA",
     bedrooms: 4,
     bathrooms: 4,
     max_guests: 8,

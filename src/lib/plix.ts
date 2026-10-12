@@ -946,12 +946,12 @@ export const PROPERTIES: Property[] = [
     region: "North Goa",
     tagline: "ANJUNA, NORTH GOA • 3 BHK BOUTIQUE POOL VILLA",
     description:
-      "Contemporary sanctuary for intimate escapes. Casa Marina is an elegant 3 BHK private pool villa in Vagator for up to 6 guests, combining modern aesthetics with cozy privacy. Featuring bespoke interior design, floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes, it offers a tranquil garden setting minutes from Anjuna and Vagator beaches. Each of the three bathrooms carries the same attention to detail as the living spaces, and the villa's elevated position affords genuinely panoramic views across the surrounding greenery. Anjuna's famous flea market is just a six-minute drive away, making it easy to spend a morning browsing stalls before returning to the pool.",
+      "Contemporary sanctuary for intimate escapes. Casa Marina is an elegant 3 BHK private pool villa in Anjuna for up to 6 guests, combining modern aesthetics with cozy privacy. Featuring bespoke interior design, floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes, it offers a tranquil garden setting minutes from Anjuna and Vagator beaches. Each of the three bathrooms carries the same attention to detail as the living spaces, and the villa's elevated position affords genuinely panoramic views across the surrounding greenery. Anjuna's famous flea market is just a six-minute drive away, making it easy to spend a morning browsing stalls before returning to the pool.",
     // B2 resolved: Anjuna, confirmed by the business.
     seo_title: "Casa Marina, Anjuna Goa – 3BHK Pool Villa | The Plix",
     seo_description:
       "Casa Marina, Anjuna Goa — official site, book direct. 3 BHK, sleeps 6, private pool. From ₹9,500/night. Real photos & guest reviews before you book.",
-    seo_keywords: ["3 BHK Villa Vagator", "Boutique Pool Villa Goa", "Private Pool Villa Vagator", "Couple Friendly Villa North Goa", "Luxury Holiday Home Anjuna"],
+    seo_keywords: ["3 BHK Villa Anjuna", "Boutique Pool Villa Goa", "Private Pool Villa Anjuna", "Couple Friendly Villa North Goa", "Luxury Holiday Home Anjuna"],
     enclave: "Marina Villas by The Plix",
     bedrooms: 3,
     bathrooms: 3,
@@ -1031,7 +1031,7 @@ export const PROPERTIES: Property[] = [
     name: "Casa Moana",
     location: "Anjuna",
     region: "North Goa",
-    tagline: "ANJUNA / VAGATOR, NORTH GOA • 4 BHK PRIVATE POOL VILLA",
+    tagline: "ANJUNA, NORTH GOA • 4 BHK PRIVATE POOL VILLA",
     description:
       "Contemporary sanctuary for intimate escapes and large groups. Casa Moana is a refined 4 BHK private pool villa featuring floor-to-ceiling glass doors, a personal pool courtyard, and tropical landscapes. Accommodating up to 8 guests near Anjuna and Vagator beaches, it offers panoramic pool views, premium luxury amenities, and a fully private garden setting perfect for family reunions and group celebrations. All four bedrooms come with air conditioning, and a backup power supply keeps the villa running smoothly through Goa's occasional monsoon outages. Ozran Beach — one of North Goa's most scenic viewpoints — is a short 16-minute drive, alongside the more well-known Anjuna and Vagator stretches.",
     seo_title: "Casa Moana, Anjuna Goa – 4BHK Pool Villa | The Plix",
@@ -1127,7 +1127,7 @@ export const PROPERTIES: Property[] = [
     seo_title: "Casa Meadows, Anjuna Goa – 5BHK Pool Villa | The Plix",
     seo_description:
       "Casa Meadows, Anjuna Goa — official site, book direct. 5 BHK, sleeps 10, private pool. From ₹15,000/night. Real photos & guest reviews before you book.",
-    seo_keywords: ["5 BHK Villa Vagator", "Large Group Villa Goa", "Grand Pool Villa North Goa", "Wedding Villa Anjuna", "Luxury Villa with Lawn Goa"],
+    seo_keywords: ["5 BHK Villa Anjuna", "Large Group Villa Goa", "Grand Pool Villa North Goa", "Wedding Villa Anjuna", "Luxury Villa with Lawn Goa"],
     enclave: "Marina Villas by The Plix",
     bedrooms: 5,
     bathrooms: 5,
@@ -1737,11 +1737,11 @@ export const PROPERTIES: Property[] = [
     region: "North Goa",
     tagline: "VAGATOR, NORTH GOA • 3 BHK PRIVATE POOL VILLA",
     description:
-      "Welcome to our cozy and stylish villa in the heart of Goa, nestled in a vibrant and lively new society in Arpora. Located in the picturesque area of Arpora, just a stone's throw away from the charming local church, our abode offers the perfect retreat for your North Goa adventure. As you step into our home, you'll be greeted by a serene ambiance that truly reflects the essence of Goa. The living room boasts a delightful blue sofa set, and the walls are adorned with captivating photographs of Goa, allowing you to soak in the local culture and beauty.",
+      "Welcome to our cozy and stylish villa in Vagator, North Goa, nestled in a vibrant and lively new residential society. Our home offers the perfect retreat for your North Goa adventure. As you step into our home, you'll be greeted by a serene ambiance that truly reflects the essence of Goa. The living room boasts a delightful blue sofa set, and the walls are adorned with captivating photographs of Goa, allowing you to soak in the local culture and beauty.",
     seo_title: "Casa Serenita, Vagator Goa – 3BHK Pool Villa | The Plix",
     seo_description:
       "Casa Serenita, Vagator Goa — official site, book direct. 3 BHK, sleeps 9, private pool. From ₹10,000/night. Real photos & guest reviews before you book.",
-    seo_keywords: ["3 BHK Villa Arpora", "Private Pool Villa Anjuna", "Villa near Anjuna Church", "North Goa Private Villa", "Family Villa Goa"],
+    seo_keywords: ["3 BHK Villa Vagator", "Private Pool Villa Vagator", "Villa near Vagator Beach", "North Goa Private Villa", "Family Villa Goa"],
     enclave: null,
     bedrooms: 3,
     bathrooms: 3,

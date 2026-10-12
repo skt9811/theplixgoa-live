@@ -4,7 +4,7 @@
 
 ## Entity
 
-The Plix (Plix Hospitality Private Limited) is a hospitality brand offering handpicked luxury villas and boutique stays across North Goa. Every property is booked as a whole-unit private sanctuary — the pool, kitchen, and garden are exclusively yours.
+The Plix (Plix Hospitality Private Limited) is a hospitality brand offering handpicked villas, boutique resorts and a heritage bungalow across North Goa. The villas are booked as whole homes with an exclusive-use private pool; the three resorts (Harbor Court, Morjim Pride, The Plix Resort - Morjim) are booked by the room and have a shared swimming pool.
 
 Also searched as: The Plix Goa, Plix Goa, Plex Goa, Plix Hospitality.
 
@@ -14,27 +14,29 @@ Vagator, Morjim, Anjuna, Candolim, Assagao.
 
 ## Properties
 
+Names are as shown on each property's page. Pool labels match the site: "Private pool" is exclusive to your booking; "Swimming Pool (shared)" is shared by all guests at that resort.
+
 ### Marina Villas by The Plix (Anjuna enclave — 3 private-pool villas, one shared Google Business Profile)
 
-- **Casa Marina** — https://theplixgoa.com/properties/casa-marina — 3 BHK boutique pool villa in Anjuna, up to 6 guests. Private pool courtyard. Also searched as: Marina Villas by The Plix, Casa Marina Goa.
-- **Casa Moana** — https://theplixgoa.com/properties/casa-moana — 4 BHK private pool villa in Anjuna, up to 8 guests. Floor-to-ceiling glass, panoramic pool views. Also searched as: Casa Moyon, Moana Casa, Casa Moana Goa.
-- **Casa Meadows** — https://theplixgoa.com/properties/casa-meadows — 5 BHK grand pool villa in Anjuna, up to 10 guests. Valley views, wide lawns, concierge service. Also searched as: Casa Meadows Goa.
+- **Casa Marina** — https://theplixgoa.com/properties/casa-marina — 3 BHK villa in Anjuna, up to 6 guests. Pool: Private pool. 8 mins drive to Anjuna Beach. Also searched as: Marina Villas by The Plix, Casa Marina Goa.
+- **Casa Moana** — https://theplixgoa.com/properties/casa-moana — 4 BHK villa in Anjuna, up to 8 guests. Pool: Private pool. 10 mins drive to Anjuna Beach. Also searched as: Casa Moyon, Moana Casa, Casa Moana Goa.
+- **Casa Meadows** — https://theplixgoa.com/properties/casa-meadows — 5 BHK villa in Anjuna, up to 10 guests. Pool: Private pool. 8 mins drive to Anjuna Beach. Also searched as: Casa Meadows Goa.
 
 ### Other Properties
 
-- **Harbor Court** — https://theplixgoa.com/properties/harbor-court — 10-room boutique resort in Vagator, up to 20 guests. Shared pool, on-site restaurant, minutes from Vagator Beach. Data name: "Harbor Court - Boutique Resort Vagator". Also searched as: Harbour Court, Harbor Court Vagator.
-- **The Plix Villa** — https://theplixgoa.com/properties/the-plix-villa — 3 BHK private pool villa in Assagao, up to 6 guests. Full-time caretaker, landscaped gardens. Also searched as: The Plix Villa Goa.
-- **Morjim Pride** — https://theplixgoa.com/properties/morjim-pride — 22-room beachfront resort in Morjim, up to 50 guests. Steps from Morjim Beach, shared pool, on-site dining. Also searched as: Morjim Pride Goa.
-- **Vivenda Chico** — https://theplixgoa.com/properties/vivenda-chico — 8-room heritage bungalow in Candolim, up to 24 guests when booked as the entire property (individual rooms also bookable). Private pool, sprawling lawns, wedding-friendly. Data name: "Vivenda Chico - 8 BHK Heritage Bungalow". Also searched as: Chico, Chico Estate, Vivenda Chico Goa.
-- **The Plix Resort - Morjim** — https://theplixgoa.com/properties/the-plix-resort-morjim — 10-room resort in Morjim, up to 30 guests. Shared pool. Also searched as: The Plix Resort, Plix Resort, Plex Resort, Plex Resort Goa.
-- **Villa Madera** — https://theplixgoa.com/properties/villa-madera — 3 BHK wooden-architecture villa in Anjuna, up to 9 guests. Private pool, open lawn. Also searched as: Villa Madera Goa.
-- **Casa Serenita** — https://theplixgoa.com/properties/casa-serenita — 3 BHK private pool villa in Vagator, up to 9 guests. Tropical garden, dedicated staff. Also searched as: Casa Serenita Goa.
+- **Harbor Court** — https://theplixgoa.com/properties/harbor-court — 10-room resort in Vagator, up to 20 guests. Pool: Swimming Pool (shared). 4 mins drive to Vagator Beach. Also searched as: Harbor Court - Boutique Resort Vagator, Harbour Court, Harbor Court Vagator.
+- **The Plix Villa** — https://theplixgoa.com/properties/the-plix-villa — 3 BHK villa in Assagao, up to 6 guests. Pool: Private pool. 10 mins drive to Vagator Beach. Also searched as: The Plix Villa - 3 BHK Luxury Private Pool Villa, The Plix Villa Goa.
+- **Morjim Pride** — https://theplixgoa.com/properties/morjim-pride — 22-room resort in Morjim, up to 50 guests. Pool: Swimming Pool (shared). 2 mins walk to Morjim Beach. Also searched as: Morjim Pride Goa.
+- **Vivenda Chico - 8 BHK Heritage Bungalow** — https://theplixgoa.com/properties/vivenda-chico — 8-bedroom heritage bungalow (book a room, up to 3 guests each, or the whole bungalow) in Candolim, up to 24 guests. Pool: Private pool (when booking the whole bungalow). 6 mins drive to Candolim Beach. Also searched as: Vivenda Chico, Chico, Chico Estate, Vivenda Chico Goa.
+- **The Plix Resort - Morjim** — https://theplixgoa.com/properties/the-plix-resort-morjim — 10-room resort in Morjim, up to 30 guests. Pool: Swimming Pool (shared). 2 mins walk to Morjim Beach. Also searched as: The Plix Resort, Plix Resort, Plex Resort, Plex Resort Goa.
+- **Villa Madera** — https://theplixgoa.com/properties/villa-madera — 3 BHK villa in Anjuna, up to 9 guests. Pool: Private pool. 10 mins drive to Anjuna Beach. Also searched as: Villa Madera Goa.
+- **Casa Serenita** — https://theplixgoa.com/properties/casa-serenita — 3 BHK villa in Vagator, up to 9 guests. Pool: Private pool. 12 mins drive to Anjuna Beach. Also searched as: Casa Serenita Goa.
 
 ## Core Amenities
 
-- Private-pool villas and boutique resorts — villa-style properties have an exclusive-use private pool; resort-style properties (Harbor Court, Morjim Pride, The Plix Resort - Morjim) have a shared pool when booked by individual room.
-- Expansive lawns and landscaped gardens at every property.
-- Dedicated on-site caretaker at every property.
+- Pools: the six villas (Casa Marina, Casa Moana, Casa Meadows, The Plix Villa, Villa Madera, Casa Serenita) have a private pool. Harbor Court, Morjim Pride and The Plix Resort - Morjim have a shared swimming pool. Vivenda Chico's pool is private when the whole bungalow is booked and shared when rooms are booked individually.
+- Gardens or lawns at most properties.
+- A caretaker or on-site staff at every property.
 - High-speed Wi-Fi and power backup at most, but not all, properties — check the specific villa's amenities for confirmation.
 - Chef-on-request — a private chef or home-cooked Goan spread can be arranged via the caretaker.
 
@@ -65,8 +67,8 @@ Standard check-in is from 02:00 PM; check-out is by 11:00 AM.
 ## Common Questions
 
 Q: What is the largest group The Plix can host?
-A: Morjim Pride accommodates up to 50 guests; Vivenda Chico up to 24 guests across 8 rooms —
-   both bookable by individual room or as the entire property.
+A: Morjim Pride accommodates up to 50 guests across 22 rooms; Vivenda Chico up to 24 guests
+   across 8 rooms, bookable by the room or as the whole bungalow.
 
 Q: How much do guests save booking direct vs. an OTA?
 A: theplixgoa.com carries zero OTA commission markup — guests pay the same nightly rate the
@@ -81,6 +83,6 @@ A: A tiered refund policy: 100% refund 30+ days before check-in, 50% refund 15-2
    before, 25% refund 7-14 days before, and non-refundable inside 7 days.
 
 Q: Does every property have a private pool?
-A: Villa-style properties have an exclusive-use private pool. Resort-style properties
-   (Harbor Court, Morjim Pride, The Plix Resort - Morjim) have a shared pool when booked
-   by individual room, or exclusive use when the entire property is booked.
+A: No. The six villas have a private pool. Harbor Court, Morjim Pride and The Plix Resort -
+   Morjim have a shared swimming pool. Vivenda Chico's pool is private when you book the whole
+   bungalow and shared when rooms are booked individually.

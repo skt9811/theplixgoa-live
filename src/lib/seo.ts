@@ -412,6 +412,19 @@ export function propertySearchVariantSentence(p: Property): string | undefined {
   return `Also searched as ${list}.`;
 }
 
+// Owner-confirmed: these properties' pools are shared by every room and
+// booking, never exclusive-use. Whatever pool tag the DB row or plix.ts
+// carries is displayed as SHARED_POOL_TAG (see normalizeSharedPoolTags,
+// applied to every property list in properties-data.ts).
+export const SHARED_POOL_SLUGS: ReadonlySet<string> = new Set(["harbor-court"]);
+export const SHARED_POOL_TAG = "Swimming Pool (shared)";
+
+export function normalizeSharedPoolTags<T extends { slug: string; amenity_tags: string[] }>(p: T): T {
+  if (!SHARED_POOL_SLUGS.has(p.slug)) return p;
+  const tags = p.amenity_tags.map((t) => (/pool/i.test(t) ? SHARED_POOL_TAG : t));
+  return { ...p, amenity_tags: Array.from(new Set(tags)) };
+}
+
 // "private pool" only where amenity_tags says so explicitly, except The Plix
 // Villa: its own name ("...Luxury Private Pool Villa") and description both
 // independently assert a private pool, while its amenity_tags still says
@@ -421,6 +434,7 @@ export function propertySearchVariantSentence(p: Property): string | undefined {
 // pool" vs "no pool" wherever that fact is shown — the key facts strip,
 // this intro paragraph, and nowhere else should each independently guess.
 export function poolWord(p: Property): string {
+  if (SHARED_POOL_SLUGS.has(p.slug)) return "shared swimming pool";
   if (p.amenity_tags.includes("Private Pool") || p.slug === "the-plix-villa") return "private pool";
   if (p.amenity_tags.some((t) => t.toLowerCase().includes("pool"))) return "pool";
   return "";

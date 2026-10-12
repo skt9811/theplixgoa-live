@@ -1,5 +1,5 @@
 import type { Property } from "@/lib/plix";
-import { poolWord } from "@/lib/seo";
+import { poolWord, SHARED_POOL_TAG } from "@/lib/seo";
 
 type Props = {
   property: Property;
@@ -12,7 +12,7 @@ type Props = {
 // (and answer engines) actually ask about — falls back to whatever's
 // genuinely first in the property's own list so this never renders empty
 // for a property that has none of these specific tags.
-const PRIORITY_AMENITIES = ["Private Pool", "Outdoor Swimming Pool", "Swimming Pool", "Lawn", "Power Backup", "Caretaker"];
+const PRIORITY_AMENITIES = ["Private Pool", SHARED_POOL_TAG, "Outdoor Swimming Pool", "Swimming Pool", "Lawn", "Power Backup", "Caretaker"];
 
 function primaryAmenities(tags: string[]): string[] {
   const preferred = PRIORITY_AMENITIES.filter((p) => tags.some((t) => t.toLowerCase() === p.toLowerCase()));

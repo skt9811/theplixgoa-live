@@ -4,13 +4,14 @@ import { useState } from "react";
 import { formatINR, resolveImages, type Property } from "@/lib/plix";
 import { isMultiRoomProperty } from "@/lib/rates";
 import { SmartImage } from "@/components/plix/smart-image";
+import { SHARED_POOL_SLUGS, SHARED_POOL_TAG } from "@/lib/seo";
 
 function propertyCardSubtitle(p: Property): string {
   const beds = p.bedrooms <= 6 ? `${p.bedrooms} BHK` : `${p.bedrooms} Bedroom`;
   const hasPool = p.amenity_tags.some((t) => t.toLowerCase().includes("pool"));
   const hasCaretaker = p.amenity_tags.some((t) => t.toLowerCase().includes("caretaker") || t.toLowerCase().includes("housekeeping") || t.toLowerCase().includes("service"));
   const parts = [beds];
-  if (hasPool) parts.push("Private Pool");
+  if (hasPool) parts.push(SHARED_POOL_SLUGS.has(p.slug) ? SHARED_POOL_TAG : "Private Pool");
   if (hasCaretaker) parts.push("Full-Time Caretaker");
   parts.push("Minutes to Beach");
   return parts.join(" • ");
@@ -61,7 +62,7 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
           <SmartImage
             key={src + i}
             src={src}
-            alt={`${property.name} — ${property.bedrooms} bedroom luxury ${property.bedrooms >= 8 ? "bungalow" : "villa"} in ${property.location}, North Goa${i === 0 ? " with private pool" : ""}`}
+            alt={`${property.name} — ${property.bedrooms} bedroom luxury ${property.bedrooms >= 8 ? "bungalow" : "villa"} in ${property.location}, North Goa${i === 0 ? (SHARED_POOL_SLUGS.has(property.slug) ? " with shared swimming pool" : " with private pool") : ""}`}
             loading="lazy"
             width={1200}
             height={800}

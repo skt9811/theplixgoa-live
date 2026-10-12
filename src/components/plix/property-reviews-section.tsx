@@ -6,6 +6,7 @@ import {
   type ReviewCategory,
 } from "@/lib/property-reviews-data";
 import { OTABadge } from "@/components/plix/platform-mark";
+import { SHARED_POOL_SLUGS } from "@/lib/seo";
 
 type Props = {
   propertyId: string;
@@ -19,6 +20,9 @@ const SORT_OPTIONS = ["Most Popular", "Most Recent"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
 
 const PAGE_SIZE = 4;
+
+const SHARED_POOL_AMENITIES_BLURB =
+  "Spacious, well-maintained rooms and a shared swimming pool guests consistently love.";
 
 const SUMMARY_HIGHLIGHTS: { label: string; blurb: string }[] = [
   {
@@ -194,7 +198,9 @@ export function PropertyReviewsSection({ propertyId, propertyName }: Props) {
           {SUMMARY_HIGHLIGHTS.map((h) => (
             <div key={h.label}>
               <p className="text-xs font-semibold uppercase tracking-wide text-primary">{h.label}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{h.blurb}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {h.label === "Amenities" && SHARED_POOL_SLUGS.has(propertyId) ? SHARED_POOL_AMENITIES_BLURB : h.blurb}
+              </p>
             </div>
           ))}
         </div>

@@ -2,6 +2,7 @@ import { notifyDataChange } from "@/lib/rates";
 import { fetchActivePropertiesServerFn, savePropertyServerFn } from "@/lib/properties-query.server-fn";
 import { fetchRatesForDateServerFn } from "@/lib/rates-query.server-fn";
 import { PROPERTIES, imageMap, type Property } from "@/lib/plix";
+import { normalizeSharedPoolTags } from "@/lib/seo";
 
 type PropertyOverride = {
   id: string;
@@ -80,7 +81,7 @@ const CANONICAL_PROPERTY_OVERRIDES: Record<string, Partial<Property>> = {
 function applyCanonicalOverrides(properties: Property[]): Property[] {
   return properties.map((p) => {
     const pin = CANONICAL_PROPERTY_OVERRIDES[p.slug] ?? CANONICAL_PROPERTY_OVERRIDES[p.id];
-    return pin ? { ...p, ...pin } : p;
+    return normalizeSharedPoolTags(pin ? { ...p, ...pin } : p);
   });
 }
 

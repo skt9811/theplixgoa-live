@@ -1284,7 +1284,8 @@ export const PROPERTIES: Property[] = [
       "Game Room",
       "Beach Facing",
       "Airport/Station Shuttle",
-      "Swimming Pool",
+      // Shared by every room — owner-confirmed; see SHARED_POOL_SLUGS in seo.ts.
+      "Swimming Pool (shared)",
       "Lawn",
       "Laundry",
       "Concierge Desk",

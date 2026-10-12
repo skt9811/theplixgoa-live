@@ -6,6 +6,7 @@
 // this is the same information every visitor to theplixgoa.com already sees
 // rendered into the page.
 import { PROPERTIES, resolveImages, type Property as SiteProperty } from "@/lib/plix";
+import { SHARED_POOL_SLUGS } from "@/lib/seo";
 import { PROPERTY_REVIEWS } from "@/lib/property-reviews-data";
 import { isMultiRoomProperty } from "@/lib/rates";
 import { mobileJson } from "@/lib/mobile-cors.server";
@@ -24,7 +25,9 @@ function absolutizeImage(src: string): string {
 function inferCollections(p: SiteProperty): string[] {
   const haystack = `${p.tagline ?? ""} ${p.description} ${p.amenity_tags.join(" ")}`.toLowerCase();
   const collections: string[] = [];
-  if (p.amenity_tags.some((tag) => tag.toLowerCase().includes("pool"))) collections.push("private-pool-villas");
+  if (!SHARED_POOL_SLUGS.has(p.slug) && p.amenity_tags.some((tag) => tag.toLowerCase().includes("pool"))) {
+    collections.push("private-pool-villas");
+  }
   if (/heritage|portuguese|colonial|restored/.test(haystack)) collections.push("heritage-bungalows");
   if (/beachfront|steps? (from|to) the beach|beach.?front/.test(haystack) || (p.distance_to_beach ?? "").includes("min walk")) {
     collections.push("beachfront-escapes");

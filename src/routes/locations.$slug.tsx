@@ -55,7 +55,7 @@ const SPOTLIGHT_SLUGS: Record<string, string[]> = {
 // Candolim has no entry here and keeps the generic templated title/description below.
 const LOCATION_META: Record<string, { title: string; description: string }> = {
   vagator: {
-    title: "Villas in Vagator, Goa – Private Pool Stays",
+    title: "Villas & Stays in Vagator, Goa – The Plix",
     description:
       "Private villas in Vagator near the beach and clubs. Compare 2 Plix stays by size, pool and price, with a local area guide.",
   },
@@ -137,7 +137,7 @@ export const Route = createFileRoute("/locations/$slug")({
     const title = override?.title ?? `Luxury Villas & Boutique Stays in ${hub.name} | The Plix`;
     const description =
       override?.description ??
-      `${propertyCount} handpicked private-pool villas and boutique stays in ${hub.name}, North Goa. Best price guaranteed, book direct with The Plix.`;
+      `${propertyCount} Plix ${propertyCount === 1 ? "stay" : "stays"} in ${hub.name}, North Goa — real photos, prices and direct booking with The Plix.`;
     const url = `${SITE_URL}/locations/${hub.slug}`;
     // heroImage is a bundled asset path ("/assets/…"), which must be made
     // absolute for og:image/twitter:image.

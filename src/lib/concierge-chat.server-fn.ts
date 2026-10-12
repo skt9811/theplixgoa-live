@@ -104,8 +104,8 @@ function contactCard(property: Property): ConciergeCard {
   return {
     title: "Reach our reservations desk",
     bullets: [
-      `Call us: ${SITE_PHONE_1}`,
-      `or: ${SITE_PHONE_2}`,
+      `Reservations: ${SITE_PHONE_1}`,
+      `Reservations: ${SITE_PHONE_2}`,
       "Our team typically replies within minutes on WhatsApp too — ask about group bookings, custom itineraries, or anything not covered here.",
     ],
     link: { label: "Message us on WhatsApp", href: whatsappLink(property, `Hi! I have a question about ${property.name}.`) },

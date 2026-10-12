@@ -181,14 +181,14 @@ export function SiteFooter() {
                   onClick={() => trackFunnelEvent("click_call", { location: "footer" })}
                   className="w-fit text-navy-foreground/80 transition-colors hover:text-white"
                 >
-                  {phone1}
+                  Reservations: {phone1}
                 </a>
                 <a
                   href={`tel:${phone2}`}
                   onClick={() => trackFunnelEvent("click_call", { location: "footer" })}
                   className="w-fit text-navy-foreground/80 transition-colors hover:text-white"
                 >
-                  {phone2}
+                  Reservations: {phone2}
                 </a>
                 <ObfuscatedEmail className="w-fit text-navy-foreground/80 transition-colors hover:text-white" />
               </address>

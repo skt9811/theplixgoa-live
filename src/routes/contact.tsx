@@ -136,7 +136,7 @@ function Contact() {
               <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                 <Phone className="size-4" aria-hidden />
               </span>
-              {SITE_PHONE_1}
+              Reservations: {SITE_PHONE_1}
             </a>
             <ObfuscatedEmail className="flex items-center gap-3 text-foreground">
               <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">

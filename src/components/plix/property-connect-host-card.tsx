@@ -29,7 +29,7 @@ export function PropertyConnectHostCard({
           className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border px-4 py-2.5 text-xs font-semibold text-navy transition-colors hover:bg-accent"
         >
           <Phone className="size-3.5" aria-hidden />
-          Call Now
+          Call Reservations
         </a>
         <a
           href={whatsappLink(WHATSAPP_NUMBER, `Hi! I'd like to know more about ${propertyName}.`)}

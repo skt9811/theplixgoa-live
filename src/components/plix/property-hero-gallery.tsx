@@ -149,7 +149,7 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
                   location: "hero_gallery",
                 });
               }}
-              aria-label="Call us"
+              aria-label="Call reservations"
               className="flex size-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/75"
             >
               <Phone className="size-4" aria-hidden />

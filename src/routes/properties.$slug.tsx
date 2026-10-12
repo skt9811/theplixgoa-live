@@ -632,7 +632,7 @@ function PropertyDetail() {
             )}
             <p className="mt-1 text-sm text-muted-foreground">
               {property.location}, {property.region}
-              {LOCATION_POSTAL_CODES[property.location] && ` ${LOCATION_POSTAL_CODES[property.location]}`} · Concierge:{" "}
+              {LOCATION_POSTAL_CODES[property.location] && ` ${LOCATION_POSTAL_CODES[property.location]}`} · Reservations:{" "}
               <a
                 href={`tel:${SITE_PHONE_2}`}
                 onClick={() => trackFunnelEvent("click_call", { property_slug: property.slug, location: "concierge_line" })}

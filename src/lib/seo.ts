@@ -240,7 +240,7 @@ export function brandJsonLd() {
     areaServed: ["Vagator", "Anjuna", "Assagao", "Morjim", "Candolim"],
     contactPoint: [
       { "@type": "ContactPoint", telephone: SITE_PHONE_2, contactType: "reservations", areaServed: "IN" },
-      { "@type": "ContactPoint", telephone: SITE_PHONE_1, contactType: "customer service", areaServed: "IN" },
+      { "@type": "ContactPoint", telephone: SITE_PHONE_1, contactType: "reservations", areaServed: "IN" },
     ],
     // YouTube/LinkedIn/Google Business Profile/Airbnb host profile stay out
     // until BRAND_LISTING_LINKS (listing-links.ts) has a real URL for each —

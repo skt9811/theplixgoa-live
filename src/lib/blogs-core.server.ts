@@ -28,10 +28,11 @@ async function getSql() {
   }
 }
 
-export type SitemapBlogRow = { slug: string; published_at: string | Date };
+/** `lastmod` is the post's real last edit (blogs.updated_at), or its publish date if never edited. */
+export type SitemapBlogRow = { slug: string; published_at: string | Date; lastmod: string | Date };
 
 // Sitemap-relevant fields only — buildSitemapXml only reads `.slug` and
-// `.published_at` (for <lastmod>) — matching fetchActivePropertiesFor
+// `.lastmod` (for <lastmod>) — matching fetchActivePropertiesFor
 // Sitemap's own scoped-down field set. Only currently-published posts,
 // same filter blog.ts's fetchBlogs() applies client-side (published_at <= now).
 export async function fetchPublishedBlogSlugsForSitemap(): Promise<SitemapBlogRow[]> {
@@ -39,7 +40,8 @@ export async function fetchPublishedBlogSlugsForSitemap(): Promise<SitemapBlogRo
   if (!sql) return [];
   try {
     return await sql<SitemapBlogRow[]>`
-      SELECT slug, published_at FROM public.blogs WHERE published_at <= now() ORDER BY published_at DESC
+      SELECT slug, published_at, COALESCE(updated_at, published_at) AS lastmod
+      FROM public.blogs WHERE published_at <= now() ORDER BY published_at DESC
     `;
   } catch (err) {
     console.error("[fetchPublishedBlogSlugsForSitemap]:", err instanceof Error ? err.message : err);

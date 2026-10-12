@@ -6,7 +6,7 @@
 import { fetchActivePropertiesForSitemap } from "@/lib/sitemap-properties.server";
 import { PROPERTIES, resolveImages, type Property } from "@/lib/plix";
 import { LOCATION_HUBS } from "@/lib/locations";
-import { fetchPublishedBlogSlugsForSitemap } from "@/lib/blogs-core.server";
+import { fetchPublishedBlogSlugsForSitemap, type SitemapBlogRow } from "@/lib/blogs-core.server";
 import { SITE_URL, absoluteUrl } from "@/lib/seo";
 
 type StaticPage = { path: string; changefreq: string; priority: string };
@@ -50,14 +50,14 @@ function toDateOnly(value: string | Date): string {
   return iso.split("T")[0]!;
 }
 
-function buildSitemapXml(properties: Property[], blogRows: { slug: string; published_at: string | Date }[]): string {
+function buildSitemapXml(properties: Property[], blogRows: SitemapBlogRow[]): string {
   // Properties and location hubs have no per-item "last actually changed"
   // timestamp anywhere in this data model (the static PROPERTIES array and
   // LOCATION_HUBS have no updated_at field, and the DB properties table
   // doesn't track one either) — today's date is the honest value here, not
   // a guessed one, matching the task's own stated fallback for exactly
-  // this case. Blog posts DO have a real date (published_at), so that's
-  // used instead of today's date for those.
+  // this case. Blog posts DO have a real date: blogs.updated_at when the
+  // post has been edited since publishing, else published_at.
   const today = toDateOnly(new Date());
   const staticEntries = STATIC_PAGES.map((p) => urlEntry(`${SITE_URL}${p.path}`, p.changefreq, p.priority, today));
   // Casa Marina / Casa Moana / Casa Meadows paused here: a full MD5 audit
@@ -80,7 +80,7 @@ function buildSitemapXml(properties: Property[], blogRows: { slug: string; publi
   );
   const locationEntries = LOCATION_HUBS.map((l) => urlEntry(`${SITE_URL}/locations/${l.slug}`, "weekly", "0.8", today));
   const blogEntries = blogRows.map((row) =>
-    urlEntry(`${SITE_URL}/blog/${row.slug}`, "monthly", "0.6", toDateOnly(row.published_at)),
+    urlEntry(`${SITE_URL}/blog/${row.slug}`, "monthly", "0.6", toDateOnly(row.lastmod)),
   );
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${[...staticEntries, ...locationEntries, ...propertyEntries, ...blogEntries].join("\n")}\n</urlset>`;
 }

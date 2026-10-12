@@ -6,6 +6,7 @@ import {
   HeadContent,
   Scripts,
   useRouterState,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { pms } from "@/lib/pms-client";
@@ -60,6 +61,17 @@ function dropUntrackedVercelEvents<T extends { url: string }>(event: T): T | nul
   }
 }
 
+// ISO 3166-1 alpha-2 codes where every Consent Mode signal defaults to
+// denied until the visitor accepts: the EU-27, the rest of the EEA
+// (Iceland, Liechtenstein, Norway), the UK and Switzerland.
+// prettier-ignore
+const CONSENT_REQUIRED_REGIONS = [
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE",
+  "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE",
+  "IS", "LI", "NO",
+  "GB", "CH",
+];
+
 let clarityLoaded = false;
 
 function loadDeferredAnalytics() {
@@ -98,7 +110,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
 
   return (
@@ -262,8 +274,12 @@ function RootShell({ children }: { children: ReactNode }) {
             <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18001047926" />
             {/* Consent Mode v2: default must be pushed before any config/event
                 call so gtag.js (loading async above) picks it up from its
-                first read of dataLayer — both storage types start denied
-                until CookieNotice calls gtag('consent','update', ...).
+                first read of dataLayer. Everywhere: analytics granted, all ad
+                signals denied. EEA + GB + CH (CONSENT_REQUIRED_REGIONS): all
+                four denied — gtag applies the region-specific default over
+                the global one regardless of order. CookieNotice's Accept/
+                Decline then calls gtag('consent','update', ...) with all
+                four granted or all four denied.
                 GA4's config disables its automatic page_view: RootComponent
                 sends one per route (including the first) via trackPageView,
                 so client-side navigations are counted exactly once. */}
@@ -271,7 +287,8 @@ function RootShell({ children }: { children: ReactNode }) {
               dangerouslySetInnerHTML={{
                 __html: `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
-gtag('consent', 'default', { ad_storage: 'denied', analytics_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', wait_for_update: 500 });
+gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', region: ${JSON.stringify(CONSENT_REQUIRED_REGIONS)}, wait_for_update: 500 });
+gtag('consent', 'default', { analytics_storage: 'granted', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', wait_for_update: 500 });
 gtag('js', new Date());
 gtag('config', 'AW-18001047926');
 gtag('config', '${GA4_MEASUREMENT_ID}', { send_page_view: false });`,

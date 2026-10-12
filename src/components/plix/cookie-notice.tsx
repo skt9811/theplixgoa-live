@@ -13,9 +13,11 @@ function applyConsent(granted: boolean): void {
 }
 
 /**
- * Simple accept/decline banner backing Consent Mode v2 (default state is set
- * to "denied" inline in __root.tsx, before gtag.js loads, per Google's own
- * requirement that the default fire before any config/event call). A prior
+ * Simple accept/decline banner backing Consent Mode v2. Defaults are set
+ * inline in __root.tsx, before gtag.js loads, per Google's own requirement
+ * that the default fire before any config/event call: analytics granted /
+ * ads denied globally, everything denied in the EEA + GB + CH. Accept grants
+ * all four signals, Decline denies all four. A prior
  * choice is read from localStorage and re-applied silently on every load —
  * the banner itself only ever shows once per browser.
  */

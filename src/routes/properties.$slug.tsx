@@ -60,6 +60,7 @@ import {
   SITE_NAME,
   EDGE_CACHE_CONTROL,
   SITE_PHONE_2,
+  PROPERTY_STREET_ADDRESSES,
   ENCLAVE_ENTITIES,
   LOCATION_POSTAL_CODES,
   canonicalUrl,
@@ -631,6 +632,7 @@ function PropertyDetail() {
               </p>
             )}
             <p className="mt-1 text-sm text-muted-foreground">
+              {PROPERTY_STREET_ADDRESSES[property.slug] && `${PROPERTY_STREET_ADDRESSES[property.slug]}, `}
               {property.location}, {property.region}
               {LOCATION_POSTAL_CODES[property.location] && ` ${LOCATION_POSTAL_CODES[property.location]}`} · Reservations:{" "}
               <a

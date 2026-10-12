@@ -9,7 +9,7 @@ import {
   SITE_URL,
   SITE_NAME,
   SITE_PHONE_1,
-  SITE_ADDRESS,
+  SITE_ADDRESS_LINE,
   canonicalUrl,
   breadcrumbJsonLd,
   jsonLdScript,
@@ -128,7 +128,7 @@ function Contact() {
           <h2 className="mt-3 font-serif text-3xl font-normal text-navy">The Plix Goa</h2>
           <p className="mt-1 text-sm font-medium text-foreground">North Goa, India</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {SITE_ADDRESS.street}, {SITE_ADDRESS.city} {SITE_ADDRESS.postalCode}
+            {SITE_ADDRESS_LINE}
           </p>
 
           <div className="mt-6 grid gap-3 text-sm">
@@ -225,7 +225,7 @@ function Contact() {
             <div className="mt-8 overflow-hidden rounded-2xl border border-border shadow-soft">
               <iframe
                 title="The Plix Goa location — North Goa"
-                src={`https://www.google.com/maps?q=${encodeURIComponent(`${SITE_ADDRESS.street}, ${SITE_ADDRESS.city}, Goa ${SITE_ADDRESS.postalCode}`)}&output=embed`}
+                src={`https://www.google.com/maps?q=${encodeURIComponent(SITE_ADDRESS_LINE)}&output=embed`}
                 width="100%"
                 height="320"
                 loading="lazy"

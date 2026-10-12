@@ -34,7 +34,7 @@ const DEFAULT_CONFIG: SiteConfig = {
   contact_phone1: "+91-9009800809",
   contact_phone2: "+91-9009800895",
   contact_email: "stay@theplixgoa.com",
-  contact_address: "House No. 786, Pintos Vaddo, Candolim, Goa 403515",
+  contact_address: "537/2, 537/3, Coutinho Vaddo, Vagator, Anjuna, Goa 403509",
   whatsapp_number: "919009800809",
   social_facebook: "https://www.facebook.com/theplixgoa",
   social_instagram: "https://www.instagram.com/theplixgoa",

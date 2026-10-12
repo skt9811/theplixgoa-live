@@ -8,6 +8,14 @@
       "alternateName": "The Plix",
       "url": "https://theplixgoa.com",
       "logo": "https://theplixgoa.com/Plix_Transparent_(1).png",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "537/2, 537/3, Coutinho Vaddo, Vagator",
+        "addressLocality": "Anjuna",
+        "addressRegion": "Goa",
+        "postalCode": "403509",
+        "addressCountry": "IN"
+      },
       "areaServed": [
         "Vagator",
         "Anjuna",

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowUp, Facebook, Instagram, MessageCircle } from "lucide-react";
 import { ObfuscatedEmail } from "@/components/plix/obfuscated-email";
-import { whatsappLink, SITE_ADDRESS } from "@/lib/seo";
+import { whatsappLink, SITE_ADDRESS_LINE } from "@/lib/seo";
 import { PROPERTIES } from "@/lib/plix";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 import { trackFunnelEvent } from "@/lib/gtag";
@@ -174,7 +174,7 @@ export function SiteFooter() {
                   undoes the browser's default italic styling for it. */}
               <address className="mt-4 grid gap-3 text-sm not-italic">
                 <span className="text-navy-foreground/80">
-                  {SITE_ADDRESS.street}, {SITE_ADDRESS.city}, {SITE_ADDRESS.region} {SITE_ADDRESS.postalCode}
+                  {SITE_ADDRESS_LINE}
                 </span>
                 <a
                   href={`tel:${phone1}`}

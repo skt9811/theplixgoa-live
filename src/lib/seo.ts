@@ -17,12 +17,24 @@ export const SITE_NAME = "The Plix";
 export const SITE_PHONE_1 = "+91-9009800809";
 export const SITE_PHONE_2 = "+91-9009800895";
 export const SITE_EMAIL = "reservations@theplixgoa.com";
+// The single public business address (owner decision B1): Harbor Court's
+// own address, as listed on its Google Maps entry. Invoices and vouchers
+// (pdf-voucher.ts, pms-company.ts) deliberately still carry the registered
+// Candolim address and don't read this.
 export const SITE_ADDRESS = {
-  street: "House No. 786, Pintos Vaddo",
-  city: "Candolim",
-  postalCode: "403515",
+  street: "537/2, 537/3, Coutinho Vaddo, Vagator",
+  city: "Anjuna",
+  postalCode: "403509",
   region: "Goa",
   country: "IN",
+};
+export const SITE_ADDRESS_LINE = `${SITE_ADDRESS.street}, ${SITE_ADDRESS.city}, ${SITE_ADDRESS.region} ${SITE_ADDRESS.postalCode}`;
+
+// A property's own street address, shown only on that property's page and
+// schema. Vivenda Chico's is the Candolim address that used to be the
+// sitewide one (it's Vivenda Chico's Google Maps address).
+export const PROPERTY_STREET_ADDRESSES: Record<string, string> = {
+  "vivenda-chico": "House No. 786, Pintos Vaddo",
 };
 export const PRICE_RANGE = "₹4500 - ₹22000";
 
@@ -226,9 +238,6 @@ export function brandJsonLd() {
     telephone: SITE_PHONE_2,
     email: SITE_EMAIL,
     priceRange: PRICE_RANGE,
-    // TODO: SITE_ADDRESS is the Candolim address, still open per B1 (the
-    // conflicting-NAP review from the trust-fixes phase of this engagement)
-    // — not resolved here, left exactly as-is pending that decision.
     address: {
       "@type": "PostalAddress",
       streetAddress: SITE_ADDRESS.street,
@@ -531,7 +540,7 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
     })),
     address: {
       "@type": "PostalAddress",
-      streetAddress: p.location,
+      streetAddress: PROPERTY_STREET_ADDRESSES[p.slug] ?? p.location,
       addressLocality: p.location,
       addressRegion: "Goa",
       postalCode: LOCATION_POSTAL_CODES[p.location] ?? "403509",

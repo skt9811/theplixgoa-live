@@ -19,6 +19,7 @@ import {
   jsonLdScript,
   breadcrumbJsonLd,
   EDGE_CACHE_CONTROL_LONG,
+  SITE_ADDRESS_LINE,
 } from "@/lib/seo";
 
 export const Route = createFileRoute("/about")({
@@ -240,6 +241,9 @@ function About() {
           collection directly — not through a third-party listing agency — so that housekeeping,
           caretaking, and guest support stay consistent across every property, every time. Our
           business is GST-registered, ensuring transparency and compliance at every step.
+        </p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          <span className="font-semibold text-navy">Business address:</span> {SITE_ADDRESS_LINE}
         </p>
       </section>
 

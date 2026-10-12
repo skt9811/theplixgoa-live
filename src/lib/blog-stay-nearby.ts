@@ -1,9 +1,10 @@
-import { PROPERTIES, type Property } from "@/lib/plix";
+import type { Property } from "@/lib/plix";
 import { LOCATION_HUBS, matchLocationForPost, type LocationHub } from "@/lib/locations";
 
 // The "Stay nearby" block at the end of every blog post: 2–3 real
-// properties (shown by their exact `name`) plus the matching location
-// page(s). Each post is mapped to one preset by hand, by what the post is
+// properties plus the matching location page(s). Names are resolved from
+// the live property list by the caller (the same names each property's own
+// page shows, including DB overrides like "Harbor Court"). Each post is mapped to one preset by hand, by what the post is
 // about — not by whichever property its body happens to link — so a guide
 // to Assagao recommends stays near Assagao.
 
@@ -104,7 +105,10 @@ export type StayNearby = { properties: Property[]; hubs: LocationHub[] };
 
 /** Stay-nearby picks for a post: its hand-mapped preset, else the area its
  * title/excerpt names, else the Anjuna preset (the most central base). */
-export function stayNearbyForPost(post: { slug: string; title: string; excerpt: string }): StayNearby {
+export function stayNearbyForPost(
+  post: { slug: string; title: string; excerpt: string },
+  properties: Property[],
+): StayNearby {
   const named = POST_PRESETS[post.slug];
   const hub = named ? undefined : matchLocationForPost(post);
   const preset: Preset = named
@@ -114,7 +118,7 @@ export function stayNearbyForPost(post: { slug: string; title: string; excerpt: 
       : PRESETS.anjuna;
   return {
     properties: preset.properties
-      .map((slug) => PROPERTIES.find((p) => p.slug === slug))
+      .map((slug) => properties.find((p) => p.slug === slug))
       .filter((p): p is Property => Boolean(p)),
     hubs: preset.areas
       .map((slug) => LOCATION_HUBS.find((h) => h.slug === slug))

@@ -13,7 +13,7 @@ type Pick = { slug: PickSlug; name: string; area: string; blurb: string };
 const PICKS: Record<PickSlug, Pick> = {
   "harbor-court": {
     slug: "harbor-court",
-    name: "Harbor Court - Boutique Resort Vagator",
+    name: "Harbor Court",
     area: "Vagator",
     blurb: "A 10-room boutique resort with a shared pool, 4 minutes' drive from Vagator Beach.",
   },

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { blogQuery, blogSummariesQuery, estimateReadingTime, formatDate, type BlogSummary } from "@/lib/blog";
 import { stayNearbyForPost } from "@/lib/blog-stay-nearby";
+import { propertiesQuery } from "@/lib/plix-queries";
 import { BlogArticleBody, BlogStayNearby } from "@/components/plix/blog-stay-callout";
 import {
   SITE_URL,
@@ -26,6 +27,9 @@ export const Route = createFileRoute("/blog/$slug")({
     // Guides" links are in the server-rendered HTML a crawler sees, not
     // only added after hydration.
     await context.queryClient.ensureQueryData(blogSummariesQuery);
+    // Live property list for the "Stay nearby" block, so it shows the same
+    // names each property's own page does.
+    await context.queryClient.ensureQueryData(propertiesQuery());
     return { post };
   },
   // Only a found post is cached — an unknown or not-yet-published slug (404)
@@ -144,7 +148,8 @@ function BlogPostPage() {
   if (!post) return <BlogPostNotFound />;
 
   const related = relatedGuides(allBlogs, post.id);
-  const stay = stayNearbyForPost(post);
+  const { data: properties } = useSuspenseQuery(propertiesQuery());
+  const stay = stayNearbyForPost(post, properties);
   const shareUrl = `${SITE_URL}/blog/${post.slug}`;
 
   return (

@@ -50,3 +50,6 @@ scripts/outreach/outreach-tracker.csv
 android/keystore.properties
 keystore.properties
 .scratch/
+
+# Local database row backups taken before manual DB edits — never committed
+backups/

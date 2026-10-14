@@ -5,6 +5,7 @@ import { inr2, propertyLabel } from "@/lib/pms-format";
 import { QUOTATION_BANK_DETAILS, QUOTATION_TERMS } from "@/lib/pms-quotation-config";
 import type { PmsQuotation } from "@/lib/pms-quotations-client";
 import { PrintSheet } from "@/components/pms/print-sheet";
+import logo from "@/assets/plix-voucher-logo.png";
 
 const STATUS_BADGE: Partial<Record<PmsQuotation["status"], string>> = {
   draft: "DRAFT",
@@ -32,8 +33,8 @@ export function QuotationView({ quotation: q }: { quotation: PmsQuotation }) {
     <div className="text-[13px] leading-snug text-slate-900">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b-2 border-emerald-700 pb-3">
         <div>
-          <p className="text-xl font-bold tracking-tight text-emerald-800">PLIX</p>
-          <p className="text-sm font-semibold">{PMS_COMPANY.name}</p>
+          <img src={logo} alt={PMS_COMPANY.brand} className="h-14 w-auto object-contain" />
+          <p className="mt-1 text-sm font-semibold">{PMS_COMPANY.name}</p>
           <p className="text-xs text-slate-600">{PMS_COMPANY.address}</p>
           <p className="text-xs text-slate-600">
             {PMS_COMPANY.phones.join(" / ")} · {PMS_COMPANY.email}
@@ -230,6 +231,10 @@ export function QuotationPrintModal({
   quotation: PmsQuotation;
   onClose: () => void;
 }) {
+  // No "Share to WhatsApp" action added here: pms.quotations.tsx's own list
+  // view already has one (quotationShareText), which also advances a draft
+  // quotation to "sent" — duplicating it here with a cruder message and no
+  // status transition would just give staff two inconsistent share buttons.
   return (
     <PrintSheet
       title={`Quotation ${quotation.quotation_number}`}

@@ -85,6 +85,7 @@ type ItemRow = {
   check_out: string;
   nights: string | number;
   room_count: string | number;
+  guest_count: string | number;
   rate_per_room_night: string | number;
   amount: string | number;
   notes: string | null;
@@ -104,6 +105,7 @@ function shapeItem(r: ItemRow) {
     ...r,
     nights: Number(r.nights),
     room_count: Number(r.room_count),
+    guest_count: Number(r.guest_count),
     rate_per_room_night: Number(r.rate_per_room_night),
     amount: Number(r.amount),
   };
@@ -124,7 +126,7 @@ async function loadQuote(sql: Sql, id: string, actor: Actor) {
   if (!row || !canProperty(actor, row.property_slug)) return null;
   const items = await sql<ItemRow[]>`
     SELECT id, room_type, check_in::text AS check_in, check_out::text AS check_out, nights, room_count,
-      rate_per_room_night, amount, notes
+      guest_count, rate_per_room_night, amount, notes
     FROM pms_quotation_items WHERE quotation_id = ${id}::uuid ORDER BY sort_order, check_in`;
   return { ...shapeQuote(row), items: items.map(shapeItem) };
 }
@@ -168,6 +170,7 @@ type Parsed =
         check_out: string;
         nights: number;
         room_count: number;
+        guest_count: number;
         rate_per_room_night: number;
         amount: number;
         notes: string | null;
@@ -228,12 +231,18 @@ function parseQuotation(body: Record<string, unknown>, isCreate: boolean): Parse
     const roomCount = num(it["roomCount"]);
     if (!Number.isInteger(roomCount) || roomCount < 1 || roomCount > 999)
       return { error: `Stay period ${n}: enter a whole number of rooms (1–999)` };
+    // Defaults to 2 (matching the column's own DB default) for an older
+    // cached client that doesn't send guestCount at all yet.
+    const guestCount = num(it["guestCount"], 2);
+    if (!Number.isInteger(guestCount) || guestCount < 1 || guestCount > 999)
+      return { error: `Stay period ${n}: enter a whole number of guests (1–999)` };
     const rate = num(it["ratePerRoomNight"]);
     if (!(rate >= 0) || rate > 9_999_999) return { error: `Stay period ${n}: enter a valid rate` };
     const block = {
       check_in: checkIn,
       check_out: checkOut,
       room_count: roomCount,
+      guest_count: guestCount,
       rate_per_room_night: round2(rate),
     };
     items.push({
@@ -343,8 +352,8 @@ async function saveQuotation(
         }
         for (const [i, it] of parsed.items.entries()) {
           await tx`
-            INSERT INTO pms_quotation_items (quotation_id, room_type, check_in, check_out, nights, room_count, rate_per_room_night, amount, notes, sort_order)
-            VALUES (${id!}::uuid, ${it.room_type}, ${it.check_in}, ${it.check_out}, ${it.nights}, ${it.room_count}, ${it.rate_per_room_night}, ${it.amount}, ${it.notes}, ${i})`;
+            INSERT INTO pms_quotation_items (quotation_id, room_type, check_in, check_out, nights, room_count, guest_count, rate_per_room_night, amount, notes, sort_order)
+            VALUES (${id!}::uuid, ${it.room_type}, ${it.check_in}, ${it.check_out}, ${it.nights}, ${it.room_count}, ${it.guest_count}, ${it.rate_per_room_night}, ${it.amount}, ${it.notes}, ${i})`;
         }
         return { status: 200 as const, id: id!, number };
       });

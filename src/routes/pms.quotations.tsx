@@ -429,6 +429,7 @@ type Block = {
   checkIn: string;
   checkOut: string;
   roomCount: string;
+  guestCount: string;
   rate: string;
   notes: string;
 };
@@ -469,6 +470,7 @@ function QuotationBuilder({
           checkIn: i.check_in,
           checkOut: i.check_out,
           roomCount: String(i.room_count),
+          guestCount: String(i.guest_count),
           rate: String(i.rate_per_room_night),
           notes: i.notes ?? "",
         }))
@@ -479,6 +481,7 @@ function QuotationBuilder({
             checkIn: today,
             checkOut: addDays(today, 1),
             roomCount: "1",
+            guestCount: "2",
             rate: "",
             notes: "",
           },
@@ -525,6 +528,7 @@ function QuotationBuilder({
           checkIn: start,
           checkOut: addDays(start, 1),
           roomCount: last?.roomCount || "1",
+          guestCount: last?.guestCount || "2",
           rate: last?.rate ?? "",
           notes: "",
         },
@@ -552,6 +556,8 @@ function QuotationBuilder({
         return void toast.error(`Stay period ${i + 1}: check-out must be after check-in`);
       if (!(Number(b.roomCount) >= 1) || !Number.isInteger(Number(b.roomCount)))
         return void toast.error(`Stay period ${i + 1}: enter a whole number of rooms`);
+      if (!(Number(b.guestCount) >= 1) || !Number.isInteger(Number(b.guestCount)))
+        return void toast.error(`Stay period ${i + 1}: enter a whole number of guests`);
       if (b.rate.trim() === "" || !(Number(b.rate) >= 0))
         return void toast.error(`Stay period ${i + 1}: enter a rate`);
     }
@@ -578,6 +584,7 @@ function QuotationBuilder({
             checkIn: b.checkIn,
             checkOut: b.checkOut,
             roomCount: Number(b.roomCount),
+            guestCount: Number(b.guestCount),
             ratePerRoomNight: Number(b.rate),
             notes: b.notes,
           })),
@@ -796,7 +803,7 @@ function QuotationBuilder({
             <section className={card}>
               <h3 className="font-semibold">Stay schedule</h3>
               <div className="mt-3 overflow-x-auto">
-                <table className="w-full min-w-[820px] text-sm">
+                <table className="w-full min-w-[900px] text-sm">
                   <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
                     <tr>
                       <th className="pb-1.5 pr-2">Room type</th>
@@ -804,6 +811,7 @@ function QuotationBuilder({
                       <th className="w-36 pb-1.5 pr-2">Check-out</th>
                       <th className="w-16 pb-1.5 pr-2 text-right">Nights</th>
                       <th className="w-20 pb-1.5 pr-2">Rooms</th>
+                      <th className="w-20 pb-1.5 pr-2">Guests</th>
                       <th className="w-28 pb-1.5 pr-2">Rate (₹)</th>
                       <th className="w-28 pb-1.5 pr-2 text-right">Line total</th>
                       <th className="w-8" />
@@ -863,6 +871,17 @@ function QuotationBuilder({
                               value={b.roomCount}
                               onChange={(e) => update(b.key, { roomCount: e.target.value })}
                               aria-label={`Rooms, period ${i + 1}`}
+                              className={rowInput}
+                            />
+                          </td>
+                          <td className="py-1 pr-2">
+                            <input
+                              type="number"
+                              min={1}
+                              step={1}
+                              value={b.guestCount}
+                              onChange={(e) => update(b.key, { guestCount: e.target.value })}
+                              aria-label={`Guests, period ${i + 1}`}
                               className={rowInput}
                             />
                           </td>

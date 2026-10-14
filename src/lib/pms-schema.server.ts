@@ -952,6 +952,7 @@ export function ensureQuotationsSchema(sql: Sql): Promise<void> {
             notes varchar(255)
           )`;
         await sql`ALTER TABLE pms_quotation_items ADD COLUMN IF NOT EXISTS sort_order integer NOT NULL DEFAULT 0`;
+        await sql`ALTER TABLE pms_quotation_items ADD COLUMN IF NOT EXISTS guest_count integer NOT NULL DEFAULT 2`;
         await sql`CREATE INDEX IF NOT EXISTS pms_quotation_items_quotation_idx ON pms_quotation_items (quotation_id, sort_order)`;
       } catch (err) {
         // Same cold-start race as ensureInquiriesSchema: concurrent

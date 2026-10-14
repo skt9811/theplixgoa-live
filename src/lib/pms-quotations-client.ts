@@ -8,6 +8,7 @@ export type PmsQuotationItem = {
   check_out: string;
   nights: number;
   room_count: number;
+  guest_count: number;
   rate_per_room_night: number;
   amount: number;
   notes: string | null;
@@ -63,6 +64,7 @@ export type QuotationPayload = {
     checkIn: string;
     checkOut: string;
     roomCount: number;
+    guestCount: number;
     ratePerRoomNight: number;
     notes: string;
   }[];

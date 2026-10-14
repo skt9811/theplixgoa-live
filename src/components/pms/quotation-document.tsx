@@ -101,7 +101,7 @@ export function QuotationView({ quotation: q }: { quotation: PmsQuotation }) {
 
       <p className="mt-4 text-[11px] font-bold uppercase text-slate-500">Stay schedule</p>
       <div className="overflow-x-auto">
-        <table className="mt-1 w-full min-w-[620px] border-collapse">
+        <table className="mt-1 w-full min-w-[680px] border-collapse">
           <thead className="bg-slate-100 text-left text-[11px] uppercase">
             <tr>
               <th className={`${cell} w-8`}>#</th>
@@ -110,6 +110,7 @@ export function QuotationView({ quotation: q }: { quotation: PmsQuotation }) {
               <th className={cell}>Check-out</th>
               <th className={`${cell} text-right`}>Nights</th>
               <th className={`${cell} text-right`}>Rooms</th>
+              <th className={`${cell} text-right`}>Guests</th>
               <th className={`${cell} text-right`}>Rate / room / night</th>
               <th className={`${cell} text-right`}>Amount</th>
             </tr>
@@ -126,12 +127,13 @@ export function QuotationView({ quotation: q }: { quotation: PmsQuotation }) {
                 <td className={`${cell} whitespace-nowrap`}>{fmtDate(i.check_out)}</td>
                 <td className={num}>{i.nights}</td>
                 <td className={num}>{i.room_count}</td>
+                <td className={num}>{i.guest_count}</td>
                 <td className={num}>{inr2(i.rate_per_room_night)}</td>
                 <td className={num}>{inr2(i.amount)}</td>
               </tr>
             ))}
             <tr className="bg-slate-50 font-semibold">
-              <td className={cell} colSpan={7}>
+              <td className={cell} colSpan={8}>
                 Subtotal
               </td>
               <td className={num}>{inr2(q.subtotal)}</td>

@@ -35,6 +35,7 @@ import { Route as PmsInquiriesRouteImport } from './routes/pms.inquiries'
 import { Route as PmsInventoryRouteImport } from './routes/pms.inventory'
 import { Route as PmsInvoicesRouteImport } from './routes/pms.invoices'
 import { Route as PmsPosRouteImport } from './routes/pms.pos'
+import { Route as PmsQuotationsRouteImport } from './routes/pms.quotations'
 import { Route as PmsSettingsRouteImport } from './routes/pms.settings'
 import { Route as PmsSubscriptionRouteImport } from './routes/pms.subscription'
 import { Route as PmsSuperAdminRouteImport } from './routes/pms.super-admin'
@@ -206,6 +207,11 @@ const PmsInvoicesRoute = PmsInvoicesRouteImport.update({
 const PmsPosRoute = PmsPosRouteImport.update({
   id: '/pos',
   path: '/pos',
+  getParentRoute: () => PmsRoute,
+} as any)
+const PmsQuotationsRoute = PmsQuotationsRouteImport.update({
+  id: '/quotations',
+  path: '/quotations',
   getParentRoute: () => PmsRoute,
 } as any)
 const PmsSettingsRoute = PmsSettingsRouteImport.update({
@@ -448,6 +454,7 @@ export interface FileRoutesByFullPath {
   '/pms/inventory': typeof PmsInventoryRoute
   '/pms/invoices': typeof PmsInvoicesRoute
   '/pms/pos': typeof PmsPosRouteWithChildren
+  '/pms/quotations': typeof PmsQuotationsRoute
   '/pms/settings': typeof PmsSettingsRoute
   '/pms/subscription': typeof PmsSubscriptionRoute
   '/pms/super-admin': typeof PmsSuperAdminRoute
@@ -515,6 +522,7 @@ export interface FileRoutesByTo {
   '/pms/inquiries': typeof PmsInquiriesRoute
   '/pms/inventory': typeof PmsInventoryRoute
   '/pms/invoices': typeof PmsInvoicesRoute
+  '/pms/quotations': typeof PmsQuotationsRoute
   '/pms/settings': typeof PmsSettingsRoute
   '/pms/subscription': typeof PmsSubscriptionRoute
   '/pms/super-admin': typeof PmsSuperAdminRoute
@@ -584,6 +592,7 @@ export interface FileRoutesById {
   '/pms/inventory': typeof PmsInventoryRoute
   '/pms/invoices': typeof PmsInvoicesRoute
   '/pms/pos': typeof PmsPosRouteWithChildren
+  '/pms/quotations': typeof PmsQuotationsRoute
   '/pms/settings': typeof PmsSettingsRoute
   '/pms/subscription': typeof PmsSubscriptionRoute
   '/pms/super-admin': typeof PmsSuperAdminRoute
@@ -656,6 +665,7 @@ export interface FileRouteTypes {
     | '/pms/inventory'
     | '/pms/invoices'
     | '/pms/pos'
+    | '/pms/quotations'
     | '/pms/settings'
     | '/pms/subscription'
     | '/pms/super-admin'
@@ -723,6 +733,7 @@ export interface FileRouteTypes {
     | '/pms/inquiries'
     | '/pms/inventory'
     | '/pms/invoices'
+    | '/pms/quotations'
     | '/pms/settings'
     | '/pms/subscription'
     | '/pms/super-admin'
@@ -791,6 +802,7 @@ export interface FileRouteTypes {
     | '/pms/inventory'
     | '/pms/invoices'
     | '/pms/pos'
+    | '/pms/quotations'
     | '/pms/settings'
     | '/pms/subscription'
     | '/pms/super-admin'
@@ -1047,6 +1059,13 @@ declare module '@tanstack/react-router' {
       path: '/pos'
       fullPath: '/pms/pos'
       preLoaderRoute: typeof PmsPosRouteImport
+      parentRoute: typeof PmsRoute
+    }
+    '/pms/quotations': {
+      id: '/pms/quotations'
+      path: '/quotations'
+      fullPath: '/pms/quotations'
+      preLoaderRoute: typeof PmsQuotationsRouteImport
       parentRoute: typeof PmsRoute
     }
     '/pms/settings': {
@@ -1433,6 +1452,7 @@ interface PmsRouteChildren {
   PmsInventoryRoute: typeof PmsInventoryRoute
   PmsInvoicesRoute: typeof PmsInvoicesRoute
   PmsPosRoute: typeof PmsPosRouteWithChildren
+  PmsQuotationsRoute: typeof PmsQuotationsRoute
   PmsSettingsRoute: typeof PmsSettingsRoute
   PmsSubscriptionRoute: typeof PmsSubscriptionRoute
   PmsSuperAdminRoute: typeof PmsSuperAdminRoute
@@ -1451,6 +1471,7 @@ const PmsRouteChildren: PmsRouteChildren = {
   PmsInventoryRoute: PmsInventoryRoute,
   PmsInvoicesRoute: PmsInvoicesRoute,
   PmsPosRoute: PmsPosRouteWithChildren,
+  PmsQuotationsRoute: PmsQuotationsRoute,
   PmsSettingsRoute: PmsSettingsRoute,
   PmsSubscriptionRoute: PmsSubscriptionRoute,
   PmsSuperAdminRoute: PmsSuperAdminRoute,

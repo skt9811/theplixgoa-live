@@ -16,7 +16,8 @@ export type AuditEntity =
   | "inventory"
   | "user"
   | "setting"
-  | "inquiry";
+  | "inquiry"
+  | "quotation";
 
 export async function audit(
   actor: Actor,

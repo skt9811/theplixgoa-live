@@ -897,3 +897,71 @@ export function ensurePosSchema(sql: Sql): Promise<void> {
   }
   return posReady;
 }
+
+let quotationsReady: Promise<void> | null = null;
+
+// Multi-period stay quotations (/pms/quotations). PMS database only. One
+// quotation holds several stay blocks (e.g. 1 room 9–23 Dec, 3 rooms 23–25
+// Dec); "Convert to Invoice" creates a draft pms_invoices row and records it
+// in invoice_id.
+export function ensureQuotationsSchema(sql: Sql): Promise<void> {
+  if (!quotationsReady) {
+    quotationsReady = (async () => {
+      try {
+        await sql`
+          CREATE TABLE IF NOT EXISTS pms_quotations (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            quotation_number varchar(50) UNIQUE NOT NULL,
+            property_slug varchar(64) NOT NULL,
+            customer_name varchar(150) NOT NULL,
+            customer_phone varchar(20) NOT NULL,
+            customer_email varchar(150),
+            customer_company varchar(150),
+            customer_gstin varchar(15),
+            gst_rate numeric(5, 2) NOT NULL DEFAULT 18.00,
+            gst_type varchar(10) NOT NULL DEFAULT 'CGST_SGST',
+            subtotal numeric(12, 2) NOT NULL,
+            tax_amount numeric(12, 2) NOT NULL,
+            grand_total numeric(12, 2) NOT NULL,
+            valid_until date,
+            status varchar(20) NOT NULL DEFAULT 'draft',
+            inquiry_id uuid,
+            created_at timestamptz NOT NULL DEFAULT now()
+          )`;
+        // Place of supply when IGST is chosen without a GSTIN (the GSTIN's
+        // own first two digits otherwise), needed to raise the invoice.
+        await sql`ALTER TABLE pms_quotations ADD COLUMN IF NOT EXISTS customer_state_code varchar(2)`;
+        await sql`ALTER TABLE pms_quotations ADD COLUMN IF NOT EXISTS notes text`;
+        await sql`ALTER TABLE pms_quotations ADD COLUMN IF NOT EXISTS invoice_id uuid`;
+        await sql`ALTER TABLE pms_quotations ADD COLUMN IF NOT EXISTS created_by varchar(150)`;
+        await sql`ALTER TABLE pms_quotations ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()`;
+        await sql`ALTER TABLE pms_quotations ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
+        await sql`CREATE INDEX IF NOT EXISTS pms_quotations_org_created_idx ON pms_quotations (organization_id, created_at DESC)`;
+        await sql`CREATE INDEX IF NOT EXISTS pms_quotations_property_idx ON pms_quotations (property_slug)`;
+        await sql`
+          CREATE TABLE IF NOT EXISTS pms_quotation_items (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            quotation_id uuid NOT NULL REFERENCES pms_quotations(id) ON DELETE CASCADE,
+            room_type varchar(100) NOT NULL DEFAULT 'Standard / Villa Room',
+            check_in date NOT NULL,
+            check_out date NOT NULL,
+            nights integer NOT NULL,
+            room_count integer NOT NULL DEFAULT 1,
+            rate_per_room_night numeric(10, 2) NOT NULL,
+            amount numeric(12, 2) NOT NULL,
+            notes varchar(255)
+          )`;
+        await sql`ALTER TABLE pms_quotation_items ADD COLUMN IF NOT EXISTS sort_order integer NOT NULL DEFAULT 0`;
+        await sql`CREATE INDEX IF NOT EXISTS pms_quotation_items_quotation_idx ON pms_quotation_items (quotation_id, sort_order)`;
+      } catch (err) {
+        // Same cold-start race as ensureInquiriesSchema: concurrent
+        // CREATE ... IF NOT EXISTS can lose with a bare 23505.
+        if ((err as { code?: string }).code !== "23505") throw err;
+      }
+    })().catch((err) => {
+      quotationsReady = null;
+      throw err;
+    });
+  }
+  return quotationsReady;
+}

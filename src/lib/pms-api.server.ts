@@ -71,6 +71,7 @@ import {
 } from "@/lib/pms-invoice-calc";
 import { PMS_PROPERTIES_CONFIG } from "@/lib/pms-properties-config";
 import { handlePosApi } from "@/lib/pms-pos-api.server";
+import { handleQuotationsApi } from "@/lib/pms-quotations.server";
 import { buildStayVoucherPdf } from "@/lib/pms-voucher-pdf.server";
 import { buildBookingConfirmationEmail, defaultRoomCategory } from "@/lib/pms-voucher-content";
 import { channelLabel } from "@/lib/pms-client";
@@ -2694,6 +2695,12 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "owner" |
       return ["expenses"];
     case "invoices":
       return method === "GET" ? ["invoices", "bookings"] : ["invoices"];
+    // Quotations sit in the Invoices permission bucket: whoever raises
+    // invoices also prepares the quotes that turn into them.
+    case "quotations":
+    case "quotations/status":
+    case "quotations/convert":
+      return ["invoices"];
     case "vouchers":
       return ["vouchers"];
     case "vouchers/pdf":
@@ -2859,6 +2866,8 @@ export async function handlePmsApi(request: Request): Promise<Response> {
       return await deleteInquiries(request, url, actor);
     if (path === "inquiries/update" && request.method === "POST")
       return await updateInquiry(request, actor);
+    if (path === "quotations" || path.startsWith("quotations/"))
+      return await handleQuotationsApi(path, request, url, actor, { saveInvoice });
     if (path === "invoices" && request.method === "GET") return await listInvoices(url, actor);
     if (path === "invoices" && (request.method === "POST" || request.method === "PUT"))
       return await saveInvoice(request, url, actor);

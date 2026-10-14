@@ -280,16 +280,22 @@ function parseQuotation(body: Record<string, unknown>, isCreate: boolean): Parse
   };
 }
 
+// Owner's instruction: the next quotation created should start at 121, not
+// 001 — a floor on `max`, not a one-off value, so numbering still counts up
+// correctly afterward (and if an existing row is ever retroactively renumbered
+// to something at or above 120, this stays correct without a second change).
+const QUOTATION_NUMBER_FLOOR = 120;
+
 async function nextQuotationNumber(sql: Sql, year: string): Promise<string> {
   const prefix = `PLX-QT-${year}-`;
   const rows = await sql<{ quotation_number: string }[]>`
     SELECT quotation_number FROM pms_quotations WHERE quotation_number LIKE ${prefix + "%"}`;
-  let max = 0;
+  let max = QUOTATION_NUMBER_FLOOR;
   for (const r of rows) {
     const n = Number(r.quotation_number.slice(prefix.length));
     if (Number.isInteger(n) && n > max) max = n;
   }
-  return `${prefix}${String(max + 1).padStart(3, "0")}`;
+  return `${prefix}${String(max + 1).padStart(4, "0")}`;
 }
 
 async function saveQuotation(

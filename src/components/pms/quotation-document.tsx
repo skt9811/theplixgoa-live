@@ -2,7 +2,7 @@ import { PMS_COMPANY } from "@/lib/pms-company";
 import { amountInWords, GOA_STATE_CODE, STATE_NAMES } from "@/lib/pms-gst";
 import { fmtDate } from "@/lib/pms-client";
 import { inr2, propertyLabel } from "@/lib/pms-format";
-import { QUOTATION_BANK_DETAILS, QUOTATION_TERMS } from "@/lib/pms-quotation-config";
+import { QUOTATION_ADDRESS, QUOTATION_BANK_DETAILS, QUOTATION_TERMS } from "@/lib/pms-quotation-config";
 import type { PmsQuotation } from "@/lib/pms-quotations-client";
 import { PrintSheet } from "@/components/pms/print-sheet";
 import logo from "@/assets/plix-voucher-logo.png";
@@ -35,7 +35,7 @@ export function QuotationView({ quotation: q }: { quotation: PmsQuotation }) {
         <div>
           <img src={logo} alt={PMS_COMPANY.brand} className="h-14 w-auto object-contain" />
           <p className="mt-1 text-sm font-semibold">{PMS_COMPANY.name}</p>
-          <p className="text-xs text-slate-600">{PMS_COMPANY.address}</p>
+          <p className="text-xs text-slate-600">{QUOTATION_ADDRESS}</p>
           <p className="text-xs text-slate-600">
             {PMS_COMPANY.phones.join(" / ")} · {PMS_COMPANY.email}
           </p>

@@ -1,3 +1,9 @@
+// Printed on quotations only — PMS_COMPANY.address (pms-company.ts) is
+// shared by vouchers, tax invoices and booking confirmation emails, so
+// changing it would change the address everywhere, not just here. Owner's
+// instruction specifically scoped this new address to quotations.
+export const QUOTATION_ADDRESS = "537/2, 537/3, Vagator, Coutinho Vaddo, Anjuna, Goa 403509";
+
 // Printed on quotations. The payment block on the quotation PDF renders only
 // when QUOTATION_BANK_DETAILS is set, so a quote never carries a guessed
 // account. Official account details supplied by Plix Hospitality.

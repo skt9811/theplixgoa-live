@@ -38,9 +38,10 @@ export function QuotationView({ quotation: q }: { quotation: PmsQuotation }) {
           <p className="text-xs text-slate-600">
             {PMS_COMPANY.phones.join(" / ")} · {PMS_COMPANY.email}
           </p>
-          {gst && (
+          {PMS_COMPANY.gstin && (
             <p className="text-xs font-semibold">
-              GSTIN: {PMS_COMPANY.gstin} · SAC {PMS_COMPANY.sacCode}
+              GSTIN: {PMS_COMPANY.gstin}
+              {gst ? ` · SAC ${PMS_COMPANY.sacCode}` : ""}
             </p>
           )}
         </div>
@@ -167,26 +168,33 @@ export function QuotationView({ quotation: q }: { quotation: PmsQuotation }) {
       </p>
 
       {QUOTATION_BANK_DETAILS && (
-        <div className="pms-avoid-break mt-4 rounded border border-slate-300 p-2.5 text-xs">
-          <p className="text-[11px] font-bold uppercase text-slate-500">Bank details</p>
-          <p>
-            <span className="font-semibold">Account name:</span>{" "}
-            {QUOTATION_BANK_DETAILS.accountName}
+        <div className="pms-avoid-break mt-4 rounded border-2 border-emerald-700 p-3 text-xs">
+          <p className="text-[11px] font-bold uppercase text-emerald-800">
+            Payment details · bank transfer for advance
           </p>
-          <p>
-            <span className="font-semibold">Account number:</span>{" "}
-            {QUOTATION_BANK_DETAILS.accountNumber} · <span className="font-semibold">IFSC:</span>{" "}
-            {QUOTATION_BANK_DETAILS.ifsc}
-          </p>
-          <p>
-            {QUOTATION_BANK_DETAILS.bankName}
-            {QUOTATION_BANK_DETAILS.branch ? `, ${QUOTATION_BANK_DETAILS.branch}` : ""}
-          </p>
-          {QUOTATION_BANK_DETAILS.upiId && (
-            <p>
-              <span className="font-semibold">UPI:</span> {QUOTATION_BANK_DETAILS.upiId}
-            </p>
-          )}
+          <table className="mt-1.5 w-full border-collapse">
+            <tbody>
+              {(
+                [
+                  ["Account name", QUOTATION_BANK_DETAILS.accountName],
+                  ["Account number", QUOTATION_BANK_DETAILS.accountNumber],
+                  ["IFSC", QUOTATION_BANK_DETAILS.ifsc],
+                  ["Bank", QUOTATION_BANK_DETAILS.bankName],
+                  ["Branch", QUOTATION_BANK_DETAILS.branch],
+                  ["SWIFT (international)", QUOTATION_BANK_DETAILS.swift],
+                  ["UPI", QUOTATION_BANK_DETAILS.upiId],
+                  ["Reference", q.quotation_number],
+                ] as [string, string | undefined][]
+              )
+                .filter(([, v]) => Boolean(v))
+                .map(([k, v]) => (
+                  <tr key={k}>
+                    <td className="w-[38%] py-0.5 pr-3 align-top text-slate-600">{k}</td>
+                    <td className="py-0.5 font-semibold tracking-wide break-all">{v}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
         </div>
       )}
 

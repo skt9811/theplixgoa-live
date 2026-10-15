@@ -39,4 +39,7 @@ export type PortalBooking = {
   commission_amount: number;
   /** Caretakers only: the balance still to collect at the desk. Always 0 for owners. */
   pending_balance?: number;
+  /** True for a manual "soft hold" booking — recorded and visible, but
+   * excluded from inventory/conflict checks. Always false for an online booking. */
+  is_backup_booking: boolean;
 };

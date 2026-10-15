@@ -68,6 +68,9 @@ export type PortalBooking = {
   commission_amount: number;
   /** Caretakers only: the balance still to collect at the desk. Always 0 for owners. */
   pending_balance?: number;
+  /** True for a manual "soft hold" booking — recorded and visible, but
+   * excluded from inventory/conflict checks. Always false for an online booking. */
+  is_backup_booking: boolean;
 };
 
 function toDateString(value: string | Date): string {
@@ -136,6 +139,7 @@ type ManualRow = {
   commission_pct: string | number;
   commission_amount: string | number;
   room_allocations: unknown;
+  is_backup_booking: boolean;
 };
 
 /** portal_bookings.room_allocations is a freeform jsonb array (see
@@ -168,6 +172,14 @@ export function ensureLifecycleSchema(sql: ReturnType<typeof getSql> & object): 
       // as every other column here.
       await sql`ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancellation_reason text`;
       await sql`ALTER TABLE public.portal_bookings ADD COLUMN IF NOT EXISTS cancellation_reason text`;
+      // Manual (PMS-created) bookings only — a "soft hold" that's recorded
+      // and visible, but deliberately excluded from both the Hotel Position/
+      // Partner inventory "used" counts and findStayConflict's own conflict
+      // check (manual-booking-guard.server.ts), so staff can still accept a
+      // higher-rate inquiry for the same dates without an override. Never
+      // true for an online (gateway-paid) booking — there's no "soft" paid
+      // reservation.
+      await sql`ALTER TABLE public.portal_bookings ADD COLUMN IF NOT EXISTS is_backup_booking boolean NOT NULL DEFAULT false`;
     })().catch((err) => {
       lifecycleSchemaReady = null;
       throw err;
@@ -281,7 +293,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
                check_in, check_out, nights, guests_count,
                booking_amount, status, created_at, rooms_count,
                payment_status, advance_amount, commission_pct, commission_amount,
-               room_allocations
+               room_allocations, is_backup_booking
         FROM public.portal_bookings
         WHERE property_id = ${propertySlug}
           AND status != 'cancelled'
@@ -313,6 +325,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         advance_amount: null,
         commission_pct: Number(r.commission_pct),
         commission_amount: Number(r.commission_amount),
+        is_backup_booking: false,
         ...(caretaker ? caretakerOnlineFields(r) : {}),
       };
     });
@@ -340,6 +353,7 @@ export async function handleGetPortalBookings(request: Request): Promise<Respons
         advance_amount: r.advance_amount === null ? null : Number(r.advance_amount),
         commission_pct: Number(r.commission_pct),
         commission_amount: Number(r.commission_amount),
+        is_backup_booking: r.is_backup_booking,
         ...(caretaker ? caretakerManualFields(r) : {}),
       };
     });

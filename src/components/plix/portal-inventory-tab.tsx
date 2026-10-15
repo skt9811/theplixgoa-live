@@ -10,6 +10,7 @@ import { usePortalBackButton } from "@/lib/use-portal-back-button";
 const STATUS_CHIPS = [
   { label: "Tentative", bg: "#e0f2fe", text: "#0369a1" },
   { label: "Booked", bg: "#fee2e2", text: "#b91c1c" },
+  { label: "Backup Hold", bg: "#fef9c3", text: "#854d0e" },
   { label: "Owner", bg: "#ffedd5", text: "#c2410c" },
   { label: "Maintenance", bg: "#f3e8ff", text: "#7e22ce" },
 ] as const;
@@ -22,7 +23,7 @@ function isoDate(year: number, month: number, day: number): string {
   return `${year}-${pad(month + 1)}-${pad(day)}`;
 }
 
-type CellStatus = "empty" | "tentative" | "booked" | "owner" | "maintenance";
+type CellStatus = "empty" | "tentative" | "booked" | "backup" | "owner" | "maintenance";
 
 function statusStyle(status: CellStatus): string {
   switch (status) {
@@ -30,6 +31,8 @@ function statusStyle(status: CellStatus): string {
       return "bg-[#e0f2fe] text-[#0369a1]";
     case "booked":
       return "bg-[#fee2e2] text-[#b91c1c]";
+    case "backup":
+      return "bg-[#fef9c3] text-[#854d0e]";
     case "owner":
       return "bg-[#ffedd5] text-[#c2410c]";
     case "maintenance":
@@ -107,7 +110,10 @@ export function PortalInventoryTab({
 
   function statusForDate(date: string): CellStatus {
     const booking = bookingForDate(date);
-    if (booking) return booking.payment_status === "pending" ? "tentative" : "booked";
+    if (booking) {
+      if (booking.is_backup_booking) return "backup";
+      return booking.payment_status === "pending" ? "tentative" : "booked";
+    }
     const reason = blockedWithReason.get(date);
     if (reason === "Owner Stay") return "owner";
     if (blockedWithReason.has(date)) return "maintenance";

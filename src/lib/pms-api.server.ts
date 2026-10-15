@@ -204,6 +204,11 @@ export type PmsBooking = {
   is_manual_override: boolean;
   /** Manual bookings only: staff-entered reason for the override, or an auto-generated one from the conflict message. Null unless is_manual_override is true. */
   override_reason: string | null;
+  /** Manual bookings only: a deliberate soft hold — recorded and visible, but
+   * excluded from both availability's "used" count and findStayConflict's
+   * own check, so staff can still take a higher-rate inquiry for the same
+   * dates without an override. Always false for online bookings. */
+  is_backup_booking: boolean;
 };
 
 function safeEqual(a: string, b: string): boolean {
@@ -372,6 +377,7 @@ async function revenueScope(sql: Sql, actor: Actor, tenantId: string, property: 
 }
 
 async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promise<PmsBooking[]> {
+  await ensureLifecycleSchema(sql);
   const [online, manual] = await Promise.all([
     sql<
       {
@@ -427,12 +433,13 @@ async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promis
         visible_on_partner_app: boolean;
         is_manual_override: boolean;
         override_reason: string | null;
+        is_backup_booking: boolean;
       }[]
     >`
       SELECT id, property_id, guest_name, guest_phone, guest_email, check_in::text AS check_in, check_out::text AS check_out,
              nights, guests_count, adults_count, children_count, rooms_count, booking_amount, advance_amount,
              payment_status, channel, status, notes, commission_pct, commission_amount, room_allocations, created_by, created_at,
-             visible_on_partner_app, is_manual_override, override_reason
+             visible_on_partner_app, is_manual_override, override_reason, is_backup_booking
       FROM public.portal_bookings
       WHERE status NOT IN ('blocked', 'cancelled') AND organization_id = ${tenantId}
     `,
@@ -476,6 +483,7 @@ async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promis
       visible_on_partner_app: true,
       is_manual_override: false,
       override_reason: null,
+      is_backup_booking: false,
     });
   }
   for (const r of manual) {
@@ -520,6 +528,7 @@ async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promis
       visible_on_partner_app: r.visible_on_partner_app,
       is_manual_override: r.is_manual_override,
       override_reason: r.override_reason,
+      is_backup_booking: r.is_backup_booking,
     });
   }
   return rows.sort((a, b) => a.check_in.localeCompare(b.check_in));
@@ -561,6 +570,7 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const visibleOnPartnerApp = body["visibleOnPartnerApp"] !== false;
   const allowOverride = body["allowOverride"] === true;
   const overrideReasonInput = str(body["overrideReason"]).slice(0, 300) || null;
+  const isBackupBooking = body["isBackupBooking"] === true;
 
   const pmsDbForProperty = getPmsDb();
   const validProperty = pmsDbForProperty
@@ -575,6 +585,7 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const nights = differenceInCalendarDays(new Date(checkOut), new Date(checkIn));
   if (nights <= 0) return json({ error: "Check-out must be after check-in" }, 400);
 
+  await ensureLifecycleSchema(sql);
   const conflict = await findStayConflict(sql, propertySlug, checkIn, checkOut, rooms);
   if (conflict && !allowOverride) return json({ error: conflict }, 409);
   const isManualOverride = Boolean(conflict) && allowOverride;
@@ -586,12 +597,12 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
       (property_id, guest_name, guest_phone, guest_email, check_in, check_out, nights, guests_count,
        adults_count, children_count, rooms_count, booking_amount, advance_amount, payment_status, channel, notes, status,
        commission_pct, commission_amount, room_allocations, created_by, visible_on_partner_app, is_manual_override, override_reason,
-       organization_id)
+       is_backup_booking, organization_id)
     VALUES
       (${propertySlug}, ${guestName}, ${guestPhone}, ${guestEmail}, ${checkIn}, ${checkOut}, ${nights}, ${adults + children},
        ${adults}, ${children}, ${rooms}, ${total}, ${advance}, ${paymentStatus}, ${channel}, ${notes}, 'confirmed',
        ${commissionPct}, ${commissionAmount}, ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null}, ${actor.name.slice(0, 150)}, ${visibleOnPartnerApp},
-       ${isManualOverride}, ${overrideReason}, ${tenantId})
+       ${isManualOverride}, ${overrideReason}, ${isBackupBooking}, ${tenantId})
     RETURNING id
   `;
   let warning: string | undefined;
@@ -754,6 +765,7 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const visibleOnPartnerApp = body["visibleOnPartnerApp"] !== false;
   const allowOverride = body["allowOverride"] === true;
   const overrideReasonInput = str(body["overrideReason"]).slice(0, 300) || null;
+  const isBackupBooking = body["isBackupBooking"] === true;
 
   if (!guestName) return json({ error: "Guest name is required" }, 400);
   if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut))
@@ -761,6 +773,7 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
   const nights = differenceInCalendarDays(new Date(checkOut), new Date(checkIn));
   if (nights <= 0) return json({ error: "Check-out must be after check-in" }, 400);
 
+  await ensureLifecycleSchema(sql);
   const conflict = await findStayConflict(sql, existing.property_id, checkIn, checkOut, rooms, id);
   if (conflict && !allowOverride) return json({ error: conflict }, 409);
   // A save with no conflict this time keeps whatever override state the
@@ -780,7 +793,8 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
       room_allocations = ${roomAllocations.length > 0 ? sql.json(roomAllocations as never) : null},
       visible_on_partner_app = ${visibleOnPartnerApp},
       is_manual_override = ${isManualOverride},
-      override_reason = COALESCE(${overrideReason}, CASE WHEN ${isManualOverride} THEN override_reason ELSE NULL END)
+      override_reason = COALESCE(${overrideReason}, CASE WHEN ${isManualOverride} THEN override_reason ELSE NULL END),
+      is_backup_booking = ${isBackupBooking}
     WHERE id = ${id}::uuid`;
 
   let warning: string | undefined;
@@ -979,13 +993,28 @@ async function availability(url: URL, sql: Sql, actor: Actor): Promise<Response>
   if (!canProperty(actor, property))
     return json({ error: "You do not have access to this property" }, 403);
   const multiRoom = isMultiRoomProperty(property);
+  const capacity = multiRoom ? maxRoomsForProperty(property) : 1;
   const bookings = (await listBookings(sql)).filter(
     (b) => b.property_id === property && b.status !== "cancelled",
   );
+  // `used` counts real (non-backup) bookings only — a backup booking is a
+  // deliberate soft hold and must never make a date look sold out. A date is
+  // flagged in `backupDates` (rendered yellow, not red) only when it's a
+  // backup booking specifically propping up the appearance of full
+  // occupancy: real usage alone is under capacity, but real+backup together
+  // reaches or exceeds it.
   const used: Record<string, number> = {};
-  for (const b of bookings)
-    for (const n of eachNight(b.check_in, b.check_out))
-      used[n] = (used[n] ?? 0) + (multiRoom ? b.rooms : 1);
+  const usedWithBackup: Record<string, number> = {};
+  for (const b of bookings) {
+    const rooms = multiRoom ? b.rooms : 1;
+    for (const n of eachNight(b.check_in, b.check_out)) {
+      usedWithBackup[n] = (usedWithBackup[n] ?? 0) + rooms;
+      if (!b.is_backup_booking) used[n] = (used[n] ?? 0) + rooms;
+    }
+  }
+  const backupDates = Object.keys(usedWithBackup).filter(
+    (n) => (used[n] ?? 0) < capacity && (usedWithBackup[n] ?? 0) >= capacity,
+  );
   const blocks = await sql<{ date: string; reason: string | null }[]>`
     SELECT date::text AS date, reason FROM public.blocked_dates
     WHERE property_id = ${property} AND COALESCE(reason, '') <> 'Booked' AND COALESCE(reason, '') NOT LIKE 'Manual booking %'
@@ -993,9 +1022,10 @@ async function availability(url: URL, sql: Sql, actor: Actor): Promise<Response>
   const hardBlocked = blocks.map((b) => b.date);
   return json({
     multiRoom,
-    capacity: multiRoom ? maxRoomsForProperty(property) : 1,
+    capacity,
     used,
     hardBlocked,
+    backupDates,
   });
 }
 

@@ -48,15 +48,20 @@ export async function findStayConflict(
     WHERE property_id = ${propertySlug} AND payment_status IN ('paid', 'simulated')
       AND check_in::date < ${checkOut}::date AND check_out::date > ${checkIn}::date
   `;
-  const manual = await sql<{ check_in: string; check_out: string; rooms_count: number | null; status: string }[]>`
-    SELECT check_in::text AS check_in, check_out::text AS check_out, rooms_count, status FROM public.portal_bookings
+  const manual = await sql<{ check_in: string; check_out: string; rooms_count: number | null; status: string; is_backup_booking: boolean }[]>`
+    SELECT check_in::text AS check_in, check_out::text AS check_out, rooms_count, status, is_backup_booking FROM public.portal_bookings
     WHERE property_id = ${propertySlug} AND status <> 'cancelled'
       AND (${excludeManualId}::uuid IS NULL OR id <> ${excludeManualId}::uuid)
       AND check_in::date < ${checkOut}::date AND check_out::date > ${checkIn}::date
   `;
+  // A backup booking is a deliberate soft hold — it must never itself cause
+  // a conflict for a new (possibly higher-rate) booking on the same dates,
+  // so it's excluded from both the whole-villa "already reserved" check and
+  // the multi-room room-count tally below.
+  const hardManual = manual.filter((b) => !b.is_backup_booking);
 
   if (!isMultiRoomProperty(propertySlug)) {
-    const first = [...online, ...manual].sort((a, b) => a.check_in.localeCompare(b.check_in))[0];
+    const first = [...online, ...hardManual].sort((a, b) => a.check_in.localeCompare(b.check_in))[0];
     if (first) return `Already reserved from ${first.check_in} to ${first.check_out}.`;
     return null;
   }
@@ -66,7 +71,7 @@ export async function findStayConflict(
   for (const b of online) {
     for (const n of eachNight(b.check_in, b.check_out)) used[n] = (used[n] ?? 0) + Math.max(1, b.rooms ?? 1);
   }
-  for (const b of manual) {
+  for (const b of hardManual) {
     const rooms = b.status === "blocked" ? capacity : Math.max(1, b.rooms_count ?? 1);
     for (const n of eachNight(b.check_in, b.check_out)) used[n] = (used[n] ?? 0) + rooms;
   }

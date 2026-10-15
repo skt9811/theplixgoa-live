@@ -122,6 +122,11 @@ export type PmsBooking = {
   is_manual_override: boolean;
   /** Manual bookings only: staff-entered or auto-generated reason for the override. Null unless is_manual_override is true. */
   override_reason: string | null;
+  /** Manual bookings only: a deliberate soft hold — recorded and visible, but
+   * excluded from both availability's "used" count and findStayConflict's
+   * own check, so staff can still take a higher-rate inquiry for the same
+   * dates without an override. Always false for online bookings. */
+  is_backup_booking: boolean;
 };
 
 /** GET /api/pms/properties — the signed-in actor's own organization's real

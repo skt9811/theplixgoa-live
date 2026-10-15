@@ -55,6 +55,7 @@ export function CreateReservationModal({
   const [commissionPct, setCommissionPct] = useState(20);
   const [notes, setNotes] = useState("");
   const [visibleOnPartnerApp, setVisibleOnPartnerApp] = useState(true);
+  const [isBackupBooking, setIsBackupBooking] = useState(false);
   const [roomAllocations, setRoomAllocations] = useState<RoomAllocation[]>([]);
   const [availability, setAvailability] = useState<Availability | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -162,6 +163,7 @@ export function CreateReservationModal({
             commissionPct,
             allowOverride: forceOverride,
             overrideReason: overrideReason.trim(),
+            isBackupBooking,
           }),
         },
       );
@@ -453,6 +455,22 @@ export function CreateReservationModal({
               className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
             />
             Show this booking on the Plix Partner app
+          </label>
+
+          <label className="flex items-start gap-2 text-sm font-medium text-slate-600 sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={isBackupBooking}
+              onChange={(e) => setIsBackupBooking(e.target.checked)}
+              className="mt-0.5 size-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+            />
+            <span>
+              Backup Booking (Soft Hold)
+              <span className="block text-xs font-normal text-slate-400">
+                Recorded, but won&apos;t block a higher-rate booking for the same dates — the
+                calendar shows these dates as yellow, not sold out.
+              </span>
+            </span>
           </label>
         </div>
 

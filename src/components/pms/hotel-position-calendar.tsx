@@ -8,6 +8,10 @@ type Availability = {
   capacity: number;
   used: Record<string, number>;
   hardBlocked: string[];
+  /** Dates that only look sold out because of a backup (soft-hold) booking —
+   * real usage alone is under capacity. Rendered yellow, never red: staff can
+   * still take a higher-rate direct inquiry for these dates. */
+  backupDates: string[];
 };
 
 type InventoryGrid = {
@@ -93,7 +97,8 @@ export function HotelPositionCalendar({ property }: { property: string }) {
       const used = availability.used[d] ?? 0;
       const hardBlocked = availability.hardBlocked.includes(d);
       const available = hardBlocked ? 0 : Math.max(0, availability.capacity - used);
-      const tone = available === 0 ? "sold" : available <= 3 ? "tight" : "open";
+      const isBackup = !hardBlocked && available === 0 && availability.backupDates.includes(d);
+      const tone = isBackup ? "backup" : available === 0 ? "sold" : available <= 3 ? "tight" : "open";
       return { date: d, available, tone };
     });
   }, [availability, days]);
@@ -102,6 +107,7 @@ export function HotelPositionCalendar({ property }: { property: string }) {
     open: "bg-emerald-50 text-emerald-700 border-emerald-200",
     tight: "bg-amber-50 text-amber-700 border-amber-200",
     sold: "bg-red-50 text-red-700 border-red-200",
+    backup: "bg-yellow-100 text-yellow-800 border-yellow-300",
   };
 
   return (
@@ -168,7 +174,9 @@ export function HotelPositionCalendar({ property }: { property: string }) {
                 className={`flex aspect-square flex-col items-center justify-center rounded-lg border p-1 ${TONE_CLASS[c.tone]}`}
               >
                 <span className="text-xs font-bold">{Number(c.date.slice(-2))}</span>
-                <span className="text-[10px] font-medium">{c.available} left</span>
+                <span className="text-[10px] font-medium">
+                  {c.tone === "backup" ? "0 left (Backup)" : `${c.available} left`}
+                </span>
                 {showRates && rate !== undefined && (
                   <span className="text-[9px] opacity-80">{formatINR(rate)}</span>
                 )}
@@ -186,6 +194,9 @@ export function HotelPositionCalendar({ property }: { property: string }) {
         </span>
         <span className="flex items-center gap-1.5">
           <span className="size-2.5 rounded-full bg-red-500" /> Sold out
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-full bg-yellow-400" /> Backup hold (room still takeable)
         </span>
       </div>
     </div>

@@ -94,10 +94,21 @@ public class AirbnbHostActivity extends Activity {
         // icons before this fix.
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
+        // Normal path: AirbnbHostPlugin's explicit-component Intent, with
+        // id/name/url as String extras. Fallback path: a launcher that
+        // re-resolved/re-persisted the pinned shortcut as the plain
+        // plixpms://space?... URI instead (see the manifest's intent-filter
+        // comment) — read the same three values from its query string.
+        Uri data = getIntent().getData();
         String url = getIntent().getStringExtra(EXTRA_URL);
-        if (!isAirbnbUrl(url)) url = DEFAULT_URL;
         String spaceId = getIntent().getStringExtra(EXTRA_SPACE_ID);
         String spaceName = getIntent().getStringExtra(EXTRA_SPACE_NAME);
+        if (data != null) {
+            if (TextUtils.isEmpty(url)) url = data.getQueryParameter("url");
+            if (TextUtils.isEmpty(spaceId)) spaceId = data.getQueryParameter("id");
+            if (TextUtils.isEmpty(spaceName)) spaceName = data.getQueryParameter("name");
+        }
+        if (!isAirbnbUrl(url)) url = DEFAULT_URL;
         if (TextUtils.isEmpty(spaceName)) spaceName = "Airbnb";
 
         LinearLayout root = new LinearLayout(this);

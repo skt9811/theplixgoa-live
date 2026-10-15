@@ -1,6 +1,7 @@
 package com.plix.pms;
 
-import android.content.Context;
+import android.app.Activity;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -8,6 +9,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.util.Log;
 
 import androidx.core.content.pm.ShortcutInfoCompat;
 import androidx.core.content.pm.ShortcutManagerCompat;
@@ -30,8 +32,11 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  */
 @CapacitorPlugin(name = "AirbnbHost")
 public class AirbnbHostPlugin extends Plugin {
+    private static final String TAG = "AirbnbHostPlugin";
     private static final String SHORTCUT_ICON_COLOR = "#FF385C";
     private static final String SHORTCUT_BADGE_COLOR = "#0F172A";
+    public static final String ACTION_SHORTCUT_PINNED = "com.plix.pms.ACTION_SHORTCUT_PINNED";
+    public static final String EXTRA_PINNED_SPACE_NAME = "extra_pinned_space_name";
 
     @PluginMethod
     public void openSpace(PluginCall call) {
@@ -55,10 +60,11 @@ public class AirbnbHostPlugin extends Plugin {
      * AirbnbHostActivity for this Space — no PMS dashboard in between (see
      * the manifest comment on why AirbnbHostActivity has to be the
      * shortcut's own target, not MainActivity). Resolves {requested:
-     * false} rather than rejecting when the launcher doesn't support
-     * pinned shortcuts at all, so the JS side can fall back to the
-     * "Add to Home screen" browser instructions instead of surfacing a
-     * hard error for something that isn't really a failure.
+     * false} — never rejects — whenever the launcher doesn't support (or
+     * throws while attempting) a pinned shortcut, so the JS side can fall
+     * back to the "Add to Home screen" / copy-link instructions instead of
+     * surfacing a hard error for something that isn't really a failure on
+     * this app's part.
      */
     @PluginMethod
     public void pinShortcut(PluginCall call) {
@@ -72,35 +78,75 @@ public class AirbnbHostPlugin extends Plugin {
             return;
         }
 
-        Context context = getContext();
-        if (!ShortcutManagerCompat.isRequestPinShortcutSupported(context)) {
+        // Pinning a shortcut shows a system confirmation UI anchored to the
+        // calling foreground task — some OEM launchers (Samsung/Xiaomi/
+        // OnePlus-Realme) reject or silently no-op the request when it's
+        // issued with the Application context instead of the actual
+        // Activity, which is why this uses getActivity() (same as
+        // openSpace() above), not getContext().
+        Activity activity = getActivity();
+        if (activity == null) {
             JSObject ret = new JSObject();
             ret.put("requested", false);
             call.resolve(ret);
             return;
         }
 
-        Intent intent = new Intent(context, AirbnbHostActivity.class);
-        intent.setAction(Intent.ACTION_VIEW);
-        intent.putExtra(AirbnbHostActivity.EXTRA_URL, url);
-        intent.putExtra(AirbnbHostActivity.EXTRA_SPACE_ID, spaceId);
-        intent.putExtra(AirbnbHostActivity.EXTRA_SPACE_NAME, spaceName);
+        try {
+            if (!ShortcutManagerCompat.isRequestPinShortcutSupported(activity)) {
+                JSObject ret = new JSObject();
+                ret.put("requested", false);
+                call.resolve(ret);
+                return;
+            }
 
-        String label = "Airbnb - " + spaceName;
-        if (label.length() > 25) label = label.substring(0, 25);
+            Intent intent = new Intent(activity, AirbnbHostActivity.class);
+            intent.setAction(Intent.ACTION_VIEW);
+            // A shortcut's Intent is launched outside this app's own
+            // activity task (the launcher starts it fresh each time), so
+            // these flags are required, not optional — without them some
+            // launchers start the Activity into a stale, already-finished
+            // task instead of a new one.
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            intent.putExtra(AirbnbHostActivity.EXTRA_URL, url);
+            intent.putExtra(AirbnbHostActivity.EXTRA_SPACE_ID, spaceId);
+            intent.putExtra(AirbnbHostActivity.EXTRA_SPACE_NAME, spaceName);
 
-        ShortcutInfoCompat shortcut = new ShortcutInfoCompat.Builder(context, "airbnb_space_" + spaceId)
-            .setShortLabel(label)
-            .setLongLabel("Airbnb - " + spaceName)
-            .setIcon(IconCompat.createWithBitmap(buildShortcutIcon(indexNumber)))
-            .setIntent(intent)
-            .build();
+            String label = "Airbnb - " + spaceName;
+            if (label.length() > 25) label = label.substring(0, 25);
 
-        boolean requested = ShortcutManagerCompat.requestPinShortcut(context, shortcut, null);
+            ShortcutInfoCompat shortcut = new ShortcutInfoCompat.Builder(activity, "airbnb_space_" + spaceId)
+                .setShortLabel(label)
+                .setLongLabel("Airbnb - " + spaceName)
+                .setIcon(IconCompat.createWithBitmap(buildShortcutIcon(indexNumber)))
+                .setIntent(intent)
+                .build();
 
-        JSObject ret = new JSObject();
-        ret.put("requested", requested);
-        call.resolve(ret);
+            // Fires ShortcutPinnedReceiver once the user actually accepts
+            // the OS's own confirmation prompt — requestPinShortcut's
+            // return value below only means the request was issued, not
+            // that the user said yes.
+            Intent callbackIntent = new Intent(activity, ShortcutPinnedReceiver.class);
+            callbackIntent.setAction(ACTION_SHORTCUT_PINNED);
+            callbackIntent.putExtra(EXTRA_PINNED_SPACE_NAME, spaceName);
+            PendingIntent callback = PendingIntent.getBroadcast(
+                activity,
+                spaceId.hashCode(),
+                callbackIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+
+            boolean requested = ShortcutManagerCompat.requestPinShortcut(activity, shortcut, callback.getIntentSender());
+
+            JSObject ret = new JSObject();
+            ret.put("requested", requested);
+            call.resolve(ret);
+        } catch (Exception e) {
+            Log.w(TAG, "pinShortcut(" + spaceId + ") failed, reporting unsupported", e);
+            JSObject ret = new JSObject();
+            ret.put("requested", false);
+            call.resolve(ret);
+        }
     }
 
     /** Coral rounded-square tile with a white house glyph and a numbered

@@ -59,7 +59,13 @@ export function AirbnbSpacesView() {
   const [addValue, setAddValue] = useState("");
   const [deleting, setDeleting] = useState<AirbnbSpaceInstance | null>(null);
   const [openSpace, setOpenSpace] = useState<AirbnbSpaceInstance | null>(null);
-  const [shortcutFor, setShortcutFor] = useState<AirbnbSpaceInstance | null>(null);
+  // `blocked` distinguishes "no native plugin at all" (plain browser/PWA —
+  // expected, not an error) from "native pin request itself came back
+  // unsupported/failed" (an OEM launcher declining it), so the fallback
+  // sheet can show the right copy for each.
+  const [shortcutFor, setShortcutFor] = useState<{ space: AirbnbSpaceInstance; blocked: boolean } | null>(
+    null,
+  );
 
   useEffect(() => {
     const loaded = loadSpaces();
@@ -206,10 +212,15 @@ export function AirbnbSpacesView() {
                       if (pinned) {
                         toast.success(`Follow the prompt to add "${space.name}" to your Home Screen`);
                       } else {
-                        toast.error("Couldn't add a shortcut — your launcher may not support it.");
+                        // Launcher declined/doesn't support a pinned
+                        // shortcut (or the native call itself failed) —
+                        // not worth a dead-end error toast when there's a
+                        // working fallback (copy the direct link) right
+                        // here.
+                        setShortcutFor({ space, blocked: true });
                       }
                     } else {
-                      setShortcutFor(space);
+                      setShortcutFor({ space, blocked: false });
                     }
                   }}
                   className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50"
@@ -287,7 +298,13 @@ export function AirbnbSpacesView() {
         />
       )}
 
-      {shortcutFor && <AddToHomeScreenSheet space={shortcutFor} onClose={() => setShortcutFor(null)} />}
+      {shortcutFor && (
+        <AddToHomeScreenSheet
+          space={shortcutFor.space}
+          blocked={shortcutFor.blocked}
+          onClose={() => setShortcutFor(null)}
+        />
+      )}
     </div>
   );
 }
@@ -299,7 +316,18 @@ export function AirbnbSpacesView() {
  * direct link and the manual steps, same as the native in-app instructions
  * this feature is meant to shortcut past once the Plix PMS Android app is
  * used instead. */
-function AddToHomeScreenSheet({ space, onClose }: { space: AirbnbSpaceInstance; onClose: () => void }) {
+function AddToHomeScreenSheet({
+  space,
+  blocked,
+  onClose,
+}: {
+  space: AirbnbSpaceInstance;
+  /** True when this is the native Android app and the launcher itself
+   * declined/doesn't support a pinned shortcut — distinct from the plain
+   * browser case, where there's simply no pinning API to call at all. */
+  blocked: boolean;
+  onClose: () => void;
+}) {
   useBackDismiss(true, onClose);
   const link = spaceDeepLink(space);
   return (
@@ -322,10 +350,18 @@ function AddToHomeScreenSheet({ space, onClose }: { space: AirbnbSpaceInstance; 
             <X className="size-5" aria-hidden />
           </button>
         </div>
-        <p className="mt-2 text-sm text-slate-600">
-          Tap your browser menu (⋮) and choose <strong>&quot;Add to Home screen&quot;</strong> to open{" "}
-          {space.name}&apos;s space in 1 tap — or copy this direct link to create your own shortcut:
-        </p>
+        {blocked ? (
+          <p className="mt-2 text-sm text-slate-600">
+            Your phone&apos;s launcher blocked the automatic shortcut. Try enabling{" "}
+            <strong>&quot;Add Home screen shortcuts&quot;</strong> in App Info → Permissions for Plix
+            PMS, or copy the direct link below and add it manually.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-slate-600">
+            Tap your browser menu (⋮) and choose <strong>&quot;Add to Home screen&quot;</strong> to open{" "}
+            {space.name}&apos;s space in 1 tap — or copy this direct link to create your own shortcut:
+          </p>
+        )}
         <div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
           <span className="min-w-0 flex-1 truncate text-xs text-slate-600">{link}</span>
           <button
@@ -334,15 +370,17 @@ function AddToHomeScreenSheet({ space, onClose }: { space: AirbnbSpaceInstance; 
               void navigator.clipboard.writeText(link);
               toast.success("Link copied");
             }}
-            aria-label="Copy direct link"
+            aria-label="Copy Space link"
             className="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-slate-200"
           >
             <Copy className="size-4" aria-hidden />
           </button>
         </div>
-        <p className="mt-3 text-xs text-slate-400">
-          For a true 1-tap pinned shortcut, open this page in the Plix PMS Android app instead.
-        </p>
+        {!blocked && (
+          <p className="mt-3 text-xs text-slate-400">
+            For a true 1-tap pinned shortcut, open this page in the Plix PMS Android app instead.
+          </p>
+        )}
       </div>
     </div>
   );

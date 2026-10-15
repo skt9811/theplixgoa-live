@@ -63,7 +63,38 @@
             android:theme="@style/AppTheme.NoActionBar"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:windowSoftInputMode="adjustResize"
-            android:exported="true" />
+            android:exported="true">
+
+            <!-- Secondary resolution path for a pinned shortcut's Intent,
+                 alongside the explicit-component Intent AirbnbHostPlugin
+                 builds. Some OEM launchers (Samsung/Xiaomi/OnePlus-Realme,
+                 the ones reported failing "isRequestPinShortcutSupported")
+                 re-resolve or re-persist a pinned shortcut's Intent through
+                 action/category/data matching rather than keeping the
+                 explicit ComponentName + extras intact, especially across a
+                 reboot — without a matching intent-filter here, that
+                 re-resolution has nothing to find and the shortcut silently
+                 stops working (or the pin request itself gets rejected
+                 up front). onCreate() below reads id/name/url from this
+                 URI's query string as a fallback when the Intent arrives
+                 this way instead of via extras. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="plixpms" android:host="space" />
+            </intent-filter>
+        </activity>
+
+        <!-- Internal-only (exported="false") — fired by the PendingIntent
+             AirbnbHostPlugin.pinShortcut passes to requestPinShortcut, so
+             the app can show its own confirmation once the user actually
+             accepts the OS's pin-shortcut prompt (requestPinShortcut's own
+             return value only means the request was successfully issued,
+             not that the user said yes). -->
+        <receiver
+            android:name=".ShortcutPinnedReceiver"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -80,6 +111,16 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Legacy (pre-Android 8.0 / API <26) pinned-shortcut path: on those
+         versions ShortcutManagerCompat.requestPinShortcut falls back to
+         broadcasting ACTION_INSTALL_SHORTCUT for the launcher to pick up,
+         which historically required the requesting app to hold this
+         permission — minSdkVersion here is 24, so this path is reachable on
+         real devices, not just a formality. Harmless on newer versions,
+         which use the real ShortcutManager API and ignore this permission
+         entirely. -->
+    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
 
     <!--
       Classic Bluetooth (RFCOMM/SPP) for the POS receipt printer (see

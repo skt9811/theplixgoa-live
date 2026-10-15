@@ -2,6 +2,7 @@ package com.plix.pms;
 
 import android.app.Activity;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
@@ -62,6 +63,26 @@ public class AirbnbHostActivity extends Activity {
 
     private WebView webView;
 
+    /** Now that this Activity is exported (pinned Home Screen shortcuts need
+     * that — see the manifest), EXTRA_URL can arrive from outside this app's
+     * own JS. Only an airbnb.com (or subdomain) http(s) URL is honored;
+     * anything else falls back to DEFAULT_URL rather than letting another
+     * app point this branded WebView at an arbitrary page. */
+    private static boolean isAirbnbUrl(String url) {
+        if (TextUtils.isEmpty(url)) return false;
+        try {
+            Uri uri = Uri.parse(url);
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            if (host == null) return false;
+            host = host.toLowerCase(java.util.Locale.ROOT);
+            return ("http".equals(scheme) || "https".equals(scheme))
+                && (host.equals("airbnb.com") || host.endsWith(".airbnb.com"));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -74,7 +95,7 @@ public class AirbnbHostActivity extends Activity {
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
         String url = getIntent().getStringExtra(EXTRA_URL);
-        if (TextUtils.isEmpty(url)) url = DEFAULT_URL;
+        if (!isAirbnbUrl(url)) url = DEFAULT_URL;
         String spaceId = getIntent().getStringExtra(EXTRA_SPACE_ID);
         String spaceName = getIntent().getStringExtra(EXTRA_SPACE_NAME);
         if (TextUtils.isEmpty(spaceName)) spaceName = "Airbnb";

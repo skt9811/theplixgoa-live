@@ -71,6 +71,12 @@ export function createSpaceForHost(name: string): AirbnbSpaceInstance {
 
 type NativeAirbnbHostPlugin = {
   openSpace(opts: { spaceId: string; spaceName: string; url: string }): Promise<{ launched: boolean }>;
+  pinShortcut(opts: {
+    spaceId: string;
+    spaceName: string;
+    url: string;
+    indexNumber: number;
+  }): Promise<{ requested: boolean }>;
 };
 
 /** Same access pattern pms-pos-print.ts's nativePrinter() uses for PosPrinterPlugin — null in the browser or an app build older than this plugin. */
@@ -97,4 +103,36 @@ export async function openSpaceUrl(space: AirbnbSpaceInstance, url: string): Pro
   // open a new tab inside the app's own WebView instead. Also the only
   // path at all in a plain browser.
   window.open(url, "_system");
+}
+
+/** The direct link a "Add to Home Screen" shortcut (PWA/browser path) or a
+ * pinned-icon fallback points at — lands straight on this Space, skipping
+ * the grid. The native Android path doesn't use this: its pinned shortcut
+ * launches AirbnbHostActivity directly, with no PMS page in between. */
+export function spaceDeepLink(space: AirbnbSpaceInstance): string {
+  if (typeof window === "undefined") return `/pms/airbnb-spaces?space=${space.partitionKey}`;
+  return `${window.location.origin}/pms/airbnb-spaces?space=${space.partitionKey}`;
+}
+
+/** Requests a pinned Home Screen shortcut that launches straight into this
+ * Space (native Android only — AirbnbHostActivity, bypassing the PMS
+ * dashboard entirely). Returns false in the browser, in an app build older
+ * than this plugin, or if the device's launcher declined/doesn't support
+ * pinned shortcuts; callers fall back to the "Add to Home screen" browser
+ * instructions in that case. */
+export async function pinSpaceShortcut(space: AirbnbSpaceInstance, url: string): Promise<boolean> {
+  const plugin = nativeAirbnbHost();
+  if (!plugin) return false;
+  try {
+    const result = await plugin.pinShortcut({
+      spaceId: space.partitionKey,
+      spaceName: space.name,
+      url,
+      indexNumber: space.indexNumber,
+    });
+    return result.requested;
+  } catch (err) {
+    console.warn("[airbnb-spaces] pinShortcut failed:", err);
+    return false;
+  }
 }

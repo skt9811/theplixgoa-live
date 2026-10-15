@@ -21,9 +21,10 @@ import { useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ArrowLeft, Calendar, Home, Inbox, MoreVertical, Plus, X } from "lucide-react";
+import { ArrowLeft, Calendar, Copy, Home, Inbox, MoreVertical, PlusSquare, Plus, X } from "lucide-react";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 import { usePms } from "@/components/pms/pms-context";
+import { Route as AirbnbSpacesRoute } from "@/routes/pms.airbnb-spaces";
 import {
   CALENDAR_URL,
   HOSTING_URL,
@@ -31,7 +32,9 @@ import {
   loadSpaces,
   newId,
   openSpaceUrl,
+  pinSpaceShortcut,
   saveSpaces,
+  spaceDeepLink,
   type AirbnbSpaceInstance,
 } from "@/lib/airbnb-spaces";
 
@@ -42,6 +45,7 @@ const CORAL = "#FF385C";
 export function AirbnbSpacesView() {
   const { user } = usePms();
   const navigate = useNavigate();
+  const { space: deepLinkSpaceId } = AirbnbSpacesRoute.useSearch();
   // Loaded in an effect, not a useState lazy initializer — this route is
   // server-rendered and localStorage doesn't exist there, so a lazy
   // initializer would make the client's first render disagree with the
@@ -55,9 +59,19 @@ export function AirbnbSpacesView() {
   const [addValue, setAddValue] = useState("");
   const [deleting, setDeleting] = useState<AirbnbSpaceInstance | null>(null);
   const [openSpace, setOpenSpace] = useState<AirbnbSpaceInstance | null>(null);
+  const [shortcutFor, setShortcutFor] = useState<AirbnbSpaceInstance | null>(null);
 
   useEffect(() => {
-    setSpaces(loadSpaces());
+    const loaded = loadSpaces();
+    setSpaces(loaded);
+    // A "Add to Home Screen" link opened from the browser fallback path
+    // (?space=<partitionKey>) — jump straight to that Space instead of the
+    // grid, same "no menus first" goal the native pinned shortcut has.
+    if (deepLinkSpaceId) {
+      const match = loaded.find((s) => s.partitionKey === deepLinkSpaceId);
+      if (match) setOpenSpace(match);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function persist(next: AirbnbSpaceInstance[]) {
@@ -185,6 +199,26 @@ export function AirbnbSpacesView() {
                 </button>
                 <button
                   type="button"
+                  onClick={async () => {
+                    setMenuFor(null);
+                    if (Capacitor.isNativePlatform()) {
+                      const pinned = await pinSpaceShortcut(space, HOSTING_URL);
+                      if (pinned) {
+                        toast.success(`Follow the prompt to add "${space.name}" to your Home Screen`);
+                      } else {
+                        toast.error("Couldn't add a shortcut — your launcher may not support it.");
+                      }
+                    } else {
+                      setShortcutFor(space);
+                    }
+                  }}
+                  className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  <PlusSquare className="size-3.5" aria-hidden />
+                  Add to Home Screen
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     setDeleting(space);
                     setMenuFor(null);
@@ -252,6 +286,64 @@ export function AirbnbSpacesView() {
           }}
         />
       )}
+
+      {shortcutFor && <AddToHomeScreenSheet space={shortcutFor} onClose={() => setShortcutFor(null)} />}
+    </div>
+  );
+}
+
+/** Browser/PWA fallback for "Add to Home Screen" — there's no cross-browser
+ * API to trigger the OS add-to-home-screen prompt for an arbitrary link
+ * (beforeinstallprompt only fires for the page itself, installed as a
+ * whole, not for one specific Space), so this just hands the operator the
+ * direct link and the manual steps, same as the native in-app instructions
+ * this feature is meant to shortcut past once the Plix PMS Android app is
+ * used instead. */
+function AddToHomeScreenSheet({ space, onClose }: { space: AirbnbSpaceInstance; onClose: () => void }) {
+  useBackDismiss(true, onClose);
+  const link = spaceDeepLink(space);
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-slate-900">Add to Home Screen</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-slate-400 hover:text-slate-600"
+          >
+            <X className="size-5" aria-hidden />
+          </button>
+        </div>
+        <p className="mt-2 text-sm text-slate-600">
+          Tap your browser menu (⋮) and choose <strong>&quot;Add to Home screen&quot;</strong> to open{" "}
+          {space.name}&apos;s space in 1 tap — or copy this direct link to create your own shortcut:
+        </p>
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+          <span className="min-w-0 flex-1 truncate text-xs text-slate-600">{link}</span>
+          <button
+            type="button"
+            onClick={() => {
+              void navigator.clipboard.writeText(link);
+              toast.success("Link copied");
+            }}
+            aria-label="Copy direct link"
+            className="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-slate-200"
+          >
+            <Copy className="size-4" aria-hidden />
+          </button>
+        </div>
+        <p className="mt-3 text-xs text-slate-400">
+          For a true 1-tap pinned shortcut, open this page in the Plix PMS Android app instead.
+        </p>
+      </div>
     </div>
   );
 }

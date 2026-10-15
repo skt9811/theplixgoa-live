@@ -46,12 +46,24 @@
 
         </activity>
 
+        <!-- exported="true": a pinned Home Screen shortcut (AirbnbHostPlugin's
+             pinShortcut, requestPinShortcut) is invoked by the OS launcher —
+             a separate app/process — which can only start an explicit-
+             component Activity Intent if it's exported; routing through
+             MainActivity instead would flash the PMS web dashboard loading
+             before handing off, defeating the shortcut's "straight into the
+             Space" point, since this app has no bundled webDir (see
+             MainActivity's own onCreate comment). Opening this surface up
+             externally means EXTRA_URL is no longer a value this app's own
+             JS always controls, so onCreate below only loads it if its host
+             is airbnb.com — anything else falls back to DEFAULT_URL instead
+             of letting another app point this WebView at an arbitrary page. -->
         <activity
             android:name=".AirbnbHostActivity"
             android:theme="@style/AppTheme.NoActionBar"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:windowSoftInputMode="adjustResize"
-            android:exported="false" />
+            android:exported="true" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

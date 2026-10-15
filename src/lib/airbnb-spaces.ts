@@ -76,7 +76,7 @@ type NativeAirbnbHostPlugin = {
     spaceName: string;
     url: string;
     indexNumber: number;
-  }): Promise<{ requested: boolean }>;
+  }): Promise<{ requested: boolean; error?: string }>;
 };
 
 /** Same access pattern pms-pos-print.ts's nativePrinter() uses for PosPrinterPlugin — null in the browser or an app build older than this plugin. */
@@ -130,6 +130,9 @@ export async function pinSpaceShortcut(space: AirbnbSpaceInstance, url: string):
       url,
       indexNumber: space.indexNumber,
     });
+    if (!result.requested && result.error) {
+      console.warn("[airbnb-spaces] native pinShortcut reported an error:", result.error);
+    }
     return result.requested;
   } catch (err) {
     console.warn("[airbnb-spaces] pinShortcut failed:", err);

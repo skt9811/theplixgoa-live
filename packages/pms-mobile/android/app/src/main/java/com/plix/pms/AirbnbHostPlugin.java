@@ -86,14 +86,39 @@ public class AirbnbHostPlugin extends Plugin {
         // openSpace() above), not getContext().
         Activity activity = getActivity();
         if (activity == null) {
+            Log.e(TAG, "pinShortcut(" + spaceId + "): no foreground Activity");
             JSObject ret = new JSObject();
             ret.put("requested", false);
+            ret.put("error", "No foreground activity");
             call.resolve(ret);
             return;
         }
 
+        // The actual, app-specific bug confirmed on physical Samsung and
+        // OnePlus devices: Capacitor invokes @PluginMethod calls on its own
+        // background thread pool, never the main/UI thread. requestPinShortcut
+        // shows a real system confirmation dialog, and several OEM launchers
+        // (One UI, OxygenOS among them) silently reject or no-op that request
+        // when it's issued off the main thread, even though nothing about the
+        // call itself looks thread-bound — which is exactly why other apps'
+        // shortcuts pin fine on the same devices (they call this from the
+        // main thread by default) while this one consistently failed.
+        activity.runOnUiThread(() -> doPinShortcut(activity, call, spaceId, spaceName, url, indexNumber));
+    }
+
+    private void doPinShortcut(
+        Activity activity,
+        PluginCall call,
+        String spaceId,
+        String spaceName,
+        String url,
+        int indexNumber
+    ) {
         try {
+            Log.d(TAG, "pinShortcut: spaceId=" + spaceId + " spaceName=" + spaceName + " url=" + url);
+
             if (!ShortcutManagerCompat.isRequestPinShortcutSupported(activity)) {
+                Log.d(TAG, "pinShortcut: isRequestPinShortcutSupported() = false");
                 JSObject ret = new JSObject();
                 ret.put("requested", false);
                 call.resolve(ret);
@@ -112,13 +137,30 @@ public class AirbnbHostPlugin extends Plugin {
             intent.putExtra(AirbnbHostActivity.EXTRA_SPACE_ID, spaceId);
             intent.putExtra(AirbnbHostActivity.EXTRA_SPACE_NAME, spaceName);
 
-            String label = "Airbnb - " + spaceName;
-            if (label.length() > 25) label = label.substring(0, 25);
+            String safeName = (spaceName == null || spaceName.isEmpty()) ? "Airbnb Space" : spaceName;
+            String shortLabel = "Airbnb - " + safeName;
+            if (shortLabel.length() > 25) shortLabel = shortLabel.substring(0, 25);
+            // Shortcut IDs are meant to be opaque — this one is never read
+            // back — so sanitizing away anything but [a-zA-Z0-9_] is a free
+            // way to rule out an OEM launcher mishandling an ID built from a
+            // raw UUID's hyphens.
+            String shortcutId = ("airbnb_space_" + spaceId).replaceAll("[^a-zA-Z0-9_]", "_");
 
-            ShortcutInfoCompat shortcut = new ShortcutInfoCompat.Builder(activity, "airbnb_space_" + spaceId)
-                .setShortLabel(label)
-                .setLongLabel("Airbnb - " + spaceName)
-                .setIcon(IconCompat.createWithBitmap(buildShortcutIcon(indexNumber)))
+            IconCompat icon;
+            try {
+                icon = IconCompat.createWithBitmap(buildShortcutIcon(indexNumber));
+            } catch (Exception iconErr) {
+                // Never let a bad custom icon sink the whole shortcut — fall
+                // back to this app's own already-valid launcher icon, which
+                // by definition IconCompat can always resolve.
+                Log.w(TAG, "pinShortcut: custom icon failed, falling back to the app launcher icon", iconErr);
+                icon = IconCompat.createWithResource(activity, R.mipmap.ic_launcher);
+            }
+
+            ShortcutInfoCompat shortcut = new ShortcutInfoCompat.Builder(activity, shortcutId)
+                .setShortLabel(shortLabel)
+                .setLongLabel("Airbnb - " + safeName)
+                .setIcon(icon)
                 .setIntent(intent)
                 .build();
 
@@ -128,23 +170,26 @@ public class AirbnbHostPlugin extends Plugin {
             // that the user said yes.
             Intent callbackIntent = new Intent(activity, ShortcutPinnedReceiver.class);
             callbackIntent.setAction(ACTION_SHORTCUT_PINNED);
-            callbackIntent.putExtra(EXTRA_PINNED_SPACE_NAME, spaceName);
+            callbackIntent.putExtra(EXTRA_PINNED_SPACE_NAME, safeName);
             PendingIntent callback = PendingIntent.getBroadcast(
                 activity,
-                spaceId.hashCode(),
+                shortcutId.hashCode(),
                 callbackIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
             );
 
             boolean requested = ShortcutManagerCompat.requestPinShortcut(activity, shortcut, callback.getIntentSender());
+            Log.d(TAG, "pinShortcut: requestPinShortcut() result=" + requested);
 
             JSObject ret = new JSObject();
             ret.put("requested", requested);
             call.resolve(ret);
         } catch (Exception e) {
-            Log.w(TAG, "pinShortcut(" + spaceId + ") failed, reporting unsupported", e);
+            e.printStackTrace();
+            Log.e(TAG, "pinShortcut(" + spaceId + ") failed: " + e.getMessage(), e);
             JSObject ret = new JSObject();
             ret.put("requested", false);
+            ret.put("error", e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
             call.resolve(ret);
         }
     }

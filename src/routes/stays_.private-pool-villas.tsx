@@ -13,17 +13,18 @@ import {
   jsonLdScript,
 } from "@/lib/seo";
 
-// The 7 whole-estate properties with a genuine private pool (verified against
+// The 6 whole-estate properties with a genuine private pool (verified against
 // each property's own amenity_tags in src/lib/plix.ts — "Private Pool" or
 // "Private Pool & Garden" — not the 3 multi-room resorts, whose pools are
-// shared facilities rather than exclusive to one booking).
+// shared facilities rather than exclusive to one booking. Villa Madera moved
+// out of this list: its pool is shared with the wider property compound, not
+// exclusive to the booking — see SHARED_POOL_SLUGS in seo.ts).
 const PRIVATE_POOL_SLUGS = [
   "casa-meadows",
   "casa-marina",
   "casa-serenita",
   "the-plix-villa",
   "casa-moana",
-  "villa-madera",
   "vivenda-chico",
 ];
 
@@ -47,7 +48,7 @@ export const Route = createFileRoute("/stays_/private-pool-villas")({
     // Morjim are shared-pool resorts, not in this collection at all) — stating
     // Morjim here would claim a location this page doesn't actually cover.
     // "Power backup" stays dropped from the brief's draft for the same reason
-    // as before: 4 of these 7 properties have no Power Backup amenity tag.
+    // as before: 4 of these 6 properties have no Power Backup amenity tag.
     const description =
       "Private pool villas in Vagator, Anjuna, Assagao and Candolim for families and groups. Photos, prices and live availability.";
     const url = `${SITE_URL}/stays/private-pool-villas`;

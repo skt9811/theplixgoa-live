@@ -56,7 +56,7 @@ export function HeroCarousel({
     },
     {
       image: maderaImage ?? heroImage,
-      alt: "Villa Madera jungle-set private pool villa in Anjuna",
+      alt: "Villa Madera jungle-set villa with a shared pool in Anjuna",
       heading: "Hidden Jungle Luxury in Anjuna",
       subheading: "Tucked away privacy surrounded by lush coastal nature.",
       ctaLabel: "Discover Villa Madera",

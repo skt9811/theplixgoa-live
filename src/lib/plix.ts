@@ -1655,13 +1655,13 @@ export const PROPERTIES: Property[] = [
     name: "Villa Madera",
     location: "Anjuna",
     region: "North Goa",
-    tagline: "ANJUNA, NORTH GOA • 3 BHK PRIVATE POOL VILLA",
+    tagline: "ANJUNA, NORTH GOA • 3 BHK SHARED POOL VILLA",
     description:
       "Tucked away from the bustle of the main streets, this boutique property offers a rare sense of privacy and calm, reached by a picturesque 200-meter road that winds gently through lush jungle surroundings. The journey itself sets the tone—quiet, green, and refreshing—where the sounds of traffic fade and nature takes over.",
     seo_title: "Villa Madera, Anjuna Goa – 3BHK Pool Villa | The Plix",
     seo_description:
-      "Villa Madera, Anjuna Goa — official site, book direct. 3 BHK wooden-architecture villa, sleeps 9, private pool. From ₹10,500/night. Real photos & reviews.",
-    seo_keywords: ["3 BHK Villa Anjuna", "Private Pool Villa Goa", "Boutique Villa Anjuna", "Jungle Villa Goa", "North Goa Private Villa"],
+      "Villa Madera, Anjuna Goa — official site, book direct. 3 BHK wooden-architecture villa, sleeps 9, shared pool. From ₹10,500/night. Real photos & reviews.",
+    seo_keywords: ["3 BHK Villa Anjuna", "Shared Pool Villa Goa", "Boutique Villa Anjuna", "Jungle Villa Goa", "North Goa Private Villa"],
     enclave: null,
     bedrooms: 3,
     bathrooms: 3,
@@ -1710,7 +1710,7 @@ export const PROPERTIES: Property[] = [
       "villamadera39",
       "villamadera40",
     ],
-    amenity_tags: ["Restaurant", "Private Pool", "Kitchenette", "Parking", "Power Backup", "Free Wi-Fi", "Housekeeping"],
+    amenity_tags: ["Restaurant", "Swimming Pool (shared)", "Kitchenette", "Parking", "Power Backup", "Free Wi-Fi", "Housekeeping"],
     nearby: [
       { name: "Anjuna Beach", distance: "10 mins drive" },
       { name: "Vagator Beach", distance: "12 mins drive" },

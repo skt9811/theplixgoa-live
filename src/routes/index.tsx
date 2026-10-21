@@ -96,7 +96,7 @@ const perks = [
   {
     icon: Waves,
     title: "Private Pool Sanctuaries",
-    body: "Every villa features its own private pool wrapped in lush tropical greenery.",
+    body: "Most villas feature their own private pool wrapped in lush tropical greenery.",
   },
   {
     icon: ConciergeBell,

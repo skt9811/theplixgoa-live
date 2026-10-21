@@ -421,14 +421,18 @@ export function propertySearchVariantSentence(p: Property): string | undefined {
   return `Also searched as ${list}.`;
 }
 
-// Owner-confirmed: these properties' pools are shared by every room and
-// booking, never exclusive-use. Whatever pool tag the DB row or plix.ts
-// carries is displayed as SHARED_POOL_TAG (see normalizePoolTags, applied
-// to every property list in properties-data.ts).
+// Owner-confirmed: these properties' pools are shared, never exclusive-use
+// for one booking — harbor-court/the-plix-resort-morjim/morjim-pride are
+// multi-room resorts where the pool is shared by every room; villa-madera
+// is a whole-villa booking whose pool is shared with the wider property
+// compound, not private to the booking either. Whatever pool tag the DB
+// row or plix.ts carries is displayed as SHARED_POOL_TAG (see
+// normalizePoolTags, applied to every property list in properties-data.ts).
 export const SHARED_POOL_SLUGS: ReadonlySet<string> = new Set([
   "harbor-court",
   "the-plix-resort-morjim",
   "morjim-pride",
+  "villa-madera",
 ]);
 export const SHARED_POOL_TAG = "Swimming Pool (shared)";
 

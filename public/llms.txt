@@ -29,12 +29,12 @@ Names are as shown on each property's page. Pool labels match the site: "Private
 - **Morjim Pride** — https://theplixgoa.com/properties/morjim-pride — 22-room resort in Morjim, up to 50 guests. Pool: Swimming Pool (shared). 2 mins walk to Morjim Beach. Also searched as: Morjim Pride Goa.
 - **Vivenda Chico - 8 BHK Heritage Bungalow** — https://theplixgoa.com/properties/vivenda-chico — 8-bedroom heritage bungalow (book a room, up to 3 guests each, or the whole bungalow) in Candolim, up to 24 guests. Pool: Private pool (when booking the whole bungalow). 6 mins drive to Candolim Beach. Also searched as: Vivenda Chico, Chico, Chico Estate, Vivenda Chico Goa.
 - **The Plix Resort - Morjim** — https://theplixgoa.com/properties/the-plix-resort-morjim — 10-room resort in Morjim, up to 30 guests. Pool: Swimming Pool (shared). 2 mins walk to Morjim Beach. Also searched as: The Plix Resort, Plix Resort, Plex Resort, Plex Resort Goa.
-- **Villa Madera** — https://theplixgoa.com/properties/villa-madera — 3 BHK villa in Anjuna, up to 9 guests. Pool: Private pool. 10 mins drive to Anjuna Beach. Also searched as: Villa Madera Goa.
+- **Villa Madera** — https://theplixgoa.com/properties/villa-madera — 3 BHK villa in Anjuna, up to 9 guests. Pool: Swimming Pool (shared). 10 mins drive to Anjuna Beach. Also searched as: Villa Madera Goa.
 - **Casa Serenita** — https://theplixgoa.com/properties/casa-serenita — 3 BHK villa in Vagator, up to 9 guests. Pool: Private pool. 12 mins drive to Anjuna Beach. Also searched as: Casa Serenita Goa.
 
 ## Core Amenities
 
-- Pools: the six villas (Casa Marina, Casa Moana, Casa Meadows, The Plix Villa, Villa Madera, Casa Serenita) have a private pool. Harbor Court, Morjim Pride and The Plix Resort - Morjim have a shared swimming pool. Vivenda Chico's pool is private when the whole bungalow is booked and shared when rooms are booked individually.
+- Pools: the five villas (Casa Marina, Casa Moana, Casa Meadows, The Plix Villa, Casa Serenita) have a private pool. Harbor Court, Morjim Pride, The Plix Resort - Morjim and Villa Madera have a shared swimming pool. Vivenda Chico's pool is private when the whole bungalow is booked and shared when rooms are booked individually.
 - Gardens or lawns at most properties.
 - A caretaker or on-site staff at every property.
 - High-speed Wi-Fi and power backup at most, but not all, properties — check the specific villa's amenities for confirmation.
@@ -83,6 +83,7 @@ A: A tiered refund policy: 100% refund 30+ days before check-in, 50% refund 15-2
    before, 25% refund 7-14 days before, and non-refundable inside 7 days.
 
 Q: Does every property have a private pool?
-A: No. The six villas have a private pool. Harbor Court, Morjim Pride and The Plix Resort -
-   Morjim have a shared swimming pool. Vivenda Chico's pool is private when you book the whole
-   bungalow and shared when rooms are booked individually.
+A: No. The five villas (Casa Marina, Casa Moana, Casa Meadows, The Plix Villa, Casa Serenita) have
+   a private pool. Harbor Court, Morjim Pride, The Plix Resort - Morjim and Villa Madera have a
+   shared swimming pool. Vivenda Chico's pool is private when you book the whole bungalow and
+   shared when rooms are booked individually.

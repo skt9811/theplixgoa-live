@@ -156,7 +156,7 @@
           "amenityFeature": [
             {
               "@type": "LocationFeatureSpecification",
-              "name": "Private pool",
+              "name": "Swimming Pool (shared)",
               "value": true
             }
           ],

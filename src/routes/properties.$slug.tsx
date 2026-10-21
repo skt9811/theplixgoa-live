@@ -32,6 +32,7 @@ import { PropertyHostBlock } from "@/components/plix/property-host-block";
 import { PropertyConciergeWidget } from "@/components/plix/property-concierge-widget";
 import { PropertyCheckinRulesCard } from "@/components/plix/property-checkin-rules-card";
 import { amenityIcon } from "@/components/plix/amenity-icons";
+import { PHOTO_ROOM_LABEL } from "@/lib/photo-categories";
 import { useStickyHeaderOffset } from "@/lib/use-sticky-header-offset";
 
 const CheckoutModal = lazy(() =>
@@ -84,6 +85,13 @@ type PropertySearch = {
   guests?: number | undefined;
   rooms?: number | undefined;
 };
+
+// These two resorts get an extra, jump-linked Photos section (id="photos")
+// near the top of the page, in addition to the existing hero teaser
+// (id="photo-gallery") and lower-page gallery (id="spaces") every property
+// already has — business request to surface the full photo set higher up
+// specifically for these two.
+const PHOTOS_SECTION_SLUGS = new Set(["morjim-pride", "the-plix-resort-morjim"]);
 
 export const Route = createFileRoute("/properties/$slug")({
   validateSearch: (search: Record<string, unknown>): PropertySearch => ({
@@ -513,6 +521,14 @@ function PropertyDetail() {
             {propertySearchVariantSentence(property)}
           </p>
         )}
+        {PHOTOS_SECTION_SLUGS.has(property.slug) && (
+          <a
+            href="#photos"
+            className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+          >
+            View Photos
+          </a>
+        )}
       </header>
 
       <PropertyKeyFacts
@@ -535,6 +551,20 @@ function PropertyDetail() {
           location={property.location}
         />
       </section>
+
+      {PHOTOS_SECTION_SLUGS.has(property.slug) && (
+        <PropertyImageCarousel
+          images={images}
+          propertyName={property.name}
+          location={property.location}
+          sectionId="photos"
+          heading="Photos"
+          altOverrides={property.image_keys.map((key) => {
+            const room = PHOTO_ROOM_LABEL[key];
+            return room ? `${property.name} ${room}, Morjim Goa` : undefined;
+          })}
+        />
+      )}
 
       <PropertySubNav />
 

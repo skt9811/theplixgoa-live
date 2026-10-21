@@ -7,6 +7,18 @@ type Props = {
   images: string[];
   propertyName: string;
   location: string;
+  /** Defaults to "spaces" (the lower-page gallery). A property that also
+   * gets a near-the-top Photos section (properties.$slug.tsx) renders a
+   * second instance of this component with sectionId="photos" instead. */
+  sectionId?: string;
+  /** Defaults to "{propertyName} photo gallery". */
+  heading?: string;
+  /** Parallel to `images` (same index) — an explicit alt string for that
+   * photo, used instead of the generic `${propertyName} — ${location},
+   * North Goa` fallback when present. undefined/missing entries still fall
+   * back to the generic text, so a partially-labelled image set degrades
+   * safely instead of rendering an empty alt. */
+  altOverrides?: (string | undefined)[];
 };
 
 const AUTOPLAY_INTERVAL_MS = 3500;
@@ -17,7 +29,14 @@ const AUTOPLAY_INTERVAL_MS = 3500;
  * `image_keys` (see properties.$slug.tsx), so this component never mixes
  * in photos from any other property.
  */
-export function PropertyImageCarousel({ images, propertyName, location }: Props) {
+export function PropertyImageCarousel({
+  images,
+  propertyName,
+  location,
+  sectionId = "spaces",
+  heading,
+  altOverrides,
+}: Props) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: images.length > 1, align: "start" });
   const [selectedIndex, setSelectedIndex] = useState(0);
   // Refs, not state — autoplay just reads these on each tick, so toggling
@@ -74,8 +93,8 @@ export function PropertyImageCarousel({ images, propertyName, location }: Props)
   if (images.length === 0) return null;
 
   return (
-    <section id="spaces" className="mt-10">
-      <h2 className="text-2xl font-semibold text-navy">{propertyName} photo gallery</h2>
+    <section id={sectionId} className="mt-10">
+      <h2 className="text-2xl font-semibold text-navy">{heading ?? `${propertyName} photo gallery`}</h2>
       <div
         className="relative mt-4"
         onMouseEnter={() => {
@@ -101,7 +120,7 @@ export function PropertyImageCarousel({ images, propertyName, location }: Props)
                     // the original keys categoryForImageKey needs) -- this
                     // is the "no caption exists" safe fallback the task
                     // itself specifies, not a guess at room/area content.
-                    alt={`${propertyName} — ${location}, North Goa`}
+                    alt={altOverrides?.[i] ?? `${propertyName} — ${location}, North Goa`}
                     loading={i < 4 ? "eager" : "lazy"}
                     width={1000}
                     height={480}

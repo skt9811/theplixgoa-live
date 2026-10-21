@@ -22,6 +22,42 @@ export const PHOTO_CATEGORIES: readonly PhotoCategory[] = [
   "Bed & Bath",
 ];
 
+// Specific room/area labels for exactly two properties' near-the-top
+// "Photos" section (properties.$slug.tsx, id="photos") — Morjim Pride and
+// The Plix Resort - Morjim. Assigned by actually looking at each photo
+// (same discipline as IMAGE_CATEGORY above, not guessed from the key
+// string), since neither property has any IMAGE_CATEGORY entries post-
+// migration either (see the file header comment) — there was nothing to
+// derive a label from. Feeds that section's alt text:
+// "<property name> <label>, Morjim Goa".
+export const PHOTO_ROOM_LABEL: Partial<Record<string, string>> = {
+  // Morjim Pride (morjimpride*) — all 11 keys used in its image_keys.
+  morjimpride1: "Window Seating Nook",
+  morjimpride2: "Garden Courtyard",
+  morjimpride3: "Room Corridor",
+  morjimpride4: "Garden & Guest Rooms",
+  morjimpride5: "Café & Dining Area",
+  morjimpride6: "Garden Courtyard",
+  morjimpride7: "Swimming Pool",
+  morjimpride8: "Swimming Pool",
+  morjimpride9: "Reception",
+  morjimpride10: "Garden Courtyard",
+  morjimpride11: "Garden Courtyard",
+
+  // The Plix Resort - Morjim (plixresortnew*) — all 11 keys used in its image_keys.
+  plixresortnew2: "In-Room Tea & Coffee Station",
+  plixresortnew3: "Cabin Bedroom",
+  plixresortnew4: "Private Balcony & Pool View",
+  plixresortnew5: "Cabins & Swimming Pool",
+  plixresortnew6: "Cabins Exterior",
+  plixresortnew7: "Poolside Room",
+  plixresortnew8: "Cabin Bedroom",
+  plixresortnew10: "Cabin Bedroom",
+  plixresortnew11: "Cabin Bedroom",
+  plixresortnew12: "Swimming Pool at Night",
+  plixresortnew17: "Swimming Pool",
+};
+
 export const IMAGE_CATEGORY: Partial<Record<string, PhotoCategory>> = {
   // Vivenda Chico (chico*) — all 11 reviewed.
   "chico": "Outdoors",

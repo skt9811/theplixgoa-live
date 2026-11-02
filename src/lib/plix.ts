@@ -1217,9 +1217,9 @@ export const PROPERTIES: Property[] = [
     tagline: "VAGATOR, NORTH GOA • BOUTIQUE RESORT NEAR BEACH & NIGHTLIFE",
     description:
       "A charming sanctuary in the heart of Vagator. Nestled close to Vagator Beach, Harbor Court combines classic Goan warmth with boutique comfort, featuring a swimming pool, lush garden spaces, and a full-service on-site restaurant. Situated less than 1 km from Vagator Beach and close to famous nightlife spots like Chapora Fort, it provides an ideal retreat for couples, families, and solo travelers seeking effortless coastal living.",
-    seo_title: "Harbor Court, Vagator Goa – 10-Room Resort | The Plix",
+    seo_title: "Harbor Court Vagator, Goa – 10-Room Resort & Pool | The Plix",
     seo_description:
-      "Harbor Court, Vagator Goa — official site, book direct. 10 rooms, sleeps 20, pool. From ₹4,500/night. Real photos & guest reviews before you book.",
+      "Harbor Court Vagator — official site, book direct. 10-room resort in Goa with a shared pool, 4 min to Vagator Beach. From ₹4,500/night. See real photos.",
     seo_keywords: ["3 Star Hotel Vagator", "Resort near Vagator Beach", "Hotel near Chapora Fort", "Boutique Resort North Goa", "AC Rooms Vagator"],
     enclave: null,
     bedrooms: 10,

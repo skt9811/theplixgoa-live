@@ -22,15 +22,63 @@ export const PHOTO_CATEGORIES: readonly PhotoCategory[] = [
   "Bed & Bath",
 ];
 
-// Specific room/area labels for exactly two properties' near-the-top
-// "Photos" section (properties.$slug.tsx, id="photos") — Morjim Pride and
-// The Plix Resort - Morjim. Assigned by actually looking at each photo
+// Specific room/area labels for the near-the-top "Photos" section
+// (properties.$slug.tsx, id="photos") — Morjim Pride, The Plix Resort -
+// Morjim and Harbor Court. Assigned by actually looking at each photo
 // (same discipline as IMAGE_CATEGORY above, not guessed from the key
 // string), since neither property has any IMAGE_CATEGORY entries post-
 // migration either (see the file header comment) — there was nothing to
 // derive a label from. Feeds that section's alt text:
-// "<property name> <label>, Morjim Goa".
+// "<property name> <label>, <location> Goa".
 export const PHOTO_ROOM_LABEL: Partial<Record<string, string>> = {
+  // Harbor Court (harborcourt*): all 46 keys in its image_keys, each viewed.
+  harborcourt31: "Swimming Pool & Cottages",
+  harborcourt1: "Guest Room with Wood-Panel Headboard",
+  harborcourt2: "Guest Room Bed",
+  harborcourt3: "Guest Room with Wood-Panel Headboard",
+  harborcourt4: "Guest Room TV & Dresser",
+  harborcourt5: "Guest Room Bed",
+  harborcourt6: "Guest Room Bed & Garden Door",
+  harborcourt7: "Guest Room with Sitting Area",
+  harborcourt8: "Guest Room Entrance & Dresser",
+  harborcourt9: "Guest Room with Wood-Panel Headboard",
+  harborcourt10: "Guest Room with Dresser",
+  harborcourt11: "Guest Room",
+  harborcourt12: "Canopy Bed Room",
+  harborcourt13: "Canopy Bed Room",
+  harborcourt14: "Canopy Bed Room",
+  harborcourt15: "Canopy Bed Room",
+  harborcourt16: "Canopy Bed Room",
+  harborcourt17: "Canopy Bed",
+  harborcourt18: "Canopy Bed Room",
+  harborcourt19: "Guest Room with Wardrobe",
+  harborcourt20: "Guest Room Wall Art & Entrance",
+  harborcourt21: "Guest Room with Wardrobe",
+  harborcourt22: "Guest Room with Wardrobe",
+  harborcourt23: "Guest Room with Dresser",
+  harborcourt24: "Guest Room",
+  harborcourt25: "Guest Room Entrance",
+  harborcourt26: "Cottage Entrance & Garden",
+  harborcourt27: "Swimming Pool & Mural Wall",
+  harborcourt28: "Entrance Gate & Street View",
+  harborcourt29: "Entrance Gate",
+  harborcourt30: "Guest Room Sitting Area",
+  harborcourt32: "Cottage Exterior & Patio",
+  harborcourt33: "Pool Deck at Night",
+  harborcourt34: "Garden Pathway",
+  harborcourt35: "Garden Pathway",
+  harborcourt36: "Cottage Exterior",
+  harborcourt37: "Entrance & Street",
+  harborcourt38: "Pool Deck & Outdoor Dining",
+  harborcourt39: "Reception & Garden Arch",
+  harborcourt40: "Swimming Pool",
+  harborcourt41: "Garden Terrace Steps",
+  harborcourt42: "Swimming Pool & Outdoor Dining",
+  harborcourt43: "Lit Garden Arch at Night",
+  harborcourt44: "Lit Garden Arch at Night",
+  harborcourt45: "Outdoor Dining & Pool",
+  harborcourt46: "Swimming Pool & Mural Wall",
+
   // Morjim Pride (morjimpride*) — all 11 keys used in its image_keys.
   morjimpride1: "Window Seating Nook",
   morjimpride2: "Garden Courtyard",

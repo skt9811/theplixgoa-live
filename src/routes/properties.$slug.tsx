@@ -86,12 +86,13 @@ type PropertySearch = {
   rooms?: number | undefined;
 };
 
-// These two resorts get an extra, jump-linked Photos section (id="photos")
+// These three resorts get an extra, jump-linked Photos section (id="photos")
 // near the top of the page, in addition to the existing hero teaser
 // (id="photo-gallery") and lower-page gallery (id="spaces") every property
 // already has — business request to surface the full photo set higher up
-// specifically for these two.
-const PHOTOS_SECTION_SLUGS = new Set(["morjim-pride", "the-plix-resort-morjim"]);
+// for these specifically (Harbor Court added after Search Console showed
+// impressions without clicks).
+const PHOTOS_SECTION_SLUGS = new Set(["morjim-pride", "the-plix-resort-morjim", "harbor-court"]);
 
 export const Route = createFileRoute("/properties/$slug")({
   validateSearch: (search: Record<string, unknown>): PropertySearch => ({
@@ -561,7 +562,7 @@ function PropertyDetail() {
           heading="Photos"
           altOverrides={property.image_keys.map((key) => {
             const room = PHOTO_ROOM_LABEL[key];
-            return room ? `${property.name} ${room}, Morjim Goa` : undefined;
+            return room ? `${property.name} ${room}, ${property.location} Goa` : undefined;
           })}
         />
       )}

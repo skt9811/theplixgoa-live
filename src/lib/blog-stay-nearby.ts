@@ -19,8 +19,10 @@ const PRESETS = {
   assagao: { areas: ["assagao"], properties: ["the-plix-villa", "villa-madera"] },
   candolim: { areas: ["candolim"], properties: ["vivenda-chico", "villa-madera"] },
   groups: { areas: ["morjim", "candolim"], properties: ["morjim-pride", "the-plix-resort-morjim", "vivenda-chico"] },
-  // amenity_tags "Pet Friendly"
-  pets: { areas: ["anjuna", "candolim"], properties: ["casa-marina", "casa-meadows", "vivenda-chico"] },
+  // Live amenity_tags "Pet Friendly" (DB row where one exists, else plix.ts).
+  // Casa Marina is excluded: plix.ts tags it pet friendly but its live DB row
+  // doesn't, so its own page doesn't say so.
+  pets: { areas: ["anjuna", "candolim"], properties: ["casa-moana", "casa-meadows", "vivenda-chico"] },
   families: { areas: ["anjuna"], properties: ["casa-meadows", "casa-moana", "villa-madera"] },
   couples: { areas: ["anjuna", "vagator"], properties: ["casa-marina", "villa-madera", "casa-serenita"] },
   workation: { areas: ["assagao", "vagator"], properties: ["the-plix-villa", "harbor-court"] },

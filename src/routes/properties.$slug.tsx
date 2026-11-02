@@ -263,9 +263,15 @@ function PropertyDetail() {
 
   const isMultiRoom = isMultiRoomProperty(property?.id ?? "");
   const maxRooms = property ? maxRoomsForProperty(property.id) : 1;
-  // Vivenda Chico only (see scalesPriceByRooms) — lets a guest book the
-  // entire bungalow as one unit instead of picking individual rooms.
-  const canBookWhole = Boolean(property && scalesPriceByRooms(property.id));
+  // Vivenda Chico only — lets a guest book the entire bungalow as one unit
+  // instead of picking individual rooms. Deliberately its own check, not
+  // scalesPriceByRooms(property.id): that flag now covers every multi-room
+  // property (room count multiplies the price for all of them), but
+  // "book the entire bungalow" as a single bookable unit is still a
+  // Vivenda-Chico-specific concept — Harbor Court/Morjim Pride/The Plix
+  // Resort - Morjim guests pick a room count, they don't "book the whole
+  // resort" as one toggle.
+  const canBookWhole = property?.id === "vivenda-chico";
   const effectiveMaxGuests = isMultiRoom
     ? maxGuestsForRooms(rooms, property?.max_guests ?? 1)
     : property?.max_guests ?? 1;
@@ -273,9 +279,7 @@ function PropertyDetail() {
   const images = property ? resolveImages(property.image_keys) : [];
   const nights = property ? nightsBetween(checkIn, checkOut) : 0;
   const nightsList = nights > 0 ? eachNight(checkIn, checkOut) : [];
-  // Only Vivenda Chico multiplies each night's rate by the selected room
-  // count — every other property (including the other multi-room ones)
-  // keeps its existing base_price x nights behavior unchanged.
+  // Every multi-room property's rate is per room — see scalesPriceByRooms.
   const roomPriceMultiplier = property && scalesPriceByRooms(property.id) ? rooms : 1;
   const nightlyRates = property
     ? nightsList.map((n) => (rateOverrides[n] ?? property.base_price) * roomPriceMultiplier)

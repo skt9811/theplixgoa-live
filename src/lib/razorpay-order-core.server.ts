@@ -8,6 +8,7 @@
 // dispatch) calls createRazorpayOrderCore directly from here instead.
 import { getRequest } from "@tanstack/react-start/server";
 import { getSessionFromRequest } from "@/lib/session-cookie.server";
+import { computeAuthoritativeQuote } from "@/lib/booking-pricing.server";
 
 let sqlClient: import("postgres").Sql | null = null;
 
@@ -40,9 +41,18 @@ export type OrderInput = {
    * selected room count for a multi-room one. Defaults to 1 when omitted
    * (every caller predating this field). */
   rooms?: number;
+  /** Client-computed quote — no longer trusted outright for what's actually
+   * charged (see computeAuthoritativeQuote below), but still used as a
+   * sanity check: a large mismatch against the server's own recompute
+   * fails the order instead of silently charging a different amount than
+   * what the guest was quoted. */
   subtotal: number;
   taxes: number;
   total_amount: number;
+  /** The coupon code applied at checkout, if any — needed so the server's
+   * own recompute can independently re-validate the discount instead of
+   * trusting the client's discounted total. */
+  coupon_code?: string;
 };
 
 export type CreateRazorpayOrderResult = {
@@ -74,23 +84,23 @@ export async function getAuthenticatedUserId(): Promise<number | null> {
 
 async function insertBooking(
   input: OrderInput,
+  authoritative: import("@/lib/booking-pricing.server").AuthoritativeQuote,
   extra: { razorpay_order_id: string; host_email: string; user_id: number | null },
 ): Promise<string> {
   const sql = await getSql();
   if (!sql) throw new Error("DATABASE_URL not configured on the server.");
-  const rooms = input.rooms && input.rooms > 0 ? Math.round(input.rooms) : 1;
   const rows = await sql<{ id: string }[]>`
     INSERT INTO public.bookings (
       property_id, property_name, property_location,
       guest_name, guest_email, guest_mobile,
       check_in, check_out, guests, nights, rooms,
-      subtotal, taxes, total_amount,
+      subtotal, taxes, total_amount, coupon_code, discount_amount,
       razorpay_order_id, payment_status, host_email, user_id
     ) VALUES (
       ${input.property_id}, ${input.property_name}, ${input.property_location},
       ${input.guest_name}, ${input.guest_email}, ${input.guest_mobile},
-      ${input.check_in}, ${input.check_out}, ${input.guests}, ${input.nights}, ${rooms},
-      ${input.subtotal}, ${input.taxes}, ${input.total_amount},
+      ${input.check_in}, ${input.check_out}, ${input.guests}, ${input.nights}, ${authoritative.rooms},
+      ${authoritative.subtotal}, ${authoritative.taxes}, ${authoritative.total}, ${input.coupon_code ?? null}, ${authoritative.discountAmount},
       ${extra.razorpay_order_id}, 'pending', ${extra.host_email}, ${extra.user_id}
     )
     RETURNING id
@@ -122,7 +132,33 @@ export async function createRazorpayOrderCore(
     throw new Error("Razorpay credentials not configured in Vercel");
   }
 
-  const amountInPaise = Math.round(data.total_amount * 100);
+  // Authoritative server-side recompute — see booking-pricing.server.ts's
+  // header comment for why the client's own subtotal/taxes/total_amount can
+  // no longer be trusted outright for what's actually charged. A mismatch
+  // beyond simple rounding fails the order rather than silently charging a
+  // different amount than the guest was quoted (which would just trade a
+  // tampering risk for a confusing support complaint instead of fixing it).
+  const authoritative = await computeAuthoritativeQuote({
+    propertyId: data.property_id,
+    checkIn: data.check_in,
+    checkOut: data.check_out,
+    rooms: data.rooms ?? 1,
+    couponCode: data.coupon_code,
+  });
+  const PRICE_TOLERANCE_RUPEES = 1;
+  if (Math.abs(authoritative.total - data.total_amount) > PRICE_TOLERANCE_RUPEES) {
+    console.error("[createRazorpayOrderCore] price mismatch — refusing to charge", {
+      property_id: data.property_id,
+      check_in: data.check_in,
+      check_out: data.check_out,
+      rooms: data.rooms,
+      clientTotal: data.total_amount,
+      serverTotal: authoritative.total,
+    });
+    throw new Error("Pricing could not be verified — please refresh the page and try again.");
+  }
+
+  const amountInPaise = Math.round(authoritative.total * 100);
   const auth = Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString("base64");
 
   const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
@@ -145,7 +181,7 @@ export async function createRazorpayOrderCore(
   }
   const order = (await rzpRes.json()) as { id: string };
 
-  const bookingId = await insertBooking(data, {
+  const bookingId = await insertBooking(data, authoritative, {
     razorpay_order_id: order.id,
     host_email: hostEmail,
     user_id: userId,

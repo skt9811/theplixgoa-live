@@ -262,15 +262,16 @@ export function maxRoomsForProperty(propertyId: string): number {
   return 1;
 }
 
-// Every other multi-room property's checkout charges base_price x nights
-// regardless of how many rooms the guest selects (a pre-existing behavior
-// left untouched here — see hasInsufficientRooms for the separate
-// availability check, which is unaffected by this). Vivenda Chico is the
-// only property where the room count actually multiplies the price, both
-// for "book individual rooms" (1-8 rooms) and "book the entire bungalow"
-// (fixed at 8 rooms) — see properties.$slug.tsx's nightlyRates computation.
+// Every multi-room property's displayed/charged rate is per room (see the
+// "/night, per room" label on property-card.tsx and properties.$slug.tsx),
+// so selecting more rooms must multiply the total — this used to be scoped
+// to Vivenda Chico only, which left Harbor Court/Morjim Pride/The Plix
+// Resort - Morjim charging base_price x nights regardless of room count, a
+// real undercharge bug fixed here. See properties.$slug.tsx's nightlyRates
+// computation and razorpay-order-core.server.ts's authoritative server-side
+// recompute, which now both apply this same multiplier.
 export function scalesPriceByRooms(propertyId: string): boolean {
-  return propertyId === "vivenda-chico";
+  return isMultiRoomProperty(propertyId);
 }
 
 // Formats a Date using its local calendar parts (not UTC) so the string

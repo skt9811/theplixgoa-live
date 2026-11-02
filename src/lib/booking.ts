@@ -184,7 +184,7 @@ export async function sendBookingConfirmationEmails(
 export async function createRazorpayOrder(
   input: CreateOrderInput,
 ): Promise<CreateOrderResponse> {
-  const { property, nights, guestName, guestEmail, guestMobile, checkIn, checkOut, guests, rooms, nightlyRates, discountAmount = 0 } = input;
+  const { property, nights, guestName, guestEmail, guestMobile, checkIn, checkOut, guests, rooms, nightlyRates, couponCode, discountAmount = 0 } = input;
   const effectiveNightlyRates = nightlyRates && nightlyRates.length > 0
     ? nightlyRates
     : Array.from({ length: nights }, () => property.base_price);
@@ -206,6 +206,7 @@ export async function createRazorpayOrder(
       subtotal,
       taxes,
       total_amount: total,
+      coupon_code: couponCode,
     },
   });
 

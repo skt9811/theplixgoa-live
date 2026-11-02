@@ -1484,9 +1484,9 @@ export const PROPERTIES: Property[] = [
     tagline: "CANDOLIM, NORTH GOA • BOUTIQUE RESORT • BOOK BY ROOM OR THE WHOLE BUNGALOW",
     description:
       "A heritage estate that books your way. Vivenda Chico is now a boutique resort with 8 individually bookable rooms (up to 3 guests each) sharing a private pool, dining halls, and sprawling lawns — book just the rooms you need, or reserve the entire bungalow (up to 24 guests) for weddings, reunions, and large group celebrations in North Goa.",
-    seo_title: "Vivenda Chico, Candolim Goa – 8BHK Bungalow | The Plix",
+    seo_title: "Vivenda Chico, Candolim Goa – 8-Room Heritage Bungalow",
     seo_description:
-      "Vivenda Chico, Candolim Goa — official site, book direct. 8 BHK, sleeps 24, private pool. From ₹2,750/night. Real photos & guest reviews before you book.",
+      "Vivenda Chico, Candolim Goa — official site. 8-room heritage bungalow: book a room or the whole house for up to 24, near Candolim Beach. From ₹2,750/night.",
     seo_keywords: ["8 BHK Villa Candolim", "Heritage Bungalow Goa", "Wedding Venue Candolim", "Large Group Villa North Goa", "Villa with Pool Candolim"],
     enclave: null,
     bedrooms: 8,

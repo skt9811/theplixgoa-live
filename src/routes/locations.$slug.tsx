@@ -12,6 +12,7 @@ import {
 import { resolveImages, type Property } from "@/lib/plix";
 import { blogsQuery } from "@/lib/blog";
 import { SmartImage } from "@/components/plix/smart-image";
+import { heroSrcSet } from "@/lib/hero-variants";
 import {
   SITE_URL,
   SITE_NAME,
@@ -283,8 +284,11 @@ function LocationHubPage() {
           {heroImage && (
             <SmartImage
               src={heroImage}
+              srcSet={heroSrcSet(localProperties[0]?.image_keys[0], heroImage)}
+              sizes="(max-width: 1200px) 100vw, 1152px"
               alt={`A Plix property in ${hub.name}, North Goa`}
               loading="eager"
+              fetchPriority="high"
               width={1600}
               height={700}
               className="absolute inset-0 h-full w-full object-cover"

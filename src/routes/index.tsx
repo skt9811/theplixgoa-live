@@ -9,6 +9,7 @@ import { HeroCarousel } from "@/components/plix/hero-carousel";
 import { NewsletterModal } from "@/components/plix/newsletter-modal";
 import { propertiesQuery, reviewsQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
 import { chicoHeroImage } from "@/lib/plix";
+import { HOME_HERO_SIZES, HOME_HERO_SRCSET } from "@/lib/hero-variants";
 import { locationSlug } from "@/lib/locations";
 import { getHomepageReviews } from "@/lib/property-reviews-data";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
@@ -59,6 +60,17 @@ export const Route = createFileRoute("/")({
     ],
     links: [
       { rel: "canonical", href: canonicalUrl("/") },
+      // The hero (LCP) image, homepage only, with the same srcset/sizes as
+      // its <img> so the preload and the image are one download. Moved here
+      // from __root.tsx, where it made every page fetch this photo first.
+      {
+        rel: "preload",
+        as: "image",
+        type: "image/webp",
+        imageSrcSet: HOME_HERO_SRCSET,
+        imageSizes: HOME_HERO_SIZES,
+        fetchPriority: "high",
+      },
     ],
     scripts: [
       // The homepage is the ONE place brandJsonLd() renders in full — every
@@ -368,6 +380,7 @@ function Home() {
       <section className="relative isolate flex h-[calc(100dvh-4rem)] w-full flex-col items-center justify-center overflow-hidden">
         <HeroCarousel
           slide1Image={isDefaultHeroImage ? chicoHeroImage : heroImageSrc}
+          slide1SrcSet={isDefaultHeroImage ? HOME_HERO_SRCSET : undefined}
           slide1Heading={heroHeading}
           slide1Subheading={heroSubtitle}
           slide1CtaLabel={heroCtaText}

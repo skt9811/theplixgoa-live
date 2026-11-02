@@ -29,7 +29,6 @@ import {
   isUntrackedPath,
   trackPageView,
 } from "@/lib/gtag";
-import { chicoHeroImageDesktopWebp, chicoHeroImageMobileWebp } from "@/lib/plix";
 import {
   hidePortalSplash,
   isPortalSplashReady,
@@ -165,22 +164,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      {
-        rel: "preload",
-        as: "image",
-        type: "image/webp",
-        href: chicoHeroImageMobileWebp,
-        media: "(max-width: 768px)",
-        fetchPriority: "high",
-      },
-      {
-        rel: "preload",
-        as: "image",
-        type: "image/webp",
-        href: chicoHeroImageDesktopWebp,
-        media: "(min-width: 769px)",
-        fetchPriority: "high",
-      },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "preload", as: "style", href: GOOGLE_FONTS_HREF },

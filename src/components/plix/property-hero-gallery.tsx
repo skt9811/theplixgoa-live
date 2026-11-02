@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Camera, Heart, Images, Phone, Share2, Video } from "lucide-react";
 import { toast } from "sonner";
 import { SmartImage } from "@/components/plix/smart-image";
+import { heroSrcSet } from "@/lib/hero-variants";
 import { PropertyGalleryModal } from "@/components/plix/property-gallery-modal";
 import { SITE_PHONE_1 } from "@/lib/seo";
 import { trackFunnelEvent } from "@/lib/gtag";
@@ -178,6 +179,8 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
             alt={`${propertyName} — main exterior and pool view`}
             loading="eager"
             fetchPriority="high"
+            srcSet={heroSrcSet(imageKeys?.[0], main)}
+            sizes="(max-width: 767px) 100vw, 66vw"
             width={1200}
             height={800}
             className="block h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"

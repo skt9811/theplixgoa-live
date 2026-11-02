@@ -5,6 +5,9 @@ type SmartImageProps = {
   alt: string;
   loading?: "lazy" | "eager";
   fetchPriority?: "high" | "low" | "auto";
+  /** Responsive candidates, e.g. from heroSrcSet(); `sizes` should accompany it. */
+  srcSet?: string | undefined;
+  sizes?: string | undefined;
   width?: number;
   height?: number;
   className?: string;
@@ -26,7 +29,7 @@ type SmartImageProps = {
 // an already-failed element does NOT make the browser retry, only a fresh
 // element does. The error state, and the retry count, both reset whenever
 // `src` itself changes, so a new image always gets its own clean attempt.
-export function SmartImage({ src, alt, loading = "lazy", fetchPriority, width, height, className, style, fallbackSrc }: SmartImageProps) {
+export function SmartImage({ src, alt, loading = "lazy", fetchPriority, srcSet, sizes, width, height, className, style, fallbackSrc }: SmartImageProps) {
   const [errored, setErrored] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [usedFallback, setUsedFallback] = useState(false);
@@ -86,6 +89,9 @@ export function SmartImage({ src, alt, loading = "lazy", fetchPriority, width, h
     <img
       key={`${currentSrc}-${attempt}`}
       src={currentSrc}
+      // The fallback image has no smaller copies, so its srcset is dropped.
+      srcSet={usedFallback ? undefined : srcSet}
+      sizes={usedFallback ? undefined : sizes}
       alt={alt}
       loading={loading}
       fetchPriority={fetchPriority}

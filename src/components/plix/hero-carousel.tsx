@@ -3,6 +3,7 @@ import useEmblaCarousel from "embla-carousel-react";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { heroImage, resolveImages } from "@/lib/plix";
+import { HOME_HERO_SIZES } from "@/lib/hero-variants";
 
 const AUTOPLAY_INTERVAL_MS = 5000;
 
@@ -23,6 +24,8 @@ type Props = {
   /** Slide 1 ("Brand Sanctuary") is admin-configurable via site_config, so
    * its heading/subtitle/image/CTA are passed in rather than hardcoded. */
   slide1Image: string;
+  /** Responsive candidates for slide 1 (the LCP image); omit for a CMS image. */
+  slide1SrcSet?: string | undefined;
   slide1Heading: string;
   slide1Subheading: string;
   slide1CtaLabel: string;
@@ -31,6 +34,7 @@ type Props = {
 
 export function HeroCarousel({
   slide1Image,
+  slide1SrcSet,
   slide1Heading,
   slide1Subheading,
   slide1CtaLabel,
@@ -139,6 +143,8 @@ export function HeroCarousel({
             <div key={slide.heading} className="relative min-w-0 shrink-0 grow-0 basis-full">
               <img
                 src={slide.image}
+                srcSet={i === 0 ? slide1SrcSet : undefined}
+                sizes={i === 0 && slide1SrcSet ? HOME_HERO_SIZES : undefined}
                 alt={slide.alt}
                 width={1920}
                 height={1088}

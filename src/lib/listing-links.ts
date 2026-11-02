@@ -13,6 +13,12 @@ export type PropertyListingLinks = {
   agoda?: string;
   /** TODO: this property's own Booking.com listing URL. */
   booking?: string;
+  /** TODO: this property's own Instagram account URL, if it has one. */
+  instagram?: string;
+  /** TODO: this property's verified Google Maps / Business Profile URL. When
+   * set, it replaces plix.ts's google_maps_url in sameAs/hasMap (Villa
+   * Madera and Casa Serenita currently only have a coordinates link). */
+  googleMaps?: string;
 };
 
 export const PROPERTY_LISTING_LINKS: Record<string, PropertyListingLinks> = {
@@ -37,6 +43,11 @@ export type BrandListingLinks = {
   googleBusinessProfile?: string;
   /** TODO: the host/brand's own Airbnb profile URL (not a listing). */
   airbnbHostProfile?: string;
+  /** The brand's Instagram account. */
+  instagram?: string;
 };
 
-export const BRAND_LISTING_LINKS: BrandListingLinks = {};
+export const BRAND_LISTING_LINKS: BrandListingLinks = {
+  // Already live in the Organization schema before this field existed.
+  instagram: "https://www.instagram.com/theplixgoa",
+};

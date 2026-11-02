@@ -257,7 +257,7 @@ export function brandJsonLd() {
     // sameAs below.
     sameAs: [
       "https://www.facebook.com/theplixgoa",
-      "https://www.instagram.com/theplixgoa",
+      BRAND_LISTING_LINKS.instagram,
       "https://x.com/theplixgoa",
       "https://api.whatsapp.com/send?phone=919009800809",
       BRAND_LISTING_LINKS.youtube,
@@ -601,11 +601,12 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
   // spread in only when actually set, same "never a guessed/placeholder
   // URL" rule as the rest of this function.
   const listingLinks = PROPERTY_LISTING_LINKS[p.slug] ?? {};
-  const sameAs = [p.google_maps_url, listingLinks.airbnb, listingLinks.agoda, listingLinks.booking].filter(
+  const mapsUrl = listingLinks.googleMaps ?? p.google_maps_url;
+  const sameAs = [mapsUrl, listingLinks.airbnb, listingLinks.agoda, listingLinks.booking, listingLinks.instagram].filter(
     (url): url is string => Boolean(url),
   );
-  if (p.google_maps_url) {
-    schema["hasMap"] = p.google_maps_url;
+  if (mapsUrl) {
+    schema["hasMap"] = mapsUrl;
   }
   if (sameAs.length > 0) {
     schema["sameAs"] = sameAs;

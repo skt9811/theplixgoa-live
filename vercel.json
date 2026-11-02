@@ -46,12 +46,18 @@
     { "source": "/contact-us/", "destination": "/contact", "permanent": true },
     { "source": "/about-us", "destination": "/about", "permanent": true },
     { "source": "/about-us/", "destination": "/about", "permanent": true },
-    { "source": "/photo-gallery-i", "destination": "/stays", "permanent": true },
-    { "source": "/photo-gallery-i/", "destination": "/stays", "permanent": true },
-    { "source": "/photo-gallery-ii", "destination": "/stays", "permanent": true },
-    { "source": "/photo-gallery-ii/", "destination": "/stays", "permanent": true },
-    { "source": "/category/:path*", "destination": "/blog", "permanent": true },
-    { "source": "/tag/:path*", "destination": "/blog", "permanent": true }
+    { "source": "/photo-gallery-i", "destination": "/stays", "statusCode": 301 },
+    { "source": "/photo-gallery-i/", "destination": "/stays", "statusCode": 301 },
+    { "source": "/photo-gallery-ii", "destination": "/stays", "statusCode": 301 },
+    { "source": "/photo-gallery-ii/", "destination": "/stays", "statusCode": 301 },
+    { "source": "/category", "destination": "/blog", "statusCode": 301 },
+    { "source": "/category/", "destination": "/blog", "statusCode": 301 },
+    { "source": "/category/:path*/", "destination": "/blog", "statusCode": 301 },
+    { "source": "/category/:path*", "destination": "/blog", "statusCode": 301 },
+    { "source": "/tag", "destination": "/blog", "statusCode": 301 },
+    { "source": "/tag/", "destination": "/blog", "statusCode": 301 },
+    { "source": "/tag/:path*/", "destination": "/blog", "statusCode": 301 },
+    { "source": "/tag/:path*", "destination": "/blog", "statusCode": 301 }
   ],
   "rewrites": [
     {

@@ -1403,9 +1403,9 @@ export const PROPERTIES: Property[] = [
     tagline: "MORJIM, NORTH GOA • BEACHFRONT RESORT NEAR MORJIM BEACH",
     description:
       "Coastal serenity steps from Morjim Beach. A tranquil getaway defined by calm coastal vibes, modern rooms, and a sparkling pool. Located in the serene coastal enclave of Madhlawada, Morjim, Morjim Pride is a premier boutique resort just minutes from pristine Morjim Beach and the famous Olive Ridley turtle nesting grounds. The resort offers well-appointed air-conditioned rooms, a swimming pool, and delicious local and international dining — ideal for relaxing family vacations and peaceful beach getaways.",
-    seo_title: "Morjim Pride, Morjim Goa – 22-Room Resort | The Plix",
+    seo_title: "Morjim Pride, Morjim Goa – Photos, Rooms & Rates | The Plix",
     seo_description:
-      "Morjim Pride, Morjim Goa — official site, book direct. 22 rooms, sleeps 50, pool. From ₹5,000/night. Real photos & guest reviews before you book.",
+      "Morjim Pride, Morjim Goa — official site. 22 rooms for groups of up to 50 guests, 2 min walk to Morjim Beach. From ₹5,000/night. See photos, book direct.",
     seo_keywords: ["Resort near Morjim Beach", "3 Star Hotel Morjim", "Peaceful Stay North Goa", "Hotel with Pool Morjim", "Morjim Beach Stay"],
     enclave: null,
     bedrooms: 22,

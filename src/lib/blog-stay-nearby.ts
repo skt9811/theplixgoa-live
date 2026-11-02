@@ -101,6 +101,8 @@ const POST_PRESETS: Record<string, PresetName> = {
   "ultimate-3-day-luxury-itinerary-north-goa": "anjuna",
   "why-booking-direct-saves-15-percent-goa-luxury-villas": "anjuna",
   "top-7-sunset-clubs-beach-shacks-anjuna-vagator": "vagatorAnjuna",
+  // Draft, not yet in the DB: the Anjuna enclave's three villas suit festive-week groups.
+  "christmas-new-year-2026-27-goa-parties-events-private-villas": "anjuna",
 };
 
 export type StayNearby = { properties: Property[]; hubs: LocationHub[] };

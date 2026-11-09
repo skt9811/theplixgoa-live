@@ -9,12 +9,43 @@ import { poolDisplayLabel } from "@/lib/seo";
 function propertyCardSubtitle(p: Property): string {
   const beds = p.bedrooms <= 6 ? `${p.bedrooms} BHK` : `${p.bedrooms} Bedroom`;
   const hasCaretaker = p.amenity_tags.some((t) => t.toLowerCase().includes("caretaker") || t.toLowerCase().includes("housekeeping") || t.toLowerCase().includes("service"));
+  // The pool is shown as the first chip below, so it isn't repeated here;
+  // that keeps this line to one row on every card.
   const parts = [beds];
-  const pool = poolDisplayLabel(p);
-  if (pool) parts.push(pool);
   if (hasCaretaker) parts.push("Full-Time Caretaker");
   parts.push("Minutes to Beach");
   return parts.join(" • ");
+}
+
+// Card chips: always three short labels on a single row, so every card in a
+// grid has the same shape. First the pool (from poolDisplayLabel, the same
+// source as the rest of the site), then the first two of these that the
+// property's own amenity_tags actually include.
+const CHIP_PRIORITY: { label: string; match: RegExp }[] = [
+  { label: "Wi-Fi", match: /wi-?fi/i },
+  { label: "AC", match: /^ac$|air.?condition/i },
+  { label: "Parking", match: /parking/i },
+  { label: "Power backup", match: /power backup/i },
+  { label: "Restaurant", match: /restaurant/i },
+  { label: "Kitchen", match: /kitchen/i },
+  { label: "Pet-friendly", match: /pet/i },
+  { label: "Lawn", match: /lawn/i },
+  { label: "Housekeeping", match: /housekeeping/i },
+  { label: "24h security", match: /security/i },
+  { label: "Panoramic views", match: /panoramic view/i },
+  { label: "Terrace", match: /terrace/i },
+  { label: "Balcony", match: /balcony/i },
+];
+
+function cardChips(p: Property): string[] {
+  const chips: string[] = [];
+  const pool = poolDisplayLabel(p);
+  if (pool) chips.push(/shared/i.test(pool) ? "Shared pool" : /^private pool$/i.test(pool) ? "Private pool" : "Pool");
+  for (const c of CHIP_PRIORITY) {
+    if (chips.length >= 3) break;
+    if (p.amenity_tags.some((t) => c.match.test(t))) chips.push(c.label);
+  }
+  return chips;
 }
 
 type PropertyCardProps = {
@@ -112,9 +143,9 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
           <MapPin className="size-3.5 text-primary" aria-hidden />
           {property.location}, {property.region}
         </p>
-        <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-foreground/70">
-          <Waves className="size-3.5 text-primary" aria-hidden />
-          {propertyCardSubtitle(property)}
+        <p className="mt-2 flex min-w-0 items-center gap-1.5 text-xs font-medium text-foreground/70">
+          <Waves className="size-3.5 shrink-0 text-primary" aria-hidden />
+          <span className="truncate">{propertyCardSubtitle(property)}</span>
         </p>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-foreground/80">
@@ -129,13 +160,13 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
           </span>
         </div>
 
-        <div className="mb-5 mt-4 flex flex-wrap gap-2">
-          {property.amenity_tags.slice(0, 3).map((tag) => (
+        <div className="mb-5 mt-4 flex flex-nowrap gap-2 overflow-hidden">
+          {cardChips(property).map((chip) => (
             <span
-              key={tag}
-              className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground"
+              key={chip}
+              className="whitespace-nowrap rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground"
             >
-              {tag}
+              {chip}
             </span>
           ))}
         </div>

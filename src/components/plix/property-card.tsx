@@ -125,7 +125,9 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
       </div>
 
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="text-xl font-semibold text-navy">
+        {/* Two lines reserved for every title, so a long name (Vivenda Chico's)
+            doesn't push one card's content below its neighbours'. */}
+        <h3 className="line-clamp-2 min-h-[3.5rem] text-xl font-semibold text-navy">
           {titleOverride ? (
             <Link
               to="/properties/$slug"

@@ -351,9 +351,13 @@ function PropertyDetail() {
     setCouponInput("");
   }
 
+  // Razorpay's checkout script (~0.7 MB) loads once the guest has picked
+  // both dates — real booking intent — instead of on every page view, so it
+  // no longer competes with the page's first paint. openRazorpayCheckout
+  // still awaits it, so a fast click can't outrun the download.
   useEffect(() => {
-    void loadRazorpayScript();
-  }, []);
+    if (datesChosen) void loadRazorpayScript();
+  }, [datesChosen]);
 
   useEffect(() => {
     if (!property) return;

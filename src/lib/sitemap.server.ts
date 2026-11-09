@@ -19,6 +19,7 @@ const STATIC_PAGES: StaticPage[] = [
   { path: "/stays", changefreq: "daily", priority: "0.9" },
   { path: "/stays/large-groups", changefreq: "weekly", priority: "0.8" },
   { path: "/stays/private-pool-villas", changefreq: "weekly", priority: "0.8" },
+  { path: "/stays/pet-friendly-villas", changefreq: "weekly", priority: "0.8" },
   { path: "/blog", changefreq: "weekly", priority: "0.8" },
   { path: "/about", changefreq: "monthly", priority: "0.7" },
   { path: "/contact", changefreq: "monthly", priority: "0.7" },

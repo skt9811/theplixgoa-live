@@ -48,6 +48,7 @@ import { Route as PortalDashboardRouteImport } from './routes/portal/dashboard'
 import { Route as PortalLoginRouteImport } from './routes/portal/login'
 import { Route as PropertiesSlugRouteImport } from './routes/properties.$slug'
 import { Route as StaysLargeGroupsRouteImport } from './routes/stays_.large-groups'
+import { Route as StaysPetFriendlyVillasRouteImport } from './routes/stays_.pet-friendly-villas'
 import { Route as StaysPrivatePoolVillasRouteImport } from './routes/stays_.private-pool-villas'
 import { Route as PmsInvoicesNewRouteImport } from './routes/pms.invoices_.new'
 import { Route as PmsPosIndexRouteImport } from './routes/pms.pos.index'
@@ -274,6 +275,11 @@ const StaysLargeGroupsRoute = StaysLargeGroupsRouteImport.update({
   path: '/stays/large-groups',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StaysPetFriendlyVillasRoute = StaysPetFriendlyVillasRouteImport.update({
+  id: '/stays_/pet-friendly-villas',
+  path: '/stays/pet-friendly-villas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StaysPrivatePoolVillasRoute = StaysPrivatePoolVillasRouteImport.update({
   id: '/stays_/private-pool-villas',
   path: '/stays/private-pool-villas',
@@ -466,6 +472,7 @@ export interface FileRoutesByFullPath {
   '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
   '/stays/large-groups': typeof StaysLargeGroupsRoute
+  '/stays/pet-friendly-villas': typeof StaysPetFriendlyVillasRoute
   '/stays/private-pool-villas': typeof StaysPrivatePoolVillasRoute
   '/blog/': typeof BlogIndexRoute
   '/pms/': typeof PmsIndexRoute
@@ -534,6 +541,7 @@ export interface FileRoutesByTo {
   '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
   '/stays/large-groups': typeof StaysLargeGroupsRoute
+  '/stays/pet-friendly-villas': typeof StaysPetFriendlyVillasRoute
   '/stays/private-pool-villas': typeof StaysPrivatePoolVillasRoute
   '/blog': typeof BlogIndexRoute
   '/pms': typeof PmsIndexRoute
@@ -604,6 +612,7 @@ export interface FileRoutesById {
   '/portal/login': typeof PortalLoginRoute
   '/properties/$slug': typeof PropertiesSlugRoute
   '/stays_/large-groups': typeof StaysLargeGroupsRoute
+  '/stays_/pet-friendly-villas': typeof StaysPetFriendlyVillasRoute
   '/stays_/private-pool-villas': typeof StaysPrivatePoolVillasRoute
   '/blog/': typeof BlogIndexRoute
   '/pms/': typeof PmsIndexRoute
@@ -677,6 +686,7 @@ export interface FileRouteTypes {
     | '/portal/login'
     | '/properties/$slug'
     | '/stays/large-groups'
+    | '/stays/pet-friendly-villas'
     | '/stays/private-pool-villas'
     | '/blog/'
     | '/pms/'
@@ -745,6 +755,7 @@ export interface FileRouteTypes {
     | '/portal/login'
     | '/properties/$slug'
     | '/stays/large-groups'
+    | '/stays/pet-friendly-villas'
     | '/stays/private-pool-villas'
     | '/blog'
     | '/pms'
@@ -814,6 +825,7 @@ export interface FileRouteTypes {
     | '/portal/login'
     | '/properties/$slug'
     | '/stays_/large-groups'
+    | '/stays_/pet-friendly-villas'
     | '/stays_/private-pool-villas'
     | '/blog/'
     | '/pms/'
@@ -871,6 +883,7 @@ export interface RootRouteChildren {
   PmsOnboardingRoute: typeof PmsOnboardingRoute
   PropertiesSlugRoute: typeof PropertiesSlugRoute
   StaysLargeGroupsRoute: typeof StaysLargeGroupsRoute
+  StaysPetFriendlyVillasRoute: typeof StaysPetFriendlyVillasRoute
   StaysPrivatePoolVillasRoute: typeof StaysPrivatePoolVillasRoute
   BlogIndexRoute: typeof BlogIndexRoute
   PmsAuthCallbackRoute: typeof PmsAuthCallbackRoute
@@ -1150,6 +1163,13 @@ declare module '@tanstack/react-router' {
       path: '/stays/large-groups'
       fullPath: '/stays/large-groups'
       preLoaderRoute: typeof StaysLargeGroupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stays_/pet-friendly-villas': {
+      id: '/stays_/pet-friendly-villas'
+      path: '/stays/pet-friendly-villas'
+      fullPath: '/stays/pet-friendly-villas'
+      preLoaderRoute: typeof StaysPetFriendlyVillasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stays_/private-pool-villas': {
@@ -1521,6 +1541,7 @@ const rootRouteChildren: RootRouteChildren = {
   PmsOnboardingRoute: PmsOnboardingRoute,
   PropertiesSlugRoute: PropertiesSlugRoute,
   StaysLargeGroupsRoute: StaysLargeGroupsRoute,
+  StaysPetFriendlyVillasRoute: StaysPetFriendlyVillasRoute,
   StaysPrivatePoolVillasRoute: StaysPrivatePoolVillasRoute,
   BlogIndexRoute: BlogIndexRoute,
   PmsAuthCallbackRoute: PmsAuthCallbackRoute,

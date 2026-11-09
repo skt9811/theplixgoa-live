@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, MapPin } from "lucide-react";
 import type { StayNearby } from "@/lib/blog-stay-nearby";
@@ -62,6 +62,64 @@ export function BlogVillaCard({ slug }: { slug: PickSlug }) {
   );
 }
 
+// Posts that get the mid-article stay banner and the mobile sticky CTA:
+// the two Vagator/Anjuna guides with the most search traffic.
+export const STAY_CTA_SLUGS = new Set([
+  "top-7-sunset-clubs-beach-shacks-anjuna-vagator",
+  "vagator-vs-anjuna-vs-morjim-which-north-goa-neighborhood-suits-you-best",
+]);
+
+const AREA_LINK =
+  "inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90";
+
+/** Mid-article banner: straight to the Vagator and Anjuna stays. */
+export function BlogStayBanner() {
+  return (
+    <aside className="my-8 rounded-2xl border border-border bg-card p-5 sm:p-6" aria-label="Stays in Vagator and Anjuna">
+      <p className="font-display text-lg font-semibold text-foreground">Staying near Vagator or Anjuna?</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Plix has private-pool villas in Anjuna and a boutique resort and villa in Vagator, a short drive from
+        everything in this guide. Book direct, zero OTA commission.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link to="/locations/$slug" params={{ slug: "vagator" }} className={AREA_LINK}>
+          Vagator stays <ArrowRight className="size-4" aria-hidden />
+        </Link>
+        <Link to="/locations/$slug" params={{ slug: "anjuna" }} className={AREA_LINK}>
+          Anjuna stays <ArrowRight className="size-4" aria-hidden />
+        </Link>
+      </div>
+    </aside>
+  );
+}
+
+/** Mobile-only bottom bar. While shown it sets --sticky-cta-h so the site's
+ * floating WhatsApp/back-to-top buttons sit above it instead of on top. */
+export function BlogStickyStayBar() {
+  useEffect(() => {
+    document.documentElement.style.setProperty("--sticky-cta-h", "4.5rem");
+    return () => {
+      document.documentElement.style.removeProperty("--sticky-cta-h");
+    };
+  }, []);
+  return (
+    <div
+      className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-between gap-3 border-t border-border bg-card px-4 pt-3 shadow-lift md:hidden"
+      style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+    >
+      <p className="min-w-0 text-sm font-semibold leading-tight text-navy">Stay near Vagator &amp; Anjuna</p>
+      <div className="flex shrink-0 gap-2">
+        <Link to="/locations/$slug" params={{ slug: "vagator" }} className="rounded-full bg-navy px-4 py-2.5 text-xs font-semibold text-navy-foreground">
+          Vagator
+        </Link>
+        <Link to="/locations/$slug" params={{ slug: "anjuna" }} className="rounded-full bg-navy px-4 py-2.5 text-xs font-semibold text-navy-foreground">
+          Anjuna
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 /** The closing "Stay nearby" block every post ends with — see blog-stay-nearby.ts. */
 export function BlogStayNearby({ stay }: { stay: StayNearby }) {
   if (stay.properties.length === 0) return null;
@@ -106,9 +164,13 @@ export function BlogStayNearby({ stay }: { stay: StayNearby }) {
  * as before.
  */
 export function BlogArticleBody({ html, slug }: { html: string; slug: string }) {
-  const rules = INLINE_PICKS[slug];
-  if (!rules) return <article className="prose-blog" dangerouslySetInnerHTML={{ __html: html }} />;
+  const rules = INLINE_PICKS[slug] ?? [];
+  const withBanner = STAY_CTA_SLUGS.has(slug);
+  if (rules.length === 0 && !withBanner) {
+    return <article className="prose-blog" dangerouslySetInnerHTML={{ __html: html }} />;
+  }
   const sections = html.split(/(?=<h2[\s>])/);
+  const bannerAfter = withBanner ? Math.max(0, Math.floor(sections.length / 2) - 1) : -1;
   return (
     <article className="prose-blog">
       {sections.map((section, i) => {
@@ -118,6 +180,7 @@ export function BlogArticleBody({ html, slug }: { html: string; slug: string }) 
           <Fragment key={i}>
             <div dangerouslySetInnerHTML={{ __html: section }} />
             {rule && <BlogVillaCard slug={rule.pick} />}
+            {i === bannerAfter && !rule && <BlogStayBanner />}
           </Fragment>
         );
       })}

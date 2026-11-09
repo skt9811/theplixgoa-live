@@ -1217,9 +1217,9 @@ export const PROPERTIES: Property[] = [
     tagline: "VAGATOR, NORTH GOA • BOUTIQUE RESORT NEAR BEACH & NIGHTLIFE",
     description:
       "A charming sanctuary in the heart of Vagator. Nestled close to Vagator Beach, Harbor Court combines classic Goan warmth with boutique comfort, featuring a swimming pool, lush garden spaces, and a full-service on-site restaurant. Situated less than 1 km from Vagator Beach and close to famous nightlife spots like Chapora Fort, it provides an ideal retreat for couples, families, and solo travelers seeking effortless coastal living.",
-    seo_title: "Harbor Court Vagator, Goa – 10-Room Resort & Pool | The Plix",
+    seo_title: "Harbor Court Resort Vagator – Ozran Beach Stay | The Plix",
     seo_description:
-      "Harbor Court Vagator — official site, book direct. 10-room resort in Goa with a shared pool, 4 min to Vagator Beach. From ₹4,500/night. See real photos.",
+      "Boutique 10-room resort with pool in Vagator, North Goa. Close to cliffside clubs and Ozran Beach. Instant direct confirmation.",
     seo_keywords: ["3 Star Hotel Vagator", "Resort near Vagator Beach", "Hotel near Chapora Fort", "Boutique Resort North Goa", "AC Rooms Vagator"],
     enclave: null,
     bedrooms: 10,
@@ -1403,9 +1403,9 @@ export const PROPERTIES: Property[] = [
     tagline: "MORJIM, NORTH GOA • BEACHFRONT RESORT NEAR MORJIM BEACH",
     description:
       "Coastal serenity steps from Morjim Beach. A tranquil getaway defined by calm coastal vibes, modern rooms, and a sparkling pool. Located in the serene coastal enclave of Madhlawada, Morjim, Morjim Pride is a premier boutique resort just minutes from pristine Morjim Beach and the famous Olive Ridley turtle nesting grounds. The resort offers well-appointed air-conditioned rooms, a swimming pool, and delicious local and international dining — ideal for relaxing family vacations and peaceful beach getaways.",
-    seo_title: "Morjim Pride, Morjim Goa – Photos, Rooms & Rates | The Plix",
+    seo_title: "Morjim Pride Morjim – Boutique Stay near Beach | The Plix",
     seo_description:
-      "Morjim Pride, Morjim Goa — official site. 22 rooms for groups of up to 50 guests, 2 min walk to Morjim Beach. From ₹5,000/night. See photos, book direct.",
+      "Deluxe AC rooms with swimming pool, 2 mins from Morjim Beach. Book direct with The Plix for exclusive rates & zero platform fees.",
     seo_keywords: ["Resort near Morjim Beach", "3 Star Hotel Morjim", "Peaceful Stay North Goa", "Hotel with Pool Morjim", "Morjim Beach Stay"],
     enclave: null,
     bedrooms: 22,

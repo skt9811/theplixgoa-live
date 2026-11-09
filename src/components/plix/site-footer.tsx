@@ -25,6 +25,7 @@ const quickLinks = [
   { label: "All Properties", to: "/stays" as const },
   { label: "Large Group Stays", to: "/stays/large-groups" as const },
   { label: "Private Pool Villas", to: "/stays/private-pool-villas" as const },
+  { label: "Pet-Friendly Villas", to: "/stays/pet-friendly-villas" as const },
   { label: "Cancellation Policy", to: "/cancellation" as const },
 ];
 
@@ -217,7 +218,9 @@ export function SiteFooter() {
           circular FAB stacked behind it; that was a real duplicate this app
           used to render from two different components at once) plus the
           back-to-top button, both anchored bottom-right. */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+      {/* --sticky-cta-h: height of a page's own mobile bottom bar (e.g. the
+          blog stay CTA), so these buttons sit above it rather than over it. */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 max-md:bottom-[calc(1.5rem+var(--sticky-cta-h,0px))]">
         {showBackToTop && (
           <button
             type="button"

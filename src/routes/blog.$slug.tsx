@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { blogQuery, blogSummariesQuery, estimateReadingTime, formatDate, type BlogSummary } from "@/lib/blog";
 import { stayNearbyForPost } from "@/lib/blog-stay-nearby";
 import { propertiesQuery } from "@/lib/plix-queries";
-import { BlogArticleBody, BlogStayNearby } from "@/components/plix/blog-stay-callout";
+import { BlogArticleBody, BlogStayNearby, BlogStickyStayBar, STAY_CTA_SLUGS } from "@/components/plix/blog-stay-callout";
 import {
   SITE_URL,
   SITE_NAME,
@@ -218,6 +218,13 @@ function BlogPostPage() {
         <BlogArticleBody html={post.content} slug={post.slug} />
 
         <BlogStayNearby stay={stay} />
+        {STAY_CTA_SLUGS.has(post.slug) && (
+          <>
+            <BlogStickyStayBar />
+            {/* Room under the last content so the mobile bar never covers it. */}
+            <div className="h-20 md:hidden" aria-hidden />
+          </>
+        )}
 
         <div className="mt-10 rounded-2xl border border-border bg-gradient-to-br from-navy to-[#1a2a1a] p-8 text-center text-navy-foreground">
           <h3 className="font-serif text-xl font-normal md:text-2xl">

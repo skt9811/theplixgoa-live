@@ -57,7 +57,27 @@
     { "source": "/tag", "destination": "/blog", "statusCode": 301 },
     { "source": "/tag/", "destination": "/blog", "statusCode": 301 },
     { "source": "/tag/:path*/", "destination": "/blog", "statusCode": 301 },
-    { "source": "/tag/:path*", "destination": "/blog", "statusCode": 301 }
+    { "source": "/tag/:path*", "destination": "/blog", "statusCode": 301 },
+    { "source": "/blog/private-villa-vs-hotel-in-goa-why-villas-win-in-2026", "destination": "/blog/private-pool-villas-vs-beach-resorts-which-is-right-for-your-goa-trip", "statusCode": 301 },
+    { "source": "/blog/private-villa-vs-hotel-in-goa-why-villas-win-in-2026/", "destination": "/blog/private-pool-villas-vs-beach-resorts-which-is-right-for-your-goa-trip", "statusCode": 301 },
+    { "source": "/blog/why-a-private-villa-beats-a-hotel-in-goa-2026-guide", "destination": "/blog/private-pool-villas-vs-beach-resorts-which-is-right-for-your-goa-trip", "statusCode": 301 },
+    { "source": "/blog/why-a-private-villa-beats-a-hotel-in-goa-2026-guide/", "destination": "/blog/private-pool-villas-vs-beach-resorts-which-is-right-for-your-goa-trip", "statusCode": 301 },
+    { "source": "/blog/private-pool-villas-vs-5-star-hotels-in-goa-the-plix-goa", "destination": "/blog/private-pool-villas-vs-beach-resorts-which-is-right-for-your-goa-trip", "statusCode": 301 },
+    { "source": "/blog/private-pool-villas-vs-5-star-hotels-in-goa-the-plix-goa/", "destination": "/blog/private-pool-villas-vs-beach-resorts-which-is-right-for-your-goa-trip", "statusCode": 301 },
+    { "source": "/blog/private-pool-villa-vs-5-star-hotel-suites-cost", "destination": "/blog/private-pool-villas-vs-beach-resorts-which-is-right-for-your-goa-trip", "statusCode": 301 },
+    { "source": "/blog/private-pool-villa-vs-5-star-hotel-suites-cost/", "destination": "/blog/private-pool-villas-vs-beach-resorts-which-is-right-for-your-goa-trip", "statusCode": 301 },
+    { "source": "/blog/boutique-villa-estates-vs-resort-chains-north-goa", "destination": "/blog/private-pool-villas-vs-beach-resorts-which-is-right-for-your-goa-trip", "statusCode": 301 },
+    { "source": "/blog/boutique-villa-estates-vs-resort-chains-north-goa/", "destination": "/blog/private-pool-villas-vs-beach-resorts-which-is-right-for-your-goa-trip", "statusCode": 301 },
+    { "source": "/blog/top-nightclubs-and-trance-parties-in-vagator-you-cant-miss", "destination": "/blog/goa-nightlife-guide-2026-best-clubs-beach-parties-where-to-stay", "statusCode": 301 },
+    { "source": "/blog/top-nightclubs-and-trance-parties-in-vagator-you-cant-miss/", "destination": "/blog/goa-nightlife-guide-2026-best-clubs-beach-parties-where-to-stay", "statusCode": 301 },
+    { "source": "/blog/curated-nightlife-guide-speakeasies-lounges-anjuna", "destination": "/blog/goa-nightlife-guide-2026-best-clubs-beach-parties-where-to-stay", "statusCode": 301 },
+    { "source": "/blog/curated-nightlife-guide-speakeasies-lounges-anjuna/", "destination": "/blog/goa-nightlife-guide-2026-best-clubs-beach-parties-where-to-stay", "statusCode": 301 },
+    { "source": "/blog/sunset-cocktails-midnight-beats-vagator-circuit", "destination": "/blog/goa-nightlife-guide-2026-best-clubs-beach-parties-where-to-stay", "statusCode": 301 },
+    { "source": "/blog/sunset-cocktails-midnight-beats-vagator-circuit/", "destination": "/blog/goa-nightlife-guide-2026-best-clubs-beach-parties-where-to-stay", "statusCode": 301 },
+    { "source": "/blog/corporate-leadership-retreats-north-goa-villas", "destination": "/blog/planning-a-corporate-offsite-or-retreat-in-a-goa-villa", "statusCode": 301 },
+    { "source": "/blog/corporate-leadership-retreats-north-goa-villas/", "destination": "/blog/planning-a-corporate-offsite-or-retreat-in-a-goa-villa", "statusCode": 301 },
+    { "source": "/blog/ultimate-3-day-luxury-itinerary-north-goa", "destination": "/blog/the-perfect-5-day-north-goa-itinerary-for-first-time-visitors", "statusCode": 301 },
+    { "source": "/blog/ultimate-3-day-luxury-itinerary-north-goa/", "destination": "/blog/the-perfect-5-day-north-goa-itinerary-for-first-time-visitors", "statusCode": 301 }
   ],
   "rewrites": [
     {

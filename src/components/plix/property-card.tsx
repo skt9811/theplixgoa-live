@@ -87,19 +87,21 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-lift">
       <div className="relative aspect-[4/3] overflow-hidden">
-        {images.map((src, i) => (
+        {/* Only the photo being shown is on the page. Stacking every photo
+            (hidden with opacity) made the browser download all of them for
+            every card, since "lazy" counts a hidden-but-in-view image as
+            visible; the arrows below swap the next one in on demand. */}
+        {images[index] && (
           <SmartImage
-            key={src + i}
-            src={src}
-            alt={`${property.name} — ${property.bedrooms} bedroom luxury ${property.bedrooms >= 8 ? "bungalow" : "villa"} in ${property.location}, North Goa${i === 0 && poolAlt ? ` with ${poolAlt}` : ""}`}
+            key={images[index]}
+            src={images[index]}
+            alt={`${property.name} — ${property.bedrooms} bedroom luxury ${property.bedrooms >= 8 ? "bungalow" : "villa"} in ${property.location}, North Goa${index === 0 && poolAlt ? ` with ${poolAlt}` : ""}`}
             loading="lazy"
             width={1200}
             height={800}
-            className={`absolute inset-0 block h-full w-full object-cover object-center transition-opacity duration-500 ${
-              i === index ? "opacity-100" : "opacity-0"
-            }`}
+            className="absolute inset-0 block h-full w-full object-cover object-center"
           />
-        ))}
+        )}
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-navy/60 to-transparent" />
         <span className="absolute left-3 top-3 rounded-full bg-background/90 px-3 py-1 text-xs font-semibold text-navy shadow-soft">
           {property.location}

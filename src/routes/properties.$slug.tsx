@@ -19,7 +19,7 @@ import { PROPERTY_REVIEWS } from "@/lib/property-reviews-data";
 import { PropertyHeroGallery } from "@/components/plix/property-hero-gallery";
 import { PropertyKeyFacts } from "@/components/plix/property-key-facts";
 import { locationSlug, postMentionsLocation } from "@/lib/locations";
-import { blogsQuery } from "@/lib/blog";
+import { blogSummariesQuery } from "@/lib/blog";
 import { PropertySubNav, SUB_NAV_HEIGHT } from "@/components/plix/property-sub-nav";
 import { PropertyQuickFacts } from "@/components/plix/property-quick-facts";
 import { PropertyRefundTimeline } from "@/components/plix/property-refund-timeline";
@@ -114,7 +114,7 @@ export const Route = createFileRoute("/properties/$slug")({
     // Prefetched, not read here — the component reads it via useSuspenseQuery
     // (same pattern as locations.$slug.tsx) to build the Phase 3 "Nearby"
     // section's 2-3 relevant blog-guide links.
-    await context.queryClient.ensureQueryData(blogsQuery);
+    await context.queryClient.ensureQueryData(blogSummariesQuery);
     const propertyReviews = reviews.filter((r) => r.property_id === property.id);
     return {
       name: property.name,
@@ -238,7 +238,9 @@ function PropertyDetail() {
   const { slug } = Route.useParams();
   const urlSearch = Route.useSearch();
   const { data: property } = useSuspenseQuery(propertyQuery(slug));
-  const { data: blogPosts } = useSuspenseQuery(blogsQuery);
+  // Summaries only (no post bodies or base64 covers): the full list was a
+  // 5.4 MB request on every page, just to pick related posts by title/excerpt.
+  const { data: blogPosts } = useSuspenseQuery(blogSummariesQuery);
   const [checkIn, setCheckIn] = useState(urlSearch.checkIn ?? todayISO(3));
   const [checkOut, setCheckOut] = useState(urlSearch.checkOut ?? todayISO(5));
   // checkIn/checkOut are pre-filled with placeholder dates (today+3/+5) so the

@@ -10,7 +10,7 @@ import {
   LOCATION_HUBS,
 } from "@/lib/locations";
 import { resolveImages, type Property } from "@/lib/plix";
-import { blogsQuery } from "@/lib/blog";
+import { blogSummariesQuery } from "@/lib/blog";
 import { SmartImage } from "@/components/plix/smart-image";
 import { heroSrcSet } from "@/lib/hero-variants";
 import {
@@ -93,7 +93,7 @@ export const Route = createFileRoute("/locations/$slug")({
     // HTML, not only after client hydration — the whole point of cross-
     // linking blog content from the hub is to be crawlable, not just
     // clickable.
-    await context.queryClient.ensureQueryData(blogsQuery);
+    await context.queryClient.ensureQueryData(blogSummariesQuery);
     const localProperties = propertiesInLocation(properties, hub.name);
     // Same "first property in the location" convention the component
     // itself already uses for its own hero backdrop image — reused here
@@ -253,7 +253,9 @@ function LocationHubPage() {
   const { slug } = Route.useParams();
   const hub = findLocationHub(slug);
   const { data: properties } = useSuspenseQuery(propertiesQuery());
-  const { data: blogPosts } = useSuspenseQuery(blogsQuery);
+  // Summaries only (no post bodies or base64 covers): the full list was a
+  // 5.4 MB request on every page, just to pick related posts by title/excerpt.
+  const { data: blogPosts } = useSuspenseQuery(blogSummariesQuery);
   usePropertiesLiveRefresh();
 
   if (!hub) return <LocationNotFound />;

@@ -54,7 +54,7 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
   const poolAlt = poolDisplayLabel(property)?.toLowerCase();
 
   return (
-    <article className="group overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-lift">
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-lift">
       <div className="relative aspect-[4/3] overflow-hidden">
         {images.map((src, i) => (
           <SmartImage
@@ -93,7 +93,7 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
         )}
       </div>
 
-      <div className="p-5">
+      <div className="flex flex-1 flex-col p-5">
         <h3 className="text-xl font-semibold text-navy">
           {titleOverride ? (
             <Link
@@ -129,7 +129,7 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
           </span>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mb-5 mt-4 flex flex-wrap gap-2">
           {property.amenity_tags.slice(0, 3).map((tag) => (
             <span
               key={tag}
@@ -140,7 +140,9 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
           ))}
         </div>
 
-        <div className="mt-5 flex items-end justify-between gap-3 border-t border-border pt-4">
+        {/* mt-auto pins the price/CTA row to the card's bottom edge, so it lines
+            up across a grid row whatever the title, subtitle and tags wrap to. */}
+        <div className="mt-auto flex items-center justify-between gap-3 border-t border-border pt-4">
           {searchRate ? (
             <div>
               <span className="text-2xl font-semibold text-navy">{formatINR(searchRate.nightly)}</span>

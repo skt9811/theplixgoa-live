@@ -79,6 +79,12 @@ import {
 import { buildPropertyFaqs } from "@/lib/property-faqs";
 import { trackFunnelEvent } from "@/lib/gtag";
 
+function addDaysISO(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 type PropertySearch = {
   checkIn?: string | undefined;
   checkOut?: string | undefined;
@@ -243,7 +249,17 @@ function PropertyDetail() {
   // already in the URL, e.g. from a search results page), without changing
   // nights/subtotal/taxes/total themselves at all — only which of the two
   // blocks below renders.
-  const [datesTouched, setDatesTouched] = useState(Boolean(urlSearch.checkIn || urlSearch.checkOut));
+  // Prices are shown only once the guest has chosen BOTH dates (or arrived
+  // with both in the URL), Booking.com-style: no static rate beforehand.
+  const [checkInChosen, setCheckInChosen] = useState(Boolean(urlSearch.checkIn));
+  const [checkOutChosen, setCheckOutChosen] = useState(Boolean(urlSearch.checkOut));
+  const datesChosen = checkInChosen && checkOutChosen;
+  // Arriving from a card's "Select Dates" (…#book): open on the date picker.
+  useEffect(() => {
+    if (window.location.hash !== "#book") return;
+    const t = window.setTimeout(() => document.getElementById("book-check-in")?.focus({ preventScroll: true }), 300);
+    return () => window.clearTimeout(t);
+  }, []);
   const [guests, setGuests] = useState(urlSearch.guests ?? 2);
   const [rooms, setRooms] = useState(urlSearch.rooms ?? 1);
   // Only meaningful for a property where scalesPriceByRooms is true
@@ -417,7 +433,7 @@ function PropertyDetail() {
   }, [loadRatesAndAvailability]);
 
   useEffect(() => {
-    if (!property || !datesTouched || nights === 0) return;
+    if (!property || !datesChosen || nights === 0) return;
     const key = `${property.slug}:${checkIn}:${checkOut}`;
     if (lastAvailabilityEventRef.current === key) return;
     lastAvailabilityEventRef.current = key;
@@ -425,7 +441,7 @@ function PropertyDetail() {
       property_slug: property.slug,
       ...(datesBlocked ? { failure_reason: "no_availability" } : {}),
     });
-  }, [property, datesTouched, nights, checkIn, checkOut, datesBlocked]);
+  }, [property, datesChosen, nights, checkIn, checkOut, datesBlocked]);
 
   if (!property) return <Fallback title="We couldn't find that stay" />;
 
@@ -766,13 +782,20 @@ function PropertyDetail() {
           style={{ top: asideTop }}
         >
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            <div className="flex items-end gap-1">
-              <span className="text-3xl font-semibold text-navy">
-                {formatINR(rateOverrides[checkIn] ?? property.base_price)}
-              </span>
-              <span className="pb-1 text-sm text-muted-foreground">/night</span>
-            </div>
-            {hasCustomRate && (
+            {datesChosen && nights > 0 ? (
+              <div className="flex items-end gap-1">
+                <span className="text-3xl font-semibold text-navy">
+                  {formatINR(Math.round(subtotal / nights))}
+                </span>
+                <span className="pb-1 text-sm text-muted-foreground">
+                  /night{roomPriceMultiplier > 1 ? ` for ${roomPriceMultiplier} rooms` : ""}
+                  {hasCustomRate ? " (average)" : ""}
+                </span>
+              </div>
+            ) : (
+              <p className="text-base font-semibold text-navy">Select check-in &amp; check-out dates to view price</p>
+            )}
+            {datesChosen && hasCustomRate && (
               <p className="mt-1 text-xs text-primary">Seasonal pricing applied for selected dates</p>
             )}
 
@@ -784,12 +807,16 @@ function PropertyDetail() {
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Check-in
                 <input
+                  id="book-check-in"
                   type="date"
                   min={todayISO()}
-                  value={checkIn}
+                  value={checkInChosen ? checkIn : ""}
                   onChange={(e) => {
+                    if (!e.target.value) return;
                     setCheckIn(e.target.value);
-                    setDatesTouched(true);
+                    setCheckInChosen(true);
+                    // Keep the (not yet chosen) check-out after the new check-in.
+                    if (!checkOutChosen || e.target.value >= checkOut) setCheckOut(addDaysISO(e.target.value, 1));
                     trackFunnelEvent("select_dates", { property_slug: property.slug, field: "check_in" });
                   }}
                   className={`${input} min-h-[44px]`}
@@ -799,11 +826,12 @@ function PropertyDetail() {
                 Check-out
                 <input
                   type="date"
-                  min={checkIn}
-                  value={checkOut}
+                  min={checkInChosen ? addDaysISO(checkIn, 1) : todayISO()}
+                  value={checkOutChosen ? checkOut : ""}
                   onChange={(e) => {
+                    if (!e.target.value) return;
                     setCheckOut(e.target.value);
-                    setDatesTouched(true);
+                    setCheckOutChosen(true);
                     trackFunnelEvent("select_dates", { property_slug: property.slug, field: "check_out" });
                   }}
                   className={`${input} min-h-[44px]`}
@@ -869,11 +897,9 @@ function PropertyDetail() {
               <p className="mt-1 text-xs text-red-600">{guestError}</p>
             )}
 
-            {!datesTouched ? (
-              // Empty-state only: same base_price and gstLabel()/gstRate the
-              // real breakdown below uses, no calculation of its own.
+            {!datesChosen ? (
               <div className="mt-5 border-t border-border pt-4 text-sm text-muted-foreground">
-                from {formatINR(property.base_price)}/night{isMultiRoom ? ", per room" : ", entire villa"} + {gstLabel(gstRate)}
+                Choose your check-in and check-out dates to see the exact rate for those nights, with GST.
               </div>
             ) : (
             <div className="mt-5 space-y-2 border-t border-border pt-4 text-sm">
@@ -969,14 +995,14 @@ function PropertyDetail() {
             )}
 
             <button
-              disabled={nights === 0 || datesBlocked || Boolean(guestError)}
+              disabled={!datesChosen || nights === 0 || datesBlocked || Boolean(guestError)}
               onClick={() => {
                 trackFunnelEvent("click_book", { property_slug: property.slug, location: "desktop_widget" });
                 setCheckoutOpen(true);
               }}
               className="mt-5 w-full rounded-full bg-gradient-emerald px-6 py-4 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 min-h-[44px]"
             >
-              {nights === 0 ? "Select Dates" : datesBlocked ? "Dates unavailable" : "Book Direct Now"}
+              {!datesChosen || nights === 0 ? "Select Dates" : datesBlocked ? "Dates unavailable" : "Book Direct Now"}
             </button>
             <p className="mt-3 text-center text-xs text-muted-foreground">
               Best price guaranteed · Zero commission ·{" "}
@@ -1006,20 +1032,25 @@ function PropertyDetail() {
           the desktop CTA's own logic: no dates picked yet scrolls to the
           booking form instead of opening checkout with nothing selected. */}
       <div className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-between gap-4 border-t border-border bg-card px-4 py-3 shadow-lift md:hidden">
-        <div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-lg font-semibold text-navy">
-              {formatINR(rateOverrides[checkIn] ?? property.base_price)}
-            </span>
-            <span className="text-xs text-muted-foreground">/night</span>
+        {datesChosen && nights > 0 ? (
+          <div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-semibold text-navy">{formatINR(total)}</span>
+              <span className="text-xs text-muted-foreground">total</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {nights} night{nights === 1 ? "" : "s"}, incl. GST
+            </p>
           </div>
-          <p className="text-[11px] text-muted-foreground">+ taxes</p>
-        </div>
+        ) : (
+          <p className="text-sm font-medium text-muted-foreground">Select dates to see price</p>
+        )}
         <button
           type="button"
           onClick={() => {
-            if (nights === 0 || datesBlocked || guestError) {
+            if (!datesChosen || nights === 0 || datesBlocked || guestError) {
               document.getElementById("book")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              if (!datesChosen) document.getElementById("book-check-in")?.focus({ preventScroll: true });
             } else {
               trackFunnelEvent("click_book", { property_slug: property.slug, location: "mobile_sticky_bar" });
               setCheckoutOpen(true);
@@ -1027,7 +1058,7 @@ function PropertyDetail() {
           }}
           className="rounded-full bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground shadow-soft transition-transform active:scale-95"
         >
-          {nights === 0 ? "Select Dates" : "Book Now"}
+          {!datesChosen || nights === 0 ? "Select Dates" : "Book Now"}
         </button>
       </div>
 

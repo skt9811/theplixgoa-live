@@ -47,13 +47,10 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
   const go = (dir: number) => setIndex((i) => (i + dir + images.length) % images.length);
   const linkSearch = search ?? {};
 
-  // searchRate (a real calculated rate for the guest's exact dates) wins
-  // when present. Otherwise: starting_price, computed server-side
-  // (properties-query.server-fn.ts) as LEAST(base_price, cheapest upcoming
-  // property_rates override) — the query that fetches the whole grid
-  // already carries this, so no per-card fetch is needed — falling back to
-  // base_price for the static-data path (no DB round trip made).
-  const displayRate = searchRate?.nightly ?? property.starting_price ?? property.base_price;
+  // A price is shown only for dates the guest actually chose (searchRate,
+  // computed for those exact nights on /stays). No static "from" price
+  // without dates: a peak-date rate that differs from it confused guests.
+  const hasDates = Boolean(linkSearch.checkIn && linkSearch.checkOut);
   const poolAlt = poolDisplayLabel(property)?.toLowerCase();
 
   return (
@@ -143,35 +140,35 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
           ))}
         </div>
 
-        <div className="mt-5 flex items-end justify-between border-t border-border pt-4">
-          <div>
-            <span className="text-2xl font-semibold text-navy">
-              {formatINR(displayRate)}
-            </span>
-            <span className="text-sm text-muted-foreground">
-              {" "}
-              /night{isMultiRoomProperty(property.slug) ? ", per room" : ", entire villa"}
-            </span>
-            {searchRate ? (
+        <div className="mt-5 flex items-end justify-between gap-3 border-t border-border pt-4">
+          {searchRate ? (
+            <div>
+              <span className="text-2xl font-semibold text-navy">{formatINR(searchRate.nightly)}</span>
+              <span className="text-sm text-muted-foreground">
+                {" "}
+                /night{isMultiRoomProperty(property.slug) ? ", per room" : ", entire villa"}
+              </span>
               <p className="text-xs text-muted-foreground">
                 {formatINR(searchRate.total)} for {searchRate.nights}{" "}
                 {searchRate.nights === 1 ? "night" : "nights"}
               </p>
-            ) : (
-              displayRate < property.base_price && (
-                <span className="ml-2 text-xs font-medium text-primary">Special Rate</span>
-              )
-            )}
-          </div>
+            </div>
+          ) : (
+            <span className="text-sm font-medium text-gray-600">
+              {hasDates ? "Check availability for rates" : "Select dates for pricing"}
+            </span>
+          )}
           <Link
             to="/properties/$slug"
             params={{ slug: property.slug }}
             search={linkSearch}
+            // No dates yet: land on the booking box with check-in focused.
+            {...(hasDates ? {} : { hash: "book" })}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full bg-gradient-emerald px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform duration-200 hover:scale-[1.03] min-h-[44px] inline-flex items-center"
+            className="shrink-0 rounded-full bg-gradient-emerald px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform duration-200 hover:scale-[1.03] min-h-[44px] inline-flex items-center"
           >
-            View Stay
+            {hasDates ? "View Stay" : "Select Dates"}
           </Link>
         </div>
       </div>

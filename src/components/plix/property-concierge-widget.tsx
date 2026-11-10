@@ -220,6 +220,16 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
     return () => window.removeEventListener(OPEN_CONCIERGE_EVENT, handleOpenRequest);
   }, []);
 
+  // Escape closes the open card.
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
+
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, sending]);
@@ -309,8 +319,8 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
   }
 
   return (
-    <div className="animate-rise fixed bottom-20 right-6 z-50 flex w-84 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-[#F3E5DC] bg-[#FFFBF9] shadow-2xl">
-      <div className="flex items-start justify-between gap-2 border-b border-[#F3E5DC] bg-[#FFFBF9] px-4 py-3.5">
+    <div className="animate-rise fixed bottom-20 right-6 z-50 flex max-h-[calc(100dvh-6rem)] w-84 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-[#F3E5DC] bg-[#FFFBF9] shadow-2xl">
+      <div className="flex shrink-0 items-start justify-between gap-2 border-b border-[#F3E5DC] bg-[#FFFBF9] px-4 py-3.5">
         <div className="flex items-start gap-2.5">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#F3E5DC] text-[#C87D65]">
             <Bot className="size-4" aria-hidden />
@@ -352,7 +362,7 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
       </div>
 
       {hasUserSent ? (
-        <div className="flex max-h-[380px] min-h-[220px] flex-col gap-3 overflow-y-auto bg-white p-3">
+        <div className="flex min-h-0 max-h-[380px] flex-1 flex-col gap-3 overflow-y-auto overscroll-contain bg-white p-3">
           {messages.map((msg, i) => (
             <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
@@ -373,7 +383,7 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
           <div ref={streamEndRef} />
         </div>
       ) : (
-        <div className="flex min-h-[220px] flex-col items-center gap-4 bg-white px-5 py-6 text-center">
+        <div className="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto overscroll-contain bg-white px-5 py-6 text-center">
           <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-[#F3E5DC] text-3xl" aria-hidden>
             🤖
           </span>
@@ -399,7 +409,7 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-[#F3E5DC] bg-[#FFFBF9] p-3">
+      <form onSubmit={handleSubmit} className="flex shrink-0 items-center gap-2 border-t border-[#F3E5DC] bg-[#FFFBF9] p-3">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}

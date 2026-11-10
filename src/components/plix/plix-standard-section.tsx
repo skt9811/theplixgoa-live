@@ -100,25 +100,25 @@ export function PlixStandardSection() {
           </div>
         </div>
 
-        <div className="relative px-4 pb-4 lg:absolute lg:bottom-8 lg:right-8 lg:w-[440px] lg:p-0">
-          <div className="rounded-2xl border border-white/10 bg-black/60 p-6 text-white shadow-2xl backdrop-blur-xl sm:p-8">
-            <h2 id="plix-standard-title" className="font-serif text-3xl font-normal tracking-tight md:text-4xl">
+        <div className="relative px-4 pb-4 lg:absolute lg:bottom-6 lg:right-6 lg:w-[380px] lg:p-0">
+          <div className="rounded-2xl border border-white/10 bg-black/60 p-6 text-white shadow-2xl backdrop-blur-xl">
+            <h2 id="plix-standard-title" className="font-serif text-3xl font-normal tracking-tight">
               The Plix Standard
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-white/75">
               Enjoy our signature features that make every Goa villa stay effortless and memorable.
             </p>
-            <ul className="mt-6 grid grid-cols-3 gap-x-3 gap-y-5">
+            <ul className="mt-5 grid grid-cols-3 gap-x-2 gap-y-4">
               {FEATURES.map((f) => (
                 <li key={f.label} className="flex flex-col items-center gap-2 text-center">
-                  <span className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-200 via-amber-400 to-orange-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_6px_14px_-4px_rgba(234,88,12,0.6)]">
-                    <f.icon className="size-5 drop-shadow" aria-hidden />
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-200 via-amber-400 to-orange-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_6px_14px_-4px_rgba(234,88,12,0.6)]">
+                    <f.icon className="size-[18px] drop-shadow" aria-hidden />
                   </span>
-                  <span className="text-[11px] font-medium leading-tight text-white/90">{f.label}</span>
+                  <span className="text-[10.5px] font-medium leading-tight text-white/90">{f.label}</span>
                 </li>
               ))}
             </ul>
-            <p className="mt-5 text-[10px] text-white/50">*At most properties — see each stay's amenities.</p>
+            <p className="mt-4 text-[10px] text-white/50">*At most properties — see each stay's amenities.</p>
           </div>
         </div>
       </div>

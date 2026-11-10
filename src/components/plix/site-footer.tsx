@@ -55,7 +55,7 @@ export function SiteFooter() {
   }, []);
 
   const phone1 = config?.contact_phone1 || "+91-9009800809";
-  const phone2 = config?.contact_phone2 || "+91-9009800895";
+  const phone2 = config?.contact_phone2 || "+91-9718913248";
   const whatsapp = config?.whatsapp_number || "919009800809";
   const facebook = config?.social_facebook || "https://www.facebook.com/theplixgoa";
   const instagram = config?.social_instagram || "https://www.instagram.com/theplixgoa";
@@ -189,7 +189,7 @@ export function SiteFooter() {
                   onClick={() => trackFunnelEvent("click_call", { location: "footer" })}
                   className="w-fit text-navy-foreground/80 transition-colors hover:text-white"
                 >
-                  Reservations: {phone2}
+                  Enquiry: {phone2}
                 </a>
                 <ObfuscatedEmail className="w-fit text-navy-foreground/80 transition-colors hover:text-white" />
               </address>

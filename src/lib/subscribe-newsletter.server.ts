@@ -172,10 +172,10 @@ function buildAdminAlertEmail(rawEmail: string): string {
 }
 
 // Plain text, matching an exact copy spec — no HTML template here on
-// purpose. WhatsApp Concierge line uses the site's two real numbers
-// (SITE_PHONE_2 / SITE_PHONE_1 in seo.ts, "+91-9009800895" / "+91-9009800809")
-// in the spaced format the copy calls for, not the hyphenated constant
-// formatting used elsewhere on the site.
+// purpose. WhatsApp Concierge line uses the site's real WhatsApp/reservations
+// number (SITE_PHONE_1 in seo.ts, "+91-9009800809") in the spaced format the
+// copy calls for, not the hyphenated constant formatting used elsewhere on
+// the site.
 function buildNewsletterEmailText(): string {
   return `Hi there,
 
@@ -202,5 +202,5 @@ Warm regards,
 Reservations Team
 Plix Hospitality Private Limited
 Goa, India
-WhatsApp Concierge: +91 90098 00895 / +91 90098 00809`;
+WhatsApp Concierge: +91 90098 00809`;
 }

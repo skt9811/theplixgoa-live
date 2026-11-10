@@ -60,7 +60,7 @@ import {
   SITE_URL,
   SITE_NAME,
   EDGE_CACHE_CONTROL,
-  SITE_PHONE_2,
+  SITE_PHONE_1,
   PROPERTY_STREET_ADDRESSES,
   ENCLAVE_ENTITIES,
   LOCATION_POSTAL_CODES,
@@ -693,11 +693,11 @@ function PropertyDetail() {
               {property.location}, {property.region}
               {LOCATION_POSTAL_CODES[property.location] && ` ${LOCATION_POSTAL_CODES[property.location]}`} · Reservations:{" "}
               <a
-                href={`tel:${SITE_PHONE_2}`}
+                href={`tel:${SITE_PHONE_1}`}
                 onClick={() => trackFunnelEvent("click_call", { property_slug: property.slug, location: "concierge_line" })}
                 className="font-medium text-primary hover:underline"
               >
-                {SITE_PHONE_2}
+                {SITE_PHONE_1}
               </a>
             </p>
             {property.google_maps_embed_url ? (

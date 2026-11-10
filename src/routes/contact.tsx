@@ -9,6 +9,7 @@ import {
   SITE_URL,
   SITE_NAME,
   SITE_PHONE_1,
+  SITE_PHONE_ENQUIRY,
   SITE_ADDRESS_LINE,
   canonicalUrl,
   breadcrumbJsonLd,
@@ -137,6 +138,12 @@ function Contact() {
                 <Phone className="size-4" aria-hidden />
               </span>
               Reservations: {SITE_PHONE_1}
+            </a>
+            <a href={`tel:${SITE_PHONE_ENQUIRY}`} className="flex items-center gap-3 text-foreground">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                <Phone className="size-4" aria-hidden />
+              </span>
+              Enquiry: {SITE_PHONE_ENQUIRY}
             </a>
             <ObfuscatedEmail className="flex items-center gap-3 text-foreground">
               <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">

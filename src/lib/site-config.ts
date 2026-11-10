@@ -8,7 +8,9 @@ export type SiteConfig = {
   hero_cta_text: string;
   hero_cta_link: string;
   about_bio: string;
+  /** Reservations number. */
   contact_phone1: string;
+  /** Enquiry number. */
   contact_phone2: string;
   contact_email: string;
   contact_address: string;
@@ -32,7 +34,7 @@ const DEFAULT_CONFIG: SiteConfig = {
   about_bio:
     "Plix Hospitality is a small, Goa-based team of hosts, caretakers and chefs looking after a tightly curated set of villas in the north. We started with a single villa in Morjim and a simple belief: a great Goan holiday is made by the people looking after you, not by a listing page.",
   contact_phone1: "+91-9009800809",
-  contact_phone2: "+91-9009800895",
+  contact_phone2: "+91-9718913248",
   contact_email: "stay@theplixgoa.com",
   contact_address: "537/2, 537/3, Coutinho Vaddo, Vagator, Anjuna, Goa 403509",
   whatsapp_number: "919009800809",

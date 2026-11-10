@@ -21,7 +21,7 @@ export const BRAND = {
   name: "The Plix",
   legalName: "Plix Hospitality Private Limited",
   address: "Pequen, Chivar, 1561/3A, Anjuna, Vagator, Goa 403413, India",
-  phone: "+91-9009800895",
+  phone: "+91-9009800809",
 };
 
 export type EmailContent = { subject: string; text: string };

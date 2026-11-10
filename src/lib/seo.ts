@@ -15,7 +15,11 @@ export const SITE_URL = "https://theplixgoa.com";
 // still lives in individual page <title> strings.
 export const SITE_NAME = "The Plix";
 export const SITE_PHONE_1 = "+91-9009800809";
-export const SITE_PHONE_2 = "+91-9009800895";
+/** The general/pre-booking enquiry line — distinct from SITE_PHONE_1
+ * (reservations). Replaces the old SITE_PHONE_2 ("+91-9009800895"), which
+ * every call site used as an interchangeable second reservations number —
+ * retired outright rather than kept as a third number alongside these two. */
+export const SITE_PHONE_ENQUIRY = "+91-9718913248";
 export const SITE_EMAIL = "reservations@theplixgoa.com";
 // The single public business address (owner decision B1): Harbor Court's
 // own address, as listed on its Google Maps entry. Invoices and vouchers
@@ -235,7 +239,7 @@ export function brandJsonLd() {
     url: SITE_URL,
     logo: `${SITE_URL}/Plix_Transparent_(1).png`,
     image: `${SITE_URL}/Plix_Transparent_(1).png`,
-    telephone: SITE_PHONE_2,
+    telephone: SITE_PHONE_1,
     email: SITE_EMAIL,
     priceRange: PRICE_RANGE,
     address: {
@@ -248,8 +252,8 @@ export function brandJsonLd() {
     },
     areaServed: ["Vagator", "Anjuna", "Assagao", "Morjim", "Candolim"],
     contactPoint: [
-      { "@type": "ContactPoint", telephone: SITE_PHONE_2, contactType: "reservations", areaServed: "IN" },
       { "@type": "ContactPoint", telephone: SITE_PHONE_1, contactType: "reservations", areaServed: "IN" },
+      { "@type": "ContactPoint", telephone: SITE_PHONE_ENQUIRY, contactType: "customer service", areaServed: "IN" },
     ],
     // YouTube/LinkedIn/Google Business Profile/Airbnb host profile stay out
     // until BRAND_LISTING_LINKS (listing-links.ts) has a real URL for each —
@@ -539,7 +543,7 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
     // Overview citing this entity gets the whole set of real photos to
     // ground an answer in, not one image standing in for the property.
     image: resolveImages(p.image_keys).map((src) => `${SITE_URL}${src}`),
-    telephone: SITE_PHONE_2,
+    telephone: SITE_PHONE_1,
     email: SITE_EMAIL,
     checkinTime: "14:00",
     checkoutTime: "11:00",
@@ -631,11 +635,6 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
       name: p.enclave,
       hasMap: enclaveEntity.hasMap,
     };
-    // SITE_PHONE_1 here only, not sitewide: this task scoped the change to
-    // these 3 enclave pages specifically. The other 7 properties keep
-    // SITE_PHONE_2, which is the "reservations" line in brandJsonLd's own
-    // contactPoint array — both are real numbers, just different roles.
-    schema["telephone"] = SITE_PHONE_1;
   }
 
   // Google's structured data policy prohibits fabricated ratings/reviews —

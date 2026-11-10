@@ -9,7 +9,7 @@ import { PROPERTIES, formatINR, type Property } from "@/lib/plix";
 import { fetchPropertiesWithOverrides } from "@/lib/properties-data";
 import {
   SITE_PHONE_1,
-  SITE_PHONE_2,
+  SITE_PHONE_ENQUIRY,
   SHARED_POOL_SLUGS,
   CONDITIONAL_PRIVATE_POOL_TAGS,
   whatsappLink as buildWhatsappLink,
@@ -114,7 +114,7 @@ function contactCard(property: Property): ConciergeCard {
     title: "Reach our reservations desk",
     bullets: [
       `Reservations: ${SITE_PHONE_1}`,
-      `Reservations: ${SITE_PHONE_2}`,
+      `Enquiry: ${SITE_PHONE_ENQUIRY}`,
       "Our team typically replies within minutes on WhatsApp too — ask about group bookings, custom itineraries, or anything not covered here.",
     ],
     link: { label: "Message us on WhatsApp", href: whatsappLink(property, `Hi! I have a question about ${property.name}.`) },

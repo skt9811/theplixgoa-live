@@ -1,15 +1,31 @@
 import { Link } from "@tanstack/react-router";
-import { Bath, BedDouble, ChevronLeft, ChevronRight, MapPin, Users, Waves } from "lucide-react";
+import {
+  ArrowRight,
+  Bath,
+  BedDouble,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Star,
+  Users,
+  Waves,
+} from "lucide-react";
 import { useState } from "react";
 import { formatINR, resolveImageEntries, resolveImages, type Property } from "@/lib/plix";
 import { hasExtraGuestPricing, isMultiRoomProperty } from "@/lib/rates";
 import { SmartImage } from "@/components/plix/smart-image";
 import { heroSrcSet } from "@/lib/hero-variants";
 import { poolDisplayLabel } from "@/lib/seo";
+import { REAL_RATING_SOURCES } from "@/lib/trust-config";
 
 function propertyCardSubtitle(p: Property): string {
   const beds = p.bedrooms <= 6 ? `${p.bedrooms} BHK` : `${p.bedrooms} Bedroom`;
-  const hasCaretaker = p.amenity_tags.some((t) => t.toLowerCase().includes("caretaker") || t.toLowerCase().includes("housekeeping") || t.toLowerCase().includes("service"));
+  const hasCaretaker = p.amenity_tags.some(
+    (t) =>
+      t.toLowerCase().includes("caretaker") ||
+      t.toLowerCase().includes("housekeeping") ||
+      t.toLowerCase().includes("service"),
+  );
   // The pool is shown as the first chip below, so it isn't repeated here;
   // that keeps this line to one row on every card.
   const parts = [beds];
@@ -41,7 +57,10 @@ const CHIP_PRIORITY: { label: string; match: RegExp }[] = [
 function cardChips(p: Property): string[] {
   const chips: string[] = [];
   const pool = poolDisplayLabel(p);
-  if (pool) chips.push(/shared/i.test(pool) ? "Shared pool" : /^private pool$/i.test(pool) ? "Private pool" : "Pool");
+  if (pool)
+    chips.push(
+      /shared/i.test(pool) ? "Shared pool" : /^private pool$/i.test(pool) ? "Private pool" : "Pool",
+    );
   for (const c of CHIP_PRIORITY) {
     if (chips.length >= 3) break;
     if (p.amenity_tags.some((t) => c.match.test(t))) chips.push(c.label);
@@ -51,6 +70,9 @@ function cardChips(p: Property): string[] {
 
 type PropertyCardProps = {
   property: Property;
+  // "minimal": the homepage's pared-back card — one photo, name, location,
+  // one facts line and a single arrow link; the whole card is clickable.
+  variant?: "default" | "minimal";
   // Optional exact-brand anchor text (e.g. "Casa Marina by The Plix") for
   // contexts like the "Explore More Properties" carousel that need a real
   // <a> link carrying that specific string, not just the plain card title.
@@ -73,7 +95,102 @@ type PropertyCardProps = {
     | undefined;
 };
 
-export function PropertyCard({ property, titleOverride, searchRate, search }: PropertyCardProps) {
+export function PropertyCard({ variant = "default", ...props }: PropertyCardProps) {
+  return variant === "minimal" ? (
+    <MinimalPropertyCard {...props} />
+  ) : (
+    <DefaultPropertyCard {...props} />
+  );
+}
+
+function MinimalPropertyCard({ property }: Omit<PropertyCardProps, "variant">) {
+  const [image] = resolveImages(property.image_keys);
+  const leadKey = resolveImageEntries(property.image_keys)[0]?.key;
+  const poolAlt = poolDisplayLabel(property)?.toLowerCase();
+  // Real ratings only (trust-config.ts) — no pill until one is entered.
+  const rating = REAL_RATING_SOURCES[property.slug];
+  const multiRoom = isMultiRoomProperty(property.slug);
+  const guests = hasExtraGuestPricing(property.id, property.bedrooms)
+    ? `Upto ${property.max_guests}`
+    : property.max_guests;
+
+  return (
+    <Link
+      to="/properties/$slug"
+      params={{ slug: property.slug }}
+      hash="book"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl bg-card shadow-soft ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-card"
+    >
+      <div className="relative aspect-[16/10] overflow-hidden">
+        {image && (
+          <SmartImage
+            src={image}
+            srcSet={heroSrcSet(leadKey, image)}
+            sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 400px"
+            alt={`${property.name} — ${property.bedrooms} bedroom luxury ${property.bedrooms >= 8 ? "bungalow" : "villa"} in ${property.location}, North Goa${poolAlt ? ` with ${poolAlt}` : ""}`}
+            loading="lazy"
+            width={1200}
+            height={750}
+            className="absolute inset-0 block size-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+          />
+        )}
+        {rating && (
+          <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-black/45 px-2.5 py-1 text-sm font-semibold text-white backdrop-blur-sm">
+            {rating.rating.toFixed(1)}
+            <Star className="size-3.5 fill-amber-400 text-amber-400" aria-hidden />
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-1 flex-col px-5 pb-5 pt-4">
+        <h3 className="truncate text-lg font-semibold text-navy">{property.name}</h3>
+        <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <MapPin className="size-3.5 shrink-0" aria-hidden />
+          {property.location}, {property.region}
+        </p>
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 text-sm text-foreground/80">
+          <span>{guests} Guests</span>
+          <span aria-hidden className="text-[10px] text-foreground/50">
+            ✦
+          </span>
+          <span>
+            {property.bedrooms} {multiRoom ? "Rooms" : "Bedrooms"}
+          </span>
+          <span aria-hidden className="text-[10px] text-foreground/50">
+            ✦
+          </span>
+          <span>{property.bathrooms} Baths</span>
+        </p>
+
+        <div className="mt-4 flex flex-1 items-end">
+          <div className="flex w-full items-center justify-between gap-3 border-t border-border pt-4">
+            <div>
+              <p className="text-sm font-semibold text-navy">Select dates for pricing</p>
+              <p className="text-xs text-muted-foreground">
+                {multiRoom ? "Per room" : "Entire villa"} · Book direct
+              </p>
+            </div>
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl text-navy transition-colors group-hover:bg-navy group-hover:text-navy-foreground">
+              <ArrowRight
+                className="size-5 transition-transform group-hover:-rotate-45"
+                aria-hidden
+              />
+            </span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function DefaultPropertyCard({
+  property,
+  titleOverride,
+  searchRate,
+  search,
+}: Omit<PropertyCardProps, "variant">) {
   const images = resolveImages(property.image_keys);
   // The lead photo has an 800px copy (hero-variants), so phones and the
   // 3-up grid don't download the 1200–1920px original for the first photo.
@@ -167,7 +284,10 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
           </span>
           <span className="flex items-center gap-1.5">
             <Users className="size-4 text-primary" aria-hidden />{" "}
-            {hasExtraGuestPricing(property.id, property.bedrooms) ? `Up to ${property.max_guests}` : property.max_guests} Guests
+            {hasExtraGuestPricing(property.id, property.bedrooms)
+              ? `Up to ${property.max_guests}`
+              : property.max_guests}{" "}
+            Guests
           </span>
         </div>
 
@@ -187,7 +307,9 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
         <div className="mt-auto flex items-center justify-between gap-3 border-t border-border pt-4">
           {searchRate ? (
             <div>
-              <span className="text-2xl font-semibold text-navy">{formatINR(searchRate.nightly)}</span>
+              <span className="text-2xl font-semibold text-navy">
+                {formatINR(searchRate.nightly)}
+              </span>
               <span className="text-sm text-muted-foreground">
                 {" "}
                 /night{isMultiRoomProperty(property.slug) ? ", per room" : ", entire villa"}

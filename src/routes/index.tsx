@@ -501,7 +501,7 @@ function Home() {
           />
           <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {featured.map((p) => (
-              <PropertyCard key={p.id} property={p} />
+              <PropertyCard key={p.id} property={p} variant="minimal" />
             ))}
           </div>
         </div>

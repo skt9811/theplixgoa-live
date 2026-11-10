@@ -1,15 +1,12 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
-  Bath,
-  BedDouble,
   Footprints,
   Loader as Loader2,
   MapPin,
   Tag,
-  Users,
 } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentType } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PropertyImageCarousel } from "@/components/plix/property-image-carousel";
 import { PropertyAirportFares } from "@/components/plix/property-airport-fares";
@@ -570,13 +567,9 @@ function PropertyDetail() {
         )}
       </header>
 
-      <PropertyKeyFacts
-        property={property}
-        isMultiRoom={isMultiRoom}
-        roomsLabel={roomsLabel}
-        roomsCount={roomsCount}
-      />
-
+      {/* Photos-first ordering: the gallery comes right after the header,
+          before the Key Facts summary — a guest sees the villa before a
+          spec sheet about it. */}
       <section id="photo-gallery">
         {/* No heading of its own here: PropertyImageCarousel below already
             renders a real, visible "{name} photo gallery" <h2> for this
@@ -605,10 +598,17 @@ function PropertyDetail() {
         />
       )}
 
+      <PropertyKeyFacts
+        property={property}
+        isMultiRoom={isMultiRoom}
+        roomsLabel={roomsLabel}
+        roomsCount={roomsCount}
+      />
+
       <PropertySubNav />
 
       <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-12 items-start">
-        <div className="lg:col-span-8">
+        <div id="highlights" className="lg:col-span-8">
           <PropertyQuickFacts
             propertyName={property.name}
             roomsLabel={roomsLabel}
@@ -620,20 +620,6 @@ function PropertyDetail() {
             avgRating={avgRating}
             reviewCount={allPropertyReviews.length}
           />
-
-          <div
-            id="highlights"
-            className="mt-10 grid grid-cols-2 gap-3 rounded-2xl border border-border bg-card p-5 shadow-soft sm:grid-cols-4 sm:gap-4"
-          >
-            <Stat icon={Users} label="Max guests" value={String(property.max_guests)} />
-            <Stat icon={BedDouble} label="Bedrooms" value={String(property.bedrooms)} />
-            <Stat icon={Bath} label="Bathrooms" value={String(property.bathrooms)} />
-            <Stat
-              icon={Footprints}
-              label="To the beach"
-              value={property.distance_to_beach ?? "Nearby"}
-            />
-          </div>
 
           <section id="overview" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">{property.name} overview</h2>
@@ -1112,24 +1098,6 @@ function PropertyDetail() {
           />
         </Suspense>
       )}
-    </div>
-  );
-}
-
-function Stat({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div>
-      <Icon className="size-5 text-primary" />
-      <div className="mt-2 text-sm font-semibold text-navy">{value}</div>
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
   );
 }

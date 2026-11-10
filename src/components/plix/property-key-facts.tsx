@@ -1,6 +1,5 @@
-import { formatINR, type Property } from "@/lib/plix";
-import { poolWord, SHARED_POOL_TAG, CONDITIONAL_PRIVATE_POOL_TAGS } from "@/lib/seo";
-import { defaultGuestsForProperty, extraGuestRate, hasExtraGuestPricing } from "@/lib/rates";
+import type { Property } from "@/lib/plix";
+import { poolWord } from "@/lib/seo";
 
 type Props = {
   property: Property;
@@ -9,27 +8,20 @@ type Props = {
   roomsCount: number;
 };
 
-// Fixed, sensible priority order for the "headline" amenities most guests
-// (and answer engines) actually ask about — falls back to whatever's
-// genuinely first in the property's own list so this never renders empty
-// for a property that has none of these specific tags.
-const PRIORITY_AMENITIES = ["Private Pool", ...Object.values(CONDITIONAL_PRIVATE_POOL_TAGS), SHARED_POOL_TAG, "Outdoor Swimming Pool", "Swimming Pool", "Lawn", "Power Backup", "Caretaker"];
-
-function primaryAmenities(tags: string[]): string[] {
-  const preferred = PRIORITY_AMENITIES.filter((p) => tags.some((t) => t.toLowerCase() === p.toLowerCase()));
-  const rest = tags.filter((t) => !preferred.some((p) => p.toLowerCase() === t.toLowerCase()));
-  return [...preferred, ...rest].slice(0, 4);
-}
-
-// A BLUF ("bottom line up front") key-value summary, deliberately the
-// first substantive content after the <h1> in SSR markup — placed ahead of
-// even the photo gallery — so an AI Overview / answer-engine crawler that
-// only reads the first few hundred tokens of the page still gets a
-// complete, structured answer to "what is this property" before anything
-// else. A real <dl> rather than styled <div>s: semantic key/value markup
-// is what's actually easy for a scraper to parse, and duplicating the same
-// facts as inline schema.org microdata here would just create a second,
-// competing structured-data source alongside the page's own JSON-LD blocks.
+// A BLUF ("bottom line up front") key-value summary, right after the photo
+// gallery — so an AI Overview / answer-engine crawler that only reads the
+// first portion of the page still gets a complete, structured answer to
+// "what is this property" early. A real <dl> rather than styled <div>s:
+// semantic key/value markup is what's actually easy for a scraper to parse,
+// and duplicating the same facts as inline schema.org microdata here would
+// just create a second, competing structured-data source alongside the
+// page's own JSON-LD blocks.
+//
+// Deliberately doesn't repeat guest capacity or the amenities list — both
+// already have their own, better-suited display elsewhere on the page
+// (PropertyQuickFacts' pill row + "Show all amenities" modal, and the
+// booking widget's own included-guests/extra-guest-rate note) — this stays
+// a light summary card, not a second copy of the same numbers.
 export function PropertyKeyFacts({ property, isMultiRoom, roomsLabel, roomsCount }: Props) {
   const propertyType = isMultiRoom
     ? "Boutique Resort"
@@ -41,50 +33,36 @@ export function PropertyKeyFacts({ property, isMultiRoom, roomsLabel, roomsCount
     ? `${property.location}, North Goa — ${property.distance_to_beach}`
     : `${property.location}, North Goa`;
 
-  const amenities = primaryAmenities(property.amenity_tags);
   const pool = poolWord(property);
 
   return (
-    <section aria-labelledby="key-facts-heading" className="mt-6 rounded-2xl bg-navy p-5 text-navy-foreground shadow-card sm:p-6">
+    <section aria-labelledby="key-facts-heading" className="mt-8 rounded-2xl border border-border bg-card p-5 shadow-soft sm:p-6">
       <h2 id="key-facts-heading" className="text-xs font-semibold uppercase tracking-wider text-primary">
         {property.name} Key Facts &amp; Highlights
       </h2>
       <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-navy-foreground/60">Property Type &amp; Configuration</dt>
-          <dd className="mt-0.5 text-sm font-semibold">{propertyType}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-navy-foreground/60">Location &amp; Distance</dt>
-          <dd className="mt-0.5 text-sm font-semibold">{locationLine}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-navy-foreground/60">Maximum Capacity</dt>
-          <dd className="mt-0.5 text-sm font-semibold">
-            Up to {property.max_guests} Guests ({roomsCount} {roomsLabel}, {property.bathrooms} Baths)
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Property Type &amp; Configuration</dt>
+          <dd className="mt-0.5 text-sm font-semibold text-navy">
+            {propertyType} ({roomsCount} {roomsLabel}, {property.bathrooms} Baths)
           </dd>
-          {hasExtraGuestPricing(property.id, property.bedrooms) && (
-            <dd className="mt-0.5 text-xs font-normal text-navy-foreground/70">
-              {defaultGuestsForProperty(property.id, property.bedrooms)} guests included, {formatINR(extraGuestRate(property.id))} extra per guest per night beyond that
-            </dd>
-          )}
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Location &amp; Distance</dt>
+          <dd className="mt-0.5 text-sm font-semibold text-navy">{locationLine}</dd>
         </div>
         {pool && (
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-navy-foreground/60">Pool</dt>
-            <dd className="mt-0.5 text-sm font-semibold capitalize">{pool}</dd>
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pool</dt>
+            <dd className="mt-0.5 text-sm font-semibold capitalize text-navy">{pool}</dd>
           </div>
         )}
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-navy-foreground/60">Check-in / Check-out</dt>
-          <dd className="mt-0.5 text-sm font-semibold">2:00 PM / 11:00 AM</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-navy-foreground/60">Primary Amenities</dt>
-          <dd className="mt-0.5 text-sm font-semibold">{amenities.join(", ")}</dd>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Check-in / Check-out</dt>
+          <dd className="mt-0.5 text-sm font-semibold text-navy">2:00 PM / 11:00 AM</dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-xs font-medium uppercase tracking-wide text-navy-foreground/60">Direct Booking Guarantee</dt>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Direct Booking Guarantee</dt>
           <dd className="mt-0.5 text-sm font-semibold text-primary">Best rate &amp; direct support via theplixgoa.com</dd>
         </div>
       </dl>

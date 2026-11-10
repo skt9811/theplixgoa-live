@@ -274,6 +274,42 @@ export function scalesPriceByRooms(propertyId: string): boolean {
   return isMultiRoomProperty(propertyId);
 }
 
+// Extra-guest pricing: business rule covers exactly two groups —
+//   - 3/4/5 BHK whole-villa properties (Casa Marina, Casa Moana, Casa
+//     Meadows, The Plix Villa, Villa Madera, Casa Serenita): default/
+//     included guests = bedrooms x 2, max = bedrooms x 3 (same GUESTS_PER_ROOM
+//     ceiling as the multi-room properties), +-1000/night per guest beyond
+//     the default.
+//   - Harbor Court and The Plix Resort - Morjim specifically (both 10
+//     rooms): default = rooms x 2, max = rooms x 3, +-500/night per guest
+//     beyond the default.
+// Deliberately NOT applied to Morjim Pride (22 rooms) or Vivenda Chico (8
+// BHK, individually room-bookable) — the business only specified these two
+// resorts and the 3/4/5 BHK villa tiers; those two properties keep their
+// prior behavior (max_guests cap, no extra-guest surcharge) untouched.
+const EXTRA_GUEST_RESORT_SLUGS: ReadonlySet<string> = new Set(["harbor-court", "the-plix-resort-morjim"]);
+// "Default" occupancy is 2 per room/bedroom; the hard cap stays at
+// GUESTS_PER_ROOM (3) per room/bedroom — two different multipliers over the
+// same room/bedroom count, not the same constant reused.
+const GUESTS_PER_ROOM_FOR_DEFAULT = 2;
+
+export function hasExtraGuestPricing(propertyId: string, bedrooms: number): boolean {
+  if (EXTRA_GUEST_RESORT_SLUGS.has(propertyId)) return true;
+  return !isMultiRoomProperty(propertyId) && bedrooms >= 3 && bedrooms <= 5;
+}
+
+/** Guests included in the base rate before any extra-guest surcharge
+ * applies. Only meaningful where hasExtraGuestPricing is true. */
+export function defaultGuestsForProperty(propertyId: string, bedrooms: number): number {
+  if (EXTRA_GUEST_RESORT_SLUGS.has(propertyId)) return maxRoomsForProperty(propertyId) * GUESTS_PER_ROOM_FOR_DEFAULT;
+  return bedrooms * GUESTS_PER_ROOM_FOR_DEFAULT;
+}
+
+/** Extra-guest surcharge, per guest per night, beyond defaultGuestsForProperty. */
+export function extraGuestRate(propertyId: string): number {
+  return EXTRA_GUEST_RESORT_SLUGS.has(propertyId) ? 500 : 1000;
+}
+
 // Formats a Date using its local calendar parts (not UTC) so the string
 // matches what the user actually sees/picked, regardless of timezone offset.
 function toLocalISODate(d: Date): string {

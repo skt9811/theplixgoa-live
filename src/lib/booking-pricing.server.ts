@@ -11,19 +11,28 @@
 // amount actually charged never has to trust anything the client sent.
 import { fetchActivePropertiesCore } from "@/lib/properties-core.server";
 import { fetchRateOverridesCore } from "@/lib/rates-core.server";
-import { eachNight, maxRoomsForProperty, quoteWithDiscount, scalesPriceByRooms } from "@/lib/rates";
+import {
+  defaultGuestsForProperty,
+  eachNight,
+  extraGuestRate,
+  hasExtraGuestPricing,
+  maxRoomsForProperty,
+  quoteWithDiscount,
+  scalesPriceByRooms,
+} from "@/lib/rates";
 import { validateCoupon } from "@/lib/coupons";
 import { PROPERTIES } from "@/lib/plix";
 
-// Mirrors properties-data.ts's CANONICAL_PROPERTY_OVERRIDES exactly (base_price
-// + bedrooms only — that's all this quote needs). Duplicated here, not
-// imported, because properties-data.ts is the client-reachable merge layer
-// (pulls in its own server-fn RPC-wrapper imports) and this file must stay
-// genuinely server-only, matching rates-core.server.ts/properties-core.server.ts's
-// own convention. If that pin ever changes, update both.
-const CANONICAL_PRICE_OVERRIDES: Record<string, { base_price: number; bedrooms: number }> = {
-  "casa-marina": { base_price: 9500, bedrooms: 3 },
-  "casa-moana": { base_price: 12000, bedrooms: 4 },
+// Mirrors properties-data.ts's CANONICAL_PROPERTY_OVERRIDES exactly
+// (base_price + bedrooms + max_guests — that's all this quote needs).
+// Duplicated here, not imported, because properties-data.ts is the
+// client-reachable merge layer (pulls in its own server-fn RPC-wrapper
+// imports) and this file must stay genuinely server-only, matching
+// rates-core.server.ts/properties-core.server.ts's own convention. If that
+// pin ever changes, update both.
+const CANONICAL_PRICE_OVERRIDES: Record<string, { base_price: number; bedrooms: number; max_guests: number }> = {
+  "casa-marina": { base_price: 9500, bedrooms: 3, max_guests: 9 },
+  "casa-moana": { base_price: 12000, bedrooms: 4, max_guests: 12 },
 };
 
 export type AuthoritativeQuote = {
@@ -43,6 +52,7 @@ export async function computeAuthoritativeQuote(input: {
   checkIn: string;
   checkOut: string;
   rooms: number;
+  guests: number;
   couponCode?: string | undefined;
 }): Promise<AuthoritativeQuote> {
   const { propertyId, checkIn, checkOut, couponCode } = input;
@@ -54,7 +64,8 @@ export async function computeAuthoritativeQuote(input: {
 
   const basePrice = pin?.base_price ?? dbRow?.base_price ?? staticProperty?.base_price;
   const bedrooms = pin?.bedrooms ?? dbRow?.bedrooms ?? staticProperty?.bedrooms;
-  if (basePrice === undefined || bedrooms === undefined) {
+  const maxGuestsRaw = pin?.max_guests ?? dbRow?.max_guests ?? staticProperty?.max_guests;
+  if (basePrice === undefined || bedrooms === undefined || maxGuestsRaw === undefined) {
     throw new Error("Unknown property — cannot verify price.");
   }
 
@@ -63,10 +74,19 @@ export async function computeAuthoritativeQuote(input: {
 
   const maxRooms = maxRoomsForProperty(propertyId);
   const rooms = Math.min(maxRooms, Math.max(1, Math.round(input.rooms || 1)));
+  const guests = Math.min(maxGuestsRaw, Math.max(1, Math.round(input.guests || 1)));
 
   const overrides = await fetchRateOverridesCore(propertyId, checkIn, checkOut);
   const roomMultiplier = scalesPriceByRooms(propertyId) ? rooms : 1;
-  const nightlyRates = nights.map((n) => (overrides[n] ?? basePrice) * roomMultiplier);
+  // Extra-guest surcharge — mirrors properties.$slug.tsx's nightlyRates
+  // computation exactly (same hasExtraGuestPricing/defaultGuestsForProperty/
+  // extraGuestRate helpers from rates.ts), folded into each night's rate the
+  // same way so it's taxed the same as the base room charge.
+  const extraGuests = hasExtraGuestPricing(propertyId, bedrooms)
+    ? Math.max(0, guests - defaultGuestsForProperty(propertyId, bedrooms))
+    : 0;
+  const extraGuestChargePerNight = extraGuests * extraGuestRate(propertyId);
+  const nightlyRates = nights.map((n) => (overrides[n] ?? basePrice) * roomMultiplier + extraGuestChargePerNight);
 
   let discountAmount = 0;
   if (couponCode) {

@@ -64,7 +64,7 @@ const CANONICAL_PROPERTY_OVERRIDES: Record<string, Partial<Property>> = {
     tagline: "ANJUNA, NORTH GOA • 3 BHK BOUTIQUE POOL VILLA",
     bedrooms: 3,
     bathrooms: 3,
-    max_guests: 6,
+    max_guests: 9,
     base_price: 9500,
   },
   "casa-moana": {
@@ -73,7 +73,7 @@ const CANONICAL_PROPERTY_OVERRIDES: Record<string, Partial<Property>> = {
     tagline: "ANJUNA, NORTH GOA • 4 BHK PRIVATE POOL VILLA",
     bedrooms: 4,
     bathrooms: 4,
-    max_guests: 8,
+    max_guests: 12,
     base_price: 12000,
   },
 };

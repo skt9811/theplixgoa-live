@@ -1,5 +1,6 @@
-import type { Property } from "@/lib/plix";
+import { formatINR, type Property } from "@/lib/plix";
 import { poolWord, SHARED_POOL_TAG, CONDITIONAL_PRIVATE_POOL_TAGS } from "@/lib/seo";
+import { defaultGuestsForProperty, extraGuestRate, hasExtraGuestPricing } from "@/lib/rates";
 
 type Props = {
   property: Property;
@@ -62,6 +63,11 @@ export function PropertyKeyFacts({ property, isMultiRoom, roomsLabel, roomsCount
           <dd className="mt-0.5 text-sm font-semibold">
             Up to {property.max_guests} Guests ({roomsCount} {roomsLabel}, {property.bathrooms} Baths)
           </dd>
+          {hasExtraGuestPricing(property.id, property.bedrooms) && (
+            <dd className="mt-0.5 text-xs font-normal text-navy-foreground/70">
+              {defaultGuestsForProperty(property.id, property.bedrooms)} guests included, {formatINR(extraGuestRate(property.id))} extra per guest per night beyond that
+            </dd>
+          )}
         </div>
         {pool && (
           <div>

@@ -955,7 +955,7 @@ export const PROPERTIES: Property[] = [
     enclave: "Marina Villas by The Plix",
     bedrooms: 3,
     bathrooms: 3,
-    max_guests: 6,
+    max_guests: 9,
     base_price: 9500,
     distance_to_beach: "8 mins drive to Anjuna Beach",
     // Replacement photos uploaded — all 12 4bhk* source files verified valid
@@ -1041,7 +1041,7 @@ export const PROPERTIES: Property[] = [
     enclave: "Marina Villas by The Plix",
     bedrooms: 4,
     bathrooms: 4,
-    max_guests: 8,
+    max_guests: 12,
     base_price: 12000,
     distance_to_beach: "10 mins drive to Anjuna Beach",
     // Replacement photos uploaded for 3bhk, 3bhk2, 3bhk8 (previously
@@ -1131,7 +1131,7 @@ export const PROPERTIES: Property[] = [
     enclave: "Marina Villas by The Plix",
     bedrooms: 5,
     bathrooms: 5,
-    max_guests: 10,
+    max_guests: 15,
     base_price: 15000,
     distance_to_beach: "8 mins drive to Anjuna Beach",
     // Replacement photos uploaded — all 15 5bhk* source files verified valid
@@ -1224,7 +1224,7 @@ export const PROPERTIES: Property[] = [
     enclave: null,
     bedrooms: 10,
     bathrooms: 10,
-    max_guests: 20,
+    max_guests: 30,
     base_price: 4500,
     distance_to_beach: "4 mins drive to Vagator Beach",
     image_keys: [
@@ -1329,7 +1329,7 @@ export const PROPERTIES: Property[] = [
     enclave: null,
     bedrooms: 3,
     bathrooms: 3,
-    max_guests: 6,
+    max_guests: 9,
     base_price: 11000,
     distance_to_beach: "10 mins drive to Vagator Beach",
     image_keys: [

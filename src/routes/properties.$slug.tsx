@@ -43,11 +43,14 @@ import { validateCoupon, type CouponValidationResult } from "@/lib/coupons";
 import { propertyQuery, reviewsQuery } from "@/lib/plix-queries";
 import { formatINR, gstLabel, nightsBetween, resolveImages, todayISO, PROPERTIES } from "@/lib/plix";
 import {
+  defaultGuestsForProperty,
   eachNight,
+  extraGuestRate,
   fetchBlockedDates,
   fetchRateOverrides,
   GUESTS_PER_ROOM,
   hasBlockedOverlap,
+  hasExtraGuestPricing,
   isMultiRoomProperty,
   maxGuestsForRooms,
   maxRoomsForProperty,
@@ -299,8 +302,17 @@ function PropertyDetail() {
   const nightsList = nights > 0 ? eachNight(checkIn, checkOut) : [];
   // Every multi-room property's rate is per room — see scalesPriceByRooms.
   const roomPriceMultiplier = property && scalesPriceByRooms(property.id) ? rooms : 1;
+  // Extra-guest surcharge — see hasExtraGuestPricing/defaultGuestsForProperty
+  // in rates.ts for exactly which properties this applies to and why. Folded
+  // into each night's rate (not a separate untaxed line item) so it flows
+  // through quoteWithDiscount's existing GST-slab logic the same way the
+  // base room rate does — still genuine room/stay revenue, taxed the same.
+  const defaultGuests = property ? defaultGuestsForProperty(property.id, property.bedrooms) : 0;
+  const extraGuestPricingApplies = Boolean(property && hasExtraGuestPricing(property.id, property.bedrooms));
+  const extraGuests = extraGuestPricingApplies ? Math.max(0, guests - defaultGuests) : 0;
+  const extraGuestChargePerNight = property ? extraGuests * extraGuestRate(property.id) : 0;
   const nightlyRates = property
-    ? nightsList.map((n) => (rateOverrides[n] ?? property.base_price) * roomPriceMultiplier)
+    ? nightsList.map((n) => (rateOverrides[n] ?? property.base_price) * roomPriceMultiplier + extraGuestChargePerNight)
     : [];
   const couponDiscount = appliedCoupon?.valid ? appliedCoupon.discountAmount : 0;
   const {
@@ -898,6 +910,12 @@ function PropertyDetail() {
                 onChange={(e) => handleGuestsChange(Number(e.target.value))}
                 className={`${input} min-h-[44px]`}
               />
+              {extraGuestPricingApplies && (
+                <span className="mt-1 block text-[11px] font-normal normal-case text-muted-foreground">
+                  {defaultGuests} guests included · {formatINR(extraGuestRate(property.id))} extra per
+                  guest, per night, beyond that
+                </span>
+              )}
             </label>
             {guestError && (
               <p className="mt-1 text-xs text-red-600">{guestError}</p>
@@ -913,7 +931,7 @@ function PropertyDetail() {
                 <div className="space-y-1">
                   {nightsList.map((n, i) => (
                     <div key={n} className="flex justify-between text-muted-foreground">
-                      <span>{n} — {formatINR(nightlyRates[i])}</span>
+                      <span>{n} — {formatINR((nightlyRates[i] ?? 0) - extraGuestChargePerNight)}</span>
                     </div>
                   ))}
                 </div>
@@ -924,7 +942,16 @@ function PropertyDetail() {
                     {roomPriceMultiplier > 1 ? ` × ${roomPriceMultiplier} room${roomPriceMultiplier === 1 ? "" : "s"}` : ""} ×{" "}
                     {nights} night{nights === 1 ? "" : "s"}
                   </span>
-                  <span className="text-foreground">{formatINR(subtotal)}</span>
+                  <span className="text-foreground">{formatINR(subtotal - extraGuestChargePerNight * nights)}</span>
+                </div>
+              )}
+              {extraGuests > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>
+                    {extraGuests} extra guest{extraGuests === 1 ? "" : "s"} × {formatINR(extraGuestRate(property.id))} ×{" "}
+                    {nights} night{nights === 1 ? "" : "s"}
+                  </span>
+                  <span className="text-foreground">{formatINR(extraGuestChargePerNight * nights)}</span>
                 </div>
               )}
 

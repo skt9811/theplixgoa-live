@@ -143,6 +143,7 @@ export async function createRazorpayOrderCore(
     checkIn: data.check_in,
     checkOut: data.check_out,
     rooms: data.rooms ?? 1,
+    guests: data.guests ?? 1,
     couponCode: data.coupon_code,
   });
   const PRICE_TOLERANCE_RUPEES = 1;

@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Bath, BedDouble, ChevronLeft, ChevronRight, MapPin, Users, Waves } from "lucide-react";
 import { useState } from "react";
 import { formatINR, resolveImageEntries, resolveImages, type Property } from "@/lib/plix";
-import { isMultiRoomProperty } from "@/lib/rates";
+import { hasExtraGuestPricing, isMultiRoomProperty } from "@/lib/rates";
 import { SmartImage } from "@/components/plix/smart-image";
 import { heroSrcSet } from "@/lib/hero-variants";
 import { poolDisplayLabel } from "@/lib/seo";
@@ -166,7 +166,8 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
             <Bath className="size-4 text-primary" aria-hidden /> {property.bathrooms} Baths
           </span>
           <span className="flex items-center gap-1.5">
-            <Users className="size-4 text-primary" aria-hidden /> {property.max_guests} Guests
+            <Users className="size-4 text-primary" aria-hidden />{" "}
+            {hasExtraGuestPricing(property.id, property.bedrooms) ? `Up to ${property.max_guests}` : property.max_guests} Guests
           </span>
         </div>
 

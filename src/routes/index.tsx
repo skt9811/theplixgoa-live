@@ -20,6 +20,7 @@ import {
 } from "@/lib/locations-data";
 import { FaqAccordion } from "@/components/plix/faq-accordion";
 import { ListYourPropertyBanner } from "@/components/plix/list-your-property-banner";
+import { PlixStandardSection } from "@/components/plix/plix-standard-section";
 import {
   SITE_URL,
   SITE_NAME,
@@ -491,6 +492,8 @@ function Home() {
         </div>
       </section>
       )}
+
+      <PlixStandardSection />
 
       <section className="bg-sand/60 py-16">
         <div className="mx-auto max-w-7xl px-4 md:px-6">

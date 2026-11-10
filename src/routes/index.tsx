@@ -493,8 +493,6 @@ function Home() {
       </section>
       )}
 
-      <PlixStandardSection />
-
       <section className="bg-sand/60 py-16">
         <div className="mx-auto max-w-7xl px-4 md:px-6">
           <SectionHeading
@@ -509,6 +507,8 @@ function Home() {
           </div>
         </div>
       </section>
+
+      <PlixStandardSection />
 
       <section className="mx-auto max-w-7xl px-4 md:px-6">
         <div className="rounded-3xl bg-[#381B34] px-6 py-10 shadow-card sm:px-10 sm:py-12">

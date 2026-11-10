@@ -415,7 +415,7 @@ function RootComponent() {
   if (isPortalRoute) {
     return (
       <QueryClientProvider client={queryClient}>
-        <div className="min-h-screen overflow-x-hidden bg-background">
+        <div className="min-h-screen overflow-x-clip bg-background">
           <Outlet />
         </div>
         <BrandSplashScreen ready={isPmsRoute ? pmsSplashReady : portalSplashReady} />
@@ -428,9 +428,18 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex min-h-screen flex-col overflow-x-hidden bg-background">
+      <div className="flex min-h-screen flex-col overflow-x-clip bg-background">
         <SiteHeader />
-        <main className="flex-1 overflow-x-hidden">
+        {/* overflow-x-clip, not -hidden: per the CSS overflow spec, setting
+            overflow-x to anything but visible/clip (hidden/auto/scroll)
+            forces the browser to compute overflow-y as auto too, which turns
+            this element into a new scroll container/containing block and
+            silently breaks position: sticky for every descendant that
+            expects to stick relative to the page's own scroll (the site
+            header, PropertySubNav, the property page's booking sidebar,
+            etc.) — clip prevents the same horizontal bleed without that
+            side effect. */}
+        <main className="flex-1 overflow-x-clip">
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
         </main>

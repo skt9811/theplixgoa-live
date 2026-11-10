@@ -5,6 +5,7 @@ import {
   Check,
   CircleCheck,
   Headphones,
+  Play,
   ShieldCheck,
   Sparkles,
   TrendingUp,
@@ -87,45 +88,78 @@ export const Route = createFileRoute("/partner")({
 });
 
 const [designPhoto = heroImage] = resolveImages(["harbor-2"]);
+const [duskPoolPhoto = heroImage, lawnPhoto = heroImage, interiorPhoto = heroImage] = resolveImages([
+  "serenity3",
+  "morjim-2",
+  "harbor-1",
+]);
+
+// "Transparency is key" cards: what partners get, not quotes. Real owner
+// testimonials (with the owner's consent to be named) go in
+// partnerTestimonials below and render in place of these cards.
+const transparencyCards = [
+  {
+    image: duskPoolPhoto,
+    alt: "Private pool villa at dusk in North Goa",
+    title: "Statements you can read",
+    body: "A monthly payout statement listing every booking, rate and deduction — nothing bundled, nothing hidden.",
+  },
+  {
+    image: interiorPhoto,
+    alt: "Interior of a Plix-managed villa",
+    title: "Every booking, in real time",
+    body: "See check-ins, blocked dates and upcoming stays across all channels in the Plix Partner App as they happen.",
+  },
+  {
+    image: lawnPhoto,
+    alt: "Villa lawn and garden in North Goa",
+    title: "Costs agreed upfront",
+    body: "Our fee and any operating costs are set out in the partnership agreement before onboarding — no surprise charges later.",
+  },
+];
+
+type PartnerTestimonial = { image: string; alt: string; quote: string; name: string; property: string };
+const partnerTestimonials: PartnerTestimonial[] = [];
 
 const pillars = [
   {
     icon: Building2,
-    title: "Hassle-free onboarding",
-    body: "Inventory audit, professional photography, linen standards and channel calendar setup — handled by our team.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "End-to-end property care",
-    body: "Caretakers, housekeeping, pool upkeep, pest control and preventive maintenance to Plix standards.",
+    title: "Hassle-free onboarding & 7-day OTA sync",
+    body: "Inventory audit, professional photography and linen standards, with your calendar live on our website, Airbnb and partner channels within 7 days.",
   },
   {
     icon: Users,
-    title: "Trained on-ground staff",
-    body: "Hospitality-trained villa attendants and supervisors for smooth check-ins and attentive stays.",
+    title: "End-to-end management & on-ground staffing",
+    body: "Caretakers, housekeeping, pool upkeep, pest control and preventive maintenance, run by hospitality-trained villa staff and supervisors.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Rigorous guest vetting & upfront deposits",
+    body: "Government photo ID before check-in, signed house rules and a refundable security deposit collected upfront — so your home is looked after.",
   },
   {
     icon: Sparkles,
-    title: "Design & styling upgrades",
-    body: "Advice on lighting, soft furnishings and photogenic corners that lift your listing's appeal.",
+    title: "Aesthetic & interior design upgrades",
+    body: "Our team advises on lighting, soft furnishings, bedding and photogenic poolside corners that lift your listing's appeal and nightly rate.",
   },
   {
     icon: TrendingUp,
-    title: "Dynamic revenue management",
-    body: "Weekday vs weekend pricing, peak-season and holiday premiums, and group-booking enquiries.",
+    title: "Dynamic pricing & yield maximisation",
+    body: "Weekday vs weekend rates, peak-season and holiday premiums, and group-booking enquiries priced for demand every night of the year.",
   },
   {
     icon: Headphones,
-    title: "Guest experiences & support",
-    body: "Breakfast setups, private chefs, airport transfers and guest support before and during every stay.",
+    title: "24/7 guest concierge & curated dining",
+    body: "Round-the-clock guest support, private chefs, breakfast setups and airport transfers that turn first-time guests into repeat bookers.",
   },
 ];
 
-const portalPoints = [
-  "Live calendar of bookings across direct and partner channels",
-  "Block your own dates for friends and family",
-  "Monthly payout statements, booking by booking",
-  "A direct line to the operations team for your property",
+const PARTNER_APP_PLAY_URL = "https://play.google.com/store/apps/details?id=com.plix.partner";
+
+const appPoints = [
+  "Live calendar view across our direct website, Airbnb and partner channels",
+  "1-tap owner hold: reserve your villa for personal vacation days anytime",
+  "Real-time payout ledger and seasonal performance analytics",
 ];
 
 const emptyForm = {
@@ -349,33 +383,82 @@ function PartnerPage() {
         </div>
       </section>
 
-      {/* Owner portal */}
+      {/* Partner app */}
       <section className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 md:px-6 md:py-24 lg:grid-cols-12">
         <div className="space-y-5 lg:col-span-7">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">Full visibility</p>
           <h2 className="font-serif text-3xl font-normal text-navy md:text-4xl">
-            Stay up to date with the Plix owner portal
+            Stay up to date with The Plix Partner App
           </h2>
           <p className="leading-relaxed text-muted-foreground">
-            No surprises. Partners get access to the Plix owner portal to see bookings, blocked
-            dates and payouts for their property.
+            With The Plix easy-to-use partner mobile app, it's simpler than ever to access real-time
+            bookings, blocked calendar dates, and revenue performance for your vacation home — right
+            from your fingertips.
           </p>
           <ul className="space-y-3 pt-1">
-            {portalPoints.map((text) => (
-              <li key={text} className="flex items-center gap-3 text-sm font-medium text-foreground">
-                <CircleCheck className="size-5 shrink-0 text-emerald-600" aria-hidden />
+            {appPoints.map((text) => (
+              <li key={text} className="flex items-start gap-3 text-sm font-medium text-foreground">
+                <CircleCheck className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden />
                 {text}
               </li>
             ))}
           </ul>
+          <a
+            href={PARTNER_APP_PLAY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-3 rounded-xl bg-black px-5 py-2.5 text-white shadow-soft transition-transform hover:scale-[1.02]"
+          >
+            <Play className="size-6 fill-white" aria-hidden />
+            <span className="flex flex-col leading-tight">
+              <span className="text-[10px] uppercase tracking-wide text-white/80">Get it on</span>
+              <span className="text-lg font-semibold">Google Play</span>
+            </span>
+          </a>
         </div>
         <div className="flex justify-center lg:col-span-5">
-          <SmartImage
-            src={ownerPortalImage}
-            alt="The Plix owner portal app"
-            loading="lazy"
-            className="w-full max-w-sm rounded-3xl object-cover shadow-card"
-          />
+          <div className="w-[280px] rounded-[44px] border-4 border-neutral-800 bg-neutral-900 p-3 shadow-card sm:w-[320px]">
+            <SmartImage
+              src={ownerPortalImage}
+              alt="The Plix Partner App showing bookings and revenue"
+              loading="lazy"
+              className="w-full rounded-[34px] object-cover"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Transparency is key */}
+      <section className="border-t border-border bg-[#fbf7ee] py-16 md:py-20">
+        <div className="mx-auto max-w-7xl px-4 md:px-6">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="font-serif text-3xl font-normal text-navy md:text-4xl">Transparency is key</h2>
+            <p className="mt-3 text-muted-foreground">
+              No hidden costs, no unexpected surprises — our commitment to transparency truly sets us apart.
+            </p>
+          </div>
+          <div className="mt-12 grid gap-6 md:grid-cols-3">
+            {partnerTestimonials.length > 0
+              ? partnerTestimonials.map((t) => (
+                  <figure key={t.name} className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+                    <SmartImage src={t.image} alt={t.alt} loading="lazy" className="aspect-[16/10] w-full object-cover" />
+                    <blockquote className="flex-1 p-6 text-sm italic leading-relaxed text-muted-foreground">"{t.quote}"</blockquote>
+                    <figcaption className="border-t border-border px-6 py-4">
+                      <p className="text-sm font-semibold text-navy">{t.name}</p>
+                      <p className="text-xs text-muted-foreground">{t.property}</p>
+                    </figcaption>
+                  </figure>
+                ))
+              : transparencyCards.map((c) => (
+                  <div key={c.title} className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+                    <SmartImage src={c.image} alt={c.alt} loading="lazy" className="aspect-[16/10] w-full object-cover" />
+                    <div className="p-6">
+                      <h3 className="text-lg font-semibold text-navy">{c.title}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{c.body}</p>
+                    </div>
+                  </div>
+                ))}
+          </div>
         </div>
       </section>
 

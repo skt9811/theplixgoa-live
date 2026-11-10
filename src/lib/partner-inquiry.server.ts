@@ -31,6 +31,8 @@ const MAX_FIELD_LENGTH = 4000;
 function isPartnerInquiryInput(data: unknown): data is PartnerInquiryInput {
   if (!data || typeof data !== "object") return false;
   const d = data as Record<string, unknown>;
+  // Accept `bedrooms` as an alias for `roomCount` from external callers.
+  if (d["roomCount"] === undefined && typeof d["bedrooms"] === "string") d["roomCount"] = d["bedrooms"];
   return (
     REQUIRED_FIELDS.every((k) => {
       const v = d[k];
@@ -44,21 +46,28 @@ function isPartnerInquiryInput(data: unknown): data is PartnerInquiryInput {
 }
 
 const INQUIRY_RECIPIENTS = ["reservations@theplixgoa.com"];
+const INQUIRY_CC = ["skt9811@gmail.com"];
 
 function buildInquiryEmail(input: PartnerInquiryInput): string {
+  const link = (href: string, text: string) =>
+    `<a href="${escapeHtml(href)}" style="color:#1a2238;">${escapeHtml(text)}</a>`;
+  const mediaLink = /^https?:\/\//i.test(input.mediaLink ?? "")
+    ? link(input.mediaLink, input.mediaLink)
+    : escapeHtml(input.mediaLink || "Not provided");
+  // Values are pre-escaped HTML.
   const rows: [string, string][] = [
-    ["Name", `${input.firstName} ${input.lastName ?? ""}`.trim()],
-    ["Email", input.email],
-    ["Phone", input.phone],
-    ["Location", input.location],
-    ["Property type", input.propertyType],
-    ["Bedrooms", input.roomCount],
-    ["Photos / listing", input.mediaLink || "Not provided"],
+    ["Owner name", escapeHtml(`${input.firstName} ${input.lastName ?? ""}`.trim())],
+    ["Phone", link(`tel:${input.phone.replace(/[^\d+]/g, "")}`, input.phone)],
+    ["Email", link(`mailto:${input.email}`, input.email)],
+    ["Location", escapeHtml(input.location)],
+    ["Property type", escapeHtml(input.propertyType)],
+    ["Bedrooms", escapeHtml(input.roomCount)],
+    ["Airbnb / photos", mediaLink],
   ];
   const rowsHtml = rows
     .map(
       ([label, value], i) =>
-        `<tr><td style="padding:6px 0;color:#666;${i === 0 ? "width:140px;" : ""}">${label}</td><td style="padding:6px 0;${i === 0 ? "font-weight:600;" : ""}">${escapeHtml(value)}</td></tr>`,
+        `<tr><td style="padding:6px 0;color:#666;${i === 0 ? "width:140px;" : ""}">${label}</td><td style="padding:6px 0;${i === 0 ? "font-weight:600;" : ""}">${value}</td></tr>`,
     )
     .join("");
   const description = escapeHtml(input.description || "Not provided").replace(/\n/g, "<br>");
@@ -115,7 +124,7 @@ export async function handlePartnerInquiryRequest(req: Request): Promise<Respons
   }
 
   const name = `${body.firstName} ${body.lastName ?? ""}`.trim();
-  console.log(`[handlePartnerInquiryRequest] dispatching partner lead — to=${INQUIRY_RECIPIENTS.join(",")} name=${name} location=${body.location}`);
+  console.log(`[handlePartnerInquiryRequest] dispatching partner lead — to=${INQUIRY_RECIPIENTS.join(",")} cc=${INQUIRY_CC.join(",")} name=${name} location=${body.location}`);
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -123,7 +132,8 @@ export async function handlePartnerInquiryRequest(req: Request): Promise<Respons
     body: JSON.stringify({
       from: fromEmail,
       to: INQUIRY_RECIPIENTS,
-      subject: `New Property Partner Lead: ${name} — ${body.propertyType}, ${body.location}`,
+      cc: INQUIRY_CC,
+      subject: `New Villa Partner Inquiry: ${name} - ${body.location} (${body.propertyType})`,
       html: buildInquiryEmail(body),
       reply_to: body.email,
     }),

@@ -3,15 +3,21 @@ import useEmblaCarousel from "embla-carousel-react";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { heroImage, resolveImages } from "@/lib/plix";
-import { HOME_HERO_SIZES } from "@/lib/hero-variants";
+import { HOME_HERO_SIZES, heroSrcSet } from "@/lib/hero-variants";
 
 const AUTOPLAY_INTERVAL_MS = 5000;
 
-const [plixResortImage] = resolveImages(["plixResort1"]);
-const [maderaImage] = resolveImages(["madera1"]);
+// Each property's lead photo (its first image_key), which also has an 800px
+// copy for phones. These used to point at keys that don't exist, so both
+// slides silently fell back to the generic hero-goa.jpg.
+const PLIX_RESORT_KEY = "plixresortnew17";
+const MADERA_KEY = "villamadera16";
+const [plixResortImage] = resolveImages([PLIX_RESORT_KEY]);
+const [maderaImage] = resolveImages([MADERA_KEY]);
 
 type Slide = {
   image: string;
+  srcSet?: string | undefined;
   alt: string;
   heading: string;
   subheading: string;
@@ -51,6 +57,7 @@ export function HeroCarousel({
     },
     {
       image: plixResortImage ?? heroImage,
+      srcSet: plixResortImage ? heroSrcSet(PLIX_RESORT_KEY, plixResortImage) : undefined,
       alt: "The Plix Resort - Morjim beachside pool and rooms",
       heading: "Serene Beachside Escapes in Morjim",
       subheading: "Wake up 100 meters from the ocean with private pool living.",
@@ -60,6 +67,7 @@ export function HeroCarousel({
     },
     {
       image: maderaImage ?? heroImage,
+      srcSet: maderaImage ? heroSrcSet(MADERA_KEY, maderaImage) : undefined,
       alt: "Villa Madera jungle-set villa with a shared pool in Anjuna",
       heading: "Hidden Jungle Luxury in Anjuna",
       subheading: "Tucked away privacy surrounded by lush coastal nature.",
@@ -71,6 +79,11 @@ export function HeroCarousel({
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: "start" });
   const [selectedIndex, setSelectedIndex] = useState(0);
+  // Slides 2–3 sit just off-screen, so the browser fetches their photos
+  // alongside slide 1's even with loading="lazy", and on a slow phone that
+  // steals bandwidth from the LCP image. They aren't visible until the first
+  // autoplay (5s), so their <img>s are only added once the page has loaded.
+  const [restImagesReady, setRestImagesReady] = useState(false);
   const hoverPausedRef = useRef(false);
   const dragPausedRef = useRef(false);
 
@@ -78,6 +91,16 @@ export function HeroCarousel({
     if (!emblaApi) return;
     setSelectedIndex(emblaApi.selectedScrollSnap());
   }, [emblaApi]);
+
+  useEffect(() => {
+    const ready = () => setRestImagesReady(true);
+    if (document.readyState === "complete") {
+      ready();
+      return;
+    }
+    window.addEventListener("load", ready, { once: true });
+    return () => window.removeEventListener("load", ready);
+  }, []);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -140,18 +163,20 @@ export function HeroCarousel({
             // <h2> is correct for them, not stripping the tag entirely.
             const HeadingTag = i === 0 ? "h1" : "h2";
             return (
-            <div key={slide.heading} className="relative min-w-0 shrink-0 grow-0 basis-full">
-              <img
-                src={slide.image}
-                srcSet={i === 0 ? slide1SrcSet : undefined}
-                sizes={i === 0 && slide1SrcSet ? HOME_HERO_SIZES : undefined}
-                alt={slide.alt}
-                width={1920}
-                height={1088}
-                loading={i === 0 ? "eager" : "lazy"}
-                fetchPriority={i === 0 ? "high" : "auto"}
-                className="absolute inset-0 size-full object-cover"
-              />
+            <div key={slide.heading} className="relative min-w-0 shrink-0 grow-0 basis-full bg-navy">
+              {(i === 0 || restImagesReady) && (
+                <img
+                  src={slide.image}
+                  srcSet={i === 0 ? slide1SrcSet : slide.srcSet}
+                  sizes={(i === 0 ? slide1SrcSet : slide.srcSet) ? HOME_HERO_SIZES : undefined}
+                  alt={slide.alt}
+                  width={1920}
+                  height={1088}
+                  loading={i === 0 ? "eager" : "lazy"}
+                  fetchPriority={i === 0 ? "high" : "auto"}
+                  className="absolute inset-0 size-full object-cover"
+                />
+              )}
               {/* Soft dark gradient vignette for high-contrast text readability */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
               <div className="absolute inset-0 bg-gradient-to-b from-[#2a1810]/70 via-transparent to-[#1a0e05]/70" />

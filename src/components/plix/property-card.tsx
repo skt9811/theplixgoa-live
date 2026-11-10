@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { Bath, BedDouble, ChevronLeft, ChevronRight, MapPin, Users, Waves } from "lucide-react";
 import { useState } from "react";
-import { formatINR, resolveImages, type Property } from "@/lib/plix";
+import { formatINR, resolveImageEntries, resolveImages, type Property } from "@/lib/plix";
 import { isMultiRoomProperty } from "@/lib/rates";
 import { SmartImage } from "@/components/plix/smart-image";
+import { heroSrcSet } from "@/lib/hero-variants";
 import { poolDisplayLabel } from "@/lib/seo";
 
 function propertyCardSubtitle(p: Property): string {
@@ -74,6 +75,9 @@ type PropertyCardProps = {
 
 export function PropertyCard({ property, titleOverride, searchRate, search }: PropertyCardProps) {
   const images = resolveImages(property.image_keys);
+  // The lead photo has an 800px copy (hero-variants), so phones and the
+  // 3-up grid don't download the 1200–1920px original for the first photo.
+  const leadKey = resolveImageEntries(property.image_keys)[0]?.key;
   const [index, setIndex] = useState(0);
   const go = (dir: number) => setIndex((i) => (i + dir + images.length) % images.length);
   const linkSearch = search ?? {};
@@ -95,6 +99,8 @@ export function PropertyCard({ property, titleOverride, searchRate, search }: Pr
           <SmartImage
             key={images[index]}
             src={images[index]}
+            srcSet={index === 0 && images[0] ? heroSrcSet(leadKey, images[0]) : undefined}
+            sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 400px"
             alt={`${property.name} — ${property.bedrooms} bedroom luxury ${property.bedrooms >= 8 ? "bungalow" : "villa"} in ${property.location}, North Goa${index === 0 && poolAlt ? ` with ${poolAlt}` : ""}`}
             loading="lazy"
             width={1200}

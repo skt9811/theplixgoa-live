@@ -9,6 +9,7 @@ import { getGuestUser, onGuestAuthChange, signOutGuest, type GuestUser } from "@
 const links = [
   { to: "/blog", label: "Blog" },
   { to: "/about", label: "About Us" },
+  { to: "/partner", label: "List Your Property" },
   { to: "/contact", label: "Contact" },
 ] as const;
 

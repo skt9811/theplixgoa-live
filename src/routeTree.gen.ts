@@ -17,6 +17,7 @@ import { Route as BookingSuccessRouteImport } from './routes/booking-success'
 import { Route as CancellationRouteImport } from './routes/cancellation'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as FaqRouteImport } from './routes/faq'
+import { Route as PartnerRouteImport } from './routes/partner'
 import { Route as PmsRouteImport } from './routes/pms'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -118,6 +119,11 @@ const ContactRoute = ContactRouteImport.update({
 const FaqRoute = FaqRouteImport.update({
   id: '/faq',
   path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartnerRoute = PartnerRouteImport.update({
+  id: '/partner',
+  path: '/partner',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PmsRoute = PmsRouteImport.update({
@@ -444,6 +450,7 @@ export interface FileRoutesByFullPath {
   '/cancellation': typeof CancellationRoute
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
+  '/partner': typeof PartnerRoute
   '/pms': typeof PmsRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
   '/privacy': typeof PrivacyRoute
@@ -516,6 +523,7 @@ export interface FileRoutesByTo {
   '/cancellation': typeof CancellationRoute
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
+  '/partner': typeof PartnerRoute
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/stays': typeof StaysRoute
@@ -584,6 +592,7 @@ export interface FileRoutesById {
   '/cancellation': typeof CancellationRoute
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
+  '/partner': typeof PartnerRoute
   '/pms': typeof PmsRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
   '/privacy': typeof PrivacyRoute
@@ -658,6 +667,7 @@ export interface FileRouteTypes {
     | '/cancellation'
     | '/contact'
     | '/faq'
+    | '/partner'
     | '/pms'
     | '/portal'
     | '/privacy'
@@ -730,6 +740,7 @@ export interface FileRouteTypes {
     | '/cancellation'
     | '/contact'
     | '/faq'
+    | '/partner'
     | '/privacy'
     | '/signup'
     | '/stays'
@@ -797,6 +808,7 @@ export interface FileRouteTypes {
     | '/cancellation'
     | '/contact'
     | '/faq'
+    | '/partner'
     | '/pms'
     | '/portal'
     | '/privacy'
@@ -870,6 +882,7 @@ export interface RootRouteChildren {
   CancellationRoute: typeof CancellationRoute
   ContactRoute: typeof ContactRoute
   FaqRoute: typeof FaqRoute
+  PartnerRoute: typeof PartnerRoute
   PmsRoute: typeof PmsRouteWithChildren
   PortalRoute: typeof PortalRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
@@ -946,6 +959,13 @@ declare module '@tanstack/react-router' {
       path: '/faq'
       fullPath: '/faq'
       preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partner': {
+      id: '/partner'
+      path: '/partner'
+      fullPath: '/partner'
+      preLoaderRoute: typeof PartnerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pms': {
@@ -1528,6 +1548,7 @@ const rootRouteChildren: RootRouteChildren = {
   CancellationRoute: CancellationRoute,
   ContactRoute: ContactRoute,
   FaqRoute: FaqRoute,
+  PartnerRoute: PartnerRoute,
   PmsRoute: PmsRouteWithChildren,
   PortalRoute: PortalRouteWithChildren,
   PrivacyRoute: PrivacyRoute,

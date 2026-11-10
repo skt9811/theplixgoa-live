@@ -23,6 +23,7 @@ const STATIC_PAGES: StaticPage[] = [
   { path: "/blog", changefreq: "weekly", priority: "0.8" },
   { path: "/about", changefreq: "monthly", priority: "0.7" },
   { path: "/contact", changefreq: "monthly", priority: "0.7" },
+  { path: "/partner", changefreq: "monthly", priority: "0.6" },
   { path: "/faq", changefreq: "monthly", priority: "0.6" },
   { path: "/terms", changefreq: "monthly", priority: "0.5" },
   { path: "/privacy", changefreq: "monthly", priority: "0.5" },

@@ -10,9 +10,7 @@ import { trackFunnelEvent } from "@/lib/gtag";
 const quickLinks = [
   { label: "About Us", to: "/about" as const },
   { label: "Contact Us", to: "/contact" as const },
-  // No dedicated partner-inquiry page exists yet — routes to the real
-  // contact form rather than a dead link or a placeholder page.
-  { label: "Partner With Us", to: "/contact" as const },
+  { label: "List Your Property", to: "/partner" as const },
   // Not duplicated here: the legal bar at the very bottom of the footer
   // already has "Terms Of Services", paired with Privacy Policy — the
   // standard place for it. Two Terms links to the same /terms page is the

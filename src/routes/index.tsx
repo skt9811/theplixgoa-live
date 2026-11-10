@@ -19,6 +19,7 @@ import {
   type LocationGrid,
 } from "@/lib/locations-data";
 import { FaqAccordion } from "@/components/plix/faq-accordion";
+import { ListYourPropertyBanner } from "@/components/plix/list-your-property-banner";
 import {
   SITE_URL,
   SITE_NAME,
@@ -546,6 +547,8 @@ function Home() {
         </div>
       </section>
       )}
+
+      <ListYourPropertyBanner />
 
       {homepageReviews.length > 0 && (
       <section className="mx-auto max-w-7xl px-4 py-16 md:px-6">

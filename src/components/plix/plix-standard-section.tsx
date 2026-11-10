@@ -12,17 +12,17 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SmartImage } from "@/components/plix/smart-image";
-import { resolveImages } from "@/lib/plix";
 
 // "The Plix Standard": what guests get across Plix stays, over a cross-fading
-// carousel of real Plix property photos. Labels only claim what holds across
-// the collection — Wi-Fi/power backup is at most, not all, properties.
-const SLIDE_KEYS = ["villamadera1", "casameadows1", "vivendachico1", "harborcourt31"];
-const SLIDE_ALTS = [
-  "Dining area under a pergola at Villa Madera, Anjuna",
-  "Living room at Casa Meadows, Anjuna",
-  "Lawns and private pool at Vivenda Chico, Candolim",
-  "Pool at Harbor Court, Vagator",
+// carousel of villa-lifestyle photos (Unsplash, served from its CDN). Labels
+// only claim what holds across the collection — Wi-Fi/power backup is at
+// most, not all, properties.
+const unsplash = (id: string, w: number) => `https://images.unsplash.com/${id}?q=80&w=${w}&auto=format&fit=crop`;
+const SLIDES = [
+  { id: "photo-1544025162-d76694265947", alt: "Table set for a private dinner" },
+  { id: "photo-1618221195710-dd6b41faaea6", alt: "Villa lounge with garden views" },
+  { id: "photo-1529156069898-49953e39b3ac", alt: "Friends relaxing together outdoors" },
+  { id: "photo-1580587771525-78b9dba3b914", alt: "Private pool beside a villa" },
 ];
 const SLIDE_MS = 5500;
 
@@ -39,7 +39,7 @@ const FEATURES: { icon: LucideIcon; label: string }[] = [
 ];
 
 export function PlixStandardSection() {
-  const slides = resolveImages(SLIDE_KEYS);
+  const slides = SLIDES;
   const [index, setIndex] = useState(0);
   // Only slides already reached are mounted, so the carousel downloads one
   // photo up front and the rest as they come round, not all four at once.
@@ -66,12 +66,14 @@ export function PlixStandardSection() {
         onMouseLeave={() => setPaused(false)}
       >
         <div className="relative aspect-[4/3] sm:aspect-[16/9] lg:absolute lg:inset-0 lg:aspect-auto">
-          {slides.map((src, i) =>
+          {slides.map((slide, i) =>
             seen.has(i) ? (
               <SmartImage
-                key={src}
-                src={src}
-                alt={SLIDE_ALTS[i] ?? "The Plix Goa"}
+                key={slide.id}
+                src={unsplash(slide.id, 1600)}
+                srcSet={`${unsplash(slide.id, 900)} 900w, ${unsplash(slide.id, 1600)} 1600w`}
+                sizes="(max-width: 1023px) 100vw, 1280px"
+                alt={slide.alt}
                 loading="lazy"
                 width={1600}
                 height={900}

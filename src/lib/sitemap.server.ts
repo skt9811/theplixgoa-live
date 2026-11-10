@@ -7,6 +7,7 @@ import { fetchActivePropertiesForSitemap } from "@/lib/sitemap-properties.server
 import { PROPERTIES, resolveImages, type Property } from "@/lib/plix";
 import { LOCATION_HUBS } from "@/lib/locations";
 import { fetchPublishedBlogSlugsForSitemap, type SitemapBlogRow } from "@/lib/blogs-core.server";
+import { PEAK_SEASON_SLUGS } from "@/lib/blog-peak-season";
 import { SITE_URL, absoluteUrl } from "@/lib/seo";
 
 type StaticPage = { path: string; changefreq: string; priority: string };
@@ -82,7 +83,7 @@ function buildSitemapXml(properties: Property[], blogRows: SitemapBlogRow[]): st
   );
   const locationEntries = LOCATION_HUBS.map((l) => urlEntry(`${SITE_URL}/locations/${l.slug}`, "weekly", "0.8", today));
   const blogEntries = blogRows.map((row) =>
-    urlEntry(`${SITE_URL}/blog/${row.slug}`, "monthly", "0.6", toDateOnly(row.lastmod)),
+    urlEntry(`${SITE_URL}/blog/${row.slug}`, "monthly", PEAK_SEASON_SLUGS.has(row.slug) ? "0.8" : "0.6", toDateOnly(row.lastmod)),
   );
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${[...staticEntries, ...locationEntries, ...propertyEntries, ...blogEntries].join("\n")}\n</urlset>`;
 }

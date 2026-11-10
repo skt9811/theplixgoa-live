@@ -2,6 +2,10 @@ import { Fragment, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, MapPin } from "lucide-react";
 import type { StayNearby } from "@/lib/blog-stay-nearby";
+import { PEAK_SEASON_HIGHLIGHTS } from "@/lib/blog-peak-season";
+import { resolveImages, type Property } from "@/lib/plix";
+import { isMultiRoomProperty } from "@/lib/rates";
+import { SmartImage } from "@/components/plix/smart-image";
 
 // Blog posts about North Goa's coastline recommend a Plix stay in the area
 // they describe. Posts are rendered from HTML, so the cards are placed between
@@ -93,6 +97,79 @@ export function BlogStayBanner() {
   );
 }
 
+/** Mid-article highlight for the peak-season posts: two real properties
+ * from the live list, with photo, size, area and a link to their dates. */
+export function BlogStayHighlight({ properties }: { properties: Property[] }) {
+  if (properties.length === 0) return null;
+  return (
+    <aside className="not-prose my-8 rounded-2xl border border-border bg-card p-5 sm:p-6" aria-label="Recommended stays">
+      <p className="font-display text-lg font-semibold text-foreground">Where to stay for this</p>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        {properties.map((p) => {
+          const [photo] = resolveImages(p.image_keys);
+          const multiRoom = isMultiRoomProperty(p.slug);
+          return (
+            <div key={p.slug} className="flex flex-col overflow-hidden rounded-xl border border-border bg-background">
+              {photo && (
+                <SmartImage
+                  src={photo}
+                  alt={`${p.name}, ${p.location}`}
+                  loading="lazy"
+                  width={600}
+                  height={375}
+                  className="aspect-[16/10] w-full object-cover"
+                />
+              )}
+              <div className="flex flex-1 flex-col p-4">
+                <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <MapPin className="size-3" aria-hidden />
+                  {p.location}
+                </p>
+                <p className="mt-1 font-semibold text-foreground">{p.name}</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {p.bedrooms} {multiRoom ? "rooms" : "bedrooms"} · up to {p.max_guests} guests
+                </p>
+                <Link
+                  to="/properties/$slug"
+                  params={{ slug: p.slug }}
+                  hash="book"
+                  className="mt-4 inline-flex items-center gap-1.5 self-start rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90"
+                >
+                  Check Dates &amp; Rates <ArrowRight className="size-4" aria-hidden />
+                </Link>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
+/** Mobile bottom bar for the peak-season posts — same --sticky-cta-h
+ * handshake as BlogStickyStayBar below. */
+export function BlogBookDirectBar() {
+  useEffect(() => {
+    document.documentElement.style.setProperty("--sticky-cta-h", "4.5rem");
+    return () => {
+      document.documentElement.style.removeProperty("--sticky-cta-h");
+    };
+  }, []);
+  return (
+    <div
+      className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-between gap-3 border-t border-border bg-card px-4 pt-3 shadow-lift md:hidden"
+      style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+    >
+      <p className="min-w-0 text-xs font-semibold leading-snug text-navy">
+        Traveling to Goa for New Year 2027? Avoid platform fees and book direct with The Plix.
+      </p>
+      <Link to="/stays" className="shrink-0 rounded-full bg-navy px-4 py-2.5 text-xs font-semibold text-navy-foreground">
+        View Villas &amp; Resorts
+      </Link>
+    </div>
+  );
+}
+
 /** Mobile-only bottom bar. While shown it sets --sticky-cta-h so the site's
  * floating WhatsApp/back-to-top buttons sit above it instead of on top. */
 export function BlogStickyStayBar() {
@@ -163,9 +240,12 @@ export function BlogStayNearby({ stay }: { stay: StayNearby }) {
  * follow the section it belongs to. Posts without inline cards render exactly
  * as before.
  */
-export function BlogArticleBody({ html, slug }: { html: string; slug: string }) {
+export function BlogArticleBody({ html, slug, properties = [] }: { html: string; slug: string; properties?: Property[] }) {
   const rules = INLINE_PICKS[slug] ?? [];
-  const withBanner = STAY_CTA_SLUGS.has(slug);
+  const highlight = (PEAK_SEASON_HIGHLIGHTS[slug] ?? [])
+    .map((s) => properties.find((p) => p.slug === s))
+    .filter((p): p is Property => Boolean(p));
+  const withBanner = STAY_CTA_SLUGS.has(slug) || highlight.length > 0;
   if (rules.length === 0 && !withBanner) {
     return <article className="prose-blog" dangerouslySetInnerHTML={{ __html: html }} />;
   }
@@ -180,7 +260,7 @@ export function BlogArticleBody({ html, slug }: { html: string; slug: string }) 
           <Fragment key={i}>
             <div dangerouslySetInnerHTML={{ __html: section }} />
             {rule && <BlogVillaCard slug={rule.pick} />}
-            {i === bannerAfter && !rule && <BlogStayBanner />}
+            {i === bannerAfter && !rule && (highlight.length > 0 ? <BlogStayHighlight properties={highlight} /> : <BlogStayBanner />)}
           </Fragment>
         );
       })}

@@ -5,8 +5,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { blogQuery, blogSummariesQuery, estimateReadingTime, formatDate, type BlogSummary } from "@/lib/blog";
 import { stayNearbyForPost } from "@/lib/blog-stay-nearby";
+import { PEAK_SEASON_SLUGS, extractBlogFaqs } from "@/lib/blog-peak-season";
 import { propertiesQuery } from "@/lib/plix-queries";
-import { BlogArticleBody, BlogStayNearby, BlogStickyStayBar, STAY_CTA_SLUGS } from "@/components/plix/blog-stay-callout";
+import { BlogArticleBody, BlogBookDirectBar, BlogStayNearby, BlogStickyStayBar, STAY_CTA_SLUGS } from "@/components/plix/blog-stay-callout";
 import {
   SITE_URL,
   SITE_NAME,
@@ -16,6 +17,7 @@ import {
   blogSeoTitle,
   blogPostingJsonLd,
   breadcrumbJsonLd,
+  faqPageJsonLd,
   jsonLdScript,
 } from "@/lib/seo";
 
@@ -75,6 +77,7 @@ export const Route = createFileRoute("/blog/$slug")({
       { name: "Blog", url: "/blog" },
       { name: post.title, url: `/blog/${post.slug}` },
     ]);
+    const faqs = extractBlogFaqs(post.content);
     return {
       meta: [
         { title: seoTitle },
@@ -99,6 +102,9 @@ export const Route = createFileRoute("/blog/$slug")({
           id: "blog-post-breadcrumb-jsonld",
           children: jsonLdScript(breadcrumbs),
         },
+        ...(faqs.length > 0
+          ? [{ type: "application/ld+json", id: "blog-post-faq-jsonld", children: jsonLdScript(faqPageJsonLd(faqs)) }]
+          : []),
       ],
     };
   },
@@ -215,12 +221,12 @@ function BlogPostPage() {
           <ShareButtons url={shareUrl} title={post.title} />
         </div>
 
-        <BlogArticleBody html={post.content} slug={post.slug} />
+        <BlogArticleBody html={post.content} slug={post.slug} properties={properties} />
 
         <BlogStayNearby stay={stay} />
-        {STAY_CTA_SLUGS.has(post.slug) && (
+        {(STAY_CTA_SLUGS.has(post.slug) || PEAK_SEASON_SLUGS.has(post.slug)) && (
           <>
-            <BlogStickyStayBar />
+            {PEAK_SEASON_SLUGS.has(post.slug) ? <BlogBookDirectBar /> : <BlogStickyStayBar />}
             {/* Room under the last content so the mobile bar never covers it. */}
             <div className="h-20 md:hidden" aria-hidden />
           </>

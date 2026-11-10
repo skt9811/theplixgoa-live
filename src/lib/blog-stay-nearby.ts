@@ -93,6 +93,15 @@ const POST_PRESETS: Record<string, PresetName> = {
   "top-7-sunset-clubs-beach-shacks-anjuna-vagator": "vagatorAnjuna",
   // Draft, not yet in the DB: the Anjuna enclave's three villas suit festive-week groups.
   "christmas-new-year-2026-27-goa-parties-events-private-villas": "anjuna",
+  // Peak-season 2026–27 series (scripts/seed-peak-season-blogs.ts).
+  "sunburn-festival-goa-2026-dates-venue-stay-guide": "vagator",
+  "goa-new-year-party-2027-clubs-tickets-where-to-stay": "vagatorAnjuna",
+  "where-to-stay-in-north-goa-for-new-year-2027": "threeAreas",
+  "mopa-vs-dabolim-airport-goa-transfers-cab-rates-peak-season-guide": "vagatorMorjim",
+  "underground-techno-sundowner-circuit-goa-nye-2027": "vagatorAnjuna",
+  "christmas-and-new-year-family-villas-in-goa": "families",
+  "best-beach-shacks-fireworks-spots-new-year-eve-goa": "morjim",
+  "booking-large-group-villas-goa-new-year-2027": "groups",
 };
 
 export type StayNearby = { properties: Property[]; hubs: LocationHub[] };

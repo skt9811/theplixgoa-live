@@ -21,6 +21,7 @@ import {
 import { FaqAccordion } from "@/components/plix/faq-accordion";
 import { ListYourPropertyBanner } from "@/components/plix/list-your-property-banner";
 import { PlixStandardSection } from "@/components/plix/plix-standard-section";
+import { RequestCallbackStrip } from "@/components/plix/request-callback-strip";
 import {
   SITE_URL,
   SITE_NAME,
@@ -394,6 +395,7 @@ function Home() {
             carousel's own arrows/dots (z-20) wherever they're near each other. */}
         <div className="relative z-30 mx-auto mt-auto w-full max-w-5xl px-4 pb-8">
           <HeroSearchBar />
+          <RequestCallbackStrip />
         </div>
       </section>
 

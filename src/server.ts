@@ -7,6 +7,7 @@ import { handleInquiryWebhook } from "./lib/pms-inquiries.server";
 import { handleSubscribeRequest } from "./lib/subscribe-newsletter.server";
 import { handleContactEnquiryRequest } from "./lib/contact-enquiry.server";
 import { handlePartnerInquiryRequest } from "./lib/partner-inquiry.server";
+import { handleCallbackRequest } from "./lib/callback-request.server";
 import { handleSitemapRequest } from "./lib/sitemap.server";
 import { handleBlogCoverRequest } from "./lib/blog-cover.server";
 import { handleSendWelcomeEmail } from "./lib/send-welcome-email.server";
@@ -232,6 +233,17 @@ export default {
       } catch (error) {
         console.error("[contact-enquiry] unhandled error:", error);
         return new Response(JSON.stringify({ sent: false, reason: "Internal error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+    if (url.pathname === "/api/callback-request") {
+      try {
+        return await handleCallbackRequest(request);
+      } catch (error) {
+        console.error("[callback-request] unhandled error:", error);
+        return new Response(JSON.stringify({ success: false, reason: "Internal error" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });

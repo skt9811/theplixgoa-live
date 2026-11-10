@@ -100,7 +100,7 @@ export function PlixStandardSection() {
           </div>
         </div>
 
-        <div className="relative px-4 pb-4 lg:absolute lg:inset-y-0 lg:right-8 lg:flex lg:w-[460px] lg:items-center lg:p-0">
+        <div className="relative px-4 pb-4 lg:absolute lg:bottom-8 lg:right-8 lg:w-[440px] lg:p-0">
           <div className="rounded-2xl border border-white/10 bg-black/60 p-6 text-white shadow-2xl backdrop-blur-xl sm:p-8">
             <h2 id="plix-standard-title" className="font-serif text-3xl font-normal tracking-tight md:text-4xl">
               The Plix Standard

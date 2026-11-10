@@ -29,3 +29,11 @@ Private-pool villas and boutique resorts (resort-style properties have a shared 
 ## Why book direct with The Plix instead of an OTA?
 
 Booking direct at theplixgoa.com carries zero OTA commission markup — guests pay the same rate the property is actually priced at, plus GST, with no platform service fees added at checkout.
+
+## Does The Plix offer villa or property management in Goa?
+
+Yes. Besides operating its own villas and resorts, The Plix is a villa and holiday home management company in North Goa. It manages owners' private villas, holiday homes, heritage bungalows and boutique resorts in Vagator, Anjuna, Assagao, Morjim, Siolim, Candolim and Calangute as vacation rentals: listing on theplixgoa.com and Airbnb, dynamic pricing, guest vetting, housekeeping, maintenance, on-ground staff and monthly owner payouts. Owners track everything in the Plix Partner App. Enquire at https://theplixgoa.com/partner.
+
+## How do I list my villa with The Plix?
+
+Submit your property's details at https://theplixgoa.com/partner. The team evaluates the property, shares a partnership proposal, and once agreed gets the calendar live within 7 days.

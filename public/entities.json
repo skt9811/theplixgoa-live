@@ -27,7 +27,10 @@
       "knowsAbout": [
         "Luxury private pool villas North Goa",
         "Boutique resorts near Vagator and Morjim",
-        "Direct villa bookings without OTA commission"
+        "Direct villa bookings without OTA commission",
+        "Villa management in Goa",
+        "Vacation rental and holiday home management",
+        "Airbnb property management in Goa"
       ],
       "containsPlace": [
         {
@@ -183,7 +186,13 @@
           ],
           "hasMap": "https://www.google.com/maps?q=15.601282951795916,73.7467028747833"
         }
-      ]
+      ],
+      "makesOffer": {
+        "@type": "Offer",
+        "itemOffered": {
+          "@id": "https://theplixgoa.com/partner#service"
+        }
+      }
     },
     {
       "@type": "LodgingBusiness",
@@ -265,6 +274,36 @@
           "hasMap": "https://www.google.com/maps?cid=10368503730610958977"
         }
       ]
+    },
+    {
+      "@type": "Service",
+      "@id": "https://theplixgoa.com/partner#service",
+      "name": "Villa & Vacation Rental Property Management in Goa",
+      "alternateName": [
+        "Villa management Goa",
+        "Property management company in Goa",
+        "Holiday home management Goa",
+        "Airbnb management Goa"
+      ],
+      "serviceType": "Vacation rental property management",
+      "url": "https://theplixgoa.com/partner",
+      "provider": {
+        "@id": "https://theplixgoa.com/#business"
+      },
+      "areaServed": [
+        "Goa",
+        "Vagator",
+        "Anjuna",
+        "Assagao",
+        "Morjim",
+        "Siolim",
+        "Candolim",
+        "Calangute"
+      ],
+      "audience": {
+        "@type": "Audience",
+        "audienceType": "Villa and holiday home owners"
+      }
     }
   ]
 }

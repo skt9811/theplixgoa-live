@@ -251,6 +251,15 @@ export function brandJsonLd() {
       addressCountry: SITE_ADDRESS.country,
     },
     areaServed: ["Vagator", "Anjuna", "Assagao", "Morjim", "Candolim"],
+    knowsAbout: [
+      "Luxury private pool villas in North Goa",
+      "Villa management in Goa",
+      "Vacation rental and holiday home management",
+      "Airbnb property management in Goa",
+    ],
+    // The owner-facing management service (/partner) — full entity in
+    // partnerServiceJsonLd below.
+    makesOffer: { "@type": "Offer", itemOffered: { "@id": PARTNER_SERVICE_ID } },
     contactPoint: [
       { "@type": "ContactPoint", telephone: SITE_PHONE_1, contactType: "reservations", areaServed: "IN" },
       { "@type": "ContactPoint", telephone: SITE_PHONE_ENQUIRY, contactType: "customer service", areaServed: "IN" },
@@ -737,6 +746,46 @@ export function blogJsonLd(input: { posts: { name: string; url: string }[] }) {
       headline: post.name,
       url: post.url,
     })),
+  };
+}
+
+const PARTNER_SERVICE_ID = `${SITE_URL}/partner#service`;
+
+// The villa / vacation-rental management service offered to property
+// owners on /partner. Provider points back to brandJsonLd's entity by @id.
+export function partnerServiceJsonLd(services: { title: string; body: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": PARTNER_SERVICE_ID,
+    name: "Villa & Vacation Rental Property Management in Goa",
+    alternateName: [
+      "Villa management Goa",
+      "Property management company in Goa",
+      "Holiday home management Goa",
+      "Airbnb management Goa",
+    ],
+    serviceType: "Vacation rental property management",
+    description:
+      "End-to-end management of private villas, holiday homes and boutique resorts in Goa for property owners: guest bookings across direct and Airbnb channels, dynamic pricing, housekeeping, maintenance, on-ground staff and monthly owner payouts.",
+    url: `${SITE_URL}/partner`,
+    provider: { "@type": "Organization", "@id": `${SITE_URL}/#business` },
+    areaServed: [
+      { "@type": "State", name: "Goa" },
+      ...["Vagator", "Anjuna", "Assagao", "Morjim", "Siolim", "Candolim", "Calangute"].map((name) => ({
+        "@type": "Place",
+        name: `${name}, Goa`,
+      })),
+    ],
+    audience: { "@type": "Audience", audienceType: "Villa and holiday home owners" },
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: "Property management services",
+      itemListElement: services.map((s) => ({
+        "@type": "Offer",
+        itemOffered: { "@type": "Service", name: s.title, description: s.body },
+      })),
+    },
   };
 }
 

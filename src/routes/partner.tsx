@@ -24,15 +24,36 @@ import {
   canonicalUrl,
   breadcrumbJsonLd,
   faqPageJsonLd,
+  partnerServiceJsonLd,
   jsonLdScript,
   EDGE_CACHE_CONTROL_LONG,
 } from "@/lib/seo";
 
-const TITLE = "List Your Villa in Goa | Partner With The Plix";
+const TITLE = "Villa & Property Management in Goa | List Your Villa | The Plix";
 const DESCRIPTION =
-  "Own a villa or boutique property in North Goa? Partner with The Plix for end-to-end management, direct bookings, dynamic pricing and transparent monthly payouts.";
+  "Villa and holiday home management in Goa by The Plix: guest bookings on our website and Airbnb, dynamic pricing, housekeeping, staff and monthly payouts. List your villa.";
 
 const faqs = [
+  {
+    q: "What does a villa management company in Goa do?",
+    a: "A villa management company runs your holiday home as a vacation rental on your behalf. The Plix handles listing and photography, bookings on theplixgoa.com and Airbnb, pricing, guest communication, check-ins, housekeeping, maintenance and on-ground staff, and pays you your share of the revenue every month.",
+  },
+  {
+    q: "Which areas of Goa does The Plix manage properties in?",
+    a: "We manage villas and boutique stays across North Goa — Vagator, Anjuna, Assagao, Morjim, Ashwem, Siolim, Candolim and Calangute — and evaluate properties elsewhere in Goa on request.",
+  },
+  {
+    q: "How much does villa management in Goa cost with The Plix?",
+    a: "Our fee depends on the property's size, location and condition, and is set out in the partnership agreement after we evaluate your villa — there are no hidden charges beyond what that agreement lists.",
+  },
+  {
+    q: "Can The Plix manage my Airbnb listing?",
+    a: "Yes. We can take over an existing Airbnb listing or create one, and sync it with our direct booking website and other channels so your calendar is never double-booked.",
+  },
+  {
+    q: "How do I list my villa with The Plix?",
+    a: "Fill in the form on this page with your property's location, type and bedrooms. Our team will contact you, visit the property, and share a proposal. Once agreed, we handle onboarding and get your calendar live within 7 days.",
+  },
   {
     q: "What kind of properties does The Plix partner with?",
     a: "We work with well-maintained private villas, boutique resorts and premium apartments, primarily in North Goa — Vagator, Anjuna, Assagao, Morjim, Siolim and nearby. Properties with a pool, strong design potential and clear ownership are the best fit.",
@@ -57,6 +78,11 @@ export const Route = createFileRoute("/partner")({
       { title: TITLE },
       { name: "description", content: DESCRIPTION },
       { name: "robots", content: "index, follow" },
+      {
+        name: "keywords",
+        content:
+          "villa management Goa, property management company Goa, holiday home management Goa, Airbnb management Goa, list your villa Goa, vacation rental management North Goa",
+      },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
       { property: "og:type", content: "website" },
@@ -80,6 +106,11 @@ export const Route = createFileRoute("/partner")({
         type: "application/ld+json",
         id: "partner-faq-jsonld",
         children: jsonLdScript(faqPageJsonLd(faqs)),
+      },
+      {
+        type: "application/ld+json",
+        id: "partner-service-jsonld",
+        children: jsonLdScript(partnerServiceJsonLd(pillars)),
       },
     ],
   }),
@@ -224,14 +255,14 @@ function PartnerPage() {
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 md:px-6 lg:grid-cols-2">
           <div className="space-y-6">
             <p className="inline-block rounded-full border border-white/15 bg-white/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-bronze">
-              Partner with The Plix
+              Villa &amp; property management in Goa
             </p>
             <h1 className="font-serif text-4xl font-normal leading-[1.15] md:text-5xl">
               Make more from your Goa villa — without running it yourself.
             </h1>
             <p className="max-w-xl text-lg text-navy-foreground/80">
-              We manage private villas and boutique stays across North Goa end to end: guests,
-              staff, upkeep, pricing and payouts.
+              The Plix is a villa and holiday home management company in North Goa. We run your
+              property end to end: guests, staff, upkeep, pricing and payouts.
             </p>
           </div>
 
@@ -324,6 +355,27 @@ function PartnerPage() {
               </form>
             )}
           </div>
+        </div>
+      </section>
+
+      {/* What we manage — plain-language explainer for search and AI answers */}
+      <section className="mx-auto max-w-4xl px-4 pt-16 md:px-6 md:pt-24">
+        <h2 className="font-serif text-3xl font-normal text-navy md:text-4xl">
+          Villa and holiday home management across North Goa
+        </h2>
+        <div className="mt-5 space-y-4 leading-relaxed text-muted-foreground">
+          <p>
+            The Plix (Plix Hospitality Private Limited) manages private pool villas, holiday homes,
+            heritage bungalows and boutique resorts for owners in Vagator, Anjuna, Assagao, Morjim,
+            Siolim, Candolim and Calangute. We already operate our own collection of villas and
+            resorts in these areas, and bring the same team, systems and guest base to your property.
+          </p>
+          <p>
+            As your vacation rental manager we list the property on theplixgoa.com and Airbnb, set
+            nightly prices for demand, vet and host every guest, and look after housekeeping,
+            maintenance and on-ground staff. You see every booking and payout in the Plix Partner
+            App and can block dates for your own stays at any time.
+          </p>
         </div>
       </section>
 

@@ -321,7 +321,9 @@ function PropertyDetail() {
   } = quoteWithDiscount(nightlyRates, property?.bedrooms ?? 1, couponDiscount);
   const hasCustomRate = nightsList.some((n) => rateOverrides[n] !== undefined);
   const insufficientRooms = isMultiRoom ? hasInsufficientRooms(availability, rooms) : false;
-  const datesBlocked = hasBlockedOverlap(blockedDates, checkIn, checkOut) || insufficientRooms;
+  // Only for dates the guest actually picked — the hidden placeholder dates
+  // (today+3/+5) must never show an "unavailable" error.
+  const datesBlocked = datesChosen && (hasBlockedOverlap(blockedDates, checkIn, checkOut) || insufficientRooms);
   const allPropertyReviews = property
     ? PROPERTY_REVIEWS.filter((r) => r.property_id === property.id)
     : [];

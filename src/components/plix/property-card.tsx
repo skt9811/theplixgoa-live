@@ -118,7 +118,6 @@ function MinimalPropertyCard({ property }: Omit<PropertyCardProps, "variant">) {
     <Link
       to="/properties/$slug"
       params={{ slug: property.slug }}
-      hash="book"
       target="_blank"
       rel="noopener noreferrer"
       className="group flex h-full flex-col overflow-hidden rounded-2xl bg-card shadow-soft ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-card"
@@ -328,8 +327,6 @@ function DefaultPropertyCard({
             to="/properties/$slug"
             params={{ slug: property.slug }}
             search={linkSearch}
-            // No dates yet: land on the booking box with check-in focused.
-            {...(hasDates ? {} : { hash: "book" })}
             target="_blank"
             rel="noopener noreferrer"
             className="shrink-0 rounded-full bg-gradient-emerald px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform duration-200 hover:scale-[1.03] min-h-[44px] inline-flex items-center"

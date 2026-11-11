@@ -54,7 +54,7 @@ function PmsExpenses() {
         {!categories ? (
           <p className="py-16 text-center text-sm text-muted-foreground">Loading...</p>
         ) : tab === "home" ? (
-          <HomeTab property={property} categories={categories} refreshKey={refresh} onChanged={bump} />
+          <HomeTab property={property} categories={categories} refreshKey={refresh} onChanged={bump} onManageCategories={() => setCategoryModal("expense")} />
         ) : tab === "analysis" ? (
           <AnalysisTab property={property} categories={categories} refreshKey={refresh} />
         ) : (

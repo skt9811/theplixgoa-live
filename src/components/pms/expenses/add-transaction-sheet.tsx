@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { ArrowLeftRight, ChevronDown, X } from "lucide-react";
 import { PROPERTIES } from "@/lib/plix";
 import { PAYMENT_MODES } from "@/lib/pms-categories";
-import { HQ_LABEL, istToday, pms, type PmsCategory } from "@/lib/pms-client";
+import { HQ_LABEL, istToday, pms, type PmsCategory, type PmsTransaction } from "@/lib/pms-client";
 import { CategoryBadge } from "@/lib/pms-icons";
 import { PMS_PROPERTIES_CONFIG } from "@/lib/pms-properties-config";
 import { DARK, GREEN, istNowTime } from "@/components/pms/expenses/tokens";
@@ -11,32 +11,44 @@ import { useBackDismiss } from "@/lib/pms-back-stack";
 
 type Kind = "expense" | "income" | "transfer";
 
+/** People who usually pay site expenses — suggestions only, any name works. */
+export const PAYERS = ["Rohit Thakur", "Ankur Singh", "Lucky Babal"];
+
+// Add a new entry, or edit `initial` when given (PATCH instead of POST; the
+// entry type can't change once saved).
 export function AddTransactionSheet({
   categories,
   defaultProperty,
+  initial,
   onClose,
   onSaved,
   onManageCategories,
 }: {
   categories: PmsCategory[];
   defaultProperty: string;
+  initial?: PmsTransaction | undefined;
   onClose: () => void;
   onSaved: () => void;
   onManageCategories: () => void;
 }) {
-  const [kind, setKind] = useState<Kind>("expense");
-  const [date, setDate] = useState(istToday());
-  const [time, setTime] = useState(istNowTime());
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("");
+  const editing = Boolean(initial);
+  const [kind, setKind] = useState<Kind>(initial?.type ?? "expense");
+  const [date, setDate] = useState(initial?.expense_date ?? istToday());
+  const [time, setTime] = useState(initial?.time ?? istNowTime());
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
+  const [category, setCategory] = useState(initial && initial.type !== "transfer" ? initial.category : "");
   const [pickingCategory, setPickingCategory] = useState(false);
-  const [mode, setMode] = useState<string>("UPI");
-  const [transferTo, setTransferTo] = useState<string>("Bank Account");
-  const [note, setNote] = useState("");
+  const [mode, setMode] = useState<string>(initial?.payment_mode ?? "UPI");
+  const [transferTo, setTransferTo] = useState<string>(initial?.transfer_to ?? "Bank Account");
+  const [note, setNote] = useState(initial?.vendor_name ?? "");
   const [tagInput, setTagInput] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
-  const [receipt, setReceipt] = useState("");
-  const [property, setProperty] = useState(defaultProperty === "all" ? "" : defaultProperty);
+  const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
+  const [receipt, setReceipt] = useState(initial?.receipt_url ?? "");
+  const [paidBy, setPaidBy] = useState(initial?.paid_by ?? "");
+  const [remarks, setRemarks] = useState(initial?.notes ?? "");
+  const [property, setProperty] = useState(
+    initial ? (initial.property_id ?? "hq") : defaultProperty === "all" ? "" : defaultProperty,
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   useBackDismiss(true, onClose);
@@ -65,8 +77,14 @@ export function AddTransactionSheet({
     const pendingTags = tagInput.trim() ? [...new Set([...tags, ...tagInput.split(/[\s,]+/).map((t) => t.replace(/^#+/, "").toLowerCase()).filter(Boolean)])] : tags;
     setSaving(true);
     try {
-      await pms("expenses", { method: "POST", body: JSON.stringify({ type: kind, property, category, amount: value, paymentMode: mode, transferTo, note, date, time, receipt, tags: pendingTags }) });
-      toast.success(kind === "transfer" ? "Transfer saved" : kind === "income" ? "Income added" : "Expense added");
+      const body = JSON.stringify({ type: kind, property, category, amount: value, paymentMode: mode, transferTo, note, date, time, receipt, tags: pendingTags, paidBy, remarks });
+      if (initial) {
+        await pms(`expenses?id=${initial.id}`, { method: "PATCH", body });
+        toast.success("Changes saved");
+      } else {
+        await pms("expenses", { method: "POST", body });
+        toast.success(kind === "transfer" ? "Transfer saved" : kind === "income" ? "Income added" : "Expense added");
+      }
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save");
@@ -84,12 +102,13 @@ export function AddTransactionSheet({
         <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-2 text-muted-foreground hover:bg-muted">
           <X className="size-5" aria-hidden />
         </button>
-        <p className="font-semibold">Add Transaction</p>
+        <p className="font-semibold">{editing ? "Edit Transaction" : "Add Transaction"}</p>
         <span className="size-9" />
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-32 pt-4">
         <div className="mx-auto grid max-w-lg gap-5">
+          {!editing && (
           <div className="flex gap-1 rounded-full bg-muted p-1" role="tablist">
             {(["expense", "income", "transfer"] as const).map((k) => (
               <button
@@ -107,6 +126,7 @@ export function AddTransactionSheet({
               </button>
             ))}
           </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-1.5 text-xs text-muted-foreground">
@@ -206,6 +226,22 @@ export function AddTransactionSheet({
             <input value={note} maxLength={150} onChange={(e) => setNote(e.target.value)} placeholder="Write a note" className={DARK.input} />
           </label>
 
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-xs text-muted-foreground">
+              Paid by
+              <input value={paidBy} maxLength={100} list="pms-payers" onChange={(e) => setPaidBy(e.target.value)} placeholder="Who paid" className={DARK.input} />
+              <datalist id="pms-payers">
+                {PAYERS.map((p) => (
+                  <option key={p} value={p} />
+                ))}
+              </datalist>
+            </label>
+            <label className="grid gap-1.5 text-xs text-muted-foreground">
+              Remarks
+              <input value={remarks} maxLength={500} onChange={(e) => setRemarks(e.target.value)} placeholder="e.g. 4BHK unit" className={DARK.input} />
+            </label>
+          </div>
+
           <div className="grid gap-1.5 text-xs text-muted-foreground">
             <span>Tags</span>
             <div className={`${DARK.input} flex flex-wrap items-center gap-1.5`}>
@@ -259,7 +295,7 @@ export function AddTransactionSheet({
           className="mx-auto block w-full max-w-lg rounded-full py-3.5 text-base font-semibold text-[#0B0F12] transition-opacity disabled:opacity-60"
           style={{ backgroundColor: accent }}
         >
-          {saving ? "Saving..." : kind === "transfer" ? "Save Transfer" : kind === "income" ? "Save Income" : "Save Expense"}
+          {saving ? "Saving..." : editing ? "Save Changes" : kind === "transfer" ? "Save Transfer" : kind === "income" ? "Save Income" : "Save Expense"}
         </button>
       </div>
     </div>

@@ -291,6 +291,7 @@ export type PmsTransaction = {
   receipt_url: string | null;
   notes: string | null;
   tags: string[];
+  paid_by: string | null;
   created_at: string;
 };
 

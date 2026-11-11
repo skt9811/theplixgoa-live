@@ -4,11 +4,23 @@ import { CategoryBadge } from "@/lib/pms-icons";
 import { DARK, GREEN, money } from "@/components/pms/expenses/tokens";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
-export function TransactionCard({ tx, category, onDelete }: { tx: PmsTransaction; category: PmsCategory | undefined; onDelete: () => void }) {
+export function TransactionCard({ tx, category, onEdit, onDelete }: { tx: PmsTransaction; category: PmsCategory | undefined; onEdit: () => void; onDelete: () => void }) {
   const transfer = tx.type === "transfer";
   const income = tx.type === "income";
   return (
-    <div className={`${DARK.card} ${DARK.border} flex items-center gap-3 rounded-2xl p-3`}>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onEdit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onEdit();
+        }
+      }}
+      aria-label={`Edit ${tx.vendor_name || tx.category}`}
+      className={`${DARK.card} ${DARK.border} flex cursor-pointer items-center gap-3 rounded-2xl p-3 transition-colors hover:bg-muted/40`}
+    >
       {transfer ? (
         <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 text-blue-400">
           <ArrowLeftRight className="size-5" aria-hidden />
@@ -21,14 +33,22 @@ export function TransactionCard({ tx, category, onDelete }: { tx: PmsTransaction
         <p className="truncate text-xs text-muted-foreground">
           {transfer ? `${tx.payment_mode} → ${tx.transfer_to}` : tx.payment_mode} · {fmtDate(tx.expense_date)}
           {!transfer && tx.vendor_name ? ` · ${tx.category}` : ""}
+          {tx.paid_by ? ` · ${tx.paid_by}` : ""}
         </p>
+        {tx.notes && <p className="truncate text-[11px] text-muted-foreground/80">{tx.notes}</p>}
         {tx.tags.length > 0 && <p className="truncate text-[11px] text-emerald-400/80">{tx.tags.map((t) => `#${t}`).join(" ")}</p>}
       </div>
       <p className={`shrink-0 text-sm font-bold ${income || transfer ? "" : "text-foreground"}`} style={income ? { color: GREEN } : transfer ? { color: "#3B82F6" } : undefined}>
         {income ? "+" : transfer ? "" : "−"}
         {money(tx.amount)}
       </p>
-      <button type="button" onClick={onDelete} aria-label="Delete transaction" className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-red-400">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        aria-label="Delete transaction" className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-red-400">
         <Trash2 className="size-4" aria-hidden />
       </button>
     </div>
@@ -40,7 +60,7 @@ export function DeleteDialog({ tx, busy, onCancel, onConfirm }: { tx: PmsTransac
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4" onClick={() => !busy && onCancel()}>
       <div className={`${DARK.card} ${DARK.border} w-full max-w-sm rounded-3xl p-5 text-foreground`} onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold">Delete this transaction?</h2>
+        <h2 className="text-lg font-semibold">Delete this {tx.type === "expense" ? "expense" : "transaction"}?</h2>
         <p className="mt-2 text-sm text-foreground/80">
           {money(tx.amount)} · {tx.category} · {tx.vendor_name ?? "no note"} · {fmtDate(tx.expense_date)}
         </p>

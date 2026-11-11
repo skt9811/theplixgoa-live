@@ -6,6 +6,7 @@ import { HQ_LABEL, istToday, pms, type PmsCategory, type PmsTransaction } from "
 import { DARK, GREEN, money } from "@/components/pms/expenses/tokens";
 import { DeleteDialog, TransactionCard } from "@/components/pms/expenses/transaction-card";
 import { useBudgets, useTransactions } from "@/components/pms/expenses/use-ledger";
+import { AddTransactionSheet } from "@/components/pms/expenses/add-transaction-sheet";
 
 function csvCell(value: string | number): string {
   let s = String(value);
@@ -17,7 +18,17 @@ function propertyName(id: string | null): string {
   return id ? (PROPERTIES.find((p) => p.slug === id)?.name.split(" - ")[0] ?? id) : HQ_LABEL;
 }
 
-export function HomeTab({ property, categories, refreshKey, onChanged }: { property: string; categories: PmsCategory[]; refreshKey: number; onChanged: () => void }) {
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// Summary cards: total plus the three biggest running-cost groups.
+const SUMMARY: { label: string; category?: string }[] = [
+  { label: "Total spent" },
+  { label: "Salaries", category: "Salaries & Wages" },
+  { label: "Utilities", category: "Utilities" },
+  { label: "Maintenance", category: "Maintenance & Repairs" },
+];
+
+export function HomeTab({ property, categories, refreshKey, onChanged, onManageCategories }: { property: string; categories: PmsCategory[]; refreshKey: number; onChanged: () => void; onManageCategories: () => void }) {
   const today = istToday();
   const year = today.slice(0, 4);
   const { transactions, error, reload } = useTransactions(property, `${year}-01-01`, `${year}-12-31`, refreshKey);
@@ -28,23 +39,45 @@ export function HomeTab({ property, categories, refreshKey, onChanged }: { prope
   const [editing, setEditing] = useState(false);
   const [budgetInput, setBudgetInput] = useState("");
   const [deleting, setDeleting] = useState<PmsTransaction | null>(null);
+  const [editingTx, setEditingTx] = useState<PmsTransaction | null>(null);
   const [busy, setBusy] = useState(false);
+  const [month, setMonth] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [payerFilter, setPayerFilter] = useState("all");
 
   const byName = useMemo(() => new Map(categories.map((c) => [`${c.type}:${c.name.toLowerCase()}`, c])), [categories]);
   const categoryOf = (t: PmsTransaction) => byName.get(`${t.type}:${t.category.toLowerCase()}`);
+
+  const monthsWithData = useMemo(() => [...new Set((transactions ?? []).map((t) => t.expense_date.slice(0, 7)))].sort(), [transactions]);
+  const categoriesWithData = useMemo(() => [...new Set((transactions ?? []).map((t) => t.category))].sort(), [transactions]);
+  const payers = useMemo(() => [...new Set((transactions ?? []).map((t) => t.paid_by).filter((p): p is string => Boolean(p)))].sort(), [transactions]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (transactions ?? []).filter(
       (t) =>
-        !q ||
-        (t.vendor_name ?? "").toLowerCase().includes(q) ||
-        t.category.toLowerCase().includes(q) ||
-        t.payment_mode.toLowerCase().includes(q) ||
-        t.tags.some((tag) => tag.includes(q.replace(/^#/, ""))),
+        (month === "all" || t.expense_date.startsWith(month)) &&
+        (categoryFilter === "all" || t.category === categoryFilter) &&
+        (payerFilter === "all" || (t.paid_by ?? "") === payerFilter) &&
+        (!q ||
+          (t.vendor_name ?? "").toLowerCase().includes(q) ||
+          (t.notes ?? "").toLowerCase().includes(q) ||
+          (t.paid_by ?? "").toLowerCase().includes(q) ||
+          t.category.toLowerCase().includes(q) ||
+          t.payment_mode.toLowerCase().includes(q) ||
+          t.tags.some((tag) => tag.includes(q.replace(/^#/, "")))),
     );
-  }, [transactions, search]);
-  const shown = seeAll ? filtered : filtered.slice(0, 8);
+  }, [transactions, search, month, categoryFilter, payerFilter]);
+  const filtersOn = month !== "all" || categoryFilter !== "all" || payerFilter !== "all";
+
+  const summary = useMemo(() => {
+    const spent = filtered.filter((t) => t.type === "expense");
+    return SUMMARY.map((s) => ({
+      label: s.label,
+      total: spent.filter((t) => !s.category || t.category === s.category).reduce((sum, t) => sum + t.amount, 0),
+    }));
+  }, [filtered]);
+  const shown = seeAll || filtersOn ? filtered : filtered.slice(0, 8);
 
   const scoped = useMemo(() => {
     const from = period === "monthly" ? today.slice(0, 7) : year;
@@ -92,8 +125,8 @@ export function HomeTab({ property, categories, refreshKey, onChanged }: { prope
   }
 
   function exportCsv() {
-    const header = ["Date", "Time", "Type", "Property", "Category", "Amount (INR)", "Payment Mode", "To Account", "Note", "Tags", "Receipt"];
-    const rows = filtered.map((t) => [t.expense_date, t.time, t.type, propertyName(t.property_id), t.category, t.amount.toFixed(2), t.payment_mode, t.transfer_to ?? "", t.vendor_name ?? "", t.tags.join(" "), t.receipt_url ?? ""]);
+    const header = ["Date", "Time", "Type", "Property", "Category", "Amount (INR)", "Payment Mode", "To Account", "Note", "Paid By", "Remarks", "Tags", "Receipt"];
+    const rows = filtered.map((t) => [t.expense_date, t.time, t.type, propertyName(t.property_id), t.category, t.amount.toFixed(2), t.payment_mode, t.transfer_to ?? "", t.vendor_name ?? "", t.paid_by ?? "", t.notes ?? "", t.tags.join(" "), t.receipt_url ?? ""]);
     const csv = "﻿" + [header, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
@@ -156,10 +189,53 @@ export function HomeTab({ property, categories, refreshKey, onChanged }: { prope
         </div>
       </section>
 
+      {/* Filters + summary over the filtered entries */}
+      <section className="grid gap-3">
+        <div className="grid grid-cols-3 gap-2">
+          <select value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Filter by month" className={`${DARK.input} py-2 text-xs`}>
+            <option value="all">All months</option>
+            {monthsWithData.map((m) => (
+              <option key={m} value={m}>
+                {MONTHS[Number(m.slice(5, 7)) - 1]} {m.slice(0, 4)}
+              </option>
+            ))}
+          </select>
+          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Filter by category" className={`${DARK.input} py-2 text-xs`}>
+            <option value="all">All categories</option>
+            {categoriesWithData.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <select value={payerFilter} onChange={(e) => setPayerFilter(e.target.value)} aria-label="Filter by paid by" className={`${DARK.input} py-2 text-xs`}>
+            <option value="all">Anyone paid</option>
+            {payers.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {summary.map((s) => (
+            <div key={s.label} className={`${DARK.card} ${DARK.border} rounded-2xl p-3`}>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
+              <p className="mt-0.5 text-base font-bold text-foreground">{transactions ? money(s.total) : "-"}</p>
+            </div>
+          ))}
+        </div>
+        {filtersOn && (
+          <button type="button" onClick={() => { setMonth("all"); setCategoryFilter("all"); setPayerFilter("all"); }} className="justify-self-start text-xs font-semibold text-emerald-400 hover:underline">
+            Clear filters
+          </button>
+        )}
+      </section>
+
       {/* Recent transactions */}
       <section>
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">{seeAll ? "All Transactions" : "Recent Transactions"}</h2>
+          <h2 className="text-sm font-semibold text-foreground">{seeAll || filtersOn ? `Transactions (${filtered.length})` : "Recent Transactions"}</h2>
           <div className="flex items-center gap-3">
             {seeAll && (
               <button type="button" onClick={exportCsv} disabled={filtered.length === 0} className="flex items-center gap-1 text-xs font-semibold text-foreground/80 hover:text-foreground disabled:opacity-40">
@@ -180,7 +256,7 @@ export function HomeTab({ property, categories, refreshKey, onChanged }: { prope
         {transactions && shown.length === 0 && <p className="mt-8 text-center text-sm text-muted-foreground">{search ? "No transactions match." : `No transactions in ${year} yet. Tap + to add one.`}</p>}
         <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
           {shown.map((t) => (
-            <TransactionCard key={t.id} tx={t} category={categoryOf(t)} onDelete={() => setDeleting(t)} />
+            <TransactionCard key={t.id} tx={t} category={categoryOf(t)} onEdit={() => setEditingTx(t)} onDelete={() => setDeleting(t)} />
           ))}
         </div>
         {!seeAll && filtered.length > shown.length && (
@@ -190,6 +266,20 @@ export function HomeTab({ property, categories, refreshKey, onChanged }: { prope
         )}
       </section>
 
+      {editingTx && (
+        <AddTransactionSheet
+          categories={categories}
+          defaultProperty={property}
+          initial={editingTx}
+          onClose={() => setEditingTx(null)}
+          onSaved={() => {
+            setEditingTx(null);
+            void reload();
+            onChanged();
+          }}
+          onManageCategories={onManageCategories}
+        />
+      )}
       {deleting && <DeleteDialog tx={deleting} busy={busy} onCancel={() => setDeleting(null)} onConfirm={() => void confirmDelete()} />}
     </div>
   );

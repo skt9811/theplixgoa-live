@@ -45,6 +45,10 @@ export function ensureExpensesSchema(sql: Sql): Promise<void> {
       await sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS organization_id text NOT NULL DEFAULT 'org_plix_internal'`;
       await sql`CREATE INDEX IF NOT EXISTS idx_expenses_org_id ON expenses (organization_id)`;
 
+      // Who paid (for reimbursement / petty-cash tracking) and edit time.
+      await sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS paid_by varchar(100)`;
+      await sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS updated_at timestamptz`;
+
       await sql`
         CREATE TABLE IF NOT EXISTS pms_categories (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

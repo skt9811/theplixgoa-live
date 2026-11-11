@@ -1256,7 +1256,7 @@ async function applyInventory(request: Request, sql: Sql, actor: Actor): Promise
 }
 
 const TX_COLUMNS = `id, type, property_id, category, amount, payment_mode, transfer_to, vendor_name, expense_date::text AS expense_date,
-  to_char("time", 'HH24:MI') AS time, receipt_url, notes, tags, created_at`;
+  to_char("time", 'HH24:MI') AS time, receipt_url, notes, tags, paid_by, created_at`;
 
 type TxRow = {
   id: string;
@@ -1272,6 +1272,7 @@ type TxRow = {
   receipt_url: string | null;
   notes: string | null;
   tags: string[];
+  paid_by: string | null;
   created_at: Date;
 };
 
@@ -1345,6 +1346,8 @@ async function createTransaction(request: Request, actor: Actor): Promise<Respon
   const time = /^([01]\d|2[0-3]):[0-5]\d$/.test(str(body["time"])) ? str(body["time"]) : null;
   const receipt = str(body["receipt"]).slice(0, 500) || null;
   const tags = cleanTags(body["tags"]);
+  const paidBy = str(body["paidBy"]).slice(0, 100) || null;
+  const remarks = str(body["remarks"]).slice(0, 500) || null;
   let category = str(body["category"]);
 
   if (!(TX_TYPES as readonly string[]).includes(type)) return json({ error: "Invalid type" }, 400);
@@ -1371,9 +1374,9 @@ async function createTransaction(request: Request, actor: Actor): Promise<Respon
 
   const tenantId = getTenantId(request, actor);
   const [row] = await pmsDb<{ id: string }[]>`
-    INSERT INTO expenses (type, property_id, category, amount, payment_mode, transfer_to, vendor_name, expense_date, "time", receipt_url, tags, organization_id)
+    INSERT INTO expenses (type, property_id, category, amount, payment_mode, transfer_to, vendor_name, expense_date, "time", receipt_url, tags, paid_by, notes, organization_id)
     VALUES (${type}, ${property === "hq" ? null : property}, ${category}, ${Math.round(amount * 100) / 100}, ${paymentMode},
-            ${type === "transfer" ? transferTo : null}, ${note}, ${date}, COALESCE(${time}::time, CURRENT_TIME), ${receipt}, ${tags}, ${tenantId})
+            ${type === "transfer" ? transferTo : null}, ${note}, ${date}, COALESCE(${time}::time, CURRENT_TIME), ${receipt}, ${tags}, ${paidBy}, ${remarks}, ${tenantId})
     RETURNING id`;
   await audit(actor, "CREATE", "expense", row?.id ?? "unknown", {
     type,
@@ -1384,6 +1387,72 @@ async function createTransaction(request: Request, actor: Actor): Promise<Respon
     note,
   });
   return json({ success: true, id: row?.id });
+}
+
+// Edit an existing entry. Same validation as create; access is checked on
+// both the entry's current property and the one it is being moved to.
+async function updateTransaction(request: Request, url: URL, actor: Actor): Promise<Response> {
+  const pmsDb = getPmsDb();
+  if (!pmsDb) return json({ error: "PMS database not configured" }, 503);
+  const id = url.searchParams.get("id") ?? "";
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid id" }, 400);
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
+  await ensureExpensesSchema(pmsDb);
+  const tenantId = getTenantId(request, actor);
+  const [existing] = await pmsDb<{ property_id: string | null; type: string }[]>`
+    SELECT property_id, type FROM expenses WHERE id = ${id}::uuid AND organization_id = ${tenantId}`;
+  if (!existing) return json({ error: "Transaction not found" }, 404);
+  if (existing.property_id === null ? !isAllProps(actor) : !canProperty(actor, existing.property_id))
+    return json({ error: "You do not have access to this transaction" }, 403);
+
+  const type = existing.type;
+  const property = str(body["property"]);
+  const paymentMode = str(body["paymentMode"]);
+  const transferTo = str(body["transferTo"]);
+  const amount = num(body["amount"], NaN);
+  const note = str(body["note"]).slice(0, 150) || null;
+  const date = str(body["date"]);
+  const time = /^([01]\d|2[0-3]):[0-5]\d$/.test(str(body["time"])) ? str(body["time"]) : null;
+  const receipt = str(body["receipt"]).slice(0, 500) || null;
+  const tags = cleanTags(body["tags"]);
+  const paidBy = str(body["paidBy"]).slice(0, 100) || null;
+  const remarks = str(body["remarks"]).slice(0, 500) || null;
+  let category = str(body["category"]);
+
+  if (property !== "hq" && !PROPERTIES.some((p) => p.slug === property))
+    return json({ error: "Select a property or Company Overhead" }, 400);
+  if (property === "hq" ? !isAllProps(actor) : !canProperty(actor, property))
+    return json({ error: "You do not have access to this property" }, 403);
+  if (!(PAYMENT_MODES as readonly string[]).includes(paymentMode))
+    return json({ error: "Select a payment mode" }, 400);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 99_999_999.99)
+    return json({ error: "Enter a valid amount" }, 400);
+  if (!ISO_DATE.test(date)) return json({ error: "Enter a valid date" }, 400);
+  if (type === "transfer") {
+    if (!(PAYMENT_MODES as readonly string[]).includes(transferTo) || transferTo === paymentMode)
+      return json({ error: "Choose two different accounts for a transfer" }, 400);
+    category = "Transfer";
+  } else {
+    const found =
+      await pmsDb`SELECT 1 FROM pms_categories WHERE type = ${type} AND lower(name) = lower(${category})`;
+    if (found.length === 0) return json({ error: "Select a category" }, 400);
+  }
+
+  await pmsDb`
+    UPDATE expenses SET
+      property_id = ${property === "hq" ? null : property}, category = ${category},
+      amount = ${Math.round(amount * 100) / 100}, payment_mode = ${paymentMode},
+      transfer_to = ${type === "transfer" ? transferTo : null}, vendor_name = ${note},
+      expense_date = ${date}, "time" = COALESCE(${time}::time, "time"), receipt_url = ${receipt},
+      tags = ${tags}, paid_by = ${paidBy}, notes = ${remarks}, updated_at = now()
+    WHERE id = ${id}::uuid`;
+  await audit(actor, "UPDATE", "expense", id, { property, category, amount, paymentMode, note, paidBy });
+  return json({ success: true });
 }
 
 async function deleteTransaction(url: URL, actor: Actor): Promise<Response> {
@@ -2926,6 +2995,8 @@ export async function handlePmsApi(request: Request): Promise<Response> {
       return await listTransactions(request, url, actor);
     if (path === "expenses" && request.method === "POST")
       return await createTransaction(request, actor);
+    if (path === "expenses" && request.method === "PATCH")
+      return await updateTransaction(request, url, actor);
     if (path === "expenses" && request.method === "DELETE")
       return await deleteTransaction(url, actor);
     if (path === "categories" && request.method === "GET") return await listCategories();

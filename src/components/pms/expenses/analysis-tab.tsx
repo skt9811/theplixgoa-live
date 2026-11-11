@@ -1,12 +1,17 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PAYMENT_MODES } from "@/lib/pms-categories";
-import { istToday, type PmsCategory, type PmsTransaction } from "@/lib/pms-client";
+import { channelLabel, istToday, type PmsBooking, type PmsCategory, type PmsTransaction } from "@/lib/pms-client";
+import { usePmsBookings } from "@/components/pms/use-pms-bookings";
+import { propertyDisplayName } from "@/components/pms/property-selector";
+import { scopeIncludes } from "@/lib/pms-groups";
 import { CategoryBadge } from "@/lib/pms-icons";
 import { DARK, GREEN, money } from "@/components/pms/expenses/tokens";
 import { useTransactions } from "@/components/pms/expenses/use-ledger";
 
 type Frame = "week" | "month" | "year" | "custom";
+
+const BOOKING_COLORS = ["#10B981", "#06B6D4", "#8B5CF6", "#F59E0B", "#EC4899", "#3B82F6"];
 
 const add = (iso: string, days: number) => {
   const d = new Date(`${iso}T00:00:00Z`);
@@ -82,9 +87,37 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
   const spending = data.filter((t) => t.type === "expense");
   const income = data.filter((t) => t.type === "income");
   const sum = (list: PmsTransaction[]) => list.reduce((s, t) => s + t.amount, 0);
+
+  // Booking revenue is the main income: every reservation (website + manual/OTA,
+  // the same merged list as Bookings) in this scope whose check-in falls in the
+  // range. A group scope (Marina Villas) covers all its member villas. Cancelled
+  // stays, blocked dates and backup holds are not income. Manually logged
+  // income entries are added on top.
+  const { bookings } = usePmsBookings();
+  const stays = useMemo(
+    () =>
+      property === "hq"
+        ? []
+        : (bookings ?? []).filter(
+            (b: PmsBooking) =>
+              b.status !== "cancelled" &&
+              b.raw_status !== "blocked" &&
+              !b.is_backup_booking &&
+              b.check_in >= range.start &&
+              b.check_in <= range.end &&
+              scopeIncludes(property, b.property_id),
+          ),
+    [bookings, property, range],
+  );
+  const bookingIncome = stays.reduce((s, b) => s + (b.total || 0), 0);
   const spent = sum(spending);
-  const earned = sum(income);
+  const earned = bookingIncome + sum(income);
   const net = earned - spent;
+  const byChannel = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const b of stays) m.set(channelLabel(b.channel), (m.get(channelLabel(b.channel)) ?? 0) + (b.total || 0));
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }, [stays]);
 
   const byMode = PAYMENT_MODES.map((m) => ({ mode: m, total: sum(spending.filter((t) => t.payment_mode === m)) }));
   const topMode = [...byMode].sort((a, b) => b.total - a.total)[0];
@@ -93,6 +126,11 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
   const rows = useMemo(() => {
     const list = view === "expense" ? spending : income;
     const totals = new Map<string, number>();
+    // Income: booking revenue split by property, then any logged income categories.
+    if (view === "income") for (const b of stays) {
+      const key = `Bookings · ${propertyDisplayName(b.property_id)}`;
+      totals.set(key, (totals.get(key) ?? 0) + (b.total || 0));
+    }
     for (const t of list) totals.set(t.category, (totals.get(t.category) ?? 0) + t.amount);
     const grand = [...totals.values()].reduce((a, b) => a + b, 0);
     return {
@@ -101,10 +139,17 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
         .sort((a, b) => b[1] - a[1])
         .map(([name, value]) => {
           const cat = catMap.get(`${view}:${name.toLowerCase()}`);
-          return { name, value, color: cat?.color ?? "#64748B", icon: cat?.icon, pct: grand > 0 ? (value / grand) * 100 : 0 };
+          const booking = name.startsWith("Bookings · ");
+          return {
+            name,
+            value,
+            color: cat?.color ?? (booking ? BOOKING_COLORS[[...totals.keys()].indexOf(name) % BOOKING_COLORS.length]! : "#64748B"),
+            icon: cat?.icon ?? (booking ? "bed" : undefined),
+            pct: grand > 0 ? (value / grand) * 100 : 0,
+          };
         }),
     };
-  }, [spending, income, view, catMap]);
+  }, [spending, income, stays, view, catMap]);
 
   const monthly = useMemo(() => {
     const months = Array.from({ length: 12 }, () => 0);
@@ -169,7 +214,12 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
           </div>
           <div className="text-right">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Income</p>
-            <p className="mt-0.5 text-xl font-bold" style={{ color: GREEN }}>{money(earned)}</p>
+            <p className="mt-0.5 text-xl font-bold" style={{ color: GREEN }}>{bookings ? money(earned) : "…"}</p>
+            {stays.length > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                {stays.length} booking{stays.length === 1 ? "" : "s"} · by check-in
+              </p>
+            )}
           </div>
         </div>
         <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
@@ -221,6 +271,19 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
                 </li>
               ))}
             </ul>
+            {view === "income" && byChannel.length > 0 && (
+              <div className="mt-4 border-t border-border pt-3">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Bookings by channel</p>
+                <ul className="mt-2 grid gap-1.5">
+                  {byChannel.map(([ch, v]) => (
+                    <li key={ch} className="flex justify-between text-sm">
+                      <span className="text-foreground/80">{ch}</span>
+                      <span className="font-semibold text-foreground">{money(v)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </>
         )}
       </section>

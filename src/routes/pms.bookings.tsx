@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
+  ChevronLeft,
+  ChevronRight,
   Eye,
   EyeOff,
   FileText,
@@ -28,6 +30,7 @@ import { usePmsBookings } from "@/components/pms/use-pms-bookings";
 import { usePms } from "@/components/pms/pms-context";
 import { propertyDisplayName } from "@/components/pms/property-selector";
 import { scopeIncludes } from "@/lib/pms-groups";
+import { monthLabel, monthRange, shiftMonth } from "@/components/pms/expenses/income";
 import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
 import { TaxInvoiceModal } from "@/components/pms/tax-invoice-modal";
 import { EditBookingModal } from "@/components/pms/edit-booking-modal";
@@ -82,6 +85,8 @@ function PmsBookings() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [source, setSource] = useState("all");
   const [search, setSearch] = useState("");
+  // "YYYY-MM" or "all" — same navigator as Expenses. Defaults to this month.
+  const [month, setMonth] = useState(() => istToday().slice(0, 7));
   const [voucherFor, setVoucherFor] = useState<PmsBooking | null>(null);
   const [viewInvoice, setViewInvoice] = useState<PmsInvoice | null>(null);
   const [editing, setEditing] = useState<PmsBooking | null>(null);
@@ -108,6 +113,8 @@ function PmsBookings() {
     setOpenedHighlight(true);
     setVoucherFor(b);
     if (!scopeIncludes(property, b.property_id)) setProperty(b.property_id);
+    // …and the month, so the card is in the list.
+    setMonth(b.check_in.slice(0, 7));
     requestAnimationFrame(() =>
       requestAnimationFrame(() => highlightRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })),
     );
@@ -189,6 +196,13 @@ function PmsBookings() {
       // anything not yet checked out: today's arrivals, in-house guests, and
       // every future booking.
       .filter((b) => status !== "upcoming" || (b.status !== "cancelled" && b.check_out >= today))
+      // Month: any stay touching the month (arrives, is in-house or departs in
+      // it). The today-based views (arrivals/departures/in-house) ignore it.
+      .filter((b) => {
+        if (view !== "all" || month === "all") return true;
+        const { start, end } = monthRange(month);
+        return b.check_in <= end && b.check_out >= start;
+      })
       .filter((b) => {
         if (view === "all") return true;
         if (b.status === "cancelled") return false;
@@ -204,7 +218,18 @@ function PmsBookings() {
           b.ref.toLowerCase().includes(q) ||
           b.id.toLowerCase().includes(q),
       );
-  }, [bookings, property, status, source, search, view, today]);
+  }, [bookings, property, status, source, search, view, today, month]);
+
+  // Summary over exactly the bookings listed (cancelled stays carry no revenue).
+  const summary = useMemo(() => {
+    const live = visible.filter((b) => b.status !== "cancelled");
+    return {
+      count: visible.length,
+      revenue: live.reduce((s, b) => s + (b.total || 0), 0),
+      advance: live.reduce((s, b) => s + (b.advance || 0), 0),
+      balance: live.reduce((s, b) => s + (b.balance || 0), 0),
+    };
+  }, [visible]);
 
   const field =
     "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40";
@@ -255,6 +280,27 @@ function PmsBookings() {
           </label>
         </div>
 
+        {view === "all" && (
+          <div className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5">
+            <button type="button" disabled={month === "all"} onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Previous month" className="rounded-full p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30">
+              <ChevronLeft className="size-5" aria-hidden />
+            </button>
+            <div className="text-center">
+              <p className="text-base font-semibold text-slate-900">{month === "all" ? "All months" : monthLabel(month)}</p>
+              <button
+                type="button"
+                onClick={() => setMonth(month === "all" ? today.slice(0, 7) : "all")}
+                className="text-xs font-semibold text-emerald-700 hover:underline"
+              >
+                {month === "all" ? "Back to this month" : "Show all months"}
+              </button>
+            </div>
+            <button type="button" disabled={month === "all"} onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Next month" className="rounded-full p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30">
+              <ChevronRight className="size-5" aria-hidden />
+            </button>
+          </div>
+        )}
+
         <div className="mt-3 flex flex-wrap gap-2">
           {STATUS_CHIPS.map((c) => (
             <button
@@ -271,6 +317,22 @@ function PmsBookings() {
             </button>
           ))}
         </div>
+
+        {bookings && (
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              { label: "Bookings", value: String(summary.count) },
+              { label: "Booking income", value: formatINR(summary.revenue) },
+              { label: "Advance collected", value: formatINR(summary.advance) },
+              { label: "Balance pending", value: formatINR(summary.balance) },
+            ].map((c) => (
+              <div key={c.label} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">{c.label}</p>
+                <p className="text-base font-bold text-slate-900">{c.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {stale && <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Showing saved data — couldn&apos;t reach the server. It will refresh when the connection is back.</p>}
         {error && <p className="mt-4 text-sm font-medium text-red-600">{error}</p>}

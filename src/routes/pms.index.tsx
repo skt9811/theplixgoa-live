@@ -125,7 +125,7 @@ function QuickActionCard({
 
 function PmsDashboard() {
   const { property, can, openCreate, properties } = usePms();
-  const { bookings, error, reload } = usePmsBookings();
+  const { bookings, error, stale, reload } = usePmsBookings();
   const today = istToday();
   const [rangeId, setRangeId] = useState<RangeId>("mtd");
   const range = useMemo(() => rangeFor(rangeId, today), [rangeId, today]);
@@ -219,6 +219,7 @@ function PmsDashboard() {
             {propertyDisplayName(property)} &middot; {fmtDate(today)}
           </p>
         </div>
+        {stale && <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Showing saved data — couldn&apos;t reach the server. It will refresh when the connection is back.</p>}
         {error && <p className="mt-3 text-sm font-medium text-red-600">{error}</p>}
 
         {canSeeMoney && dailyRevenue && (

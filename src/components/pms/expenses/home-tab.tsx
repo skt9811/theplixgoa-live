@@ -61,7 +61,7 @@ export function HomeTab({
   const today = istToday();
   const year = today.slice(0, 4);
   // Every entry is loaded once; the month navigator filters locally.
-  const { transactions, error, reload } = useTransactions(property, ALL_TIME.start, ALL_TIME.end, refreshKey);
+  const { transactions, error, stale, reload } = useTransactions(property, ALL_TIME.start, ALL_TIME.end, refreshKey);
   const listRef = useRef<HTMLElement>(null);
   const [incomeOpen, setIncomeOpen] = useState(false);
   const { budgets, reload: reloadBudgets } = useBudgets(refreshKey);
@@ -361,6 +361,7 @@ export function HomeTab({
           <Search className="size-4 text-muted-foreground" aria-hidden />
           <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search note, category, tag" className="w-full bg-transparent outline-none placeholder:text-muted-foreground" />
         </label>
+        {stale && <p className="mt-3 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-300">Showing saved data — couldn&apos;t reach the server. It will refresh when the connection is back.</p>}
         {error && <p className="mt-3 text-sm font-medium text-red-400">{error}</p>}
         {!transactions && !error && <p className="mt-8 text-center text-sm text-muted-foreground">Loading transactions...</p>}
         {transactions && shown.length === 0 && <p className="mt-8 text-center text-sm text-muted-foreground">{search || filtersOn ? "No transactions match." : month === "all" ? "No transactions yet. Tap + to add one." : `No transactions in ${monthLabel(month)}.`}</p>}

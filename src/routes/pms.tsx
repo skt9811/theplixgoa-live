@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getMemberProperties } from "@/lib/pms-groups";
+import { clearPmsCache } from "@/lib/pms-data-cache";
 import { toast } from "sonner";
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { PmsShell } from "@/components/pms/pms-shell";
@@ -153,6 +154,8 @@ function PmsLayout() {
 
   const logout = useCallback(async () => {
     await pms("logout", { method: "POST" }).catch(() => undefined);
+    // Saved PMS data (pms-data-cache) never outlives the session on a shared device.
+    clearPmsCache();
     // Drop the in-memory session immediately, before anything else — a
     // stale `user` would let PmsShell/Outlet render authed content for one
     // more tick even after the cookie is gone.

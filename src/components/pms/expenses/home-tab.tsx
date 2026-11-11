@@ -27,6 +27,7 @@ const CATEGORY_CARDS = [
   { label: "Salaries", category: "Salaries & Wages" },
   { label: "Utilities", category: "Utilities" },
   { label: "Maintenance", category: "Maintenance & Repairs" },
+  { label: "Food & Groceries", category: "Food & Groceries" },
 ];
 
 const ALL_TIME = monthRange("all");
@@ -272,7 +273,7 @@ export function HomeTab({
             </div>
           </div>
         )}
-        <div className={`grid gap-2 ${showPnl ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {!showPnl && (
             <button type="button" onClick={() => setCategoryFilter("all")} className={`${DARK.card} rounded-2xl border p-3 text-left transition-colors hover:bg-muted/40 border-border`}>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total spent</p>

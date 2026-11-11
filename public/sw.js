@@ -46,6 +46,24 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// The deploy a page belongs to: the set of hashed code files it loads.
+function assetSignature(html) {
+  return (html.match(/\/assets\/[\w.-]+\.(?:js|css)/g) || []).sort().join("|");
+}
+
+async function notifyUpdate(clientId) {
+  // The page may not exist yet when its navigation is still in flight; retry briefly.
+  for (let i = 0; i < 10; i++) {
+    const client = clientId ? await self.clients.get(clientId) : null;
+    const targets = client ? [client] : await self.clients.matchAll({ type: "window" });
+    if (targets.length) {
+      targets.forEach((c) => c.postMessage({ type: "plix-pms-update" }));
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+
 // Fetch: network-first for navigation, cache-first for static assets
 self.addEventListener("fetch", (event) => {
   const { request } = event;
@@ -91,12 +109,22 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches.open(CACHE_NAME).then(async (cache) => {
         const cached = await cache.match(request, { ignoreSearch: true });
-        const network = fetch(request).then((response) => {
-          if (response.ok) cache.put(request, response.clone());
+        // The fresh copy is fully saved before anyone is told to reload onto it.
+        const network = fetch(request).then(async (response) => {
+          if (response.ok) await cache.put(request, response.clone());
           return response;
         });
         if (cached) {
-          event.waitUntil(network.catch(() => undefined));
+          // When the fresh page belongs to a newer deploy (different code
+          // files), tell the open page so it can switch to it right away
+          // instead of waiting for the next launch.
+          event.waitUntil(
+            Promise.all([cached.clone().text(), network.then((r) => (r.ok ? r.clone().text() : null))])
+              .then(([oldHtml, newHtml]) => {
+                if (newHtml && assetSignature(oldHtml) !== assetSignature(newHtml)) notifyUpdate(event.resultingClientId || event.clientId);
+              })
+              .catch(() => undefined)
+          );
           return cached;
         }
         return network.catch(() => caches.match("/pms/login").then((login) => login || Response.error()));

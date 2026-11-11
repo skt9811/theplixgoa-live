@@ -217,6 +217,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     navigator.serviceWorker.register('/sw.js').catch(function() {});
   });
 }
+// The service worker served a saved PMS page and has just downloaded a newer
+// deploy: reload onto it if the app was only just opened, otherwise offer a
+// one-tap reload (never interrupt someone mid-task). Once per page load.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', function(e) {
+    if (!e.data || e.data.type !== 'plix-pms-update' || window.__plixUpdateSeen) return;
+    window.__plixUpdateSeen = true;
+    var recent = false;
+    try {
+      recent = Date.now() - Number(sessionStorage.getItem('plix_update_reload') || 0) < 60000;
+      if (!recent && performance.now() < 8000) sessionStorage.setItem('plix_update_reload', String(Date.now()));
+    } catch (err) {}
+    if (!recent && performance.now() < 8000) { window.location.reload(); return; }
+    var b = document.createElement('button');
+    b.textContent = 'New version available — tap to reload';
+    b.setAttribute('style', 'position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:2147483647;padding:10px 18px;border:0;border-radius:999px;background:#0f172a;color:#fff;font:600 13px system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.25)');
+    b.onclick = function() { window.location.reload(); };
+    document.body.appendChild(b);
+  });
+}
 // A page saved by the service worker can reference a code chunk that a newer
 // deploy removed. Reload once (at most every 30s) to pick up the fresh page
 // instead of leaving the app stuck.

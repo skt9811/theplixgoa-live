@@ -4,7 +4,7 @@ import { CategoryBadge } from "@/lib/pms-icons";
 import { DARK, GREEN, money } from "@/components/pms/expenses/tokens";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
-export function TransactionCard({ tx, category, onEdit, onDelete }: { tx: PmsTransaction; category: PmsCategory | undefined; onEdit: () => void; onDelete: () => void }) {
+export function TransactionCard({ tx, category, propertyLabel, onEdit, onDelete }: { tx: PmsTransaction; category: PmsCategory | undefined; propertyLabel?: string | undefined; onEdit: () => void; onDelete: () => void }) {
   const transfer = tx.type === "transfer";
   const income = tx.type === "income";
   return (
@@ -29,7 +29,12 @@ export function TransactionCard({ tx, category, onEdit, onDelete }: { tx: PmsTra
         <CategoryBadge icon={category?.icon} color={category?.color} />
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">{tx.vendor_name || (transfer ? "Transfer" : tx.category)}</p>
+        <p className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-foreground">
+          <span className="truncate">{tx.vendor_name || (transfer ? "Transfer" : tx.category)}</span>
+          {propertyLabel && (
+            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{propertyLabel}</span>
+          )}
+        </p>
         <p className="truncate text-xs text-muted-foreground">
           {transfer ? `${tx.payment_mode} → ${tx.transfer_to}` : tx.payment_mode} · {fmtDate(tx.expense_date)}
           {!transfer && tx.vendor_name ? ` · ${tx.category}` : ""}

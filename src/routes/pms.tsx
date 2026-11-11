@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { getMemberProperties } from "@/lib/pms-groups";
 import { toast } from "sonner";
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { PmsShell } from "@/components/pms/pms-shell";
@@ -46,9 +47,12 @@ function PmsLayout() {
   // excluded any other tenant's own property from their own switcher/POS.
   const [properties, setProperties] = useState<PmsProperty[] | null>(null);
 
+  // A virtual group (pms-groups.ts) is known when all its members are.
   const isKnownProperty = useCallback(
     (value: string | null): value is string =>
-      value === "all" || (value !== null && (properties ?? []).some((p) => p.id === value)),
+      value === "all" ||
+      (value !== null &&
+        getMemberProperties(value).every((m) => (properties ?? []).some((p) => p.id === m))),
     [properties],
   );
 
@@ -64,7 +68,7 @@ function PmsLayout() {
     (value: string | null): value is string =>
       value === "all"
         ? allProperties || allowedProperties.length > 1
-        : value !== null && allowedProperties.includes(value),
+        : value !== null && getMemberProperties(value).every((m) => allowedProperties.includes(m)),
     [allProperties, allowedProperties],
   );
 

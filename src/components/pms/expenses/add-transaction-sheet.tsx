@@ -8,6 +8,7 @@ import { CategoryBadge } from "@/lib/pms-icons";
 import { PMS_PROPERTIES_CONFIG } from "@/lib/pms-properties-config";
 import { DARK, GREEN, istNowTime } from "@/components/pms/expenses/tokens";
 import { useBackDismiss } from "@/lib/pms-back-stack";
+import { isVirtualProperty } from "@/lib/pms-groups";
 
 type Kind = "expense" | "income" | "transfer";
 
@@ -47,7 +48,8 @@ export function AddTransactionSheet({
   const [paidBy, setPaidBy] = useState(initial?.paid_by ?? "");
   const [remarks, setRemarks] = useState(initial?.notes ?? "");
   const [property, setProperty] = useState(
-    initial ? (initial.property_id ?? "hq") : defaultProperty === "all" ? "" : defaultProperty,
+    // An expense always belongs to one real property (or HQ), never a group.
+    initial ? (initial.property_id ?? "hq") : defaultProperty === "all" || isVirtualProperty(defaultProperty) ? "" : defaultProperty,
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

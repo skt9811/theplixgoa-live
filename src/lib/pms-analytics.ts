@@ -3,6 +3,7 @@
 // share of sellable units taken on a night.
 import { eachNight, isMultiRoomProperty, maxRoomsForProperty } from "@/lib/rates";
 import type { PmsBooking, PmsProperty } from "@/lib/pms-client";
+import { getMemberProperties, isVirtualProperty, scopeIncludes } from "@/lib/pms-groups";
 
 // `orgProperties` is the signed-in actor's own organization's real property
 // list (usePms().properties — GET /api/pms/properties), not the static
@@ -18,13 +19,15 @@ import type { PmsBooking, PmsProperty } from "@/lib/pms-client";
 export function unitsFor(property: string, orgProperties: PmsProperty[]): number {
   if (property === "all")
     return orgProperties.reduce((sum, p) => sum + unitsFor(p.id, orgProperties), 0);
+  if (isVirtualProperty(property))
+    return getMemberProperties(property).reduce((sum, m) => sum + unitsFor(m, orgProperties), 0);
   if (isMultiRoomProperty(property)) return maxRoomsForProperty(property);
   const dynamic = orgProperties.find((p) => p.id === property);
   return dynamic ? Math.max(1, dynamic.totalRooms) : 1;
 }
 
 export function forProperty(bookings: PmsBooking[], property: string): PmsBooking[] {
-  return property === "all" ? bookings : bookings.filter((b) => b.property_id === property);
+  return property === "all" ? bookings : bookings.filter((b) => scopeIncludes(property, b.property_id));
 }
 
 export type DayPoint = {

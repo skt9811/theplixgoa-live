@@ -5,6 +5,7 @@ import { PMS_PROPERTIES_CONFIG } from "@/lib/pms-properties-config";
 import type { PmsProperty } from "@/lib/pms-client";
 import { usePms } from "@/components/pms/pms-context";
 import { useBackDismiss } from "@/lib/pms-back-stack";
+import { VIRTUAL_PROPERTY_GROUPS, groupsFor } from "@/lib/pms-groups";
 
 export const PORTFOLIO_LABEL = "All Properties (Portfolio)";
 export const MY_PROPERTIES_LABEL = "All My Properties";
@@ -23,6 +24,8 @@ export function setDynamicPropertyNames(list: PmsProperty[]): void {
 
 export function propertyDisplayName(slug: string): string {
   if (slug === "all") return PORTFOLIO_LABEL;
+  const group = VIRTUAL_PROPERTY_GROUPS[slug];
+  if (group) return `${group.name} (Group)`;
   return (
     PMS_PROPERTIES_CONFIG[slug]?.name ??
     PROPERTIES.find((p) => p.slug === slug)?.name.split(" - ")[0] ??
@@ -92,6 +95,11 @@ export function PropertySelector() {
       : allowedProperties.length > 1
         ? [{ slug: "all", label: MY_PROPERTIES_LABEL }]
         : []),
+    // Consolidated financial groups, only when every member is visible.
+    ...groupsFor((slug) => properties.some((p) => p.id === slug)).map(([slug, g]) => ({
+      slug,
+      label: `🏢 ${g.name} (Group · ${g.members.length} villas)`,
+    })),
     ...properties.map((p) => ({
       slug: p.id,
       label: propertyDisplayName(p.id),

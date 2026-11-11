@@ -7,6 +7,7 @@
 // through the same tables and conflict rules the admin punch-in uses, so
 // the website sees every change immediately. PMS DB (NEON_PMS_DATABASE_URL)
 // holds the operations data (expenses); nothing there is ever written to the web DB.
+import { getMemberProperties, isVirtualProperty } from "@/lib/pms-groups";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { differenceInCalendarDays } from "date-fns";
 import { PROPERTIES } from "@/lib/plix";
@@ -370,8 +371,10 @@ async function revenueScope(sql: Sql, actor: Actor, tenantId: string, property: 
   const orgProps = (await listOrganizationProperties(pmsDb, actor.organizationId)).filter(
     (p) => isAllProps(actor) || allowedSlugs(actor).includes(p.id),
   );
-  const scopedProps = property === "all" ? orgProps : orgProps.filter((p) => p.id === property);
-  const bookings = property === "all" ? all : all.filter((b) => b.property_id === property);
+  // A virtual group (pms-groups.ts) rolls its member properties up.
+  const members = getMemberProperties(property);
+  const scopedProps = property === "all" ? orgProps : orgProps.filter((p) => members.includes(p.id));
+  const bookings = property === "all" ? all : all.filter((b) => members.includes(b.property_id));
   const scoped = bookings.filter((b) => isAllProps(actor) || allowedSlugs(actor).includes(b.property_id));
   return { bookings: scoped, units: unitsFor(property, scopedProps) };
 }
@@ -1293,8 +1296,9 @@ async function listTransactions(request: Request, url: URL, actor: Actor): Promi
   const property = url.searchParams.get("property") ?? "all";
   const start = url.searchParams.get("start") ?? "";
   const end = url.searchParams.get("end") ?? "";
+  const group = isVirtualProperty(property);
   if (
-    (property !== "all" && property !== "hq" && !PROPERTIES.some((p) => p.slug === property)) ||
+    (property !== "all" && property !== "hq" && !group && !PROPERTIES.some((p) => p.slug === property)) ||
     !ISO_DATE.test(start) ||
     !ISO_DATE.test(end) ||
     end < start
@@ -1303,14 +1307,14 @@ async function listTransactions(request: Request, url: URL, actor: Actor): Promi
   }
   if (property === "hq" && !isAllProps(actor))
     return json({ error: "Company overhead is restricted" }, 403);
-  if (property !== "all" && property !== "hq" && !canProperty(actor, property))
+  if (property !== "all" && property !== "hq" && !getMemberProperties(property).every((m) => canProperty(actor, m)))
     return json({ error: "You do not have access to this property" }, 403);
   await ensureExpensesSchema(pmsDb);
   const slugs = allowedSlugs(actor);
   const rows = await pmsDb<TxRow[]>`
     SELECT ${pmsDb.unsafe(TX_COLUMNS)} FROM expenses
     WHERE organization_id = ${tenantId} AND expense_date >= ${start}::date AND expense_date <= ${end}::date
-      ${property === "all" ? (isAllProps(actor) ? pmsDb`` : pmsDb`AND property_id = ANY(${slugs})`) : property === "hq" ? pmsDb`AND property_id IS NULL` : pmsDb`AND property_id = ${property}`}
+      ${property === "all" ? (isAllProps(actor) ? pmsDb`` : pmsDb`AND property_id = ANY(${slugs})`) : property === "hq" ? pmsDb`AND property_id IS NULL` : group ? pmsDb`AND property_id = ANY(${getMemberProperties(property)})` : pmsDb`AND property_id = ${property}`}
     ORDER BY expense_date DESC, "time" DESC, created_at DESC
     LIMIT 5000`;
   return json({ transactions: rows.map(shapeTx) });
@@ -1539,7 +1543,7 @@ async function listBudgets(actor: Actor): Promise<Response> {
     { property_id: string; period: string; amount: string }[]
   >`SELECT property_id, period, amount FROM pms_budgets`;
   const visible = rows.filter((r) =>
-    r.property_id === "all" ? isAllProps(actor) : canProperty(actor, r.property_id),
+    r.property_id === "all" ? isAllProps(actor) : getMemberProperties(r.property_id).every((m) => canProperty(actor, m)),
   );
   return json({
     budgets: visible.map((r) => ({
@@ -1562,10 +1566,10 @@ async function saveBudget(request: Request, actor: Actor): Promise<Response> {
   const property = str(body["property"]) || "all";
   const period = str(body["period"]);
   const amount = num(body["amount"], NaN);
-  if (property !== "all" && !PROPERTIES.some((p) => p.slug === property))
+  if (property !== "all" && !isVirtualProperty(property) && !PROPERTIES.some((p) => p.slug === property))
     return json({ error: "Unknown property" }, 400);
   if (period !== "monthly" && period !== "annual") return json({ error: "Invalid period" }, 400);
-  if (property === "all" ? !isAllProps(actor) : !canProperty(actor, property))
+  if (property === "all" ? !isAllProps(actor) : !getMemberProperties(property).every((m) => canProperty(actor, m)))
     return json({ error: "You do not have access to this budget" }, 403);
   if (!Number.isFinite(amount) || amount < 0 || amount > 9_999_999_999)
     return json({ error: "Enter a valid budget" }, 400);

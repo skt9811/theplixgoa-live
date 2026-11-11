@@ -7,6 +7,7 @@ import { addDays, CHANNELS, istToday, PAYMENTS, pms, type RoomAllocation } from 
 import { RoomAllocationEditor } from "@/components/pms/room-allocation-editor";
 import { RoomCountInput } from "@/components/pms/room-count-input";
 import { usePms } from "@/components/pms/pms-context";
+import { isVirtualProperty } from "@/lib/pms-groups";
 import { useBackDismiss } from "@/lib/pms-back-stack";
 
 type Availability = {
@@ -36,7 +37,8 @@ export function CreateReservationModal({
   useBackDismiss(true, onClose);
   const { property: activeProperty, properties } = usePms();
   const [property, setProperty] = useState(
-    initial?.property ?? (activeProperty === "all" ? "" : activeProperty),
+    // A consolidated group is never a bookable property: make staff pick a villa.
+    initial?.property ?? (activeProperty === "all" || isVirtualProperty(activeProperty) ? "" : activeProperty),
   );
   const [guestName, setGuestName] = useState(initial?.guestName ?? "");
   const [phone, setPhone] = useState("+91 ");

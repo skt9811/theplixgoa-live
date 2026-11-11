@@ -24,6 +24,7 @@ import { safeFormatINR } from "@/lib/pms-format";
 import { usePms } from "@/components/pms/pms-context";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
 import { propertyDisplayName } from "@/components/pms/property-selector";
+import { isVirtualProperty, scopeIncludes } from "@/lib/pms-groups";
 import { RevenueDrilldown } from "@/components/pms/revenue-drilldown";
 import { TrendChart } from "@/components/pms/trend-chart";
 import { DonutRing } from "@/components/pms/donut-ring";
@@ -195,7 +196,7 @@ function PmsDashboard() {
   );
 
   const visibleProperties =
-    property === "all" ? PROPERTIES : PROPERTIES.filter((p) => p.slug === property);
+    property === "all" ? PROPERTIES : PROPERTIES.filter((p) => scopeIncludes(property, p.slug));
   const ready = scoped !== null;
 
   const deptBtn = (active: boolean) =>
@@ -469,12 +470,13 @@ function PmsDashboard() {
 
         {segment === "hotel-position" && (
           <div className="mt-4">
-            {property === "all" ? (
+            {property === "all" || isVirtualProperty(property) ? (
               <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
                 <p className="font-semibold text-slate-800">Choose a property</p>
                 <p className="mt-1 text-sm text-slate-500">
-                  Hotel Position shows one property&apos;s availability at a time. Pick one from the
-                  switcher at the top.
+                  {isVirtualProperty(property)
+                    ? `${propertyDisplayName(property)} is a consolidated financial view. Hotel Position shows one villa's availability at a time — pick one from the switcher at the top.`
+                    : "Hotel Position shows one property's availability at a time. Pick one from the switcher at the top."}
                 </p>
               </div>
             ) : (
@@ -512,7 +514,7 @@ function PmsDashboard() {
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-slate-900">{b.guest_name}</p>
                       <p className="text-xs text-slate-500">
-                        {property === "all" && (
+                        {(property === "all" || isVirtualProperty(property)) && (
                           <span className="font-medium text-slate-700">
                             {propertyDisplayName(b.property_id)} &middot;{" "}
                           </span>
@@ -537,7 +539,7 @@ function PmsDashboard() {
             </div>
 
             <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">
-              {property === "all" ? "Properties" : "Property"}
+              {property === "all" || isVirtualProperty(property) ? "Properties" : "Property"}
             </h2>
             <div className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {visibleProperties.map((p) => {

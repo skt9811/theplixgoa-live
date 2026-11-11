@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   BedDouble,
@@ -28,6 +28,7 @@ import { PropertySelector, propertyDisplayName } from "@/components/pms/property
 import { ThemeToggle } from "@/components/pms/theme-toggle";
 import { TrialBanner } from "@/components/pms/trial-banner";
 import { useBackDismiss } from "@/lib/pms-back-stack";
+import { GROUP_SCOPE_PATHS, VIRTUAL_PROPERTY_GROUPS, isVirtualProperty } from "@/lib/pms-groups";
 
 const NAV = [
   { to: "/pms", label: "Dashboard", icon: LayoutDashboard, exact: true, tab: "dashboard" },
@@ -225,8 +226,39 @@ function AvatarMenu({ onLogout }: { onLogout: () => void }) {
 
 // Full-viewport overlay: the PMS is its own app, so it sits above the public
 // site's header/footer instead of sharing that chrome.
+// Rates, calendars, inventory, POS and documents belong to one real property.
+// A consolidated group is a financial view only, so these screens are swapped
+// for this notice until a single villa is chosen.
+function GroupScopeNotice({ group, onPick }: { group: string; onPick: (slug: string) => void }) {
+  const g = VIRTUAL_PROPERTY_GROUPS[group];
+  if (!g) return null;
+  const names = g.members.map((m) => propertyDisplayName(m));
+  return (
+    <div className="mx-auto max-w-lg rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center text-amber-900">
+      <p className="text-lg font-semibold">{g.name} is a consolidated financial view</p>
+      <p className="mt-2 text-sm leading-relaxed">
+        To update rates, min-stay, room inventory or anything else on this screen, select{" "}
+        {names.slice(0, -1).join(", ")} or {names[names.length - 1]} individually.
+      </p>
+      <div className="mt-5 flex flex-wrap justify-center gap-2">
+        {g.members.map((m, i) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => onPick(m)}
+            className="rounded-full bg-amber-900 px-4 py-2 text-sm font-semibold text-amber-50 hover:opacity-90"
+          >
+            {names[i]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout: () => void }) {
-  const { openCreate, can, user, property } = usePms();
+  const { openCreate, can, user, property, setProperty } = usePms();
+  const pathname = useRouterState({ select: (st) => st.location.pathname });
   const [drawer, setDrawer] = useState(false);
   const [search, setSearch] = useState(false);
   useBackDismiss(drawer, () => setDrawer(false));
@@ -328,7 +360,13 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
           {propertyDisplayName(property)}
         </p>
         <TrialBanner />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          {isVirtualProperty(property) && !GROUP_SCOPE_PATHS.includes(pathname.replace(/\/$/, "") || "/pms") ? (
+            <GroupScopeNotice group={property} onPick={setProperty} />
+          ) : (
+            children
+          )}
+        </main>
       </div>
 
       {search && <SearchOverlay onClose={() => setSearch(false)} />}

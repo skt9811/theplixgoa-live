@@ -7,6 +7,8 @@ import { DARK, GREEN, money } from "@/components/pms/expenses/tokens";
 import { DeleteDialog, TransactionCard } from "@/components/pms/expenses/transaction-card";
 import { useBudgets, useTransactions } from "@/components/pms/expenses/use-ledger";
 import { AddTransactionSheet } from "@/components/pms/expenses/add-transaction-sheet";
+import { usePmsBookings } from "@/components/pms/use-pms-bookings";
+import { isVirtualProperty, scopeIncludes } from "@/lib/pms-groups";
 
 function csvCell(value: string | number): string {
   let s = String(value);
@@ -33,6 +35,9 @@ export function HomeTab({ property, categories, refreshKey, onChanged, onManageC
   const year = today.slice(0, 4);
   const { transactions, error, reload } = useTransactions(property, `${year}-01-01`, `${year}-12-31`, refreshKey);
   const { budgets, reload: reloadBudgets } = useBudgets(refreshKey);
+  // Booking income for the P&L cards (bookings are attributed to their check-in month).
+  const { bookings } = usePmsBookings();
+  const multiProperty = property === "all" || isVirtualProperty(property);
   const [search, setSearch] = useState("");
   const [seeAll, setSeeAll] = useState(false);
   const [period, setPeriod] = useState<"monthly" | "annual">("monthly");
@@ -77,6 +82,17 @@ export function HomeTab({ property, categories, refreshKey, onChanged, onManageC
       total: spent.filter((t) => !s.category || t.category === s.category).reduce((sum, t) => sum + t.amount, 0),
     }));
   }, [filtered]);
+
+  // P&L: booking income in the same scope and period minus the expenses shown.
+  const pnl = useMemo(() => {
+    if (property === "hq" || !bookings) return null;
+    const period = month === "all" ? year : month;
+    const income = bookings
+      .filter((b) => b.status !== "cancelled" && b.check_in.startsWith(period) && scopeIncludes(property, b.property_id))
+      .reduce((sum, b) => sum + (b.total || 0), 0);
+    const spent = summary[0]?.total ?? 0;
+    return { income, spent, net: income - spent };
+  }, [bookings, property, month, year, summary]);
   const shown = seeAll || filtersOn ? filtered : filtered.slice(0, 8);
 
   const scoped = useMemo(() => {
@@ -217,6 +233,25 @@ export function HomeTab({ property, categories, refreshKey, onChanged, onManageC
             ))}
           </select>
         </div>
+        {pnl && (
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: "Booking income", value: pnl.income, color: GREEN },
+              { label: "Total spent", value: pnl.spent, color: undefined },
+              { label: "Net cash flow", value: pnl.net, color: pnl.net >= 0 ? GREEN : "#F87171" },
+            ].map((c) => (
+              <div key={c.label} className={`${DARK.card} ${DARK.border} rounded-2xl p-3`}>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{c.label}</p>
+                <p className="mt-0.5 text-base font-bold text-foreground" style={c.color ? { color: c.color } : undefined}>
+                  {money(c.value)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+        {pnl && categoryFilter !== "all" && (
+          <p className="text-[11px] text-muted-foreground">Net uses only the {categoryFilter} spend shown.</p>
+        )}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {summary.map((s) => (
             <div key={s.label} className={`${DARK.card} ${DARK.border} rounded-2xl p-3`}>
@@ -256,7 +291,7 @@ export function HomeTab({ property, categories, refreshKey, onChanged, onManageC
         {transactions && shown.length === 0 && <p className="mt-8 text-center text-sm text-muted-foreground">{search ? "No transactions match." : `No transactions in ${year} yet. Tap + to add one.`}</p>}
         <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
           {shown.map((t) => (
-            <TransactionCard key={t.id} tx={t} category={categoryOf(t)} onEdit={() => setEditingTx(t)} onDelete={() => setDeleting(t)} />
+            <TransactionCard key={t.id} tx={t} category={categoryOf(t)} propertyLabel={multiProperty ? propertyName(t.property_id) : undefined} onEdit={() => setEditingTx(t)} onDelete={() => setDeleting(t)} />
           ))}
         </div>
         {!seeAll && filtered.length > shown.length && (

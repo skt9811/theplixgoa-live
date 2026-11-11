@@ -27,6 +27,7 @@ import {
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
 import { usePms } from "@/components/pms/pms-context";
 import { propertyDisplayName } from "@/components/pms/property-selector";
+import { scopeIncludes } from "@/lib/pms-groups";
 import { StayVoucherModal } from "@/components/pms/stay-voucher-modal";
 import { TaxInvoiceModal } from "@/components/pms/tax-invoice-modal";
 import { EditBookingModal } from "@/components/pms/edit-booking-modal";
@@ -106,7 +107,7 @@ function PmsBookings() {
     if (!b) return;
     setOpenedHighlight(true);
     setVoucherFor(b);
-    if (property !== "all" && b.property_id !== property) setProperty(b.property_id);
+    if (!scopeIncludes(property, b.property_id)) setProperty(b.property_id);
     requestAnimationFrame(() =>
       requestAnimationFrame(() => highlightRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })),
     );
@@ -174,7 +175,7 @@ function PmsBookings() {
     return (bookings ?? [])
       .filter(
         (b) =>
-          (property === "all" || b.property_id === property) &&
+          scopeIncludes(property, b.property_id) &&
           // "upcoming" isn't one of PmsBooking's real statuses
           // (confirmed/pending/cancelled) — it's the date-based check right
           // below, so it's treated the same as "all" here.

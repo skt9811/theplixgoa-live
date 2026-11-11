@@ -27,6 +27,15 @@ function PmsExpenses() {
   const [refresh, setRefresh] = useState(0);
   // One month for both Home and Analysis ("all" = every month on Home).
   const [month, setMonth] = useState(() => istToday().slice(0, 7));
+  // Category filter on Home, also set from Analysis (tap a category there).
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  // Bumped to ask Home to scroll to its transaction list once it renders.
+  const [scrollToList, setScrollToList] = useState(0);
+  const openCategory = (category: string) => {
+    setCategoryFilter(category);
+    setTab("home");
+    setScrollToList((n) => n + 1);
+  };
   const { categories, error, reload: reloadCategories } = useCategories(refresh);
   const bump = () => setRefresh((n) => n + 1);
 
@@ -57,9 +66,9 @@ function PmsExpenses() {
         {!categories ? (
           <p className="py-16 text-center text-sm text-muted-foreground">Loading...</p>
         ) : tab === "home" ? (
-          <HomeTab property={property} categories={categories} refreshKey={refresh} month={month} onMonthChange={setMonth} onChanged={bump} onManageCategories={() => setCategoryModal("expense")} />
+          <HomeTab property={property} categories={categories} refreshKey={refresh} month={month} onMonthChange={setMonth} categoryFilter={categoryFilter} onCategoryFilterChange={setCategoryFilter} scrollToList={scrollToList} onChanged={bump} onManageCategories={() => setCategoryModal("expense")} />
         ) : tab === "analysis" ? (
-          <AnalysisTab property={property} categories={categories} refreshKey={refresh} month={month} onMonthChange={setMonth} />
+          <AnalysisTab property={property} categories={categories} refreshKey={refresh} month={month} onMonthChange={setMonth} onCategory={openCategory} />
         ) : (
           <CategoriesTab categories={categories} onAdd={(t) => setCategoryModal(t)} onChanged={() => void reloadCategories()} />
         )}

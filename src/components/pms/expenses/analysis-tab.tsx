@@ -44,7 +44,7 @@ function stepAnchor(frame: Frame, anchor: string, dir: 1 | -1): string {
   return `${y! + dir}-${String(m).padStart(2, "0")}-${String(Math.min(d!, 28)).padStart(2, "0")}`;
 }
 
-function Donut({ slices, total }: { slices: { name: string; value: number; color: string }[]; total: number }) {
+function Donut({ slices, total, onSlice }: { slices: { name: string; value: number; color: string; clickable?: boolean }[]; total: number; onSlice?: (name: string) => void }) {
   const r = 54;
   const c = 2 * Math.PI * r;
   let offset = 0;
@@ -55,7 +55,22 @@ function Donut({ slices, total }: { slices: { name: string; value: number; color
         slices.map((s) => {
           const len = (s.value / total) * c;
           const el = (
-            <circle key={s.name} cx="70" cy="70" r={r} fill="none" stroke={s.color} strokeWidth="16" strokeDasharray={`${Math.max(0, len - 1.5)} ${c - Math.max(0, len - 1.5)}`} strokeDashoffset={-offset} transform="rotate(-90 70 70)" />
+            <circle
+              key={s.name}
+              cx="70"
+              cy="70"
+              r={r}
+              fill="none"
+              stroke={s.color}
+              strokeWidth="16"
+              strokeDasharray={`${Math.max(0, len - 1.5)} ${c - Math.max(0, len - 1.5)}`}
+              strokeDashoffset={-offset}
+              transform="rotate(-90 70 70)"
+              onClick={s.clickable && onSlice ? () => onSlice(s.name) : undefined}
+              className={s.clickable && onSlice ? "cursor-pointer transition-opacity hover:opacity-80" : undefined}
+            >
+              <title>{s.name}</title>
+            </circle>
           );
           offset += len;
           return el;
@@ -76,6 +91,7 @@ export function AnalysisTab({
   refreshKey,
   month,
   onMonthChange,
+  onCategory,
 }: {
   property: string;
   categories: PmsCategory[];
@@ -83,6 +99,8 @@ export function AnalysisTab({
   /** Month shared with Home ("YYYY-MM" or "all"); synced while in the Month frame. */
   month: string;
   onMonthChange: (month: string) => void;
+  /** Open Home filtered to a category (tap a category row or donut slice). */
+  onCategory: (category: string) => void;
 }) {
   const today = istToday();
   const [frame, setFrame] = useState<Frame>("month");
@@ -151,6 +169,8 @@ export function AnalysisTab({
           const booking = name.startsWith("Bookings · ");
           return {
             name,
+            // Ledger categories filter Home; booking-revenue rows are not ledger entries.
+            clickable: !booking,
             value,
             color: cat?.color ?? (booking ? BOOKING_COLORS[[...totals.keys()].indexOf(name) % BOOKING_COLORS.length]! : "#64748B"),
             icon: cat?.icon ?? (booking ? "bed" : undefined),
@@ -259,26 +279,45 @@ export function AnalysisTab({
         ) : (
           <>
             <div className="mt-3">
-              <Donut slices={rows.items} total={rows.grand} />
+              <Donut slices={rows.items} total={rows.grand} onSlice={onCategory} />
             </div>
             <ul className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2.5">
-              {rows.items.map((r) => (
-                <li key={r.name} className="flex items-center gap-3">
-                  <CategoryBadge icon={r.icon} color={r.color} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="truncate text-sm text-foreground">{r.name}</span>
-                      <span className="shrink-0 text-sm font-semibold text-foreground">{money(r.value)}</span>
-                    </div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full" style={{ width: `${r.pct}%`, backgroundColor: r.color }} />
+              {rows.items.map((r) => {
+                const body = (
+                  <>
+                    <CategoryBadge icon={r.icon} color={r.color} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="truncate text-sm text-foreground">{r.name}</span>
+                        <span className="shrink-0 text-sm font-semibold text-foreground">{money(r.value)}</span>
                       </div>
-                      <span className="w-10 shrink-0 text-right text-[11px] text-muted-foreground">{r.pct.toFixed(0)}%</span>
+                      <div className="mt-1 flex items-center gap-2">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                          <div className="h-full rounded-full" style={{ width: `${r.pct}%`, backgroundColor: r.color }} />
+                        </div>
+                        <span className="w-10 shrink-0 text-right text-[11px] text-muted-foreground">{r.pct.toFixed(0)}%</span>
+                      </div>
                     </div>
-                  </div>
-                </li>
-              ))}
+                  </>
+                );
+                return (
+                  <li key={r.name}>
+                    {r.clickable ? (
+                      <button
+                        type="button"
+                        onClick={() => onCategory(r.name)}
+                        aria-label={`Show ${r.name} transactions`}
+                        className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-xl p-2 text-left transition-all hover:bg-muted/50 active:scale-[0.99]"
+                      >
+                        {body}
+                        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-3 py-2">{body}</div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
             {view === "income" && byChannel.length > 0 && (
               <div className="mt-4 border-t border-border pt-3">

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Download, Search, X } from "lucide-react";
 import { PROPERTIES } from "@/lib/plix";
@@ -38,6 +38,9 @@ export function HomeTab({
   refreshKey,
   month,
   onMonthChange,
+  categoryFilter,
+  onCategoryFilterChange: setCategoryFilter,
+  scrollToList,
   onChanged,
   onManageCategories,
 }: {
@@ -47,6 +50,11 @@ export function HomeTab({
   /** "YYYY-MM" or "all", shared with the Analysis tab. */
   month: LedgerMonth;
   onMonthChange: (month: LedgerMonth) => void;
+  /** Category filter, owned by the page so Analysis can set it. */
+  categoryFilter: string;
+  onCategoryFilterChange: (category: string) => void;
+  /** Changes when the list should be scrolled into view (e.g. from Analysis). */
+  scrollToList: number;
   onChanged: () => void;
   onManageCategories: () => void;
 }) {
@@ -68,7 +76,6 @@ export function HomeTab({
   const [deleting, setDeleting] = useState<PmsTransaction | null>(null);
   const [editingTx, setEditingTx] = useState<PmsTransaction | null>(null);
   const [busy, setBusy] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState("all");
   const [payerFilter, setPayerFilter] = useState("all");
 
   const byName = useMemo(() => new Map(categories.map((c) => [`${c.type}:${c.name.toLowerCase()}`, c])), [categories]);
@@ -118,10 +125,19 @@ export function HomeTab({
   const showPnl = property !== "hq";
   const shown = seeAll || filtersOn || month !== "all" ? filtered : filtered.slice(0, 8);
 
-  function filterCategory(category: string) {
-    setCategoryFilter((current) => (current === category ? "all" : category));
-    window.setTimeout(() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  function scrollToTransactions() {
+    window.setTimeout(() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
   }
+
+  function filterCategory(category: string) {
+    setCategoryFilter(categoryFilter === category ? "all" : category);
+    scrollToTransactions();
+  }
+
+  // Arrived from Analysis with a category picked: bring the list into view.
+  useEffect(() => {
+    if (scrollToList > 0) scrollToTransactions();
+  }, [scrollToList]);
 
   const scoped = useMemo(() => {
     const from = period === "monthly" ? today.slice(0, 7) : year;
@@ -317,7 +333,17 @@ export function HomeTab({
       </section>
 
       {/* Transactions */}
-      <section ref={listRef} className="scroll-mt-4">
+      <section ref={listRef} id="transactions-list" className="scroll-mt-4">
+        {categoryFilter !== "all" && (
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 py-1 pl-3 pr-1 text-xs font-semibold text-emerald-300">
+              Category: {categoryFilter}
+              <button type="button" onClick={() => setCategoryFilter("all")} aria-label="Clear category filter" className="rounded-full p-0.5 hover:bg-emerald-500/20">
+                <X className="size-3.5" aria-hidden />
+              </button>
+            </span>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">{seeAll || filtersOn || month !== "all" ? `Transactions (${filtered.length})` : "Recent Transactions"}</h2>
           <div className="flex items-center gap-3">

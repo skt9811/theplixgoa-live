@@ -1,14 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getMemberProperties } from "@/lib/pms-groups";
-import {
-  clearPmsCache,
-  isNetworkError,
-  readBootCache,
-  setCacheUser,
-  setPmsOffline,
-  useIsoLayoutEffect,
-  writeBootCache,
-} from "@/lib/pms-offline-cache";
 import { toast } from "sonner";
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { PmsShell } from "@/components/pms/pms-shell";
@@ -18,7 +9,6 @@ import { CreateReservationModal } from "@/components/pms/create-reservation-moda
 import { setDynamicPropertyNames } from "@/components/pms/property-selector";
 import {
   pms,
-  PmsAuthError,
   PMS_PROPERTY_STORAGE_KEY,
   tabForPath,
   TAB_HOME,
@@ -121,28 +111,10 @@ function PmsLayout() {
     [isKnownProperty, isAllowed],
   );
 
-  // Cold start: paint the last known session and property list from the
-  // device before the network answers (see pms-offline-cache.ts); the
-  // session check below still decides whether that session is valid.
-  const fromBootCacheRef = useRef(false);
-  useIsoLayoutEffect(() => {
-    const boot = readBootCache<{ user: PmsUser; properties: PmsProperty[] }>();
-    if (!boot?.user || !Array.isArray(boot.properties)) return;
-    setCacheUser(boot.user.id ?? boot.user.name);
-    setDynamicPropertyNames(boot.properties);
-    setUser(boot.user);
-    setProperties(boot.properties);
-    fromBootCacheRef.current = true;
-    void hidePmsSplash();
-  }, []);
-
   useEffect(() => {
     pms("session")
       .then((res) => {
-        const sessionUser = (res as { user: PmsUser }).user;
-        setCacheUser(sessionUser.id ?? sessionUser.name);
-        setUser(sessionUser);
-        setPmsOffline(false);
+        setUser((res as { user: PmsUser }).user);
         // Reaching this means the dashboard is really the right screen to
         // show, so the native splash (see capacitor.config.ts's
         // launchAutoHide: false) can come down now.
@@ -160,26 +132,16 @@ function PmsLayout() {
           .then((r) => {
             setDynamicPropertyNames(r.properties);
             setProperties(r.properties);
-            writeBootCache({ user: sessionUser, properties: r.properties });
           })
           .catch((err) => {
             console.error(
               "[pms] properties fetch failed:",
               err instanceof Error ? err.message : err,
             );
-            setProperties((current) => current ?? []);
+            setProperties([]);
           });
       })
-      .catch((err: unknown) => {
-        // No connection but a saved session is on screen: stay, offline.
-        if (fromBootCacheRef.current && isNetworkError(err)) {
-          setPmsOffline(true);
-          return;
-        }
-        // Session rejected (or nothing saved): drop saved data, sign in again.
-        if (err instanceof PmsAuthError) clearPmsCache();
-        void navigate({ to: "/pms/login" });
-      });
+      .catch(() => void navigate({ to: "/pms/login" }));
   }, [navigate]);
 
   const saveTheme = useCallback((theme: ThemePreference) => {
@@ -191,8 +153,6 @@ function PmsLayout() {
 
   const logout = useCallback(async () => {
     await pms("logout", { method: "POST" }).catch(() => undefined);
-    // Saved PMS data never outlives the session on a shared device.
-    clearPmsCache();
     // Drop the in-memory session immediately, before anything else — a
     // stale `user` would let PmsShell/Outlet render authed content for one
     // more tick even after the cookie is gone.

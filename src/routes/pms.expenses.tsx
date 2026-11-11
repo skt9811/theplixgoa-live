@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ChartPie, House, LayoutGrid, Plus, Wallet } from "lucide-react";
 import { usePms } from "@/components/pms/pms-context";
+import { istToday } from "@/lib/pms-client";
 import { propertyDisplayName } from "@/components/pms/property-selector";
 import { useCategories } from "@/components/pms/expenses/use-ledger";
 import { HomeTab } from "@/components/pms/expenses/home-tab";
@@ -24,6 +25,8 @@ function PmsExpenses() {
   const [adding, setAdding] = useState(false);
   const [categoryModal, setCategoryModal] = useState<"expense" | "income" | null>(null);
   const [refresh, setRefresh] = useState(0);
+  // One month for both Home and Analysis ("all" = every month on Home).
+  const [month, setMonth] = useState(() => istToday().slice(0, 7));
   const { categories, error, reload: reloadCategories } = useCategories(refresh);
   const bump = () => setRefresh((n) => n + 1);
 
@@ -54,9 +57,9 @@ function PmsExpenses() {
         {!categories ? (
           <p className="py-16 text-center text-sm text-muted-foreground">Loading...</p>
         ) : tab === "home" ? (
-          <HomeTab property={property} categories={categories} refreshKey={refresh} onChanged={bump} onManageCategories={() => setCategoryModal("expense")} />
+          <HomeTab property={property} categories={categories} refreshKey={refresh} month={month} onMonthChange={setMonth} onChanged={bump} onManageCategories={() => setCategoryModal("expense")} />
         ) : tab === "analysis" ? (
-          <AnalysisTab property={property} categories={categories} refreshKey={refresh} />
+          <AnalysisTab property={property} categories={categories} refreshKey={refresh} month={month} onMonthChange={setMonth} />
         ) : (
           <CategoriesTab categories={categories} onAdd={(t) => setCategoryModal(t)} onChanged={() => void reloadCategories()} />
         )}

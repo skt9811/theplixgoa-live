@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PAYMENT_MODES } from "@/lib/pms-categories";
-import { channelLabel, istToday, type PmsBooking, type PmsCategory, type PmsTransaction } from "@/lib/pms-client";
+import { channelLabel, istToday, type PmsCategory, type PmsTransaction } from "@/lib/pms-client";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
 import { propertyDisplayName } from "@/components/pms/property-selector";
-import { scopeIncludes } from "@/lib/pms-groups";
+import { incomeBookings } from "@/components/pms/expenses/income";
 import { CategoryBadge } from "@/lib/pms-icons";
 import { DARK, GREEN, money } from "@/components/pms/expenses/tokens";
 import { useTransactions } from "@/components/pms/expenses/use-ledger";
@@ -70,10 +70,33 @@ function Donut({ slices, total }: { slices: { name: string; value: number; color
   );
 }
 
-export function AnalysisTab({ property, categories, refreshKey }: { property: string; categories: PmsCategory[]; refreshKey: number }) {
+export function AnalysisTab({
+  property,
+  categories,
+  refreshKey,
+  month,
+  onMonthChange,
+}: {
+  property: string;
+  categories: PmsCategory[];
+  refreshKey: number;
+  /** Month shared with Home ("YYYY-MM" or "all"); synced while in the Month frame. */
+  month: string;
+  onMonthChange: (month: string) => void;
+}) {
   const today = istToday();
   const [frame, setFrame] = useState<Frame>("month");
-  const [anchor, setAnchor] = useState(today);
+  const [anchor, setAnchorState] = useState(month === "all" ? today : `${month}-01`);
+  // Home picked another month: follow it.
+  useEffect(() => {
+    if (month !== "all" && anchor.slice(0, 7) !== month) setAnchorState(`${month}-01`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month]);
+  const setAnchor = (next: (a: string) => string) => {
+    const value = next(anchor);
+    setAnchorState(value);
+    if (frame === "month") onMonthChange(value.slice(0, 7));
+  };
   const [custom, setCustom] = useState({ start: `${today.slice(0, 7)}-01`, end: today });
   const [view, setView] = useState<"expense" | "income">("expense");
 
@@ -94,21 +117,7 @@ export function AnalysisTab({ property, categories, refreshKey }: { property: st
   // stays, blocked dates and backup holds are not income. Manually logged
   // income entries are added on top.
   const { bookings } = usePmsBookings();
-  const stays = useMemo(
-    () =>
-      property === "hq"
-        ? []
-        : (bookings ?? []).filter(
-            (b: PmsBooking) =>
-              b.status !== "cancelled" &&
-              b.raw_status !== "blocked" &&
-              !b.is_backup_booking &&
-              b.check_in >= range.start &&
-              b.check_in <= range.end &&
-              scopeIncludes(property, b.property_id),
-          ),
-    [bookings, property, range],
-  );
+  const stays = useMemo(() => incomeBookings(bookings ?? [], property, range.start, range.end), [bookings, property, range]);
   const bookingIncome = stays.reduce((s, b) => s + (b.total || 0), 0);
   const spent = sum(spending);
   const earned = bookingIncome + sum(income);

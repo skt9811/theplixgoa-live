@@ -1,14 +1,16 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Download, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Search, X } from "lucide-react";
 import { PROPERTIES } from "@/lib/plix";
-import { HQ_LABEL, istToday, pms, type PmsCategory, type PmsTransaction } from "@/lib/pms-client";
+import { HQ_LABEL, channelLabel, fmtDate, istToday, pms, type PmsCategory, type PmsTransaction } from "@/lib/pms-client";
 import { DARK, GREEN, money } from "@/components/pms/expenses/tokens";
 import { DeleteDialog, TransactionCard } from "@/components/pms/expenses/transaction-card";
 import { useBudgets, useTransactions } from "@/components/pms/expenses/use-ledger";
 import { AddTransactionSheet } from "@/components/pms/expenses/add-transaction-sheet";
 import { usePmsBookings } from "@/components/pms/use-pms-bookings";
-import { isVirtualProperty, scopeIncludes } from "@/lib/pms-groups";
+import { isVirtualProperty } from "@/lib/pms-groups";
+import { useBackDismiss } from "@/lib/pms-back-stack";
+import { incomeBookings, monthLabel, monthRange, shiftMonth, type LedgerMonth } from "@/components/pms/expenses/income";
 
 function csvCell(value: string | number): string {
   let s = String(value);
@@ -20,20 +22,39 @@ function propertyName(id: string | null): string {
   return id ? (PROPERTIES.find((p) => p.slug === id)?.name.split(" - ")[0] ?? id) : HQ_LABEL;
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-// Summary cards: total plus the three biggest running-cost groups.
-const SUMMARY: { label: string; category?: string }[] = [
-  { label: "Total spent" },
+// Category cards: tapping one filters the list to that category.
+const CATEGORY_CARDS = [
   { label: "Salaries", category: "Salaries & Wages" },
   { label: "Utilities", category: "Utilities" },
   { label: "Maintenance", category: "Maintenance & Repairs" },
 ];
 
-export function HomeTab({ property, categories, refreshKey, onChanged, onManageCategories }: { property: string; categories: PmsCategory[]; refreshKey: number; onChanged: () => void; onManageCategories: () => void }) {
+const ALL_TIME = monthRange("all");
+
+export function HomeTab({
+  property,
+  categories,
+  refreshKey,
+  month,
+  onMonthChange,
+  onChanged,
+  onManageCategories,
+}: {
+  property: string;
+  categories: PmsCategory[];
+  refreshKey: number;
+  /** "YYYY-MM" or "all", shared with the Analysis tab. */
+  month: LedgerMonth;
+  onMonthChange: (month: LedgerMonth) => void;
+  onChanged: () => void;
+  onManageCategories: () => void;
+}) {
   const today = istToday();
   const year = today.slice(0, 4);
-  const { transactions, error, reload } = useTransactions(property, `${year}-01-01`, `${year}-12-31`, refreshKey);
+  // Every entry is loaded once; the month navigator filters locally.
+  const { transactions, error, reload } = useTransactions(property, ALL_TIME.start, ALL_TIME.end, refreshKey);
+  const listRef = useRef<HTMLElement>(null);
+  const [incomeOpen, setIncomeOpen] = useState(false);
   const { budgets, reload: reloadBudgets } = useBudgets(refreshKey);
   // Booking income for the P&L cards (bookings are attributed to their check-in month).
   const { bookings } = usePmsBookings();
@@ -46,14 +67,12 @@ export function HomeTab({ property, categories, refreshKey, onChanged, onManageC
   const [deleting, setDeleting] = useState<PmsTransaction | null>(null);
   const [editingTx, setEditingTx] = useState<PmsTransaction | null>(null);
   const [busy, setBusy] = useState(false);
-  const [month, setMonth] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [payerFilter, setPayerFilter] = useState("all");
 
   const byName = useMemo(() => new Map(categories.map((c) => [`${c.type}:${c.name.toLowerCase()}`, c])), [categories]);
   const categoryOf = (t: PmsTransaction) => byName.get(`${t.type}:${t.category.toLowerCase()}`);
 
-  const monthsWithData = useMemo(() => [...new Set((transactions ?? []).map((t) => t.expense_date.slice(0, 7)))].sort(), [transactions]);
   const categoriesWithData = useMemo(() => [...new Set((transactions ?? []).map((t) => t.category))].sort(), [transactions]);
   const payers = useMemo(() => [...new Set((transactions ?? []).map((t) => t.paid_by).filter((p): p is string => Boolean(p)))].sort(), [transactions]);
 
@@ -73,27 +92,35 @@ export function HomeTab({ property, categories, refreshKey, onChanged, onManageC
           t.tags.some((tag) => tag.includes(q.replace(/^#/, "")))),
     );
   }, [transactions, search, month, categoryFilter, payerFilter]);
-  const filtersOn = month !== "all" || categoryFilter !== "all" || payerFilter !== "all";
+  const filtersOn = categoryFilter !== "all" || payerFilter !== "all";
 
-  const summary = useMemo(() => {
-    const spent = filtered.filter((t) => t.type === "expense");
-    return SUMMARY.map((s) => ({
-      label: s.label,
-      total: spent.filter((t) => !s.category || t.category === s.category).reduce((sum, t) => sum + t.amount, 0),
-    }));
-  }, [filtered]);
+  // Cards cover the selected month (and payer), but not the category filter,
+  // so tapping one category card never zeroes the others.
+  const cards = useMemo(() => {
+    const spent = (transactions ?? []).filter(
+      (t) =>
+        t.type === "expense" &&
+        (month === "all" || t.expense_date.startsWith(month)) &&
+        (payerFilter === "all" || (t.paid_by ?? "") === payerFilter),
+    );
+    const total = (category?: string) => spent.filter((t) => !category || t.category === category).reduce((s, t) => s + t.amount, 0);
+    return { spent: total(), byCategory: CATEGORY_CARDS.map((c) => ({ ...c, total: total(c.category) })) };
+  }, [transactions, month, payerFilter]);
 
-  // P&L: booking income in the same scope and period minus the expenses shown.
-  const pnl = useMemo(() => {
-    if (property === "hq" || !bookings) return null;
-    const period = month === "all" ? year : month;
-    const income = bookings
-      .filter((b) => b.status !== "cancelled" && b.check_in.startsWith(period) && scopeIncludes(property, b.property_id))
-      .reduce((sum, b) => sum + (b.total || 0), 0);
-    const spent = summary[0]?.total ?? 0;
-    return { income, spent, net: income - spent };
-  }, [bookings, property, month, year, summary]);
-  const shown = seeAll || filtersOn ? filtered : filtered.slice(0, 8);
+  // P&L: booking income in the same scope and month minus the month's spend.
+  const stays = useMemo(() => {
+    if (!bookings) return null;
+    const { start, end } = monthRange(month);
+    return incomeBookings(bookings, property, start, end).sort((a, b) => a.check_in.localeCompare(b.check_in));
+  }, [bookings, property, month]);
+  const income = (stays ?? []).reduce((s, b) => s + (b.total || 0), 0);
+  const showPnl = property !== "hq";
+  const shown = seeAll || filtersOn || month !== "all" ? filtered : filtered.slice(0, 8);
+
+  function filterCategory(category: string) {
+    setCategoryFilter((current) => (current === category ? "all" : category));
+    window.setTimeout(() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  }
 
   const scoped = useMemo(() => {
     const from = period === "monthly" ? today.slice(0, 7) : year;
@@ -147,7 +174,7 @@ export function HomeTab({ property, categories, refreshKey, onChanged, onManageC
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `plix-transactions_${year}.csv`;
+    a.download = `plix-transactions_${month === "all" ? "all-months" : month}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -205,17 +232,65 @@ export function HomeTab({ property, categories, refreshKey, onChanged, onManageC
         </div>
       </section>
 
-      {/* Filters + summary over the filtered entries */}
+      {/* Month navigator (shared with Analysis), filters and clickable cards */}
       <section className="grid gap-3">
-        <div className="grid grid-cols-3 gap-2">
-          <select value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Filter by month" className={`${DARK.input} py-2 text-xs`}>
-            <option value="all">All months</option>
-            {monthsWithData.map((m) => (
-              <option key={m} value={m}>
-                {MONTHS[Number(m.slice(5, 7)) - 1]} {m.slice(0, 4)}
-              </option>
-            ))}
-          </select>
+        <div className="flex items-center justify-between gap-2">
+          <button type="button" disabled={month === "all"} onClick={() => onMonthChange(shiftMonth(month, -1))} aria-label="Previous month" className="rounded-full p-2 text-foreground/80 hover:bg-muted disabled:opacity-30">
+            <ChevronLeft className="size-5" aria-hidden />
+          </button>
+          <div className="text-center">
+            <p className="text-lg font-semibold">{month === "all" ? "All months" : monthLabel(month)}</p>
+            <button
+              type="button"
+              onClick={() => onMonthChange(month === "all" ? today.slice(0, 7) : "all")}
+              className="text-xs font-semibold text-emerald-400 hover:underline"
+            >
+              {month === "all" ? "Back to this month" : "Show all months"}
+            </button>
+          </div>
+          <button type="button" disabled={month === "all"} onClick={() => onMonthChange(shiftMonth(month, 1))} aria-label="Next month" className="rounded-full p-2 text-foreground/80 hover:bg-muted disabled:opacity-30">
+            <ChevronRight className="size-5" aria-hidden />
+          </button>
+        </div>
+
+        {showPnl && (
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => setIncomeOpen(true)} className={`${DARK.card} rounded-2xl border p-3 text-left transition-colors hover:bg-muted/40 border-border`} aria-label="Show contributing bookings">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Booking income</p>
+              <p className="mt-0.5 text-base font-bold" style={{ color: GREEN }}>{stays ? money(income) : "…"}</p>
+              <p className="text-[10px] text-muted-foreground">{stays ? `${stays.length} booking${stays.length === 1 ? "" : "s"} ›` : ""}</p>
+            </button>
+            <button type="button" onClick={() => setCategoryFilter("all")} className={`${DARK.card} rounded-2xl border p-3 text-left transition-colors hover:bg-muted/40 border-border`}>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total spent</p>
+              <p className="mt-0.5 text-base font-bold text-foreground">{transactions ? money(cards.spent) : "-"}</p>
+            </button>
+            <div className={`${DARK.card} ${DARK.border} rounded-2xl p-3`}>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Net cash flow</p>
+              <p className="mt-0.5 text-base font-bold" style={{ color: income - cards.spent >= 0 ? GREEN : "#F87171" }}>
+                {stays && transactions ? `${income - cards.spent < 0 ? "−" : ""}${money(Math.abs(income - cards.spent))}` : "…"}
+              </p>
+            </div>
+          </div>
+        )}
+        <div className={`grid gap-2 ${showPnl ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
+          {!showPnl && (
+            <button type="button" onClick={() => setCategoryFilter("all")} className={`${DARK.card} rounded-2xl border p-3 text-left transition-colors hover:bg-muted/40 border-border`}>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total spent</p>
+              <p className="mt-0.5 text-base font-bold text-foreground">{transactions ? money(cards.spent) : "-"}</p>
+            </button>
+          )}
+          {cards.byCategory.map((c) => {
+            const active = categoryFilter === c.category;
+            return (
+              <button key={c.label} type="button" aria-pressed={active} onClick={() => filterCategory(c.category)} className={`${DARK.card} rounded-2xl border p-3 text-left transition-colors hover:bg-muted/40 ${active ? "border-emerald-400 ring-1 ring-emerald-400/60" : "border-border"}`}>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{c.label}</p>
+                <p className="mt-0.5 text-base font-bold text-foreground">{transactions ? money(c.total) : "-"}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
           <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Filter by category" className={`${DARK.input} py-2 text-xs`}>
             <option value="all">All categories</option>
             {categoriesWithData.map((c) => (
@@ -233,44 +308,17 @@ export function HomeTab({ property, categories, refreshKey, onChanged, onManageC
             ))}
           </select>
         </div>
-        {pnl && (
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: "Booking income", value: pnl.income, color: GREEN },
-              { label: "Total spent", value: pnl.spent, color: undefined },
-              { label: "Net cash flow", value: pnl.net, color: pnl.net >= 0 ? GREEN : "#F87171" },
-            ].map((c) => (
-              <div key={c.label} className={`${DARK.card} ${DARK.border} rounded-2xl p-3`}>
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{c.label}</p>
-                <p className="mt-0.5 text-base font-bold text-foreground" style={c.color ? { color: c.color } : undefined}>
-                  {money(c.value)}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-        {pnl && categoryFilter !== "all" && (
-          <p className="text-[11px] text-muted-foreground">Net uses only the {categoryFilter} spend shown.</p>
-        )}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {summary.map((s) => (
-            <div key={s.label} className={`${DARK.card} ${DARK.border} rounded-2xl p-3`}>
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
-              <p className="mt-0.5 text-base font-bold text-foreground">{transactions ? money(s.total) : "-"}</p>
-            </div>
-          ))}
-        </div>
         {filtersOn && (
-          <button type="button" onClick={() => { setMonth("all"); setCategoryFilter("all"); setPayerFilter("all"); }} className="justify-self-start text-xs font-semibold text-emerald-400 hover:underline">
+          <button type="button" onClick={() => { setCategoryFilter("all"); setPayerFilter("all"); }} className="justify-self-start text-xs font-semibold text-emerald-400 hover:underline">
             Clear filters
           </button>
         )}
       </section>
 
-      {/* Recent transactions */}
-      <section>
+      {/* Transactions */}
+      <section ref={listRef} className="scroll-mt-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">{seeAll || filtersOn ? `Transactions (${filtered.length})` : "Recent Transactions"}</h2>
+          <h2 className="text-sm font-semibold text-foreground">{seeAll || filtersOn || month !== "all" ? `Transactions (${filtered.length})` : "Recent Transactions"}</h2>
           <div className="flex items-center gap-3">
             {seeAll && (
               <button type="button" onClick={exportCsv} disabled={filtered.length === 0} className="flex items-center gap-1 text-xs font-semibold text-foreground/80 hover:text-foreground disabled:opacity-40">
@@ -288,7 +336,7 @@ export function HomeTab({ property, categories, refreshKey, onChanged, onManageC
         </label>
         {error && <p className="mt-3 text-sm font-medium text-red-400">{error}</p>}
         {!transactions && !error && <p className="mt-8 text-center text-sm text-muted-foreground">Loading transactions...</p>}
-        {transactions && shown.length === 0 && <p className="mt-8 text-center text-sm text-muted-foreground">{search ? "No transactions match." : `No transactions in ${year} yet. Tap + to add one.`}</p>}
+        {transactions && shown.length === 0 && <p className="mt-8 text-center text-sm text-muted-foreground">{search || filtersOn ? "No transactions match." : month === "all" ? "No transactions yet. Tap + to add one." : `No transactions in ${monthLabel(month)}.`}</p>}
         <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
           {shown.map((t) => (
             <TransactionCard key={t.id} tx={t} category={categoryOf(t)} propertyLabel={multiProperty ? propertyName(t.property_id) : undefined} onEdit={() => setEditingTx(t)} onDelete={() => setDeleting(t)} />
@@ -301,6 +349,9 @@ export function HomeTab({ property, categories, refreshKey, onChanged, onManageC
         )}
       </section>
 
+      {incomeOpen && stays && (
+        <IncomeSheet stays={stays} total={income} title={month === "all" ? "All months" : monthLabel(month)} onClose={() => setIncomeOpen(false)} />
+      )}
       {editingTx && (
         <AddTransactionSheet
           categories={categories}
@@ -316,6 +367,42 @@ export function HomeTab({ property, categories, refreshKey, onChanged, onManageC
         />
       )}
       {deleting && <DeleteDialog tx={deleting} busy={busy} onCancel={() => setDeleting(null)} onConfirm={() => void confirmDelete()} />}
+    </div>
+  );
+}
+
+/** The bookings behind the Booking income card. */
+function IncomeSheet({ stays, total, title, onClose }: { stays: NonNullable<ReturnType<typeof incomeBookings>>; total: number; title: string; onClose: () => void }) {
+  useBackDismiss(true, onClose);
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 sm:items-center sm:p-4" onClick={onClose}>
+      <div className={`${DARK.card} ${DARK.border} flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-3xl text-foreground sm:rounded-3xl`} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 border-b border-border p-4">
+          <div>
+            <h2 className="text-lg font-semibold">Booking income · {title}</h2>
+            <p className="text-xs text-muted-foreground">
+              {stays.length} booking{stays.length === 1 ? "" : "s"} by check-in · {money(total)}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-2 text-muted-foreground hover:bg-muted">
+            <X className="size-5" aria-hidden />
+          </button>
+        </div>
+        <ul className="grid gap-2 overflow-y-auto p-4">
+          {stays.length === 0 && <li className="py-6 text-center text-sm text-muted-foreground">No bookings check in during this period.</li>}
+          {stays.map((b) => (
+            <li key={`${b.source}-${b.id}`} className={`${DARK.border} flex items-center justify-between gap-3 rounded-2xl border p-3`}>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{b.guest_name}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {propertyName(b.property_id)} · {fmtDate(b.check_in)} → {fmtDate(b.check_out)} · {channelLabel(b.channel)}
+                </p>
+              </div>
+              <p className="shrink-0 text-sm font-bold" style={{ color: GREEN }}>{money(b.total || 0)}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

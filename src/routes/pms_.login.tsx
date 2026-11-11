@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isNetworkError, readBootCache } from "@/lib/pms-offline-cache";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Building2, Eye, EyeOff, Lock, User } from "lucide-react";
@@ -78,7 +79,15 @@ function PmsLogin() {
   useEffect(() => {
     pms("session")
       .then(() => void navigate({ to: "/pms" }))
-      .catch(() => void hidePmsSplash());
+      .catch((err: unknown) => {
+        // Offline cold start with a saved session: open the PMS on saved data
+        // (pms.tsx re-checks the session once the connection is back).
+        if (isNetworkError(err) && readBootCache() !== null) {
+          void navigate({ to: "/pms" });
+          return;
+        }
+        void hidePmsSplash();
+      });
   }, [navigate]);
 
   async function submit(e: React.FormEvent) {

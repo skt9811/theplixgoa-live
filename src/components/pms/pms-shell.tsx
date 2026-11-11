@@ -28,6 +28,7 @@ import { PropertySelector, propertyDisplayName } from "@/components/pms/property
 import { ThemeToggle } from "@/components/pms/theme-toggle";
 import { TrialBanner } from "@/components/pms/trial-banner";
 import { useBackDismiss } from "@/lib/pms-back-stack";
+import { usePmsOffline } from "@/lib/pms-offline-cache";
 import { GROUP_SCOPE_PATHS, VIRTUAL_PROPERTY_GROUPS, isVirtualProperty } from "@/lib/pms-groups";
 
 const NAV = [
@@ -259,6 +260,7 @@ function GroupScopeNotice({ group, onPick }: { group: string; onPick: (slug: str
 export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout: () => void }) {
   const { openCreate, can, user, property, setProperty } = usePms();
   const pathname = useRouterState({ select: (st) => st.location.pathname });
+  const offline = usePmsOffline();
   const [drawer, setDrawer] = useState(false);
   const [search, setSearch] = useState(false);
   useBackDismiss(drawer, () => setDrawer(false));
@@ -359,6 +361,12 @@ export function PmsShell({ children, onLogout }: { children: ReactNode; onLogout
         <p className="border-b border-slate-200 bg-white px-4 py-1.5 text-xs text-slate-400 md:hidden">
           {propertyDisplayName(property)}
         </p>
+        {offline && (
+          <p className="flex items-center justify-center gap-1.5 border-b border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-medium text-amber-800" role="status">
+            <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
+            Offline · showing saved data
+          </p>
+        )}
         <TrialBanner />
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           {isVirtualProperty(property) && !GROUP_SCOPE_PATHS.includes(pathname.replace(/\/$/, "") || "/pms") ? (

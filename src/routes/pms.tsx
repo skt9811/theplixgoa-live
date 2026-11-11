@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getMemberProperties } from "@/lib/pms-groups";
-import { clearPmsCache } from "@/lib/pms-data-cache";
+import {
+  clearPmsBoot,
+  clearPmsCache,
+  markPmsSessionRejected,
+  readPmsBoot,
+  writePmsBoot,
+} from "@/lib/pms-data-cache";
 import { toast } from "sonner";
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { PmsShell } from "@/components/pms/pms-shell";
@@ -10,6 +16,7 @@ import { CreateReservationModal } from "@/components/pms/create-reservation-moda
 import { setDynamicPropertyNames } from "@/components/pms/property-selector";
 import {
   pms,
+  PmsAuthError,
   PMS_PROPERTY_STORAGE_KEY,
   tabForPath,
   TAB_HOME,
@@ -112,10 +119,28 @@ function PmsLayout() {
     [isKnownProperty, isAllowed],
   );
 
+  // Instant start: open on the last confirmed session + property list (saved
+  // on this device), then confirm the session in the background. Declared
+  // before the session effect so it runs first.
+  const startedFromSaved = useRef(false);
+  useEffect(() => {
+    const saved = readPmsBoot<PmsUser, PmsProperty>();
+    if (!saved) return;
+    startedFromSaved.current = true;
+    setDynamicPropertyNames(saved.properties);
+    setUser(saved.user);
+    setProperties(saved.properties);
+    void hidePmsSplash();
+  }, []);
+
   useEffect(() => {
     pms("session")
       .then((res) => {
-        setUser((res as { user: PmsUser }).user);
+        const sessionUser = (res as { user: PmsUser }).user;
+        // A different account than the saved one: drop the old saved data.
+        const saved = readPmsBoot<PmsUser, PmsProperty>();
+        if (saved && (saved.user.id ?? saved.user.name) !== (sessionUser.id ?? sessionUser.name)) clearPmsCache();
+        setUser(sessionUser);
         // Reaching this means the dashboard is really the right screen to
         // show, so the native splash (see capacitor.config.ts's
         // launchAutoHide: false) can come down now.
@@ -133,16 +158,29 @@ function PmsLayout() {
           .then((r) => {
             setDynamicPropertyNames(r.properties);
             setProperties(r.properties);
+            writePmsBoot({ user: sessionUser, properties: r.properties });
           })
           .catch((err) => {
             console.error(
               "[pms] properties fetch failed:",
               err instanceof Error ? err.message : err,
             );
-            setProperties([]);
+            setProperties((current) => current ?? []);
           });
       })
-      .catch(() => void navigate({ to: "/pms/login" }));
+      .catch((err: unknown) => {
+        // Server rejected the session: forget everything saved, sign in again.
+        if (err instanceof PmsAuthError) {
+          markPmsSessionRejected();
+          clearPmsBoot();
+          clearPmsCache();
+          void navigate({ to: "/pms/login" });
+          return;
+        }
+        // Couldn't reach the server: stay on the saved session if we opened
+        // from one (screens show their saved data); otherwise sign in.
+        if (!startedFromSaved.current) void navigate({ to: "/pms/login" });
+      });
   }, [navigate]);
 
   const saveTheme = useCallback((theme: ThemePreference) => {
@@ -156,6 +194,8 @@ function PmsLayout() {
     await pms("logout", { method: "POST" }).catch(() => undefined);
     // Saved PMS data (pms-data-cache) never outlives the session on a shared device.
     clearPmsCache();
+    clearPmsBoot();
+    markPmsSessionRejected();
     // Drop the in-memory session immediately, before anything else — a
     // stale `user` would let PmsShell/Outlet render authed content for one
     // more tick even after the cookie is gone.

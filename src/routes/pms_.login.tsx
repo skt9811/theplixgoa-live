@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { pmsSessionRejected, readPmsBoot } from "@/lib/pms-data-cache";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Building2, Eye, EyeOff, Lock, User } from "lucide-react";
@@ -76,6 +77,12 @@ function PmsLogin() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    // Saved session on this device (and not rejected in this run): open the
+    // PMS straight away — it re-checks the session itself in the background.
+    if (!pmsSessionRejected() && readPmsBoot() !== null) {
+      void navigate({ to: "/pms" });
+      return;
+    }
     pms("session")
       .then(() => void navigate({ to: "/pms" }))
       .catch(() => void hidePmsSplash());

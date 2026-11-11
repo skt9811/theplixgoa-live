@@ -216,7 +216,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('/sw.js').catch(function() {});
   });
-}`,
+}
+// A page saved by the service worker can reference a code chunk that a newer
+// deploy removed. Reload once (at most every 30s) to pick up the fresh page
+// instead of leaving the app stuck.
+window.addEventListener('vite:preloadError', function(e) {
+  try {
+    var last = Number(sessionStorage.getItem('plix_chunk_reload') || 0);
+    if (Date.now() - last < 30000) return;
+    sessionStorage.setItem('plix_chunk_reload', String(Date.now()));
+  } catch (err) {}
+  e.preventDefault();
+  window.location.reload();
+});`,
       },
     ],
   }),

@@ -61,3 +61,48 @@ export function clearPmsCache(): void {
     // best-effort
   }
 }
+
+// ---- saved session (instant start) ---------------------------------------
+// The last confirmed session + property list, so the PMS shell can open
+// before /api/pms/session answers. It is only a starting point: pms.tsx
+// always re-checks the session in the background and signs out on a 401.
+const BOOT_KEY = "plix_pms_boot";
+
+export type PmsBoot<U, P> = { user: U; properties: P[] };
+
+export function readPmsBoot<U, P>(): PmsBoot<U, P> | null {
+  try {
+    const raw = store()?.getItem(BOOT_KEY);
+    const boot = raw ? (JSON.parse(raw) as PmsBoot<U, P>) : null;
+    return boot && boot.user && Array.isArray(boot.properties) ? boot : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writePmsBoot(boot: PmsBoot<unknown, unknown>): void {
+  try {
+    store()?.setItem(BOOT_KEY, JSON.stringify(boot));
+  } catch {
+    // best-effort
+  }
+}
+
+export function clearPmsBoot(): void {
+  try {
+    store()?.removeItem(BOOT_KEY);
+  } catch {
+    // best-effort
+  }
+}
+
+// Set when the server rejects the saved session, so the login page never
+// bounces straight back to /pms in the same app run (even if storage could
+// not be cleared).
+let sessionRejected = false;
+export function markPmsSessionRejected(): void {
+  sessionRejected = true;
+}
+export function pmsSessionRejected(): boolean {
+  return sessionRejected;
+}

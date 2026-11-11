@@ -80,6 +80,31 @@ self.addEventListener("fetch", (event) => {
   // handles it with its own normal HTTP caching semantics instead.
   if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) return;
 
+  // Plix PMS (and its Android app, a WebView of /pms): stale-while-revalidate
+  // so a launch never waits on the network for the page itself. The saved
+  // page is served instantly while a fresh copy downloads in the background
+  // for next time. PMS pages carry no data (it loads from /api/pms, never
+  // cached here). If a saved page asks for a code chunk a newer deploy
+  // removed, __root.tsx's vite:preloadError handler reloads once onto the
+  // fresh page this background fetch has just saved.
+  if (request.mode === "navigate" && (url.pathname === "/pms" || url.pathname.startsWith("/pms/"))) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(request, { ignoreSearch: true });
+        const network = fetch(request).then((response) => {
+          if (response.ok) cache.put(request, response.clone());
+          return response;
+        });
+        if (cached) {
+          event.waitUntil(network.catch(() => undefined));
+          return cached;
+        }
+        return network.catch(() => caches.match("/pms/login").then((login) => login || Response.error()));
+      })
+    );
+    return;
+  }
+
   // Network-first for navigation requests (HTML pages)
   if (request.mode === "navigate") {
     event.respondWith(

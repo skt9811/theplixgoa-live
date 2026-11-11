@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
-import { ChevronLeft, ChevronRight, Quote, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, Quote } from "lucide-react";
 import type { PropertyReview } from "@/lib/property-reviews-data";
 import { OTABadge } from "@/components/plix/platform-mark";
 
@@ -73,23 +73,13 @@ export function ReviewCarousel({
                     {r.platform && <OTABadge platform={r.platform} />}
                   </div>
 
-                  <div className="mt-4 flex gap-0.5">
-                    {Array.from({ length: 5 }).map((_, star) => (
-                      <Star
-                        key={star}
-                        className={`size-3.5 ${
-                          star < r.rating
-                            ? isActive
-                              ? "fill-white text-white"
-                              : "fill-[#c29b72] text-[#c29b72]"
-                            : isActive
-                              ? "fill-none text-white/40"
-                              : "fill-none text-[#c29b72]/30"
-                        }`}
-                        aria-hidden
-                      />
-                    ))}
-                  </div>
+                  {/* Text stars, not 5 SVGs per review: every review on the
+                      homepage is server-rendered, and the SVG markup alone was
+                      ~60KB of each homepage response. */}
+                  <p className="mt-4 text-sm leading-none tracking-[0.15em]" aria-label={`${r.rating} out of 5 stars`}>
+                    <span className={isActive ? "text-white" : "text-[#c29b72]"}>{"★".repeat(r.rating)}</span>
+                    <span className={isActive ? "text-white/40" : "text-[#c29b72]/30"}>{"★".repeat(5 - r.rating)}</span>
+                  </p>
 
                   <blockquote className="mt-4 text-sm leading-relaxed sm:text-base">
                     {r.comment}

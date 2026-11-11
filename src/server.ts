@@ -8,6 +8,7 @@ import { handleSubscribeRequest } from "./lib/subscribe-newsletter.server";
 import { handleContactEnquiryRequest } from "./lib/contact-enquiry.server";
 import { handlePartnerInquiryRequest } from "./lib/partner-inquiry.server";
 import { handleCallbackRequest } from "./lib/callback-request.server";
+import { createHash } from "node:crypto";
 import { handleSitemapRequest } from "./lib/sitemap.server";
 import { handleBlogCoverRequest } from "./lib/blog-cover.server";
 import { handleSendWelcomeEmail } from "./lib/send-welcome-email.server";
@@ -177,8 +178,46 @@ function noStoreForPms(response: Response): Response {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
+// Conditional GET for JSON data responses (/api/* and server functions).
+// The partner app polls /api/portal/bookings every 30s and the POS floor
+// plan every 20s — both re-sent the full payload each time. With an ETag and
+// "private, no-cache" the client's HTTP cache revalidates on every poll, and
+// an unchanged payload comes back as an empty 304 instead, cutting Vercel
+// origin transfer. "private, no-cache" is as fresh as no-store (the client
+// must revalidate every time); it only lets the device keep a copy to compare
+// against. Responses with any other Cache-Control are left alone.
+async function withConditionalGet(request: Request, response: Response): Promise<Response> {
+  if (request.method !== "GET" || response.status !== 200) return response;
+  const cacheControl = response.headers.get("cache-control");
+  if (cacheControl && !/^\s*no-store\b/i.test(cacheControl)) return response;
+  const pathname = new URL(request.url).pathname;
+  if (!pathname.startsWith("/api/") && !pathname.startsWith("/_serverFn/")) return response;
+  if (pathname.startsWith("/api/auth/") || response.headers.has("set-cookie")) return response;
+  if (!(response.headers.get("content-type") ?? "").startsWith("application/json")) return response;
+
+  const body = await response.arrayBuffer();
+  const etag = `W/"${createHash("sha1").update(new Uint8Array(body)).digest("base64url")}"`;
+  const headers = new Headers(response.headers);
+  headers.set("ETag", etag);
+  headers.set("Cache-Control", "private, no-cache");
+  headers.delete("pragma");
+  const inm = request.headers.get("if-none-match");
+  if (inm && inm.split(",").some((t) => t.trim() === etag)) {
+    headers.delete("content-length");
+    headers.delete("content-type");
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(body, { status: 200, statusText: response.statusText, headers });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    return withConditionalGet(request, await app.fetch(request, env, ctx));
+  },
+};
+
+const app = {
+  async fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
     // Handled directly here, before the SSR/router handler: Razorpay's
     // servers POST to this fixed URL, so it needs to exist independent of
     // TanStack Start's client-triggered RPC (createServerFn) mechanism.

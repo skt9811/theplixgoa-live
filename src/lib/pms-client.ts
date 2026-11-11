@@ -129,6 +129,8 @@ export type PmsBooking = {
    * own check, so staff can still take a higher-rate inquiry for the same
    * dates without an override. Always false for online bookings. */
   is_backup_booking: boolean;
+  /** Why it was cancelled (status "cancelled" only); null otherwise. */
+  cancellation_reason?: string | null;
 };
 
 /** GET /api/pms/properties — the signed-in actor's own organization's real

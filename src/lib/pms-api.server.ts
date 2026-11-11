@@ -210,6 +210,8 @@ export type PmsBooking = {
    * own check, so staff can still take a higher-rate inquiry for the same
    * dates without an override. Always false for online bookings. */
   is_backup_booking: boolean;
+  /** Why it was cancelled (status "cancelled" only); null otherwise. */
+  cancellation_reason: string | null;
 };
 
 function safeEqual(a: string, b: string): boolean {
@@ -313,19 +315,13 @@ function num(v: unknown, fallback = 0): number {
 
 type Sql = NonNullable<ReturnType<typeof getWebDb>>;
 
-// Same active-reservation filter as the Partner App (portal-bookings-api.server.ts):
-// deleting a booking from /admin soft-cancels it (bookings.payment_status or
-// portal_bookings.status = 'cancelled'), so those rows must not surface here.
-// Every read goes to the database directly on each request; API responses
-// already carry Cache-Control: no-store.
-// The admin's "delete booking" is a soft delete (admin-bookings-crud.server.ts):
-// portal_bookings.status = 'cancelled' for manual bookings and bookings.
-// payment_status = 'cancelled' for website ones. The partner portal hides both
-// (portal-bookings-api.server.ts), and this query applies exactly the same
-// filters (website: paid / simulated only — an unpaid checkout draft stays
-// pending in the database until payment, and never counts as a booking here;
-// manual: not cancelled, not a pure date block), so a booking removed in
-// /admin can never appear in PMS.
+// Cancelling or "deleting" a booking (PMS cancel, /admin delete) is a soft
+// delete: portal_bookings.status / bookings.payment_status = 'cancelled'.
+// The PMS lists those bookings as cancelled (history and audit) while every
+// revenue, occupancy, availability, invoice and edit path skips status
+// "cancelled". Never listed: pure date blocks, and website checkout drafts
+// that were never paid (cancelled or not). The Partner App
+// (portal-bookings-api.server.ts) still hides cancelled bookings.
 const MEAL_PLANS = ["Room Only", "CP - Breakfast Included", "MAP", "AP", "EP"] as const;
 
 /** Sanitizes whatever landed in the jsonb column/request body into a safe, bounded RoomAllocation[] — never throws, drops anything malformed instead. */
@@ -400,13 +396,19 @@ async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promis
         commission_pct: string | null;
         commission_amount: string | null;
         payment_status: string;
+        cancellation_reason: string | null;
         created_at: Date;
       }[]
     >`
       SELECT id, property_id, guest_name, guest_mobile, guest_email, check_in::text AS check_in, check_out::text AS check_out,
-             nights, guests, rooms, total_amount, subtotal, taxes, commission_pct, commission_amount, payment_status, created_at
+             nights, guests, rooms, total_amount, subtotal, taxes, commission_pct, commission_amount, payment_status,
+             cancellation_reason, created_at
       FROM public.bookings
-      WHERE payment_status IN ('paid', 'simulated') AND organization_id = ${tenantId}
+      -- Paid stays, plus paid stays later cancelled (shown as cancelled, never
+      -- counted). An unpaid checkout draft never appears, cancelled or not.
+      WHERE (payment_status IN ('paid', 'simulated')
+             OR (payment_status = 'cancelled' AND razorpay_payment_id IS NOT NULL))
+        AND organization_id = ${tenantId}
     `,
     sql<
       {
@@ -437,14 +439,17 @@ async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promis
         is_manual_override: boolean;
         override_reason: string | null;
         is_backup_booking: boolean;
+        cancellation_reason: string | null;
       }[]
     >`
       SELECT id, property_id, guest_name, guest_phone, guest_email, check_in::text AS check_in, check_out::text AS check_out,
              nights, guests_count, adults_count, children_count, rooms_count, booking_amount, advance_amount,
              payment_status, channel, status, notes, commission_pct, commission_amount, room_allocations, created_by, created_at,
-             visible_on_partner_app, is_manual_override, override_reason, is_backup_booking
+             visible_on_partner_app, is_manual_override, override_reason, is_backup_booking, cancellation_reason
       FROM public.portal_bookings
-      WHERE status NOT IN ('blocked', 'cancelled') AND organization_id = ${tenantId}
+      -- Cancelled bookings stay listed (status "cancelled"); every revenue,
+      -- occupancy and availability calculation skips them. Pure date blocks never show.
+      WHERE status <> 'blocked' AND organization_id = ${tenantId}
     `,
   ]);
 
@@ -487,6 +492,7 @@ async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promis
       is_manual_override: false,
       override_reason: null,
       is_backup_booking: false,
+      cancellation_reason: r.cancellation_reason ?? null,
     });
   }
   for (const r of manual) {
@@ -532,6 +538,7 @@ async function listBookings(sql: Sql, tenantId: string = DEFAULT_ORG_ID): Promis
       is_manual_override: r.is_manual_override,
       override_reason: r.override_reason,
       is_backup_booking: r.is_backup_booking,
+      cancellation_reason: r.cancellation_reason ?? null,
     });
   }
   return rows.sort((a, b) => a.check_in.localeCompare(b.check_in));

@@ -62,12 +62,13 @@ export const Route = createFileRoute("/pms/bookings")({
   component: PmsBookings,
 });
 
-type StatusFilter = "all" | "upcoming" | "confirmed" | "pending";
+type StatusFilter = "all" | "upcoming" | "confirmed" | "pending" | "cancelled";
 const STATUS_CHIPS: { id: StatusFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "upcoming", label: "Upcoming" },
   { id: "confirmed", label: "Confirmed" },
   { id: "pending", label: "Pending" },
+  { id: "cancelled", label: "Cancelled" },
 ];
 
 const STATUS_STYLE: Record<PmsBooking["status"], string> = {
@@ -224,7 +225,8 @@ function PmsBookings() {
   const summary = useMemo(() => {
     const live = visible.filter((b) => b.status !== "cancelled");
     return {
-      count: visible.length,
+      count: live.length,
+      cancelled: visible.length - live.length,
       revenue: live.reduce((s, b) => s + (b.total || 0), 0),
       advance: live.reduce((s, b) => s + (b.advance || 0), 0),
       balance: live.reduce((s, b) => s + (b.balance || 0), 0),
@@ -321,7 +323,7 @@ function PmsBookings() {
         {bookings && (
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[
-              { label: "Bookings", value: String(summary.count) },
+              { label: "Bookings", value: summary.cancelled ? `${summary.count} · ${summary.cancelled} cancelled` : String(summary.count) },
               { label: "Booking income", value: formatINR(summary.revenue) },
               { label: "Advance collected", value: formatINR(summary.advance) },
               { label: "Balance pending", value: formatINR(summary.balance) },
@@ -350,7 +352,7 @@ function PmsBookings() {
               <article
                 key={`${b.source}-${b.id}`}
                 ref={b.id === highlight ? highlightRef : undefined}
-                className={`rounded-xl border bg-white p-4 ${b.id === highlight ? "border-emerald-400 ring-2 ring-emerald-200" : b.is_manual_override ? "border-red-400 bg-red-50/30" : "border-slate-200"}`}
+                className={`rounded-xl border bg-white p-4 ${b.status === "cancelled" ? "opacity-70 " : ""}${b.id === highlight ? "border-emerald-400 ring-2 ring-emerald-200" : b.is_manual_override ? "border-red-400 bg-red-50/30" : "border-slate-200"}`}
               >
                 <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
                   <span className="rounded-full bg-slate-900 px-2.5 py-1 text-white">
@@ -441,6 +443,11 @@ function PmsBookings() {
                     </div>
                   )}
                 </div>
+                {b.status === "cancelled" && (
+                  <p className="mt-2 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
+                    Cancelled{b.cancellation_reason ? `: ${b.cancellation_reason}` : ""} · not counted in revenue
+                  </p>
+                )}
                 {b.notes && <p className="mt-2 text-xs text-slate-500">Note: {b.notes}</p>}
                 {b.status !== "cancelled" && (
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">

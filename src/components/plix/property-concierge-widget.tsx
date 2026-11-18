@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Bot, Globe, Mic, RotateCcw, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { conciergeChatServerFn, type ConciergeCard } from "@/lib/concierge-chat.server-fn";
+import { trackLeadClick } from "@/lib/lead-tracker";
 
 type Props = { propertyName: string; propertySlug: string };
 
@@ -129,7 +130,7 @@ const CHIPS: { key: ChipKey; emoji: string; query: string }[] = [
   { key: "maps", emoji: "🗺️", query: "Show me on Google Maps." },
 ];
 
-function ConciergeCardView({ card }: { card: ConciergeCard }) {
+function ConciergeCardView({ card, propertySlug }: { card: ConciergeCard; propertySlug: string }) {
   const [activeTab, setActiveTab] = useState(0);
   const bullets = card.tabs ? card.tabs[activeTab]?.bullets : card.bullets;
 
@@ -170,6 +171,11 @@ function ConciergeCardView({ card }: { card: ConciergeCard }) {
           href={card.link.href}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => {
+            if (card.link!.href.includes("api.whatsapp.com")) {
+              trackLeadClick({ channel: "whatsapp", intent: "guest_booking", propertySlug, ctaLocation: "concierge_widget" });
+            }
+          }}
           className="block border-t border-[#F3E5DC] px-3 py-2.5 text-center text-xs font-semibold text-[#C87D65] hover:bg-[#FFFBF9]"
         >
           {card.link.label}
@@ -371,7 +377,7 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
                 }`}
               >
                 <p>{msg.content}</p>
-                {msg.cards?.map((card, ci) => <ConciergeCardView key={ci} card={card} />)}
+                {msg.cards?.map((card, ci) => <ConciergeCardView key={ci} card={card} propertySlug={propertySlug} />)}
               </div>
             </div>
           ))}

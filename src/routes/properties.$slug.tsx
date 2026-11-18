@@ -81,6 +81,7 @@ import {
 } from "@/lib/seo";
 import { buildPropertyFaqs } from "@/lib/property-faqs";
 import { trackFunnelEvent } from "@/lib/gtag";
+import { trackLeadClick } from "@/lib/lead-tracker";
 
 function addDaysISO(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
@@ -697,7 +698,10 @@ function PropertyDetail() {
               {LOCATION_POSTAL_CODES[property.location] && ` ${LOCATION_POSTAL_CODES[property.location]}`} · Reservations:{" "}
               <a
                 href={`tel:${SITE_PHONE_1}`}
-                onClick={() => trackFunnelEvent("click_call", { property_slug: property.slug, location: "concierge_line" })}
+                onClick={() => {
+                  trackFunnelEvent("click_call", { property_slug: property.slug, location: "concierge_line" });
+                  trackLeadClick({ channel: "call", intent: "guest_booking", propertySlug: property.slug, ctaLocation: "property_hero" });
+                }}
                 className="font-medium text-primary hover:underline"
               >
                 {SITE_PHONE_1}
@@ -1074,7 +1078,10 @@ function PropertyDetail() {
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <a
             href={`tel:${SITE_PHONE_1}`}
-            onClick={() => trackFunnelEvent("click_call", { property_slug: property.slug, location: "mobile_sticky_bar" })}
+            onClick={() => {
+              trackFunnelEvent("click_call", { property_slug: property.slug, location: "mobile_sticky_bar" });
+              trackLeadClick({ channel: "call", intent: "guest_booking", propertySlug: property.slug, ctaLocation: "sticky_bar" });
+            }}
             aria-label={`Call The Plix about ${property.name}`}
             className="flex size-11 items-center justify-center rounded-full border border-border text-navy transition-transform active:scale-95"
           >
@@ -1084,7 +1091,10 @@ function PropertyDetail() {
             href={whatsappLink(SITE_PHONE_1, `Hi, I'd like to book ${property.name}. Are my dates available?`)}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => trackFunnelEvent("click_whatsapp", { property_slug: property.slug, location: "mobile_sticky_bar" })}
+            onClick={() => {
+              trackFunnelEvent("click_whatsapp", { property_slug: property.slug, location: "mobile_sticky_bar" });
+              trackLeadClick({ channel: "whatsapp", intent: "guest_booking", propertySlug: property.slug, ctaLocation: "sticky_bar" });
+            }}
             aria-label={`WhatsApp The Plix about ${property.name}`}
             className="flex size-11 items-center justify-center rounded-full bg-[#25D366] text-white transition-transform active:scale-95"
           >

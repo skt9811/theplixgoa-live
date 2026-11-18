@@ -17,6 +17,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { FaqAccordion } from "@/components/plix/faq-accordion";
+import { trackLeadClick } from "@/lib/lead-tracker";
 import { SmartImage } from "@/components/plix/smart-image";
 import ownerPortalImage from "@/assets/Landing_partner_app.jpg";
 import { heroImage, resolveImages } from "@/lib/plix";
@@ -300,6 +301,7 @@ function PartnerPage() {
               href={PARTNER_WHATSAPP_URL}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackLeadClick({ channel: "whatsapp", intent: "partner_onboarding", ctaLocation: "partner_hero" })}
               className="inline-flex items-center gap-2.5 rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition-transform hover:scale-[1.02]"
             >
               <MessageCircle className="size-4" aria-hidden />

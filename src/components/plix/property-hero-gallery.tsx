@@ -6,6 +6,7 @@ import { heroSrcSet } from "@/lib/hero-variants";
 import { PropertyGalleryModal } from "@/components/plix/property-gallery-modal";
 import { SITE_PHONE_1 } from "@/lib/seo";
 import { trackFunnelEvent } from "@/lib/gtag";
+import { trackLeadClick } from "@/lib/lead-tracker";
 
 type Props = {
   images: string[];
@@ -149,6 +150,7 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
                   property_slug: propertySlug,
                   location: "hero_gallery",
                 });
+                trackLeadClick({ channel: "call", intent: "guest_booking", propertySlug, ctaLocation: "hero_gallery" });
               }}
               aria-label="Call reservations"
               className="flex size-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/75"

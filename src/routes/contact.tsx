@@ -16,6 +16,8 @@ import {
   jsonLdScript,
   EDGE_CACHE_CONTROL_LONG,
 } from "@/lib/seo";
+import { trackFunnelEvent } from "@/lib/gtag";
+import { trackLeadClick } from "@/lib/lead-tracker";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -133,13 +135,27 @@ function Contact() {
           </p>
 
           <div className="mt-6 grid gap-3 text-sm">
-            <a href={`tel:${SITE_PHONE_1}`} className="flex items-center gap-3 text-foreground">
+            <a
+              href={`tel:${SITE_PHONE_1}`}
+              onClick={() => {
+                trackFunnelEvent("click_call", { location: "contact_page_reservations" });
+                trackLeadClick({ channel: "call", intent: "guest_booking", ctaLocation: "contact_page_reservations" });
+              }}
+              className="flex items-center gap-3 text-foreground"
+            >
               <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                 <Phone className="size-4" aria-hidden />
               </span>
               Reservations: {SITE_PHONE_1}
             </a>
-            <a href={`tel:${SITE_PHONE_ENQUIRY}`} className="flex items-center gap-3 text-foreground">
+            <a
+              href={`tel:${SITE_PHONE_ENQUIRY}`}
+              onClick={() => {
+                trackFunnelEvent("click_call", { location: "contact_page_enquiry" });
+                trackLeadClick({ channel: "call", intent: "general", ctaLocation: "contact_page_enquiry" });
+              }}
+              className="flex items-center gap-3 text-foreground"
+            >
               <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                 <Phone className="size-4" aria-hidden />
               </span>

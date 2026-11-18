@@ -28,6 +28,7 @@ import {
   syncManualBlocks,
 } from "@/lib/manual-booking-guard.server";
 import { getPmsDb, getWebDb, pingDb } from "@/lib/pms-db.server";
+import { fetchLeadStats } from "@/lib/lead-clicks-core.server";
 import { ensureExpensesSchema, ensureInvoicesSchema } from "@/lib/pms-schema.server";
 import {
   DEFAULT_ORG_ID,
@@ -2766,6 +2767,7 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "owner" |
       return "any";
     case "dashboard/revenue":
     case "revenue/history":
+    case "lead-stats":
       return ["dashboard"];
     case "settings/revenue-access":
       return "admin";
@@ -3031,6 +3033,11 @@ export async function handlePmsApi(request: Request): Promise<Response> {
       const scope = await revenueScope(sql, actor, getTenantId(request, actor), property);
       if (!scope) return json({});
       return json({ revenue: dailyRevenue(scope.bookings, istTodayISO(), scope.units) });
+    }
+    if (path === "lead-stats" && request.method === "GET") {
+      const days = Number(url.searchParams.get("days")) || 7;
+      const stats = await fetchLeadStats(sql, days === 30 ? 30 : 7);
+      return json({ stats });
     }
     if (path === "revenue/history" && request.method === "GET") {
       if (!(await revenueAccess(actor))) return json({ error: "Forbidden" }, 403);

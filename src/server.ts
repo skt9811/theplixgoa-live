@@ -8,6 +8,7 @@ import { handleSubscribeRequest } from "./lib/subscribe-newsletter.server";
 import { handleContactEnquiryRequest } from "./lib/contact-enquiry.server";
 import { handlePartnerInquiryRequest } from "./lib/partner-inquiry.server";
 import { handleCallbackRequest } from "./lib/callback-request.server";
+import { handleTrackLeadRequest } from "./lib/track-lead.server";
 import { createHash } from "node:crypto";
 import { handleSitemapRequest } from "./lib/sitemap.server";
 import { handleBlogCoverRequest } from "./lib/blog-cover.server";
@@ -297,6 +298,17 @@ const app = {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });
+      }
+    }
+    if (url.pathname === "/api/track-lead") {
+      try {
+        return await handleTrackLeadRequest(request);
+      } catch (error) {
+        console.error("[track-lead] unhandled error:", error);
+        // Always 204, even on an unexpected failure — this must never
+        // surface as an error to a sendBeacon/fetch caller that's already
+        // moved on to open tel:/wa.me.
+        return new Response(null, { status: 204 });
       }
     }
     if (url.pathname === "/api/send-welcome-email") {

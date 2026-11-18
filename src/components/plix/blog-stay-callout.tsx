@@ -148,7 +148,9 @@ export function BlogStayHighlight({ properties }: { properties: Property[] }) {
 
 /** Mobile bottom bar for the peak-season posts — same --sticky-cta-h
  * handshake as BlogStickyStayBar below. */
-export function BlogBookDirectBar() {
+export function BlogBookDirectBar({
+  message = "Traveling to Goa for New Year 2027? Avoid platform fees and book direct with The Plix.",
+}: { message?: string }) {
   useEffect(() => {
     document.documentElement.style.setProperty("--sticky-cta-h", "4.5rem");
     return () => {
@@ -160,9 +162,7 @@ export function BlogBookDirectBar() {
       className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-between gap-3 border-t border-border bg-card px-4 pt-3 shadow-lift md:hidden"
       style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
     >
-      <p className="min-w-0 text-xs font-semibold leading-snug text-navy">
-        Traveling to Goa for New Year 2027? Avoid platform fees and book direct with The Plix.
-      </p>
+      <p className="min-w-0 text-xs font-semibold leading-snug text-navy">{message}</p>
       <Link to="/stays" className="shrink-0 rounded-full bg-navy px-4 py-2.5 text-xs font-semibold text-navy-foreground">
         View Villas &amp; Resorts
       </Link>
@@ -240,11 +240,25 @@ export function BlogStayNearby({ stay }: { stay: StayNearby }) {
  * follow the section it belongs to. Posts without inline cards render exactly
  * as before.
  */
-export function BlogArticleBody({ html, slug, properties = [] }: { html: string; slug: string; properties?: Property[] }) {
+export function BlogArticleBody({
+  html,
+  slug,
+  properties = [],
+  fallbackHighlight = [],
+}: {
+  html: string;
+  slug: string;
+  properties?: Property[];
+  /** Stays to feature mid-article in posts without a hand-picked card (the post's "Stay nearby" picks). */
+  fallbackHighlight?: Property[];
+}) {
   const rules = INLINE_PICKS[slug] ?? [];
-  const highlight = (PEAK_SEASON_HIGHLIGHTS[slug] ?? [])
+  const picked = (PEAK_SEASON_HIGHLIGHTS[slug] ?? [])
     .map((s) => properties.find((p) => p.slug === s))
     .filter((p): p is Property => Boolean(p));
+  // Every post gets a stay card mid-article; the two Vagator/Anjuna guides
+  // keep their own area banner instead.
+  const highlight = picked.length > 0 ? picked : STAY_CTA_SLUGS.has(slug) ? [] : fallbackHighlight.slice(0, 2);
   const withBanner = STAY_CTA_SLUGS.has(slug) || highlight.length > 0;
   if (rules.length === 0 && !withBanner) {
     return <article className="prose-blog" dangerouslySetInnerHTML={{ __html: html }} />;

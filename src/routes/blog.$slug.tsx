@@ -221,16 +221,21 @@ function BlogPostPage() {
           <ShareButtons url={shareUrl} title={post.title} />
         </div>
 
-        <BlogArticleBody html={post.content} slug={post.slug} properties={properties} />
+        <BlogArticleBody html={post.content} slug={post.slug} properties={properties} fallbackHighlight={stay.properties} />
 
         <BlogStayNearby stay={stay} />
-        {(STAY_CTA_SLUGS.has(post.slug) || PEAK_SEASON_SLUGS.has(post.slug)) && (
-          <>
-            {PEAK_SEASON_SLUGS.has(post.slug) ? <BlogBookDirectBar /> : <BlogStickyStayBar />}
-            {/* Room under the last content so the mobile bar never covers it. */}
-            <div className="h-20 md:hidden" aria-hidden />
-          </>
+        {/* Mobile bottom bar on every post (most blog readers are on phones):
+            the peak-season NYE message, the Vagator/Anjuna area bar for the two
+            area guides, and a general book-direct bar everywhere else. */}
+        {PEAK_SEASON_SLUGS.has(post.slug) ? (
+          <BlogBookDirectBar />
+        ) : STAY_CTA_SLUGS.has(post.slug) ? (
+          <BlogStickyStayBar />
+        ) : (
+          <BlogBookDirectBar message="Planning a Goa stay? Book direct with The Plix: no platform fees." />
         )}
+        {/* Room under the last content so the mobile bar never covers it. */}
+        <div className="h-20 md:hidden" aria-hidden />
 
         <div className="mt-10 rounded-2xl border border-border bg-gradient-to-br from-navy to-[#1a2a1a] p-8 text-center text-navy-foreground">
           <h3 className="font-serif text-xl font-normal md:text-2xl">

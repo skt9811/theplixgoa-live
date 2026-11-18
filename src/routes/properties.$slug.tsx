@@ -4,6 +4,8 @@ import {
   Footprints,
   Loader as Loader2,
   MapPin,
+  MessageCircle,
+  Phone,
   Tag,
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
@@ -75,6 +77,7 @@ import {
   breadcrumbJsonLd,
   faqPageJsonLd,
   jsonLdScript,
+  whatsappLink,
 } from "@/lib/seo";
 import { buildPropertyFaqs } from "@/lib/property-faqs";
 import { trackFunnelEvent } from "@/lib/gtag";
@@ -1064,8 +1067,30 @@ function PropertyDetail() {
             </p>
           </div>
         ) : (
-          <p className="text-sm font-medium text-muted-foreground">Select dates to see price</p>
+          <p className="text-xs font-medium leading-tight text-muted-foreground">Select dates<br />to see price</p>
         )}
+        {/* One-tap call / WhatsApp for mobile guests (most traffic is mobile;
+            many prefer to ask before booking). WhatsApp names the property. */}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <a
+            href={`tel:${SITE_PHONE_1}`}
+            onClick={() => trackFunnelEvent("click_call", { property_slug: property.slug, location: "mobile_sticky_bar" })}
+            aria-label={`Call The Plix about ${property.name}`}
+            className="flex size-11 items-center justify-center rounded-full border border-border text-navy transition-transform active:scale-95"
+          >
+            <Phone className="size-5" aria-hidden />
+          </a>
+          <a
+            href={whatsappLink(SITE_PHONE_1, `Hi, I'd like to book ${property.name}. Are my dates available?`)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackFunnelEvent("click_whatsapp", { property_slug: property.slug, location: "mobile_sticky_bar" })}
+            aria-label={`WhatsApp The Plix about ${property.name}`}
+            className="flex size-11 items-center justify-center rounded-full bg-[#25D366] text-white transition-transform active:scale-95"
+          >
+            <MessageCircle className="size-5" aria-hidden />
+          </a>
+        </div>
         <button
           type="button"
           onClick={() => {

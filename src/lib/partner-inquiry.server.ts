@@ -17,15 +17,17 @@ type PartnerInquiryInput = {
   lastName: string;
   email: string;
   phone: string;
+  propertyName: string;
   location: string;
   propertyType: string;
   roomCount: string;
+  partnershipModel: string;
   mediaLink: string;
   description: string;
 };
 
 const REQUIRED_FIELDS = ["firstName", "email", "phone", "location", "propertyType", "roomCount"] as const;
-const OPTIONAL_FIELDS = ["lastName", "mediaLink", "description"] as const;
+const OPTIONAL_FIELDS = ["lastName", "propertyName", "partnershipModel", "mediaLink", "description"] as const;
 const MAX_FIELD_LENGTH = 4000;
 
 function isPartnerInquiryInput(data: unknown): data is PartnerInquiryInput {
@@ -59,9 +61,11 @@ function buildInquiryEmail(input: PartnerInquiryInput): string {
     ["Owner name", escapeHtml(`${input.firstName} ${input.lastName ?? ""}`.trim())],
     ["Phone", link(`tel:${input.phone.replace(/[^\d+]/g, "")}`, input.phone)],
     ["Email", link(`mailto:${input.email}`, input.email)],
+    ["Property name", escapeHtml(input.propertyName || "Not provided")],
     ["Location", escapeHtml(input.location)],
     ["Property type", escapeHtml(input.propertyType)],
     ["Bedrooms", escapeHtml(input.roomCount)],
+    ["Preferred model", escapeHtml(input.partnershipModel || "Not sure yet")],
     ["Airbnb / photos", mediaLink],
   ];
   const rowsHtml = rows

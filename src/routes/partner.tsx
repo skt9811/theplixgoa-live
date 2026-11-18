@@ -4,12 +4,15 @@ import {
   Building2,
   Check,
   CircleCheck,
+  Handshake,
   Headphones,
+  MessageCircle,
   Play,
   ShieldCheck,
   Sparkles,
   TrendingUp,
   Users,
+  Wallet,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -26,8 +29,31 @@ import {
   faqPageJsonLd,
   partnerServiceJsonLd,
   jsonLdScript,
+  whatsappLink,
   EDGE_CACHE_CONTROL_LONG,
 } from "@/lib/seo";
+
+// Owner-facing, distinct from the generic sitewide "Chat on WhatsApp"
+// button (guest-facing, booking-inquiry copy) in site-footer.tsx — this one
+// pre-fills a partner-specific message so the Partner Desk team isn't
+// guessing why someone messaged in.
+const PARTNER_WHATSAPP_URL = whatsappLink(
+  SITE_PHONE_ENQUIRY,
+  "Hi, I'd like to list my property with The Plix.",
+);
+
+const PARTNERSHIP_MODELS = [
+  {
+    icon: Wallet,
+    title: "Fixed Lease",
+    body: "We lease your villa directly for a fixed monthly rent, agreed upfront in the partnership agreement. Your income stays the same whatever the season or occupancy — you step back entirely and we run the property.",
+  },
+  {
+    icon: Handshake,
+    title: "Revenue Share / Co-Hosting",
+    body: "We manage your villa as your co-host — pricing, guests and bookings across our direct site, Airbnb and partner channels — and you earn your agreed share of every booking, with a monthly statement showing exactly what you're paid and why.",
+  },
+] as const;
 
 const TITLE = "Villa & Property Management in Goa | List Your Villa | The Plix";
 const DESCRIPTION =
@@ -45,6 +71,10 @@ const faqs = [
   {
     q: "How much does villa management in Goa cost with The Plix?",
     a: "Our fee depends on the property's size, location and condition, and is set out in the partnership agreement after we evaluate your villa — there are no hidden charges beyond what that agreement lists.",
+  },
+  {
+    q: "What's the difference between Fixed Lease and Revenue Share with The Plix?",
+    a: "Under a Fixed Lease, we lease your villa for a fixed monthly rent agreed upfront — your income stays the same regardless of season or occupancy. Under Revenue Share / Co-Hosting, we manage bookings and pricing across our direct site, Airbnb and partner channels, and you earn your agreed share of each booking with a monthly statement. We'll discuss which suits your property after evaluation.",
   },
   {
     q: "Can The Plix manage my Airbnb listing?",
@@ -198,9 +228,11 @@ const emptyForm = {
   lastName: "",
   email: "",
   phone: "",
+  propertyName: "",
   location: "",
   propertyType: "",
   roomCount: "",
+  partnershipModel: "",
   mediaLink: "",
   description: "",
 };
@@ -264,6 +296,15 @@ function PartnerPage() {
               The Plix is a villa and holiday home management company in North Goa. We run your
               property end to end: guests, staff, upkeep, pricing and payouts.
             </p>
+            <a
+              href={PARTNER_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2.5 rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition-transform hover:scale-[1.02]"
+            >
+              <MessageCircle className="size-4" aria-hidden />
+              WhatsApp Partner Desk
+            </a>
           </div>
 
           <div className="rounded-3xl bg-card p-6 text-foreground shadow-card md:p-9">
@@ -301,6 +342,10 @@ function PartnerPage() {
                     Phone *
                     <input required type="tel" value={form.phone} onChange={set("phone")} className={input} placeholder="+91 98765 43210" autoComplete="tel" />
                   </label>
+                  <label className="block text-sm font-medium sm:col-span-2">
+                    Property name
+                    <input value={form.propertyName} onChange={set("propertyName")} className={input} placeholder="e.g. Casa Bella, or leave blank if it doesn't have one yet" />
+                  </label>
                   <label className="block text-sm font-medium">
                     Property location *
                     <select required value={form.location} onChange={set("location")} className={input}>
@@ -333,6 +378,14 @@ function PartnerPage() {
                       <option>4 BHK</option>
                       <option>5+ BHK</option>
                       <option>Resort (8+ keys)</option>
+                    </select>
+                  </label>
+                  <label className="block text-sm font-medium">
+                    Preferred partnership model
+                    <select value={form.partnershipModel} onChange={set("partnershipModel")} className={input}>
+                      <option value="">Not sure yet</option>
+                      <option>Fixed Lease</option>
+                      <option>Revenue Share / Co-Hosting</option>
                     </select>
                   </label>
                   <label className="block text-sm font-medium">
@@ -376,6 +429,29 @@ function PartnerPage() {
             maintenance and on-ground staff. You see every booking and payout in the Plix Partner
             App and can block dates for your own stays at any time.
           </p>
+        </div>
+      </section>
+
+      {/* Two ways to partner — Fixed Lease vs Revenue Share/Co-Hosting */}
+      <section className="mx-auto max-w-5xl px-4 pt-16 md:px-6 md:pt-24">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">How partnership works</p>
+          <h2 className="mt-3 font-serif text-3xl font-normal text-navy md:text-4xl">Two ways to partner with us</h2>
+          <p className="mt-3 text-muted-foreground">
+            We'll walk through both with you after evaluating your property — pick whichever fits
+            how hands-off you want to be.
+          </p>
+        </div>
+        <div className="mt-10 grid gap-6 sm:grid-cols-2">
+          {PARTNERSHIP_MODELS.map((m) => (
+            <div key={m.title} className="rounded-2xl border border-border bg-card p-7 shadow-soft">
+              <span className="flex size-11 items-center justify-center rounded-xl bg-gradient-emerald text-primary-foreground">
+                <m.icon className="size-5" aria-hidden />
+              </span>
+              <h3 className="mt-5 text-lg font-semibold text-navy">{m.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{m.body}</p>
+            </div>
+          ))}
         </div>
       </section>
 

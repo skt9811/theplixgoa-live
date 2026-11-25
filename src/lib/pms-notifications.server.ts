@@ -6,7 +6,7 @@
 // until FIREBASE_SERVICE_ACCOUNT_KEY is set, since building fake delivery
 // would be worse than an honest no-op.
 import { ensureInquiriesSchema } from "@/lib/pms-schema.server";
-import { getTenantId } from "@/lib/tenant-context.server";
+import { DEFAULT_ORG_ID, getTenantId } from "@/lib/tenant-context.server";
 import { getPmsDb } from "@/lib/pms-db.server";
 import { assertFeatureEnabled } from "@/lib/pms-billing.server";
 import { json, str } from "@/lib/pms-pos-shared.server";
@@ -287,6 +287,13 @@ export async function sendNewBookingAlert(propertyId: string, b: NewBookingAlert
   const bodyWithoutAmount = `${b.propertyName} • ${rooms} • ${b.checkIn} to ${b.checkOut}`;
   const data = { type: "booking", bookingId: b.bookingId, url: `/pms/bookings?highlight=${b.bookingId}` };
   console.log("[Push] dispatching new booking alert:", { propertyId, bookingId: b.bookingId });
+  // Plix's own bookings also go to the ops WhatsApp group (never other tenants').
+  if (b.organizationId === DEFAULT_ORG_ID) {
+    const { bookingAlert, notifyOps } = await import("@/lib/whatsapp/ops-alerts.server");
+    await notifyOps(
+      bookingAlert({ propertyName: b.propertyName, guest: b.guestName, checkIn: b.checkIn, checkOut: b.checkOut, rooms: b.rooms, total: b.amount }),
+    );
+  }
   try {
     const [staff, owners, caretakers] = await Promise.all([
       bookingStaffTokens(propertyId, b.organizationId),

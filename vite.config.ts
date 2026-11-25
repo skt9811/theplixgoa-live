@@ -21,5 +21,9 @@ export default defineConfig({
   // Cloudflare default.
   nitro: {
     preset: "vercel",
+    // Up to 60s so a WhatsApp alert can connect, send and disconnect in the
+    // background after a response (waitUntil), and so the one-time pairing
+    // page can keep the connection open while its QR code is scanned.
+    vercel: { functions: { maxDuration: 60 } },
   },
 });

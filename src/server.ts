@@ -8,6 +8,7 @@ import { handleSubscribeRequest } from "./lib/subscribe-newsletter.server";
 import { handleContactEnquiryRequest } from "./lib/contact-enquiry.server";
 import { handlePartnerInquiryRequest } from "./lib/partner-inquiry.server";
 import { handleCallbackRequest } from "./lib/callback-request.server";
+import { handleWhatsAppRoute } from "./lib/whatsapp/routes.server";
 import { handleTrackLeadRequest } from "./lib/track-lead.server";
 import { createHash } from "node:crypto";
 import { handleSitemapRequest } from "./lib/sitemap.server";
@@ -298,6 +299,14 @@ const app = {
           status: 500,
           headers: { "Content-Type": "application/json" },
         });
+      }
+    }
+    if (url.pathname.startsWith("/api/whatsapp/") || url.pathname === "/api/cron/daily-ops-report") {
+      try {
+        return await handleWhatsAppRoute(request, url.pathname);
+      } catch (error) {
+        console.error("[whatsapp] route error:", error);
+        return new Response(JSON.stringify({ error: "Internal error" }), { status: 500, headers: { "Content-Type": "application/json" } });
       }
     }
     if (url.pathname === "/api/track-lead") {

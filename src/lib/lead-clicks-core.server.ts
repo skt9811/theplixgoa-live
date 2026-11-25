@@ -71,6 +71,10 @@ export async function insertLeadClick(input: LeadClickInput): Promise<boolean> {
       VALUES
         (${input.channel}, ${input.intent}, ${input.propertySlug}, ${input.sourcePath}, ${input.ctaLocation}, ${input.deviceType}, ${input.referrer})
     `;
+    // WhatsApp the ops group. Dynamic import (like postgres above) keeps
+    // Baileys out of anything a client bundle can reach.
+    const { clickAlert, notifyOps } = await import("@/lib/whatsapp/ops-alerts.server");
+    await notifyOps(clickAlert(input));
     return true;
   } catch (err) {
     console.error("[lead-clicks] insert failed:", err instanceof Error ? err.message : err);

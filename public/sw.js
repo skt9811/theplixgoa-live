@@ -7,7 +7,7 @@
 // keep being served from cache indefinitely regardless of this file's own
 // logic changing. Bump this again any time /admin (or anything else this
 // worker precaches/caches) needs a hard reset for existing visitors.
-const CACHE_NAME = "plix-admin-v4";
+const CACHE_NAME = "plix-v5-2026-11-25";
 // /admin deliberately NOT precached — see the fetch handler below, which
 // now excludes /admin entirely from this worker's caching (no offline use
 // case for an admin login screen justifies the risk of ever serving a
@@ -46,24 +46,6 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// The deploy a page belongs to: the set of hashed code files it loads.
-function assetSignature(html) {
-  return (html.match(/\/assets\/[\w.-]+\.(?:js|css)/g) || []).sort().join("|");
-}
-
-async function notifyUpdate(clientId) {
-  // The page may not exist yet when its navigation is still in flight; retry briefly.
-  for (let i = 0; i < 10; i++) {
-    const client = clientId ? await self.clients.get(clientId) : null;
-    const targets = client ? [client] : await self.clients.matchAll({ type: "window" });
-    if (targets.length) {
-      targets.forEach((c) => c.postMessage({ type: "plix-pms-update" }));
-      return;
-    }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-}
-
 // Fetch: network-first for navigation, cache-first for static assets
 self.addEventListener("fetch", (event) => {
   const { request } = event;
@@ -98,37 +80,29 @@ self.addEventListener("fetch", (event) => {
   // handles it with its own normal HTTP caching semantics instead.
   if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) return;
 
-  // Plix PMS (and its Android app, a WebView of /pms): stale-while-revalidate
-  // so a launch never waits on the network for the page itself. The saved
-  // page is served instantly while a fresh copy downloads in the background
-  // for next time. PMS pages carry no data (it loads from /api/pms, never
-  // cached here). If a saved page asks for a code chunk a newer deploy
-  // removed, __root.tsx's vite:preloadError handler reloads once onto the
-  // fresh page this background fetch has just saved.
+  // Plix PMS (and its Android app, a WebView of /pms): strictly network-first,
+  // bypassing the HTTP cache, so an online launch always gets the page of the
+  // current deploy. (Serving a saved page first — tried for faster starts —
+  // opened the previous deploy on every cold launch, and its code chunks no
+  // longer exist after a deploy, so navigating crashed.) The saved copy is
+  // used only when there is no connection at all. Saved session and data
+  // (pms-data-cache.ts) still make the screens fill in immediately.
   if (request.mode === "navigate" && (url.pathname === "/pms" || url.pathname.startsWith("/pms/"))) {
     event.respondWith(
-      caches.open(CACHE_NAME).then(async (cache) => {
-        const cached = await cache.match(request, { ignoreSearch: true });
-        // The fresh copy is fully saved before anyone is told to reload onto it.
-        const network = fetch(request).then(async (response) => {
-          if (response.ok) await cache.put(request, response.clone());
+      fetch(request, { cache: "no-store" })
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
           return response;
-        });
-        if (cached) {
-          // When the fresh page belongs to a newer deploy (different code
-          // files), tell the open page so it can switch to it right away
-          // instead of waiting for the next launch.
-          event.waitUntil(
-            Promise.all([cached.clone().text(), network.then((r) => (r.ok ? r.clone().text() : null))])
-              .then(([oldHtml, newHtml]) => {
-                if (newHtml && assetSignature(oldHtml) !== assetSignature(newHtml)) notifyUpdate(event.resultingClientId || event.clientId);
-              })
-              .catch(() => undefined)
-          );
-          return cached;
-        }
-        return network.catch(() => caches.match("/pms/login").then((login) => login || Response.error()));
-      })
+        })
+        .catch(() =>
+          caches
+            .match(request, { ignoreSearch: true })
+            .then((cached) => cached || caches.match("/pms/login"))
+            .then((cached) => cached || Response.error())
+        )
     );
     return;
   }

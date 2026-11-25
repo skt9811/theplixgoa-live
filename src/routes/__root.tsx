@@ -109,8 +109,46 @@ function NotFoundComponent() {
   );
 }
 
+// A code chunk from an older deploy that no longer exists (a page loaded
+// before a deploy, then navigated): not a real error — reload onto the
+// current version once instead of showing the error screen.
+const STALE_CHUNK = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|ChunkLoadError|Loading chunk .* failed|Unable to preload CSS/i;
+
+/** At most one automatic reload per 30s, so a real failure can't loop. */
+function mayReloadForStaleChunk(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return Date.now() - Number(sessionStorage.getItem("plix_chunk_reload") || 0) >= 30_000;
+  } catch {
+    return true;
+  }
+}
+
+function reloadForStaleChunk(): void {
+  try {
+    sessionStorage.setItem("plix_chunk_reload", String(Date.now()));
+  } catch {
+    // storage blocked: still reload once
+  }
+  window.location.reload();
+}
+
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
-  console.error(error);
+  // Reload only if allowed; otherwise fall through to the normal error screen.
+  const staleChunk =
+    STALE_CHUNK.test(error instanceof Error ? `${error.name} ${error.message}` : String(error)) && mayReloadForStaleChunk();
+  useEffect(() => {
+    if (staleChunk) reloadForStaleChunk();
+  }, [staleChunk]);
+  if (!staleChunk) console.error(error);
+
+  if (staleChunk) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4 text-sm text-muted-foreground">
+        Updating to the latest version…
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -215,26 +253,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         children: `if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('/sw.js').catch(function() {});
-  });
-}
-// The service worker served a saved PMS page and has just downloaded a newer
-// deploy: reload onto it if the app was only just opened, otherwise offer a
-// one-tap reload (never interrupt someone mid-task). Once per page load.
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('message', function(e) {
-    if (!e.data || e.data.type !== 'plix-pms-update' || window.__plixUpdateSeen) return;
-    window.__plixUpdateSeen = true;
-    var recent = false;
-    try {
-      recent = Date.now() - Number(sessionStorage.getItem('plix_update_reload') || 0) < 60000;
-      if (!recent && performance.now() < 8000) sessionStorage.setItem('plix_update_reload', String(Date.now()));
-    } catch (err) {}
-    if (!recent && performance.now() < 8000) { window.location.reload(); return; }
-    var b = document.createElement('button');
-    b.textContent = 'New version available — tap to reload';
-    b.setAttribute('style', 'position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:2147483647;padding:10px 18px;border:0;border-radius:999px;background:#0f172a;color:#fff;font:600 13px system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.25)');
-    b.onclick = function() { window.location.reload(); };
-    document.body.appendChild(b);
   });
 }
 // A page saved by the service worker can reference a code chunk that a newer

@@ -11,12 +11,12 @@
 //
 // Env: WHATSAPP_OPS_GROUP_JID (the group's "…@g.us" id). Unset = alerts are
 // queued but not sent.
-import makeWASocket, { Browsers, DisconnectReason, fetchLatestBaileysVersion, type WASocket } from "@whiskeysockets/baileys";
+import makeWASocket, { Browsers, DisconnectReason, fetchLatestBaileysVersion, type AuthenticationState, type WASocket } from "@whiskeysockets/baileys";
 import { waitUntil } from "@vercel/functions";
 import pino from "pino";
 import QRCode from "qrcode";
 import { getWebDb } from "@/lib/pms-db.server";
-import { clearWhatsAppAuth, useNeonAuthState } from "@/lib/whatsapp/neon-auth.server";
+import { clearWhatsAppAuth, isWhatsAppPaired, memoryAuthState, persistAuthState, useNeonAuthState } from "@/lib/whatsapp/neon-auth.server";
 
 type Sql = NonNullable<ReturnType<typeof getWebDb>>;
 const logger = pino({ level: "silent" });
@@ -48,8 +48,11 @@ function statusCode(err: unknown): number | undefined {
   return (err as { output?: { statusCode?: number } } | undefined)?.output?.statusCode;
 }
 
-async function createSocket(): Promise<{ sock: WASocket; registered: boolean }> {
-  const { state, saveCreds } = await useNeonAuthState();
+/** Socket on the saved (Neon) session, or on a given in-memory state while pairing. */
+async function createSocket(memory?: AuthenticationState): Promise<{ sock: WASocket; registered: boolean }> {
+  const { state, saveCreds } = memory ? { state: memory, saveCreds: async () => undefined } : await useNeonAuthState();
+  // Current WhatsApp Web version (an outdated one is a common cause of 401/405
+  // at the handshake); Baileys' bundled version if the lookup fails.
   const version = await fetchLatestBaileysVersion()
     .then((v) => v.version)
     .catch(() => undefined);
@@ -57,7 +60,8 @@ async function createSocket(): Promise<{ sock: WASocket; registered: boolean }> 
     auth: state,
     logger,
     ...(version ? { version } : {}),
-    browser: Browsers.macOS("Plix Ops Alerts"),
+    // A standard browser identity (required for phone-number pairing codes).
+    browser: Browsers.macOS("Chrome"),
     markOnlineOnConnect: false,
     syncFullHistory: false,
     shouldSyncHistoryMessage: () => false,
@@ -177,64 +181,94 @@ export async function listWhatsAppGroups(): Promise<{ id: string; subject: strin
 export type PairingResult =
   | { status: "paired" }
   | { status: "qr"; qrDataUrl: string; untilMs: number }
+  | { status: "code"; code: string; untilMs: number }
   | { status: "error"; message: string };
 
 /**
- * Starts pairing. Returns the first QR code (valid ~60s) as soon as WhatsApp
- * issues it, and keeps the connection alive in the background (waitUntil)
- * long enough to finish linking once it is scanned — including the one
- * restart WhatsApp requires right after a new device is linked.
+ * Starts linking the ops number, by QR code or (with `phone`) an 8-character
+ * pairing code. Runs on an in-memory session; the saved session is replaced
+ * only once linking fully completes, so failed or overlapping attempts leave
+ * nothing stale behind. The connection stays open in the background
+ * (waitUntil) for `windowMs` so the code can be scanned/entered, including
+ * the one restart WhatsApp requires right after a new device is linked.
  */
-export async function startWhatsAppPairing(windowMs = 55_000): Promise<PairingResult> {
+export async function startWhatsAppPairing(opts: { phone?: string; reset?: boolean } = {}, windowMs = 55_000): Promise<PairingResult> {
   const started = Date.now();
-  const { sock, registered } = await createSocket();
-  if (registered) {
-    sock.end(undefined);
+  if (opts.reset) await clearWhatsAppAuth();
+
+  // Already linked: confirm the saved session still works.
+  if (!opts.reset && (await isWhatsAppPairedSafe())) {
     try {
       await withWhatsApp(async () => undefined);
       return { status: "paired" };
     } catch (err) {
-      return { status: "error", message: err instanceof Error ? err.message : String(err) };
+      // withWhatsApp clears a session WhatsApp has logged out (401); then pair afresh.
+      if (await isWhatsAppPairedSafe()) return { status: "error", message: err instanceof Error ? err.message : String(err) };
     }
   }
 
-  let resolveQr!: (r: PairingResult) => void;
-  const firstQr = new Promise<PairingResult>((r) => (resolveQr = r));
+  const memory = memoryAuthState();
+  const digits = (opts.phone ?? "").replace(/\D/g, "");
+  let resolveFirst!: (r: PairingResult) => void;
+  const first = new Promise<PairingResult>((r) => (resolveFirst = r));
+  const remaining = () => Math.max(1000, windowMs - (Date.now() - started));
 
-  const watch = (s: WASocket) =>
+  const watch = (sock: WASocket, isRestart: boolean) =>
     new Promise<void>((done) => {
       const stopAt = setTimeout(() => {
-        s.end(undefined);
+        sock.end(undefined);
         done();
-      }, Math.max(1000, windowMs - (Date.now() - started)));
-      s.ev.on("connection.update", (u) => {
-        if (u.qr) {
-          void QRCode.toDataURL(u.qr, { margin: 1, width: 320 }).then((qrDataUrl) =>
-            resolveQr({ status: "qr", qrDataUrl, untilMs: windowMs - (Date.now() - started) }),
-          );
+      }, remaining());
+      let codeRequested = false;
+      sock.ev.on("connection.update", (u) => {
+        if (u.qr && !isRestart) {
+          if (digits && !codeRequested) {
+            codeRequested = true;
+            sock
+              .requestPairingCode(digits)
+              .then((code) => resolveFirst({ status: "code", code: code.length === 8 ? `${code.slice(0, 4)}-${code.slice(4)}` : code, untilMs: remaining() }))
+              .catch((err) => resolveFirst({ status: "error", message: `WhatsApp refused the pairing code request: ${err instanceof Error ? err.message : String(err)}` }));
+          } else if (!digits) {
+            void QRCode.toDataURL(u.qr, { margin: 1, width: 320 }).then((qrDataUrl) => resolveFirst({ status: "qr", qrDataUrl, untilMs: remaining() }));
+          }
         }
         if (u.connection === "open") {
           clearTimeout(stopAt);
-          void sleep(3000).then(() => {
-            s.end(undefined);
-            done();
-          });
+          // Linked: save the complete session, then disconnect.
+          void sleep(2500)
+            .then(() => persistAuthState(memory.state.creds, memory.keys))
+            .catch((err) => console.error("[whatsapp] saving the linked session failed:", err instanceof Error ? err.message : err))
+            .finally(() => {
+              sock.end(undefined);
+              done();
+            });
         } else if (u.connection === "close") {
           clearTimeout(stopAt);
-          // Right after scanning, WhatsApp asks the new device to reconnect.
-          if (statusCode(u.lastDisconnect?.error) === DisconnectReason.restartRequired && Date.now() - started < windowMs) {
-            void createSocket().then(({ sock: next }) => watch(next).then(done));
+          const code = statusCode(u.lastDisconnect?.error);
+          if (code === DisconnectReason.restartRequired && Date.now() - started < windowMs) {
+            void createSocket(memory.state).then(({ sock: next }) => watch(next, true).then(done));
           } else {
-            resolveQr({ status: "error", message: `WhatsApp closed the connection (${statusCode(u.lastDisconnect?.error) ?? "unknown"})` });
+            resolveFirst({
+              status: "error",
+              message:
+                code === DisconnectReason.loggedOut
+                  ? "WhatsApp rejected the link request (401). Wait a minute, then try again — or use the pairing-code option."
+                  : `WhatsApp closed the connection (${code ?? "unknown"}).`,
+            });
             done();
           }
         }
       });
     });
 
-  waitUntil(watch(sock));
-  const timeout = sleep(25_000).then((): PairingResult => ({ status: "error", message: "WhatsApp did not send a QR code in time — reload to try again." }));
-  return Promise.race([firstQr, timeout]);
+  const { sock } = await createSocket(memory.state);
+  waitUntil(watch(sock, false));
+  const timeout = sleep(25_000).then((): PairingResult => ({ status: "error", message: "WhatsApp did not respond in time — try again." }));
+  return Promise.race([first, timeout]);
+}
+
+async function isWhatsAppPairedSafe(): Promise<boolean> {
+  return isWhatsAppPaired().catch(() => false);
 }
 
 // ---- message formats -------------------------------------------------------

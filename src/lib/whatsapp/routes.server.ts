@@ -67,16 +67,33 @@ export async function handleWhatsAppRoute(req: Request, pathname: string): Promi
   const withSecret = (path: string) => (secret ? `${path}?secret=${encodeURIComponent(secret)}` : path);
 
   if (pathname === "/api/whatsapp/pair") {
-    const result = await startWhatsAppPairing();
+    const params = new URL(req.url).searchParams;
+    const phone = (params.get("phone") ?? "").replace(/\D/g, "");
+    const reset = params.get("reset") === "1";
+    const esc = (v: string) => v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+    const again = withSecret("/api/whatsapp/pair") + (secret ? "&" : "?") + "reset=1";
+    const phoneForm = `<form method="get" action="/api/whatsapp/pair" style="margin-top:24px;padding:16px;border:1px solid #e2e8f0;border-radius:12px">
+      <p style="margin:0 0 8px"><b>Or link with an 8-digit code</b> (if scanning doesn't work):</p>
+      ${secret ? `<input type="hidden" name="secret" value="${esc(secret)}">` : ""}<input type="hidden" name="reset" value="1">
+      <input name="phone" inputmode="tel" required placeholder="Ops number with country code, e.g. 919876543210" value="${esc(phone)}" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px;box-sizing:border-box">
+      <button style="margin-top:8px;padding:10px 16px;border:0;border-radius:8px;background:#0f172a;color:#fff;font-weight:600">Get 8-digit pairing code</button></form>`;
+    if (phone && phone.length < 10) return page("Link WhatsApp", `<h1>Check the number</h1><p>Enter the full number with country code, digits only (e.g. 919876543210).</p>${phoneForm}`);
+
+    const result = await startWhatsAppPairing({ ...(phone ? { phone } : {}), reset });
     if (result.status === "paired")
-      return page("WhatsApp connected", `<h1>Connected ✅</h1><p>The WhatsApp session is saved in Neon.</p><p>Next: <a href="${withSecret("/api/whatsapp/groups")}">list your groups</a> to copy the ops group id into <code>WHATSAPP_OPS_GROUP_JID</code>.</p>`);
+      return page("WhatsApp connected", `<h1>Connected ✅</h1><p>The WhatsApp session is saved in Neon.</p><p>Next: <a href="${withSecret("/api/whatsapp/groups")}">list your groups</a> to copy the ops group id into <code>WHATSAPP_OPS_GROUP_JID</code>.</p><p style="color:#64748b;font-size:14px">To link a different number: <a href="${again}">start over</a>.</p>`);
+    if (result.status === "code")
+      return page(
+        "WhatsApp pairing code",
+        `<h1>Enter this code on the ops phone</h1><p style="font-size:44px;font-weight:800;letter-spacing:6px;font-family:ui-monospace,monospace;margin:16px 0">${esc(result.code)}</p><ol><li>On the ops phone: WhatsApp → Settings → Linked devices → Link a device.</li><li>Tap <b>Link with phone number instead</b> and enter the code above.</li><li>Do it within about ${Math.max(20, Math.round(result.untilMs / 1000) - 5)} seconds, wait 10 seconds, then <a href="${withSecret("/api/whatsapp/pair")}">check the connection</a>.</li></ol><p style="color:#64748b;font-size:14px">Code expired? <a href="${again}&phone=${phone}">Get a new code</a>.</p>`,
+      );
     if (result.status === "qr")
       return page(
         "Link WhatsApp",
-        `<h1>Link the ops WhatsApp number</h1><img src="${result.qrDataUrl}" alt="WhatsApp QR code"><ol><li>On the ops phone: WhatsApp → Settings → Linked devices → Link a device.</li><li>Scan this code within about a minute.</li><li>Wait 10 seconds, then refresh this page — it should say <b>Connected</b>.</li></ol><p>The code refreshes automatically if it expires.</p>`,
+        `<h1>Link the ops WhatsApp number</h1><img src="${result.qrDataUrl}" alt="WhatsApp QR code"><ol><li>On the ops phone: WhatsApp → Settings → Linked devices → Link a device.</li><li>Scan this code within about a minute.</li><li>Wait 10 seconds, then refresh this page — it should say <b>Connected</b>.</li></ol>${phoneForm}`,
         Math.max(20, Math.round(result.untilMs / 1000) + 3),
       );
-    return page("WhatsApp pairing", `<h1>Couldn't start pairing</h1><p>${result.message}</p><p><a href="">Try again</a></p>`);
+    return page("WhatsApp pairing", `<h1>Couldn't start pairing</h1><p>${esc(result.message)}</p><p><a href="${again}">Try again</a> (starts fresh)</p>${phoneForm}`);
   }
 
   if (pathname === "/api/whatsapp/groups") {

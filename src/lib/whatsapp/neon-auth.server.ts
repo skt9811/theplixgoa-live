@@ -110,3 +110,48 @@ export async function clearWhatsAppAuth(): Promise<void> {
   await ensureTable(sql);
   await sql.unsafe(`DELETE FROM public.${TABLE}`);
 }
+
+/**
+ * In-memory auth state for pairing. Nothing touches Neon until linking has
+ * fully completed (persistAuthState), so an abandoned or failed attempt can
+ * never leave half-made credentials behind, and two overlapping attempts
+ * can't overwrite each other's keys.
+ */
+export function memoryAuthState(): { state: AuthenticationState; keys: Map<string, unknown> } {
+  const keys = new Map<string, unknown>();
+  const state: AuthenticationState = {
+    creds: initAuthCreds(),
+    keys: {
+      get: async (type, ids) => {
+        const out: { [id: string]: SignalDataTypeMap[typeof type] } = {};
+        for (const id of ids) {
+          const value = keys.get(`${type}-${id}`);
+          if (value !== undefined) out[id] = value as SignalDataTypeMap[typeof type];
+        }
+        return out;
+      },
+      set: async (data) => {
+        for (const [type, entries] of Object.entries(data)) {
+          for (const [id, value] of Object.entries(entries ?? {})) {
+            if (value) keys.set(`${type}-${id}`, value);
+            else keys.delete(`${type}-${id}`);
+          }
+        }
+      },
+    },
+  };
+  return { state, keys };
+}
+
+/** Replaces whatever is stored with a freshly linked session. */
+export async function persistAuthState(creds: AuthenticationCreds, keys: Map<string, unknown>): Promise<void> {
+  const sql = db();
+  await ensureTable(sql);
+  await sql.begin(async (tx) => {
+    await tx.unsafe(`DELETE FROM public.${TABLE}`);
+    await tx.unsafe(`INSERT INTO public.${TABLE} (key_id, data) VALUES ('creds', $1)`, [tx.json(toJson(creds))]);
+    for (const [keyId, value] of keys) {
+      await tx.unsafe(`INSERT INTO public.${TABLE} (key_id, data) VALUES ($1, $2)`, [keyId, tx.json(toJson(value))]);
+    }
+  });
+}

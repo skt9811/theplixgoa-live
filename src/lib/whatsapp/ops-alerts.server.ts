@@ -68,7 +68,8 @@ async function createSocket(memory?: AuthenticationState): Promise<{ sock: WASoc
     generateHighQualityLinkPreview: false,
   });
   sock.ev.on("creds.update", () => void saveCreds());
-  return { sock, registered: Boolean(state.creds.registered) };
+  // QR-linked sessions set creds.me but not creds.registered.
+  return { sock, registered: Boolean(state.creds.registered || state.creds.me?.id) };
 }
 
 /** Connects as the paired number, runs fn, then disconnects. */
@@ -211,7 +212,11 @@ export async function startWhatsAppPairing(opts: { phone?: string; reset?: boole
   const digits = (opts.phone ?? "").replace(/\D/g, "");
   let resolveFirst!: (r: PairingResult) => void;
   const first = new Promise<PairingResult>((r) => (resolveFirst = r));
-  const remaining = () => Math.max(1000, windowMs - (Date.now() - started));
+  // Once WhatsApp reports the new link, allow the post-link restart to
+  // finish even past the scan window (still inside the 60s function limit).
+  let linked = false;
+  const deadline = () => started + (linked ? 58_000 : windowMs);
+  const remaining = () => Math.max(1000, deadline() - Date.now());
 
   const watch = (sock: WASocket, isRestart: boolean) =>
     new Promise<void>((done) => {
@@ -221,6 +226,10 @@ export async function startWhatsAppPairing(opts: { phone?: string; reset?: boole
       }, remaining());
       let codeRequested = false;
       sock.ev.on("connection.update", (u) => {
+        if (u.isNewLogin) {
+          linked = true;
+          console.log("[whatsapp] pairing: device linked, waiting for restart");
+        }
         if (u.qr && !isRestart) {
           if (digits && !codeRequested) {
             codeRequested = true;
@@ -234,9 +243,12 @@ export async function startWhatsAppPairing(opts: { phone?: string; reset?: boole
         }
         if (u.connection === "open") {
           clearTimeout(stopAt);
-          // Linked: save the complete session, then disconnect.
-          void sleep(2500)
+          console.log("[whatsapp] pairing: connection open, saving session to Neon");
+          // Linked: save the complete session right away, then disconnect
+          // (a short pause first so any final key updates are captured).
+          void sleep(1000)
             .then(() => persistAuthState(memory.state.creds, memory.keys))
+            .then(() => console.log("[whatsapp] pairing: session saved to Neon"))
             .catch((err) => console.error("[whatsapp] saving the linked session failed:", err instanceof Error ? err.message : err))
             .finally(() => {
               sock.end(undefined);
@@ -245,7 +257,10 @@ export async function startWhatsAppPairing(opts: { phone?: string; reset?: boole
         } else if (u.connection === "close") {
           clearTimeout(stopAt);
           const code = statusCode(u.lastDisconnect?.error);
-          if (code === DisconnectReason.restartRequired && Date.now() - started < windowMs) {
+          // 515 after scanning: reconnect on the same in-memory session, as
+          // many times as WhatsApp asks, until the connection opens.
+          if (code === DisconnectReason.restartRequired && Date.now() < deadline()) {
+            console.log("[whatsapp] pairing: restart required (515), reconnecting");
             void createSocket(memory.state).then(({ sock: next }) => watch(next, true).then(done));
           } else {
             resolveFirst({

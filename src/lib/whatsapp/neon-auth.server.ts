@@ -96,12 +96,13 @@ export async function useNeonAuthState(): Promise<{ state: AuthenticationState; 
   return { state, saveCreds: () => writeKey(sql, "creds", state.creds) };
 }
 
-/** Whether a WhatsApp number has been paired (creds registered). */
+/** Whether a WhatsApp number is linked. A QR-linked session has creds.me but
+ * leaves creds.registered false (only pairing-code links set it), so both count. */
 export async function isWhatsAppPaired(): Promise<boolean> {
   const sql = db();
   await ensureTable(sql);
   const creds = await readKey<AuthenticationCreds>(sql, "creds");
-  return Boolean(creds?.registered);
+  return Boolean(creds?.registered || creds?.me?.id);
 }
 
 /** Forget the paired session (e.g. after WhatsApp logs the device out). */

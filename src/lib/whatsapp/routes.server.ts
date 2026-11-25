@@ -16,10 +16,10 @@ function authorized(req: Request): Response | null {
   return given === secret ? null : new Response("Unauthorized", { status: 401 });
 }
 
-const page = (title: string, body: string, refreshSeconds?: number) =>
+const page = (title: string, body: string, refreshSeconds?: number, refreshUrl?: string) =>
   new Response(
     `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">${
-      refreshSeconds ? `<meta http-equiv="refresh" content="${refreshSeconds}">` : ""
+      refreshSeconds ? `<meta http-equiv="refresh" content="${refreshSeconds}${refreshUrl ? `;url=${refreshUrl}` : ""}">` : ""
     }<title>${title}</title><style>body{font-family:system-ui,sans-serif;max-width:560px;margin:40px auto;padding:0 16px;color:#0f172a;line-height:1.5}img{width:300px;height:300px;border:1px solid #e2e8f0;border-radius:12px}code{background:#f1f5f9;padding:2px 6px;border-radius:6px}</style></head><body>${body}</body></html>`,
     { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } },
   );
@@ -90,8 +90,10 @@ export async function handleWhatsAppRoute(req: Request, pathname: string): Promi
     if (result.status === "qr")
       return page(
         "Link WhatsApp",
-        `<h1>Link the ops WhatsApp number</h1><img src="${result.qrDataUrl}" alt="WhatsApp QR code"><ol><li>On the ops phone: WhatsApp → Settings → Linked devices → Link a device.</li><li>Scan this code within about a minute.</li><li>Wait 10 seconds, then refresh this page — it should say <b>Connected</b>.</li></ol>${phoneForm}`,
+        `<h1>Link the ops WhatsApp number</h1><img src="${result.qrDataUrl}" alt="WhatsApp QR code"><ol><li>On the ops phone: WhatsApp → Settings → Linked devices → Link a device.</li><li>Scan this code within about a minute.</li><li>Wait 10 seconds, then <a href="${withSecret("/api/whatsapp/pair")}">check the connection</a> — it should say <b>Connected</b>.</li></ol>${phoneForm}`,
+        // Refresh to a fresh code without reset=1, so a refresh never wipes a link that just completed.
         Math.max(20, Math.round(result.untilMs / 1000) + 3),
+        withSecret("/api/whatsapp/pair"),
       );
     return page("WhatsApp pairing", `<h1>Couldn't start pairing</h1><p>${esc(result.message)}</p><p><a href="${again}">Try again</a> (starts fresh)</p>${phoneForm}`);
   }

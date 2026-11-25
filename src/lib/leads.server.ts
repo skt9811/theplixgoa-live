@@ -1,10 +1,10 @@
 // Server-only. Every website lead (Contact form, Request Callback, List Your
-// Property) is saved here first, then emailed to the team. Saving first means
+// Property, newsletter sign-ups) is saved here first, then emailed to the team. Saving first means
 // a lead is never lost when an email fails, and the Plix PMS "Leads" screen
 // reads this table. Lives in the website DB (DATABASE_URL), next to bookings.
 import { getWebDb } from "@/lib/pms-db.server";
 
-export type LeadType = "contact" | "callback" | "partner";
+export type LeadType = "contact" | "callback" | "partner" | "subscriber";
 export const LEAD_STATUSES = ["new", "contacted", "converted", "closed"] as const;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 

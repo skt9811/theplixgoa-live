@@ -3,6 +3,7 @@
 // createServerFn RPC), matching what was originally asked for and giving any
 // external tool (a form, Zapier, etc.) a stable URL to POST an email to,
 // same shape as the previous subscribe-newsletter Supabase edge function.
+import { saveLead } from "@/lib/leads.server";
 import postgres from "postgres";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
@@ -30,11 +31,16 @@ export async function subscribeNewsletter(rawEmail: string): Promise<SubscribeNe
   }
 
   try {
-    await sql`
+    const inserted = await sql`
       INSERT INTO public.newsletter_subscribers (email, source)
       VALUES (${email}, 'homepage_modal')
       ON CONFLICT (email) DO NOTHING
+      RETURNING id
     `;
+    // A first-time subscriber also shows in Plix PMS → Leads.
+    if (inserted.length > 0) {
+      await saveLead({ type: "subscriber", name: email, email, details: { source: "homepage_modal" } });
+    }
     return { saved: true };
   } catch (err) {
     console.error("[subscribeNewsletter] insert failed:", err);

@@ -53,3 +53,6 @@ keystore.properties
 
 # Local database row backups taken before manual DB edits — never committed
 backups/
+
+# Guest contact data exported for one-off lead imports — never commit
+scripts/past-leads-from-email.json

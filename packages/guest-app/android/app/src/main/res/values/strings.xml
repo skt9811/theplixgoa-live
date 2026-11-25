@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">The Plix - Villas &amp; Stays</string>
+    <string name="title_activity_main">The Plix - Villas &amp; Stays</string>
+    <string name="package_name">com.theplix.app</string>
+    <string name="custom_url_scheme">com.theplix.app</string>
+</resources>

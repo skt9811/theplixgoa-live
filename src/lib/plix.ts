@@ -1403,9 +1403,9 @@ export const PROPERTIES: Property[] = [
     tagline: "MORJIM, NORTH GOA • BEACHFRONT RESORT NEAR MORJIM BEACH",
     description:
       "Coastal serenity steps from Morjim Beach. A tranquil getaway defined by calm coastal vibes, modern rooms, and a sparkling pool. Located in the serene coastal enclave of Madhlawada, Morjim, Morjim Pride is a premier boutique resort just minutes from pristine Morjim Beach and the famous Olive Ridley turtle nesting grounds. The resort offers well-appointed air-conditioned rooms, a swimming pool, and delicious local and international dining — ideal for relaxing family vacations and peaceful beach getaways.",
-    seo_title: "Morjim Pride Goa – Official Site | Pool Hotel by Morjim Beach",
+    seo_title: "Morjim Pride by The Plix – Official Site | Pool Hotel Near Morjim Beach",
     seo_description:
-      "Official site of Morjim Pride, Goa: 22 AC rooms with a swimming pool, 2 mins from Morjim Beach. Real photos & reviews. Book direct, zero platform fees.",
+      "Morjim Pride, 2 mins from Morjim Beach: pool & AC rooms from ₹5,000/night. Book direct for the best rate, zero platform fees & WhatsApp concierge.",
     seo_keywords: ["Resort near Morjim Beach", "3 Star Hotel Morjim", "Peaceful Stay North Goa", "Hotel with Pool Morjim", "Morjim Beach Stay"],
     enclave: null,
     bedrooms: 22,
@@ -1551,9 +1551,9 @@ export const PROPERTIES: Property[] = [
     tagline: "MORJIM, NORTH GOA • BEACHSIDE RESORT WITH POOL",
     description:
       "Welcome to The Plix Resort - Morjim, our serene beachside retreat just 100 meters from the ocean. Our resort features a swimming pool and chill-out area for unwinding. With 10 cozy rooms, your stay promises tranquility and scenic beauty. Wake up to the soothing sound of waves and indulge in coastal charm. The Plix Resort - Morjim offers the ideal escape for unforgettable memories by the sea.",
-    seo_title: "The Plix Resort Morjim, Goa – Official Site | Book Direct",
+    seo_title: "The Plix Resort Morjim – Official Site | Boutique Stay by Morjim Beach",
     seo_description:
-      "Official site of The Plix Resort - Morjim. 10 rooms, sleeps 30, pool. From ₹4,500/night. Real photos & guest reviews. Book direct, best price guaranteed.",
+      "The Plix Resort, Morjim, North Goa: pool rooms from ₹4,500/night. Book direct with best-rate guarantee, swimming pool & curated coastal hospitality.",
     seo_keywords: ["Resort near Morjim Beach", "Beachside Resort Morjim", "Swimming Pool Resort Goa", "Morjim Beach Stay", "North Goa Resort with Bar"],
     enclave: null,
     bedrooms: 10,

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { blogQuery, blogSummariesQuery, estimateReadingTime, formatDate, type BlogSummary } from "@/lib/blog";
 import { stayNearbyForPost } from "@/lib/blog-stay-nearby";
 import { PEAK_SEASON_SLUGS, extractBlogFaqs } from "@/lib/blog-peak-season";
+import { BLOG_SEO_OVERRIDES } from "@/lib/blog-seo-overrides";
 import { propertiesQuery } from "@/lib/plix-queries";
 import { BlogArticleBody, BlogBookDirectBar, BlogStayNearby, BlogStickyStayBar, STAY_CTA_SLUGS } from "@/components/plix/blog-stay-callout";
 import {
@@ -45,7 +46,9 @@ export const Route = createFileRoute("/blog/$slug")({
     }
     const { post } = loaderData;
     const url = `${SITE_URL}/blog/${post.slug}`;
-    const seoTitle = blogSeoTitle(post.title);
+    const override = BLOG_SEO_OVERRIDES[post.slug];
+    const seoTitle = override?.title ?? blogSeoTitle(post.title);
+    const seoDescription = override?.description ?? post.excerpt;
     // The admin editor's "Upload from device" option stores the raw file as
     // a base64 data: URI instead of uploading it anywhere (this app has no
     // image upload/storage pipeline yet) — confirmed present on several
@@ -81,17 +84,17 @@ export const Route = createFileRoute("/blog/$slug")({
     return {
       meta: [
         { title: seoTitle },
-        { name: "description", content: post.excerpt },
+        { name: "description", content: seoDescription },
         { name: "robots", content: "index, follow" },
-        { property: "og:title", content: post.title },
-        { property: "og:description", content: post.excerpt },
+        { property: "og:title", content: override?.title ?? post.title },
+        { property: "og:description", content: seoDescription },
         { property: "og:image", content: resolvedOgImage },
         { property: "og:type", content: "article" },
         { property: "og:url", content: url },
         { property: "og:site_name", content: SITE_NAME },
         { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:title", content: post.title },
-        { name: "twitter:description", content: post.excerpt },
+        { name: "twitter:title", content: override?.title ?? post.title },
+        { name: "twitter:description", content: seoDescription },
         { name: "twitter:image", content: resolvedOgImage },
       ],
       links: [{ rel: "canonical", href: canonicalUrl(`/blog/${post.slug}`) }],

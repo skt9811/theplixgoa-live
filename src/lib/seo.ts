@@ -1,5 +1,6 @@
 import { resolveImages, type Property } from "./plix";
 import { PROPERTY_LISTING_LINKS, BRAND_LISTING_LINKS } from "./listing-links";
+import { REAL_RATING_SOURCES } from "./trust-config";
 
 type ReviewData = {
   id: string;
@@ -646,28 +647,23 @@ export function vacationRentalJsonLd(p: Property, reviews: ReviewData[] = []) {
     };
   }
 
-  // Google's structured data policy prohibits fabricated ratings/reviews —
-  // aggregateRating and review are only emitted when there's at least one
-  // real guest review to back them. A property with zero reviews yet
-  // simply omits both fields rather than claiming a 4.9-star rating from a
-  // review that doesn't exist, which risked losing rich-result eligibility
-  // if Google's spam detection ever flagged it.
-  if (reviews.length > 0) {
-    const avgRating = (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1);
+  // Ratings in structured data must come from genuine, checkable reviews.
+  // Only a real rating on an external profile (trust-config.ts
+  // REAL_RATING_SOURCES — the same source the visible PropertyRatingBadge
+  // uses) is emitted. The on-site review text (REVIEWS / PROPERTY_REVIEWS)
+  // is not verified guest data, so it is never published as aggregateRating
+  // or Review markup.
+  const realRating = REAL_RATING_SOURCES[p.slug];
+  if (realRating) {
     schema["aggregateRating"] = {
       "@type": "AggregateRating",
-      ratingValue: avgRating,
-      reviewCount: String(reviews.length),
+      ratingValue: realRating.rating.toFixed(1),
+      reviewCount: String(realRating.reviewCount),
       bestRating: "5",
       worstRating: "1",
     };
-    schema["review"] = reviews.map((r) => ({
-      "@type": "Review",
-      author: { "@type": "Person", name: r.guest_name },
-      reviewRating: { "@type": "Rating", ratingValue: String(r.rating), bestRating: "5" },
-      reviewBody: r.comment,
-    }));
   }
+  void reviews;
 
   return schema;
 }

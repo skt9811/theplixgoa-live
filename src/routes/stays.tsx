@@ -22,6 +22,7 @@ import {
   EDGE_CACHE_CONTROL,
   canonicalUrl,
   breadcrumbJsonLd,
+  collectionPageJsonLd,
   jsonLdScript,
 } from "@/lib/seo";
 
@@ -47,7 +48,7 @@ export const Route = createFileRoute("/stays")({
   // headers from the options declared before it.
   loader: ({ context, location }) =>
     context.queryClient.ensureQueryData(propertiesQuery((location.search as StaySearch).checkIn)),
-  head: ({ match }) => {
+  head: ({ match, loaderData }) => {
     // Validated against the real location list, not used raw — an
     // unrecognized value (a typo, or someone probing the URL) falls back
     // to the generic default rather than getting reflected straight into
@@ -90,8 +91,25 @@ export const Route = createFileRoute("/stays")({
       // duplicate-description finding without re-opening that problem.
       links: [{ rel: "canonical", href: canonicalUrl("/stays") }],
       // The brand-level schema is already rendered globally in __root.tsx —
-      // this page's only page-specific schema is its own breadcrumb trail.
+      // this page adds its breadcrumb trail and the list of every stay
+      // (CollectionPage + ItemList, same builder as the /stays/* collections).
       scripts: [
+        ...(loaderData && loaderData.length > 0
+          ? [
+              {
+                type: "application/ld+json",
+                id: "stays-collection-jsonld",
+                children: jsonLdScript(
+                  collectionPageJsonLd({
+                    name: "Villas & Stays in North Goa",
+                    description: ogDescription,
+                    url: `${SITE_URL}/stays`,
+                    items: loaderData.map((p) => ({ name: p.name, url: `${SITE_URL}/properties/${p.slug}` })),
+                  }),
+                ),
+              },
+            ]
+          : []),
         {
           type: "application/ld+json",
           id: "stays-breadcrumb-jsonld",

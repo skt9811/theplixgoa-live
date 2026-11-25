@@ -8,6 +8,7 @@
 import { ensureInquiriesSchema } from "@/lib/pms-schema.server";
 import { DEFAULT_ORG_ID, getTenantId } from "@/lib/tenant-context.server";
 import { getPmsDb } from "@/lib/pms-db.server";
+import { PROPERTIES } from "@/lib/plix";
 import { assertFeatureEnabled } from "@/lib/pms-billing.server";
 import { json, str } from "@/lib/pms-pos-shared.server";
 import type { Actor } from "@/lib/pms-users.server";
@@ -367,9 +368,30 @@ async function auditStaffTokens(roles: string[]): Promise<DeviceToken[]> {
  */
 export async function sendBookingAuditNotification(
   propertyId: string,
-  { title, body, data = {} }: { title: string; body: string; data?: Record<string, string> },
+  {
+    title,
+    body,
+    data = {},
+    whatsappLines = [],
+  }: { title: string; body: string; data?: Record<string, string>; whatsappLines?: string[] },
 ): Promise<void> {
   console.log("[Push] dispatching booking audit notification:", { propertyId, title });
+  // Plix's own properties (the static list; other tenants' properties are
+  // never in it) also go to the ops WhatsApp group.
+  if (PROPERTIES.some((p) => p.slug === propertyId)) {
+    try {
+      const { notifyOps, posAlert } = await import("@/lib/whatsapp/ops-alerts.server");
+      await notifyOps(
+        posAlert(`*${title}*`, [
+          body,
+          ...whatsappLines,
+          data["bookingId"] && data["action"] !== "deleted" ? `→ theplixgoa.com/pms/bookings?highlight=${data["bookingId"]}` : null,
+        ]),
+      );
+    } catch (err) {
+      console.error("[whatsapp] booking audit alert:", err instanceof Error ? err.message : err);
+    }
+  }
   try {
     const [staffTokens, partnerTokens] = await Promise.all([
       auditStaffTokens(["admin", "manager"]),

@@ -107,7 +107,9 @@ export async function handleWhatsAppRoute(req: Request, pathname: string): Promi
   }
 
   if (pathname === "/api/whatsapp/test") {
-    await queueOps(`✅ Plix ops alerts are connected (${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}).`);
+    const at = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+    await queueOps(`✅ Plix *ops* alerts are connected (${at}).`, "ops");
+    await queueOps(`✅ Plix *leads* alerts are connected (${at}).`, "leads");
     try {
       return json(await drainOpsOutbox());
     } catch (err) {

@@ -7,6 +7,7 @@
 // through the same tables and conflict rules the admin punch-in uses, so
 // the website sees every change immediately. PMS DB (NEON_PMS_DATABASE_URL)
 // holds the operations data (expenses); nothing there is ever written to the web DB.
+import { waitUntil } from "@vercel/functions";
 import { listLeads, updateLead } from "@/lib/leads.server";
 import { getMemberProperties, isVirtualProperty } from "@/lib/pms-groups";
 import { randomBytes, timingSafeEqual } from "node:crypto";
@@ -836,7 +837,7 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
     status,
     ...(conflict && allowOverride ? { manualOverride: true, overrideReason } : {}),
   });
-  void notifyBookingModified(existing, {
+  waitUntil(notifyBookingModified(existing, {
     id,
     propertySlug: existing.property_id,
     guestName,
@@ -846,7 +847,7 @@ async function updateBooking(request: Request, sql: Sql, actor: Actor): Promise<
     total,
     status,
     actorName: actor.name,
-  });
+  }));
   return json({
     success: true,
     ...(warning ? { warning } : {}),
@@ -901,6 +902,7 @@ async function notifyBookingDeleted(b: {
   checkOut: string;
   roomsCount: number | null;
   actorName: string;
+  reason?: string | null;
 }): Promise<void> {
   const property = PROPERTIES.find((p) => p.slug === b.propertySlug);
   const propertyName = property?.name.split(" - ")[0] ?? b.propertySlug;
@@ -912,6 +914,7 @@ async function notifyBookingDeleted(b: {
     // client (pms-push.ts) special-cases this type to land on the bookings
     // list with a toast instead of silently doing nothing on tap.
     data: { bookingId: b.id, action: "deleted", type: "booking_deleted" },
+    whatsappLines: b.reason ? [`❓ Reason: ${b.reason}`] : [],
   });
 }
 
@@ -952,7 +955,7 @@ async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<
       source: "manual",
       reason,
     });
-    void notifyBookingDeleted({
+    waitUntil(notifyBookingDeleted({
       id,
       propertySlug: existing.property_id,
       guestName: existing.guest_name,
@@ -960,7 +963,8 @@ async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<
       checkOut: existing.check_out,
       roomsCount: existing.rooms_count,
       actorName: actor.name,
-    });
+      reason,
+    }));
     return json({ success: true });
   }
   if (source === "online") {
@@ -994,7 +998,7 @@ async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<
       source: "online",
       reason,
     });
-    void notifyBookingDeleted({
+    waitUntil(notifyBookingDeleted({
       id,
       propertySlug: existing.property_id,
       guestName: existing.guest_name,
@@ -1002,7 +1006,8 @@ async function cancelBooking(request: Request, sql: Sql, actor: Actor): Promise<
       checkOut: existing.check_out,
       roomsCount: existing.rooms,
       actorName: actor.name,
-    });
+      reason,
+    }));
     return json({ success: true });
   }
   return json({ error: 'Unknown booking source. Expected "manual" or "online".' }, 400);

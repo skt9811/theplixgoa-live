@@ -6,11 +6,14 @@
 // background (waitUntil), so a slow or failed WhatsApp connection never
 // delays a website response and never loses a message — unsent rows are
 // retried on the next alert and by the daily cron. Only one invocation
-// sends at a time (Postgres advisory lock), because two simultaneous logins
+// sends at a time (a lease row), because two simultaneous logins
 // with the same session would knock each other off.
 //
-// Env: WHATSAPP_OPS_GROUP_JID (the group's "…@g.us" id). Unset = alerts are
-// queued but not sent.
+// Env: WHATSAPP_OPS_GROUP_JID — the ops group ("…@g.us"): bookings, POS,
+// button taps, the daily report. WHATSAPP_LEADS_GROUP_JID — the leads group:
+// website enquiries/sign-ups and Airbnb enquiries (falls back to the ops
+// group when unset). Each queued row stores its target group, so a message
+// always goes where it was meant to even if settings change meanwhile.
 import makeWASocket, { Browsers, DisconnectReason, fetchLatestBaileysVersion, type AuthenticationState, type WASocket } from "@whiskeysockets/baileys";
 import { waitUntil } from "@vercel/functions";
 import pino from "pino";
@@ -20,7 +23,6 @@ import { clearWhatsAppAuth, isWhatsAppPaired, memoryAuthState, persistAuthState,
 
 type Sql = NonNullable<ReturnType<typeof getWebDb>>;
 const logger = pino({ level: "silent" });
-const OUTBOX_LOCK = 7_316_401; // arbitrary advisory-lock key for the sender
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 let outboxReady: Promise<void> | null = null;
@@ -35,6 +37,7 @@ function ensureOutbox(sql: Sql): Promise<void> {
         attempts int NOT NULL DEFAULT 0,
         last_error text
       )`
+      .then(() => sql`ALTER TABLE public.whatsapp_outbox ADD COLUMN IF NOT EXISTS group_jid text`)
       .then(() => undefined)
       .catch((err) => {
         outboxReady = null;
@@ -101,13 +104,23 @@ async function withWhatsApp<T>(fn: (sock: WASocket) => Promise<T>, timeoutMs = 2
   }
 }
 
+export type AlertGroup = "ops" | "leads";
+
+/** The WhatsApp group id for a target; leads falls back to the ops group. */
+export function groupJid(group: AlertGroup): string | null {
+  const ops = process.env["WHATSAPP_OPS_GROUP_JID"]?.trim() || null;
+  if (group === "leads") return process.env["WHATSAPP_LEADS_GROUP_JID"]?.trim() || ops;
+  return ops;
+}
+
 /** Adds an alert to the outbox without sending. Returns false if it could not be queued. */
-export async function queueOps(text: string): Promise<boolean> {
+export async function queueOps(text: string, group: AlertGroup = "ops"): Promise<boolean> {
   const sql = getWebDb();
   if (!sql) return false;
   try {
     await ensureOutbox(sql);
-    await sql`INSERT INTO public.whatsapp_outbox (text) VALUES (${text.slice(0, 4000)})`;
+    // The target is fixed at queue time (null = the ops group, resolved at send).
+    await sql`INSERT INTO public.whatsapp_outbox (text, group_jid) VALUES (${text.slice(0, 4000)}, ${groupJid(group)})`;
     return true;
   } catch (err) {
     console.error("[whatsapp] could not queue alert:", err instanceof Error ? err.message : err);
@@ -116,56 +129,67 @@ export async function queueOps(text: string): Promise<boolean> {
 }
 
 /** Queue an alert for the ops group and send it in the background. Never throws. */
-export async function notifyOps(text: string): Promise<void> {
-  if (!(await queueOps(text))) return;
+export async function notifyOps(text: string, group: AlertGroup = "ops"): Promise<void> {
+  if (!(await queueOps(text, group))) return;
   const sending = drainOpsOutbox().catch((err) => console.error("[whatsapp] send failed:", err instanceof Error ? err.message : err));
   waitUntil(sending);
 }
 
 /** Sends every pending alert (oldest first). Returns how many went out. */
+/** Queue an alert for the leads group (enquiries, sign-ups, Airbnb). Never throws. */
+export const notifyLeads = (text: string) => notifyOps(text, "leads");
+
 export async function drainOpsOutbox(): Promise<{ sent: number; pending: number; skipped?: string }> {
-  const jid = process.env["WHATSAPP_OPS_GROUP_JID"];
+  const opsJid = groupJid("ops");
   const sql = getWebDb();
   if (!sql) return { sent: 0, pending: 0, skipped: "no database" };
   await ensureOutbox(sql);
   const pendingCount = async () =>
     (await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM public.whatsapp_outbox WHERE sent_at IS NULL AND attempts < 5`)[0]?.n ?? 0;
-  if (!jid) return { sent: 0, pending: await pendingCount(), skipped: "WHATSAPP_OPS_GROUP_JID not set" };
+  if (!opsJid) return { sent: 0, pending: await pendingCount(), skipped: "WHATSAPP_OPS_GROUP_JID not set" };
 
-  const conn = await sql.reserve();
+  // Single sender at a time, via a short lease row rather than a Postgres
+  // advisory lock: Neon's pooled connections don't keep session locks, and
+  // a lease also frees itself if an invocation is frozen mid-send.
+  await sql`CREATE TABLE IF NOT EXISTS public.whatsapp_sender_lease (id int PRIMARY KEY, until timestamptz NOT NULL)`;
+  await sql`INSERT INTO public.whatsapp_sender_lease (id, until) VALUES (1, now() - interval '1 second') ON CONFLICT (id) DO NOTHING`;
+  const token = new Date(Date.now() + 50_000);
+  const [lease] = await sql<{ id: number }[]>`
+    UPDATE public.whatsapp_sender_lease SET until = ${token} WHERE id = 1 AND until < now() RETURNING id`;
+  if (!lease) return { sent: 0, pending: await pendingCount(), skipped: "another sender is running" };
   try {
-    const [lock] = await conn<{ ok: boolean }[]>`SELECT pg_try_advisory_lock(${OUTBOX_LOCK}) AS ok`;
-    if (!lock?.ok) return { sent: 0, pending: await pendingCount(), skipped: "another sender is running" };
-    try {
-      // Alerts older than 2 days are stale news; drop them instead of flooding the group.
-      await conn`UPDATE public.whatsapp_outbox SET attempts = 99, last_error = 'expired' WHERE sent_at IS NULL AND created_at < now() - interval '2 days'`;
-      const rows = await conn<{ id: string; text: string }[]>`
-        SELECT id, text FROM public.whatsapp_outbox WHERE sent_at IS NULL AND attempts < 5 ORDER BY id LIMIT 25`;
-      if (rows.length === 0) return { sent: 0, pending: 0 };
-      let sent = 0;
+    // Alerts older than 2 days are stale news; drop them instead of flooding the group.
+    await sql`UPDATE public.whatsapp_outbox SET attempts = 99, last_error = 'expired' WHERE sent_at IS NULL AND created_at < now() - interval '2 days'`;
+    let sent = 0;
+    let lastId = "0";
+    // Keep going while new alerts arrive during the send (they would
+    // otherwise wait for the next alert or the daily cron).
+    for (let round = 0; round < 3; round++) {
+      const rows = await sql<{ id: string; text: string; group_jid: string | null }[]>`
+        SELECT id, text, group_jid FROM public.whatsapp_outbox WHERE sent_at IS NULL AND attempts < 5 AND id > ${lastId} ORDER BY id LIMIT 25`;
+      if (rows.length === 0) break;
+      lastId = rows[rows.length - 1]!.id;
       try {
         await withWhatsApp(async (sock) => {
           for (const row of rows) {
             try {
-              await sock.sendMessage(jid, { text: row.text });
-              await conn`UPDATE public.whatsapp_outbox SET sent_at = now(), attempts = attempts + 1 WHERE id = ${row.id}`;
+              await sock.sendMessage(row.group_jid || opsJid, { text: row.text });
+              await sql`UPDATE public.whatsapp_outbox SET sent_at = now(), attempts = attempts + 1 WHERE id = ${row.id}`;
               sent++;
             } catch (err) {
-              await conn`UPDATE public.whatsapp_outbox SET attempts = attempts + 1, last_error = ${String(err instanceof Error ? err.message : err).slice(0, 500)} WHERE id = ${row.id}`;
+              await sql`UPDATE public.whatsapp_outbox SET attempts = attempts + 1, last_error = ${String(err instanceof Error ? err.message : err).slice(0, 500)} WHERE id = ${row.id}`;
             }
           }
         });
       } catch (err) {
         const message = String(err instanceof Error ? err.message : err).slice(0, 500);
-        await conn`UPDATE public.whatsapp_outbox SET attempts = attempts + 1, last_error = ${message} WHERE id = ANY(${rows.map((r) => r.id)}) AND sent_at IS NULL`;
+        await sql`UPDATE public.whatsapp_outbox SET attempts = attempts + 1, last_error = ${message} WHERE id = ANY(${rows.map((r) => r.id)}) AND sent_at IS NULL`;
         throw err;
       }
-      return { sent, pending: await pendingCount() };
-    } finally {
-      await conn`SELECT pg_advisory_unlock(${OUTBOX_LOCK})`;
     }
+    return { sent, pending: await pendingCount() };
   } finally {
-    conn.release();
+    await sql`UPDATE public.whatsapp_sender_lease SET until = now() - interval '1 second' WHERE id = 1 AND until = ${token}`;
   }
 }
 

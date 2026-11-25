@@ -787,8 +787,9 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
         hostName: getHostDisplayName(recipientEmail) ?? "",
       },
     });
-    // Also to the ops WhatsApp group (webhook rows are always Plix's own org).
+    // Also to WhatsApp (webhook rows are always Plix's own org).
     try {
+      // Enquiries/messages → leads group; a confirmed reservation is a booking → ops group.
       const { inquiryAlert, notifyOps } = await import("@/lib/whatsapp/ops-alerts.server");
       await notifyOps(
         inquiryAlert({
@@ -805,6 +806,7 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
           message: notes || null,
           id,
         }),
+        isConfirmedBooking ? "ops" : "leads",
       );
     } catch (err) {
       console.error("[whatsapp] inquiry alert:", err instanceof Error ? err.message : err);

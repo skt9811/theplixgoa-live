@@ -2,7 +2,7 @@
 // Property, newsletter sign-ups, guest account sign-ups) is saved here first, then emailed to the team. Saving first means
 // a lead is never lost when an email fails, and the Plix PMS "Leads" screen
 // reads this table. Lives in the website DB (DATABASE_URL), next to bookings.
-import { leadAlert, notifyOps } from "@/lib/whatsapp/ops-alerts.server";
+import { leadAlert, notifyLeads } from "@/lib/whatsapp/ops-alerts.server";
 import { getWebDb } from "@/lib/pms-db.server";
 
 export type LeadType = "contact" | "callback" | "partner" | "subscriber" | "signup";
@@ -87,8 +87,8 @@ export async function saveLead(input: LeadInput): Promise<string | null> {
       VALUES (${input.type}, ${clip(input.name, 200) ?? "Unknown"}, ${clip(input.phone, 50)}, ${clip(input.email, 200)},
               ${clip(input.property, 500)}, ${clip(input.message, 4000)}, ${sql.json(input.details as never)}, ${clip(input.sourcePage, 300)})
       RETURNING id`;
-    // WhatsApp the ops group (queued; sent in the background, never blocks).
-    await notifyOps(leadAlert(input));
+    // WhatsApp the leads group (queued; sent in the background, never blocks).
+    await notifyLeads(leadAlert(input));
     return row?.id ?? null;
   } catch (err) {
     console.error("[leads] save failed:", err instanceof Error ? err.message : err);

@@ -7,6 +7,7 @@
 // through the same tables and conflict rules the admin punch-in uses, so
 // the website sees every change immediately. PMS DB (NEON_PMS_DATABASE_URL)
 // holds the operations data (expenses); nothing there is ever written to the web DB.
+import { listLeads, updateLead } from "@/lib/leads.server";
 import { getMemberProperties, isVirtualProperty } from "@/lib/pms-groups";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { differenceInCalendarDays } from "date-fns";
@@ -2824,6 +2825,10 @@ function requiredTabs(path: string, method: string): Tab[] | "admin" | "owner" |
       return "any";
     case "inquiries":
     case "inquiries/update":
+    // Website leads (Contact, Callback, List Your Property) share the
+    // Inquiries privilege rather than adding a new permission tab.
+    case "leads":
+    case "leads/update":
       return ["inquiries"];
     default:
       return null;
@@ -2978,6 +2983,26 @@ export async function handlePmsApi(request: Request): Promise<Response> {
       return await deleteInquiries(request, url, actor);
     if (path === "inquiries/update" && request.method === "POST")
       return await updateInquiry(request, actor);
+    // Leads come from the Plix website, so only the internal organization sees them.
+    if (path === "leads" && request.method === "GET") {
+      if (actor.organizationId !== DEFAULT_ORG_ID) return json({ leads: [] });
+      return json({ leads: await listLeads() });
+    }
+    if (path === "leads/update" && request.method === "POST") {
+      if (actor.organizationId !== DEFAULT_ORG_ID) return json({ error: "Not found" }, 404);
+      const b = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+      const id = str(b["id"]);
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Invalid lead" }, 400);
+      const status = typeof b["status"] === "string" ? b["status"] : null;
+      const notes = typeof b["notes"] === "string" ? b["notes"] : undefined;
+      try {
+        if (!(await updateLead(id, status, notes))) return json({ error: "Lead not found" }, 404);
+      } catch (err) {
+        return json({ error: err instanceof Error ? err.message : "Could not update lead" }, 400);
+      }
+      await audit(actor, "UPDATE", "lead", id, { status, notes: notes ?? null });
+      return json({ success: true });
+    }
     if (path === "quotations" || path.startsWith("quotations/"))
       return await handleQuotationsApi(path, request, url, actor, { saveInvoice });
     if (path === "invoices" && request.method === "GET") return await listInvoices(url, actor);

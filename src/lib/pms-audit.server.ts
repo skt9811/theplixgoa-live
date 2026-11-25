@@ -6,6 +6,7 @@ import type { Actor } from "@/lib/pms-users.server";
 
 export type AuditAction = "CREATE" | "UPDATE" | "DELETE" | "FINALIZE" | "LOGIN";
 export type AuditEntity =
+  | "lead"
   | "pos"
   | "booking"
   | "invoice"

@@ -6,6 +6,8 @@
 // contact enquiry has nowhere it needs to be persisted; the email itself
 // (to reservations@theplixgoa.com) is the
 // record.
+import { markLeadEmailed, PMS_LEADS_URL, saveLead } from "@/lib/leads.server";
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -61,6 +63,7 @@ function buildEnquiryEmail(input: ContactEnquiryInput): string {
                 </table>
                 <p style="margin:20px 0 6px;color:#666;font-size:14px;">Message</p>
                 <p style="margin:0;font-size:14px;line-height:1.6;">${message}</p>
+                <p style="margin:24px 0 0;font-size:13px;"><a href="${PMS_LEADS_URL}" style="color:#1a2238;">Open in Plix PMS → Leads</a></p>
               </td>
             </tr>
           </table>
@@ -122,38 +125,44 @@ export async function handleContactEnquiryRequest(req: Request): Promise<Respons
     });
   }
 
+  // Saved first (Plix PMS → Leads), so the enquiry survives an email failure.
+  const leadId = await saveLead({
+    type: "contact",
+    name: body.name,
+    phone: body.phone,
+    email: body.email,
+    property: body.stayDetails,
+    message: body.message,
+    details: { ...body },
+    sourcePage: req.headers.get("referer"),
+  });
+
+  let emailed = false;
   const resendApiKey = process.env["RESEND_API_KEY"] ?? "";
   const fromEmail = process.env["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
   if (!resendApiKey) {
-    console.error("[handleContactEnquiryRequest] HTTP 401 equivalent — RESEND_API_KEY not configured on this deployment. Refusing to call Resend.");
-    return new Response(JSON.stringify({ success: false, reason: "Email is not configured on the server." }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error("[handleContactEnquiryRequest] RESEND_API_KEY not configured on this deployment; enquiry saved to Leads only.");
+  } else {
+    console.log(`[handleContactEnquiryRequest] dispatching enquiry email — from=${fromEmail} to=${ENQUIRY_RECIPIENTS.join(",")} name=${body.name}`);
+    const res = await sendResendEmail(
+      resendApiKey,
+      fromEmail,
+      ENQUIRY_RECIPIENTS,
+      `New Website Enquiry: ${body.name} — ${body.phone}`,
+      buildEnquiryEmail(body),
+      body.email,
+    );
+    if (res.ok) emailed = true;
+    else await logResendError(body.email, res);
   }
+  await markLeadEmailed(leadId, emailed);
 
-  console.log(`[handleContactEnquiryRequest] dispatching enquiry email — from=${fromEmail} to=${ENQUIRY_RECIPIENTS.join(",")} name=${body.name}`);
-
-  const res = await sendResendEmail(
-    resendApiKey,
-    fromEmail,
-    ENQUIRY_RECIPIENTS,
-    `New Website Enquiry: ${body.name} — ${body.phone}`,
-    buildEnquiryEmail(body),
-    body.email,
-  );
-
-  if (!res.ok) {
-    await logResendError(body.email, res);
+  if (!leadId && !emailed) {
     return new Response(JSON.stringify({ success: false, reason: "Could not send your enquiry. Please try again or contact us directly." }), {
       status: 502,
       headers: { "Content-Type": "application/json" },
     });
   }
-
-  const resendId = await res.clone().json().then((j: { id?: string }) => j.id).catch(() => undefined);
-  console.log(`[handleContactEnquiryRequest] Resend accepted the enquiry email — id=${resendId ?? "unknown"}`);
-
   return new Response(JSON.stringify({ success: true }), {
     status: 200,
     headers: { "Content-Type": "application/json" },

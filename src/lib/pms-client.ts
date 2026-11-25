@@ -205,7 +205,7 @@ export function tabForPath(pathname: string): PmsTab | null {
   if (p.startsWith("/pms/expenses")) return "expenses";
   if (p.startsWith("/pms/invoices") || p.startsWith("/pms/quotations")) return "invoices";
   if (p.startsWith("/pms/vouchers")) return "vouchers";
-  if (p.startsWith("/pms/inquiries")) return "inquiries";
+  if (p.startsWith("/pms/inquiries") || p.startsWith("/pms/leads")) return "inquiries";
   if (p.startsWith("/pms/settings") || p.startsWith("/pms/system")) return "settings";
   return null;
 }

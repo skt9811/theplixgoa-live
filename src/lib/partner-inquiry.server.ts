@@ -3,6 +3,8 @@
 // /api/contact-enquiry (contact-enquiry.server.ts). The /partner page's
 // "List your property" form posts here. No DB write: like a contact
 // enquiry, the email to reservations@theplixgoa.com is the record.
+import { markLeadEmailed, PMS_LEADS_URL, saveLead } from "@/lib/leads.server";
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -88,6 +90,7 @@ function buildInquiryEmail(input: PartnerInquiryInput): string {
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;line-height:1.6;">${rowsHtml}</table>
                 <p style="margin:20px 0 6px;color:#666;font-size:14px;">About the property</p>
                 <p style="margin:0;font-size:14px;line-height:1.6;">${description}</p>
+                <p style="margin:24px 0 0;font-size:13px;"><a href="${PMS_LEADS_URL}" style="color:#1a2238;">Open in Plix PMS → Leads</a></p>
               </td>
             </tr>
           </table>
@@ -120,14 +123,26 @@ export async function handlePartnerInquiryRequest(req: Request): Promise<Respons
     return json({ success: false, reason: "Please fill in all required fields." }, 400);
   }
 
+  const name = `${body.firstName} ${body.lastName ?? ""}`.trim();
+  // Saved first (Plix PMS → Leads), so the owner's details survive an email failure.
+  const leadId = await saveLead({
+    type: "partner",
+    name,
+    phone: body.phone,
+    email: body.email,
+    property: `${body.propertyType}, ${body.roomCount} · ${body.location}`,
+    message: body.description || null,
+    details: { ...body },
+    sourcePage: req.headers.get("referer"),
+  });
+
   const resendApiKey = process.env["RESEND_API_KEY"] ?? "";
   const fromEmail = process.env["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
   if (!resendApiKey) {
-    console.error("[handlePartnerInquiryRequest] RESEND_API_KEY not configured on this deployment. Refusing to call Resend.");
-    return json({ success: false, reason: "Email is not configured on the server." }, 500);
+    console.error("[handlePartnerInquiryRequest] RESEND_API_KEY not configured on this deployment; lead saved to Leads only.");
+    return leadId ? json({ success: true }, 200) : json({ success: false, reason: "Email is not configured on the server." }, 500);
   }
 
-  const name = `${body.firstName} ${body.lastName ?? ""}`.trim();
   console.log(`[handlePartnerInquiryRequest] dispatching partner lead — to=${INQUIRY_RECIPIENTS.join(",")} cc=${INQUIRY_CC.join(",")} name=${name} location=${body.location}`);
 
   const res = await fetch("https://api.resend.com/emails", {
@@ -146,8 +161,11 @@ export async function handlePartnerInquiryRequest(req: Request): Promise<Respons
   if (!res.ok) {
     const rawBody = await res.text().catch(() => "<no body>");
     console.error(`RESEND PARTNER INQUIRY ERROR — HTTP ${res.status}:`, rawBody);
-    return json({ success: false, reason: "Could not send your details. Please try again or contact us directly." }, 502);
+    return leadId
+      ? json({ success: true }, 200)
+      : json({ success: false, reason: "Could not send your details. Please try again or contact us directly." }, 502);
   }
+  await markLeadEmailed(leadId, true);
 
   return json({ success: true }, 200);
 }

@@ -1,6 +1,8 @@
 // Server-only. POST /api/callback-request (wired in src/server.ts) — the
 // homepage "Request Callback" form. Same plain-HTTP-route convention as
 // /api/contact-enquiry; the email to reservations@ is the record.
+import { markLeadEmailed, PMS_LEADS_URL, saveLead } from "@/lib/leads.server";
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -38,11 +40,23 @@ export async function handleCallbackRequest(req: Request): Promise<Response> {
   if (!isCallbackInput(body)) return json({ success: false, reason: "Please enter your name and phone number." }, 400);
   if (body.phone.replace(/\D/g, "").length < 10) return json({ success: false, reason: "Please enter a valid phone number." }, 400);
 
+  // Saved first (Plix PMS → Leads), so the request survives an email failure.
+  const leadId = await saveLead({
+    type: "callback",
+    name: body.name,
+    phone: body.phone,
+    message: body.note || null,
+    details: { ...body },
+    sourcePage: req.headers.get("referer"),
+  });
+
   const apiKey = process.env["RESEND_API_KEY"] ?? "";
   const from = process.env["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
   if (!apiKey) {
-    console.error("[handleCallbackRequest] RESEND_API_KEY not configured on this deployment.");
-    return json({ success: false, reason: "Callback requests are temporarily unavailable. Please call or WhatsApp us." }, 500);
+    console.error("[handleCallbackRequest] RESEND_API_KEY not configured on this deployment; request saved to Leads only.");
+    return leadId
+      ? json({ success: true }, 200)
+      : json({ success: false, reason: "Callback requests are temporarily unavailable. Please call or WhatsApp us." }, 500);
   }
 
   const tel = body.phone.replace(/[^\d+]/g, "");
@@ -58,6 +72,7 @@ export async function handleCallbackRequest(req: Request): Promise<Response> {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;line-height:1.6;">${rows
     .map(([k, v]) => `<tr><td style="padding:6px 0;color:#666;width:140px;vertical-align:top;">${k}</td><td style="padding:6px 0;">${v}</td></tr>`)
     .join("")}</table>
+<p style="margin:24px 0 0;font-size:13px;"><a href="${PMS_LEADS_URL}" style="color:#1a2238;">Open in Plix PMS → Leads</a></p>
 </td></tr></table></body></html>`;
 
   const res = await fetch("https://api.resend.com/emails", {
@@ -72,7 +87,8 @@ export async function handleCallbackRequest(req: Request): Promise<Response> {
   });
   if (!res.ok) {
     console.error(`RESEND CALLBACK REQUEST ERROR — HTTP ${res.status}:`, await res.text().catch(() => ""));
-    return json({ success: false, reason: "Could not send your request. Please call or WhatsApp us." }, 502);
+    return leadId ? json({ success: true }, 200) : json({ success: false, reason: "Could not send your request. Please call or WhatsApp us." }, 502);
   }
+  await markLeadEmailed(leadId, true);
   return json({ success: true }, 200);
 }

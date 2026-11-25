@@ -21,6 +21,7 @@ import {
   Settings,
   Ticket,
   X,
+  Megaphone,
 } from "lucide-react";
 import { PROPERTIES } from "@/lib/plix";
 import { usePms } from "@/components/pms/pms-context";
@@ -52,6 +53,7 @@ const NAV = [
   { to: "/pms/quotations", label: "Quotations", icon: FileSpreadsheet, exact: false, tab: "invoices" },
   { to: "/pms/invoices", label: "Invoices", icon: FileText, exact: false, tab: "invoices" },
   { to: "/pms/vouchers", label: "Vouchers", icon: Ticket, exact: false, tab: "vouchers" },
+  { to: "/pms/leads", label: "Leads", icon: Megaphone, exact: false, tab: "inquiries" },
   { to: "/pms/inquiries", label: "Inquiries", icon: Inbox, exact: false, tab: "inquiries" },
   {
     to: "/pms/airbnb-spaces",

@@ -8,6 +8,8 @@ export type Coupon = {
   value: number; // percentage points (0-100) for "percentage", rupees for "flat"
   description: string;
   minSubtotal?: number;
+  /** Percentage coupons only: a higher rate once the subtotal is above a threshold. */
+  upgradeAbove?: { subtotal: number; value: number; description: string };
 };
 
 export const COUPONS: Coupon[] = [
@@ -15,6 +17,18 @@ export const COUPONS: Coupon[] = [
   { code: "WELCOME500", type: "flat", value: 500, description: "₹500 off for new guests", minSubtotal: 2000 },
   { code: "GOAVIBES", type: "percentage", value: 15, description: "15% off — Goa vibes special" },
   { code: "PLIX5", type: "percentage", value: 5, description: "5% off — newsletter subscriber exclusive" },
+  // Plix Club pop-up (email + mobile): shown on screen and emailed on sign-up.
+  // 15% only when the room total (before GST) is above ₹30,000; 5% below that.
+  {
+    code: "PLIXCLUB15",
+    type: "percentage",
+    value: 5,
+    description: "5% off — Plix Club welcome offer (15% on bookings above ₹30,000)",
+    upgradeAbove: { subtotal: 30000, value: 15, description: "15% off — Plix Club welcome offer" },
+  },
+  // The code earlier welcome emails sent (it was never in this list), so
+  // those subscribers' codes work too.
+  { code: "PLIXCLUB5", type: "percentage", value: 5, description: "5% off — Plix Club welcome offer" },
 ];
 
 export type CouponValidationResult =
@@ -73,12 +87,16 @@ export async function validateCoupon(rawCode: string, subtotal: number): Promise
         error: `This code needs a minimum booking value of ₹${staticCoupon.minSubtotal.toLocaleString("en-IN")}.`,
       };
     }
-    const rawDiscount =
-      staticCoupon.type === "percentage" ? subtotal * (staticCoupon.value / 100) : staticCoupon.value;
+    const upgraded =
+      staticCoupon.type === "percentage" && staticCoupon.upgradeAbove && subtotal > staticCoupon.upgradeAbove.subtotal
+        ? staticCoupon.upgradeAbove
+        : null;
+    const rate = upgraded ? upgraded.value : staticCoupon.value;
+    const rawDiscount = staticCoupon.type === "percentage" ? subtotal * (rate / 100) : staticCoupon.value;
     return {
       valid: true,
       code: staticCoupon.code,
-      description: staticCoupon.description,
+      description: upgraded ? upgraded.description : staticCoupon.description,
       discountAmount: Math.min(rawDiscount, subtotal),
       source: "static",
     };

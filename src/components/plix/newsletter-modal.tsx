@@ -35,6 +35,9 @@ function markModalSeen(): void {
 export function NewsletterModal() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("PLIXCLUB15");
+  const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -73,7 +76,7 @@ export function NewsletterModal() {
     e.preventDefault();
     setError("");
     setSubmitting(true);
-    const result = await subscribeToNewsletter(email);
+    const result = await subscribeToNewsletter(email, phone);
     setSubmitting(false);
 
     if (!result.success) {
@@ -82,9 +85,9 @@ export function NewsletterModal() {
     }
 
     markModalSeen();
+    if (result.code) setCode(result.code);
     setSubmitted(true);
-    toast.success("Thank you for joining! Check your inbox for your 5% discount code.");
-    window.setTimeout(() => setOpen(false), 2200);
+    toast.success("You're in! Your discount code is ready.");
   }
 
   if (!open) return null;
@@ -114,11 +117,30 @@ export function NewsletterModal() {
 
           {submitted ? (
             <div className="flex min-h-[320px] flex-col items-center justify-center py-8 text-center">
-              <Mail className="size-14 text-primary" aria-hidden />
-              <h2 className="mt-4 font-serif text-2xl font-normal text-navy">You're in!</h2>
-              <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-                Check your inbox for your 5% discount code.
+              <Mail className="size-12 text-primary" aria-hidden />
+              <h2 className="mt-4 font-serif text-2xl font-normal text-navy">You're in! Here's your code</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(code).then(() => setCopied(true)).catch(() => undefined);
+                }}
+                className="mt-4 rounded-2xl border-2 border-dashed border-bronze px-6 py-3 font-mono text-2xl font-bold tracking-widest text-navy transition-colors hover:bg-accent"
+                aria-label={`Copy discount code ${code}`}
+              >
+                {code}
+              </button>
+              <p className="mt-1.5 text-xs font-semibold text-primary">{copied ? "Copied!" : "Tap to copy"}</p>
+              <p className="mt-3 max-w-xs text-sm text-muted-foreground">
+                15% off stays above ₹30,000 (room total before GST), 5% off any other direct booking. Apply it at
+                checkout. We've also emailed it to you.
               </p>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="mt-5 rounded-full bg-navy px-6 py-2.5 text-sm font-semibold text-navy-foreground"
+              >
+                Start exploring
+              </button>
             </div>
           ) : (
             <>
@@ -126,11 +148,11 @@ export function NewsletterModal() {
                 The Plix Club
               </p>
               <h2 className="mt-3 font-serif text-3xl font-normal leading-tight text-navy">
-                Join The Plix Club
+                Get up to 15% off your stay
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                Sign up for our newsletter to receive insider travel guides, secret villa deals, and 5%
-                off your first direct stay.
+                Enter your email and mobile number to get your discount code instantly: 15% off stays above
+                ₹30,000, 5% off any other direct booking. Plus insider guides and secret villa deals.
               </p>
 
               <form onSubmit={handleSubmit} className="mt-6 grid gap-3">
@@ -141,6 +163,18 @@ export function NewsletterModal() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email address"
                   autoComplete="email"
+                  disabled={submitting}
+                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40 disabled:opacity-60"
+                />
+                <input
+                  required
+                  type="tel"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Mobile number (e.g. +91 98765 43210)"
+                  autoComplete="tel"
+                  minLength={10}
                   disabled={submitting}
                   className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40 disabled:opacity-60"
                 />
@@ -156,14 +190,14 @@ export function NewsletterModal() {
                       Subscribing…
                     </>
                   ) : (
-                    "SUBSCRIBE & GET 5% OFF"
+                    "GET MY DISCOUNT CODE"
                   )}
                 </button>
               </form>
 
               <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
-                By subscribing, you agree to receive email updates from The Plix. You can unsubscribe at
-                any time.
+                By continuing, you agree to receive offers by email, and calls or WhatsApp messages from The
+                Plix about your stay. You can opt out at any time.
               </p>
             </>
           )}

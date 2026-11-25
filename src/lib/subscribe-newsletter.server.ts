@@ -3,7 +3,7 @@
 // createServerFn RPC), matching what was originally asked for and giving any
 // external tool (a form, Zapier, etc.) a stable URL to POST an email to,
 // same shape as the previous subscribe-newsletter Supabase edge function.
-import { saveLead } from "@/lib/leads.server";
+import { PMS_LEADS_URL, saveLead } from "@/lib/leads.server";
 import postgres from "postgres";
 
 let sqlClient: ReturnType<typeof postgres> | null = null;
@@ -17,12 +17,24 @@ function getSql() {
   return sqlClient;
 }
 
-export type SubscribeNewsletterResult = { saved: boolean; reason?: string };
+export type SubscribeNewsletterResult = { saved: boolean; reason?: string; code?: string };
 
-export async function subscribeNewsletter(rawEmail: string): Promise<SubscribeNewsletterResult> {
+/** "+91 98765 43210" style input → digits with optional leading +; null if too short. */
+function cleanPhone(raw: string): string | null {
+  const trimmed = raw.trim();
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length < 10 || digits.length > 15) return null;
+  return trimmed.startsWith("+") ? `+${digits}` : digits;
+}
+
+export async function subscribeNewsletter(rawEmail: string, rawPhone = ""): Promise<SubscribeNewsletterResult> {
   const email = rawEmail.trim().toLowerCase();
   if (!email || !email.includes("@")) {
     return { saved: false, reason: "Enter a valid email address." };
+  }
+  const phone = rawPhone.trim() ? cleanPhone(rawPhone) : null;
+  if (rawPhone.trim() && !phone) {
+    return { saved: false, reason: "Enter a valid mobile number." };
   }
 
   const sql = getSql();
@@ -31,17 +43,23 @@ export async function subscribeNewsletter(rawEmail: string): Promise<SubscribeNe
   }
 
   try {
-    const inserted = await sql`
-      INSERT INTO public.newsletter_subscribers (email, source)
-      VALUES (${email}, 'homepage_modal')
-      ON CONFLICT (email) DO NOTHING
-      RETURNING id
+    await sql`ALTER TABLE public.newsletter_subscribers ADD COLUMN IF NOT EXISTS phone text`;
+    // xmax = 0 only for a freshly inserted row; a returning subscriber who now
+    // gives a mobile number gets it added instead.
+    const [row] = await sql<{ inserted: boolean }[]>`
+      INSERT INTO public.newsletter_subscribers (email, source, phone)
+      VALUES (${email}, 'homepage_modal', ${phone})
+      ON CONFLICT (email) DO UPDATE SET phone = COALESCE(EXCLUDED.phone, public.newsletter_subscribers.phone)
+      RETURNING (xmax = 0) AS inserted
     `;
-    // A first-time subscriber also shows in Plix PMS → Leads.
-    if (inserted.length > 0) {
-      await saveLead({ type: "subscriber", name: email, email, details: { source: "homepage_modal" } });
+    if (row?.inserted) {
+      // A first-time subscriber also shows in Plix PMS → Leads.
+      await saveLead({ type: "subscriber", name: email, email, phone, details: { source: "homepage_modal", offer: DISCOUNT_CODE } });
+    } else if (phone) {
+      await sql`UPDATE public.website_leads SET phone = ${phone}, updated_at = now()
+                WHERE type = 'subscriber' AND email = ${email} AND phone IS NULL`.catch(() => undefined);
     }
-    return { saved: true };
+    return { saved: true, code: DISCOUNT_CODE };
   } catch (err) {
     console.error("[subscribeNewsletter] insert failed:", err);
     return { saved: false, reason: err instanceof Error ? err.message : "Unknown error" };
@@ -67,7 +85,8 @@ export async function handleSubscribeRequest(req: Request): Promise<Response> {
   }
 
   const email = typeof (body as { email?: unknown })?.email === "string" ? (body as { email: string }).email : "";
-  const result = await subscribeNewsletter(email);
+  const phone = typeof (body as { phone?: unknown })?.phone === "string" ? (body as { phone: string }).phone : "";
+  const result = await subscribeNewsletter(email, phone);
 
   // Fire-and-log, not fire-and-forget: the subscriber is already recorded (or
   // the caller already knows it wasn't) by this point, so a welcome-email
@@ -75,7 +94,7 @@ export async function handleSubscribeRequest(req: Request): Promise<Response> {
   // only so it actually completes before this serverless invocation ends,
   // but its result is swallowed either way.
   if (result.saved) {
-    await sendNewsletterWelcomeEmail(email.trim().toLowerCase()).catch((err) => {
+    await sendNewsletterWelcomeEmail(email.trim().toLowerCase(), cleanPhone(phone)).catch((err) => {
       console.error("[subscribeNewsletter] welcome email failed:", err instanceof Error ? err.message : err);
     });
   }
@@ -87,9 +106,10 @@ export async function handleSubscribeRequest(req: Request): Promise<Response> {
 }
 
 const SITE_URL = "https://theplixgoa.com";
-const DISCOUNT_CODE = "PLIXCLUB5";
+// Must match a code in coupons.ts (PLIXCLUB15: 15% above ₹30,000, else 5%).
+const DISCOUNT_CODE = "PLIXCLUB15";
 
-async function sendNewsletterWelcomeEmail(email: string): Promise<void> {
+async function sendNewsletterWelcomeEmail(email: string, phone: string | null): Promise<void> {
   const resendApiKey = process.env["RESEND_API_KEY"] ?? "";
   const fromEmail = process.env["PLIX_FROM_EMAIL"] ?? "reservations@theplixgoa.com";
   const hostEmail = process.env["PLIX_HOST_EMAIL"] ?? "reservations@theplixgoa.com";
@@ -99,7 +119,7 @@ async function sendNewsletterWelcomeEmail(email: string): Promise<void> {
     resendApiKey,
     fromEmail,
     email,
-    "Welcome to The Plix Club — Here is your private 5% invitation",
+    "Welcome to The Plix Club — Your code for up to 15% off",
     { text: buildNewsletterEmailText() },
   );
   if (!guestResult.ok) await logResendError("RESEND NEWSLETTER EMAIL ERROR (guest)", email, guestResult);
@@ -109,7 +129,7 @@ async function sendNewsletterWelcomeEmail(email: string): Promise<void> {
     fromEmail,
     hostEmail,
     "🎉 New Subscriber on The Plix Club!",
-    { html: buildAdminAlertEmail(email) },
+    { html: buildAdminAlertEmail(email, phone) },
   );
   if (!adminResult.ok) await logResendError("RESEND NEWSLETTER EMAIL ERROR (admin alert)", email, adminResult);
 }
@@ -151,8 +171,9 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function buildAdminAlertEmail(rawEmail: string): string {
+function buildAdminAlertEmail(rawEmail: string, rawPhone: string | null): string {
   const email = escapeHtml(rawEmail);
+  const phone = rawPhone ? escapeHtml(rawPhone) : null;
   const timestamp = new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" });
   return `<!DOCTYPE html>
 <html>
@@ -167,6 +188,8 @@ function buildAdminAlertEmail(rawEmail: string): string {
                 <p style="margin:0;font-size:15px;line-height:1.6;">
                   New subscriber added: <strong>${email}</strong> at ${timestamp} IST
                 </p>
+                ${phone ? `<p style="margin:8px 0 0;font-size:15px;">Mobile: <a href="tel:${phone}" style="color:#1a2238;font-weight:700;">${phone}</a> — a good moment to say hi on WhatsApp.</p>` : ""}
+                <p style="margin:16px 0 0;font-size:13px;"><a href="${PMS_LEADS_URL}" style="color:#1a2238;">Open in Plix PMS → Leads</a></p>
               </td>
             </tr>
           </table>
@@ -189,11 +212,11 @@ Welcome to the inner circle of The Plix Club.
 
 Thank you for connecting with us. At Plix Hospitality, we believe every getaway should feel unhurried, private, and tailored to you—from serene coastal retreats in Vagator and Morjim to handcrafted private villas across Goa.
 
-As a welcome gift, enjoy an exclusive 5% discount on your next direct stay with us.
+As a welcome gift, enjoy up to 15% off your next direct stay with us: 15% on bookings above ₹30,000, and 5% on any other booking.
 
 YOUR WELCOME VOUCHER
 Code: ${DISCOUNT_CODE}
-Discount: 5% OFF
+Discount: 15% OFF on bookings above ₹30,000 (room total before GST); 5% OFF otherwise
 Valid on: All direct bookings at ${SITE_URL}
 
 WHAT YOU GET WITH THE PLIX CLUB

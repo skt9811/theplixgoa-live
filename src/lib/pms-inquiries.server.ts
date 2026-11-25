@@ -787,6 +787,28 @@ export async function handleInquiryWebhook(request: Request): Promise<Response> 
         hostName: getHostDisplayName(recipientEmail) ?? "",
       },
     });
+    // Also to the ops WhatsApp group (webhook rows are always Plix's own org).
+    try {
+      const { inquiryAlert, notifyOps } = await import("@/lib/whatsapp/ops-alerts.server");
+      await notifyOps(
+        inquiryAlert({
+          confirmed: isConfirmedBooking,
+          guest: guestName,
+          property: listingTitle || property?.name || "Unknown property",
+          host: getHostDisplayName(recipientEmail) ?? recipientEmail ?? null,
+          checkIn,
+          checkOut,
+          pax: paxCount,
+          payout: payoutAmount,
+          currency: payoutCurrency,
+          code: confirmationCode,
+          message: notes || null,
+          id,
+        }),
+      );
+    } catch (err) {
+      console.error("[whatsapp] inquiry alert:", err instanceof Error ? err.message : err);
+    }
     // Fire-and-forget: a genuinely new row just landed, so this is the moment
     // the 48h TTL / top-10 cap can put the table back over its limit — prune
     // now rather than waiting for the next insert.

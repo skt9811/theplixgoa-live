@@ -271,6 +271,17 @@ export type NewBookingAlert = {
   checkIn: string;
   checkOut: string;
   amount: number;
+  // Optional extras for the ops WhatsApp alert (never sent in push bodies).
+  phone?: string | null | undefined;
+  email?: string | null | undefined;
+  adults?: number | undefined;
+  children?: number | undefined;
+  advance?: number | undefined;
+  paymentStatus?: string | null | undefined;
+  source?: string | null | undefined;
+  createdBy?: string | null | undefined;
+  notes?: string | null | undefined;
+  coupon?: string | null | undefined;
 };
 
 /**
@@ -291,7 +302,7 @@ export async function sendNewBookingAlert(propertyId: string, b: NewBookingAlert
   if (b.organizationId === DEFAULT_ORG_ID) {
     const { bookingAlert, notifyOps } = await import("@/lib/whatsapp/ops-alerts.server");
     await notifyOps(
-      bookingAlert({ propertyName: b.propertyName, guest: b.guestName, checkIn: b.checkIn, checkOut: b.checkOut, rooms: b.rooms, total: b.amount }),
+      bookingAlert({ ...b, guest: b.guestName, total: b.amount }),
     );
   }
   try {

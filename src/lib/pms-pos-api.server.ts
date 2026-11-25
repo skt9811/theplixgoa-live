@@ -4,7 +4,7 @@
 import { PROPERTIES } from "@/lib/plix";
 import { getPmsDb } from "@/lib/pms-db.server";
 import { ensureInvoicesSchema, ensurePosSchema } from "@/lib/pms-schema.server";
-import { getTenantId } from "@/lib/tenant-context.server";
+import { DEFAULT_ORG_ID, getTenantId } from "@/lib/tenant-context.server";
 import { audit } from "@/lib/pms-audit.server";
 import { round2 } from "@/lib/pms-pos-calc";
 import { isAllProps, type Actor } from "@/lib/pms-users.server";
@@ -30,6 +30,20 @@ import {
 import { computeOrderByCategory, type CategoryTaxType } from "@/lib/pms-pos-calc";
 import { handlePosAdminApi } from "@/lib/pms-pos-admin.server";
 import { sendStaffPushNotification } from "@/lib/pms-notifications.server";
+
+const posPropertyName = (slug: string) => PROPERTIES.find((p) => p.slug === slug)?.name ?? slug;
+const posInr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+
+/** Forwards a POS event to the ops WhatsApp group (Plix's own org only). Never throws. */
+async function posWhatsApp(actor: Actor, title: string, details: (string | null | undefined | false)[]): Promise<void> {
+  if (actor.organizationId !== DEFAULT_ORG_ID) return;
+  try {
+    const { notifyOps, posAlert } = await import("@/lib/whatsapp/ops-alerts.server");
+    await notifyOps(posAlert(title, details));
+  } catch (err) {
+    console.error("[whatsapp] pos alert:", err instanceof Error ? err.message : err);
+  }
+}
 
 const DEFAULT_TABLES: [string, string][] = [
   ["Open Table", "open"],
@@ -436,6 +450,12 @@ async function saveOrder(request: Request, actor: Actor, sql: Sql, station: stri
         url: `/pms/pos?tableId=${saved.order.table_id ?? ""}`,
       },
     });
+    await posWhatsApp(actor, `🍽️ *Table ${saved.order.table_name} opened — ${posPropertyName(property)}*`, [
+      `Order #${saved.order.order_number} · ${Math.max(1, Math.floor(num(guest["count"], 1)))} pax`,
+      str(guest["name"]) ? `👤 ${str(guest["name"])}${str(guest["phone"]) ? ` · ${str(guest["phone"])}` : ""}` : null,
+      saved.lines.length ? `🧾 ${saved.lines.filter((l) => l.status === "active").map((l) => `${l.item_name} ×${l.quantity}`).join(", ")}` : null,
+      `✍️ ${actor.name}`,
+    ]);
   }
   if (result.kotNumber) {
     const kotLines = saved.lines.filter(
@@ -606,6 +626,12 @@ async function orderAction(request: Request, actor: Actor, sql: Sql, station: st
           url: `/pms/pos?tableId=${order.table_id ?? ""}`,
         },
       });
+      await posWhatsApp(actor, `⚠️ *Table ${order.table_name} cancelled — ${posPropertyName(order.property_id)}*`, [
+        `Order #${order["order_number"]} · value ${posInr(Number(order["total_amount"]))}`,
+        cancelledLines.length ? `🧾 ${cancelledLines.map((l) => `${l.item_name} ×${l.quantity}`).join(", ")}` : null,
+        reason ? `❓ Reason: ${reason}${notes ? ` (${notes})` : ""}` : null,
+        `✍️ ${actor.name}`,
+      ]);
       break;
     }
     case "move_table": {
@@ -897,8 +923,17 @@ async function settle(request: Request, actor: Actor, sql: Sql, station: string)
     requireTab: "pos",
     data: { type: "pos_bill", orderId: order.id, url: `/pms/pos/orders?orderId=${order.id}` },
   });
+  const settled = await loadOrder(sql, order.id);
+  const so = settled.order as Record<string, unknown>;
+  await posWhatsApp(actor, `💳 *Table ${order.table_name} settled — ${posPropertyName(order.property_id)}*`, [
+    `Order #${so["order_number"]} · ${posInr(total)} via ${method}`,
+    Number(so["discount_amount"]) > 0 ? `🏷️ Discount ${posInr(Number(so["discount_amount"]))}${so["discount_reason"] ? ` (${String(so["discount_reason"])})` : ""}` : null,
+    so["guest_name"] ? `👤 ${String(so["guest_name"])}${so["guest_phone"] ? ` · ${String(so["guest_phone"])}` : ""}` : null,
+    `🧾 ${settled.lines.filter((l) => l.status === "active").map((l) => `${l.item_name} ×${l.quantity}`).join(", ") || "—"}`,
+    `✍️ ${actor.name}`,
+  ]);
   return json({
-    ...(await loadOrder(sql, order.id)),
+    ...settled,
     change: round2(Math.max(0, received - total)),
   });
 }

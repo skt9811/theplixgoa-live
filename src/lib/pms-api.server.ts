@@ -635,6 +635,15 @@ async function createBooking(request: Request, sql: Sql, actor: Actor): Promise<
     checkIn,
     checkOut,
     amount: total,
+    phone: guestPhone,
+    email: guestEmail,
+    adults,
+    children,
+    advance,
+    paymentStatus,
+    source: channel,
+    createdBy: actor.name,
+    notes,
   });
   await audit(actor, "CREATE", "booking", row?.id ?? "unknown", {
     property: propertySlug,
@@ -2410,6 +2419,13 @@ async function createVoucher(request: Request, actor: Actor): Promise<Response> 
     checkIn,
     checkOut,
     amount: tariff,
+    phone: mobile,
+    email,
+    adults: guests,
+    advance,
+    paymentStatus,
+    source: [source, hasCommission && agentName ? `agent ${agentName}` : "", roomName].filter(Boolean).join(" · "),
+    createdBy: actor.name,
   });
   await audit(actor, "CREATE", "voucher", outcome.id, {
     property: propertySlug,

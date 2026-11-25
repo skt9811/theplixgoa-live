@@ -132,6 +132,14 @@ export async function handleAdminCreateBooking(request: Request): Promise<Respon
         checkIn,
         checkOut,
         amount: bookingAmount,
+        phone: guestPhone,
+        email: guestEmail,
+        adults: adultsCount,
+        children: childrenCount,
+        advance: advanceAmount,
+        paymentStatus,
+        source: channel,
+        notes,
       });
     }
 

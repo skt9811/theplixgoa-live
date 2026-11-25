@@ -331,14 +331,55 @@ export function clickAlert(c: { channel: string; propertySlug: string | null; so
   return [`${what}${c.propertySlug ? ` — ${propertyLabel(c.propertySlug)}` : ""}`, `Page ${c.sourcePath} · ${c.ctaLocation} · ${c.deviceType ?? "device?"} · from ${from}`, `🕐 ${now()}`].join("\n");
 }
 
-export function bookingAlert(b: { propertyName: string; guest: string; checkIn: string; checkOut: string; rooms: number; total: number }): string {
+export function bookingAlert(b: {
+  propertyName: string; guest: string; checkIn: string; checkOut: string; rooms: number; total: number;
+  bookingId?: string | undefined; phone?: string | null | undefined; email?: string | null | undefined; adults?: number | undefined; children?: number | undefined; advance?: number | undefined;
+  paymentStatus?: string | null | undefined; source?: string | null | undefined; createdBy?: string | null | undefined; notes?: string | null | undefined; coupon?: string | null | undefined;
+}): string {
   const nights = Math.max(1, Math.round((Date.parse(b.checkOut) - Date.parse(b.checkIn)) / 86_400_000));
-  return [
-    `🛎️ *New booking — ${b.propertyName}*`,
-    `👤 ${b.guest}${b.rooms > 1 ? ` · ${b.rooms} rooms` : ""}`,
-    `📅 ${day(b.checkIn)} → ${day(b.checkOut)} (${nights} night${nights === 1 ? "" : "s"})`,
-    `💰 ${inr(b.total)}`,
-  ].join("\n");
+  const lines = [`🛎️ *New booking — ${b.propertyName}*`, `👤 ${b.guest}`];
+  if (b.phone) lines.push(`📞 ${b.phone}`);
+  if (b.email) lines.push(`✉️ ${b.email}`);
+  lines.push(`📅 ${day(b.checkIn)} → ${day(b.checkOut)} (${nights} night${nights === 1 ? "" : "s"})`);
+  const pax = (b.adults ?? 0) + (b.children ?? 0);
+  const party = [
+    pax ? `${pax} guest${pax === 1 ? "" : "s"}${b.children ? ` (${b.adults ?? 0} adults, ${b.children} children)` : ""}` : "",
+    `${b.rooms} room${b.rooms === 1 ? "" : "s"}`,
+  ].filter(Boolean);
+  lines.push(`🧑‍🤝‍🧑 ${party.join(" · ")}`);
+  let money = `💰 Total ${inr(b.total)}`;
+  if (b.advance !== undefined) {
+    const due = Math.max(0, b.total - b.advance);
+    money += ` · Paid ${inr(b.advance)} · ${due > 0 ? `Due ${inr(due)}` : "Fully paid"}`;
+  } else if (b.paymentStatus) money += ` · ${b.paymentStatus}`;
+  lines.push(money);
+  if (b.total > 0 && nights > 0) lines.push(`📈 ${inr(b.total / nights)} / night`);
+  if (b.coupon) lines.push(`🏷️ Coupon ${b.coupon}`);
+  if (b.source) lines.push(`🔗 Source: ${b.source}`);
+  if (b.createdBy) lines.push(`✍️ Added by ${b.createdBy}`);
+  if (b.notes) lines.push(`📝 ${b.notes.length > 300 ? `${b.notes.slice(0, 300)}…` : b.notes}`);
+  lines.push(`🕐 ${now()}`, b.bookingId ? `→ theplixgoa.com/pms/bookings?highlight=${b.bookingId}` : "→ theplixgoa.com/pms/bookings");
+  return lines.join("\n");
+}
+
+export function inquiryAlert(i: { confirmed: boolean; guest: string; property: string; host?: string | null | undefined; checkIn?: string | null | undefined; checkOut?: string | null | undefined; pax?: number | null | undefined; payout?: number | null | undefined; currency?: string | null | undefined; code?: string | null | undefined; message?: string | null | undefined; id: string }): string {
+  const lines = [i.confirmed ? `✅ *Airbnb reservation confirmed — ${i.property}*` : `📩 *New Airbnb enquiry — ${i.property}*`, `👤 ${i.guest}`];
+  if (i.checkIn && i.checkOut) {
+    const nights = Math.max(1, Math.round((Date.parse(i.checkOut) - Date.parse(i.checkIn)) / 86_400_000));
+    lines.push(`📅 ${day(i.checkIn)} → ${day(i.checkOut)} (${nights} night${nights === 1 ? "" : "s"})`);
+  }
+  if (i.pax) lines.push(`🧑‍🤝‍🧑 ${i.pax} guest${i.pax === 1 ? "" : "s"}`);
+  if (i.payout) lines.push(`💰 Payout ${i.currency && i.currency !== "INR" ? `${i.currency} ${i.payout}` : inr(i.payout)}`);
+  if (i.code) lines.push(`🔖 ${i.code}`);
+  if (i.host) lines.push(`🏡 Host account: ${i.host}`);
+  if (i.message) lines.push(`💬 ${i.message.length > 400 ? `${i.message.slice(0, 400)}…` : i.message}`);
+  lines.push(`🕐 ${now()}`, `→ theplixgoa.com/pms/inquiries?id=${i.id}`);
+  return lines.join("\n");
+}
+
+/** POS events (table opened / cancelled / bill settled), forwarded to the ops group. */
+export function posAlert(title: string, details: (string | null | undefined | false)[]): string {
+  return [title, ...details.filter((d): d is string => Boolean(d)), `🕐 ${now()}`].join("\n");
 }
 
 type ReportBooking = {

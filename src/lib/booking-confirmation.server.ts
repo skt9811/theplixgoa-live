@@ -168,6 +168,13 @@ export async function confirmBookingAndSendEmails(
       checkIn: toDateString(row.check_in),
       checkOut: toDateString(row.check_out),
       amount: Number(row.total_amount),
+      phone: row.guest_mobile,
+      email: row.guest_email,
+      adults: Number(row.guests ?? 0) || undefined,
+      advance: Number(row.total_amount),
+      paymentStatus: "paid",
+      source: "Website (paid online)",
+      coupon: row.coupon_code ?? null,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

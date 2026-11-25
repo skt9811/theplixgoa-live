@@ -3036,7 +3036,9 @@ export async function handlePmsApi(request: Request): Promise<Response> {
     }
     if (path === "lead-stats" && request.method === "GET") {
       const days = Number(url.searchParams.get("days")) || 7;
-      const stats = await fetchLeadStats(sql, days === 30 ? 30 : 7);
+      const propertyParam = str(url.searchParams.get("property"));
+      const propertySlug = propertyParam && propertyParam !== "all" ? propertyParam : null;
+      const stats = await fetchLeadStats(sql, days === 30 ? 30 : 7, propertySlug);
       return json({ stats });
     }
     if (path === "revenue/history" && request.method === "GET") {

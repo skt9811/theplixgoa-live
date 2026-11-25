@@ -179,11 +179,20 @@ function PmsDashboard() {
   const canSeeMoney = dailyRevenue !== null;
 
   const [leadWindow, setLeadWindow] = useState<7 | 30>(7);
+  // Defaults to the selected property's own leads; "site" shows every lead
+  // site-wide (general/partner/blog clicks included). Reset to the
+  // property-scoped default whenever the property switcher changes, so
+  // switching properties never leaves an "All Site Leads" view stuck on.
+  const [leadScope, setLeadScope] = useState<"property" | "site">("property");
+  useEffect(() => {
+    setLeadScope("property");
+  }, [property]);
   const [leadStats, setLeadStats] = useState<LeadStats | null>(null);
   useEffect(() => {
     let cancelled = false;
     setLeadStats(null);
-    pms<{ stats?: LeadStats }>(`lead-stats?days=${leadWindow}`)
+    const scopedProperty = leadScope === "property" ? property : "all";
+    pms<{ stats?: LeadStats }>(`lead-stats?days=${leadWindow}&property=${encodeURIComponent(scopedProperty)}`)
       .then((r) => {
         if (!cancelled) setLeadStats(r.stats ?? null);
       })
@@ -193,7 +202,7 @@ function PmsDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [leadWindow]);
+  }, [leadWindow, leadScope, property]);
 
   const units = unitsFor(property, properties);
   // Occupancy is physical rooms, not booking rows: a 5-room booking takes 5
@@ -321,109 +330,6 @@ function PmsDashboard() {
           />
           <Stat label="Vacant" value={ready ? vacant : "-"} hint="Available right now" />
         </div>
-
-        <div className="mt-7 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Website Leads
-          </h2>
-          <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
-            <button
-              type="button"
-              onClick={() => setLeadWindow(7)}
-              className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
-                leadWindow === 7 ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              7d
-            </button>
-            <button
-              type="button"
-              onClick={() => setLeadWindow(30)}
-              className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
-                leadWindow === 30 ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              30d
-            </button>
-          </div>
-        </div>
-        {leadStats ? (
-          <div className="mt-2 rounded-xl border border-slate-200 bg-white p-4">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div>
-                <p className="text-2xl font-bold text-slate-900">{leadStats.totalCalls}</p>
-                <p className="text-xs text-slate-500">Calls</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-900">{leadStats.totalWhatsapp}</p>
-                <p className="text-xs text-slate-500">WhatsApp</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-900">{leadStats.byIntent.guest_booking}</p>
-                <p className="text-xs text-slate-500">Guest booking</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-900">{leadStats.byIntent.partner_onboarding}</p>
-                <p className="text-xs text-slate-500">Partner inquiry</p>
-              </div>
-            </div>
-
-            {leadStats.topProperties.length > 0 && (
-              <div className="mt-4 border-t border-slate-100 pt-3">
-                <p className="text-xs font-semibold text-slate-500">Top properties</p>
-                <ul className="mt-1.5 space-y-1">
-                  {leadStats.topProperties.map((p) => (
-                    <li key={p.property_slug} className="flex justify-between text-xs text-slate-600">
-                      <span>{propertyDisplayName(p.property_slug)}</span>
-                      <span className="font-semibold text-slate-900">{p.count}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {leadStats.topPages.length > 0 && (
-              <div className="mt-3 border-t border-slate-100 pt-3">
-                <p className="text-xs font-semibold text-slate-500">Top pages</p>
-                <ul className="mt-1.5 space-y-1">
-                  {leadStats.topPages.map((p) => (
-                    <li key={p.source_path} className="flex justify-between text-xs text-slate-600">
-                      <span className="truncate">{p.source_path}</span>
-                      <span className="font-semibold text-slate-900">{p.count}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {leadStats.recent.length > 0 && (
-              <div className="mt-3 border-t border-slate-100 pt-3">
-                <p className="text-xs font-semibold text-slate-500">Recent</p>
-                <ul className="mt-1.5 space-y-1.5">
-                  {leadStats.recent.map((r, i) => (
-                    <li key={i} className="flex items-center justify-between text-xs text-slate-600">
-                      <span className="flex items-center gap-1.5">
-                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${r.channel === "call" ? "bg-sky-50 text-sky-700" : "bg-emerald-50 text-emerald-700"}`}>
-                          {r.channel === "call" ? "Call" : "WA"}
-                        </span>
-                        <span className="truncate">{r.property_slug ? propertyDisplayName(r.property_slug) : r.source_path}</span>
-                      </span>
-                      <span className="text-slate-400">{r.device_type ?? ""}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {leadStats.totalCalls === 0 && leadStats.totalWhatsapp === 0 && (
-              <p className="text-xs text-slate-400">No Call/WhatsApp leads logged in this window yet.</p>
-            )}
-          </div>
-        ) : (
-          <div className="mt-2 rounded-xl border border-dashed border-slate-200 bg-white p-4 text-xs text-slate-400">
-            Loading lead stats…
-          </div>
-        )}
 
         <h2 className="mt-5 text-sm font-semibold uppercase tracking-wide text-slate-500">
           Quick links
@@ -596,6 +502,133 @@ function PmsDashboard() {
               </div>
             </div>
           </>
+        )}
+
+        <div className="mt-7 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Website Leads (Calls &amp; WhatsApp)
+          </h2>
+          <div className="flex flex-wrap items-center gap-2">
+            {property !== "all" && (
+              <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setLeadScope("property")}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    leadScope === "property" ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  {propertyDisplayName(property)}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeadScope("site")}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    leadScope === "site" ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  All Site Leads
+                </button>
+              </div>
+            )}
+            <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => setLeadWindow(7)}
+                className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  leadWindow === 7 ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                7d
+              </button>
+              <button
+                type="button"
+                onClick={() => setLeadWindow(30)}
+                className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  leadWindow === 30 ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                30d
+              </button>
+            </div>
+          </div>
+        </div>
+        {leadStats ? (
+          <div className="mt-2 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{leadStats.totalCalls}</p>
+                <p className="text-xs text-slate-500">Calls</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{leadStats.totalWhatsapp}</p>
+                <p className="text-xs text-slate-500">WhatsApp</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{leadStats.byIntent.guest_booking}</p>
+                <p className="text-xs text-slate-500">Guest booking</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{leadStats.byIntent.partner_onboarding}</p>
+                <p className="text-xs text-slate-500">Partner inquiry</p>
+              </div>
+            </div>
+
+            {leadStats.topProperties.length > 0 && (leadScope === "site" || property === "all") && (
+              <div className="mt-4 border-t border-slate-100 pt-3">
+                <p className="text-xs font-semibold text-slate-500">Top properties</p>
+                <ul className="mt-1.5 space-y-1">
+                  {leadStats.topProperties.map((p) => (
+                    <li key={p.property_slug} className="flex justify-between text-xs text-slate-600">
+                      <span>{propertyDisplayName(p.property_slug)}</span>
+                      <span className="font-semibold text-slate-900">{p.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {leadStats.topPages.length > 0 && (
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                <p className="text-xs font-semibold text-slate-500">Top pages</p>
+                <ul className="mt-1.5 space-y-1">
+                  {leadStats.topPages.map((p) => (
+                    <li key={p.source_path} className="flex justify-between text-xs text-slate-600">
+                      <span className="truncate">{p.source_path}</span>
+                      <span className="font-semibold text-slate-900">{p.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {leadStats.recent.length > 0 && (
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                <p className="text-xs font-semibold text-slate-500">Recent</p>
+                <ul className="mt-1.5 space-y-1.5">
+                  {leadStats.recent.map((r, i) => (
+                    <li key={i} className="flex items-center justify-between text-xs text-slate-600">
+                      <span className="flex items-center gap-1.5">
+                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${r.channel === "call" ? "bg-sky-50 text-sky-700" : "bg-emerald-50 text-emerald-700"}`}>
+                          {r.channel === "call" ? "Call" : "WA"}
+                        </span>
+                        <span className="truncate">{r.property_slug ? propertyDisplayName(r.property_slug) : r.source_path}</span>
+                      </span>
+                      <span className="text-slate-400">{r.device_type ?? ""}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {leadStats.totalCalls === 0 && leadStats.totalWhatsapp === 0 && (
+              <p className="text-xs text-slate-400">No Call/WhatsApp leads logged in this window yet.</p>
+            )}
+          </div>
+        ) : (
+          <div className="mt-2 rounded-xl border border-dashed border-slate-200 bg-white p-4 text-xs text-slate-400">
+            Loading lead stats…
+          </div>
         )}
 
         {segment === "hotel-position" && (

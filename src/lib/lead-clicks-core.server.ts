@@ -100,15 +100,25 @@ export type LeadStats = {
 /** Everything the PMS dashboard widget needs for a given lookback window, in
  * one round trip — callers (pms-api.server.ts) already hold a live `sql`
  * connection to this same web DB, so this takes it rather than opening its own. */
-export async function fetchLeadStats(sql: import("postgres").Sql, days: number): Promise<LeadStats> {
+export async function fetchLeadStats(
+  sql: import("postgres").Sql,
+  days: number,
+  propertySlug?: string | null,
+): Promise<LeadStats> {
   await ensureLeadClicksSchema(sql);
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-  const rows = await sql<LeadStatsRow[]>`
-    SELECT channel, intent, property_slug, source_path, cta_location, device_type, created_at
-    FROM public.lead_clicks
-    WHERE created_at >= ${since}::timestamptz
-  `;
+  const rows = propertySlug
+    ? await sql<LeadStatsRow[]>`
+        SELECT channel, intent, property_slug, source_path, cta_location, device_type, created_at
+        FROM public.lead_clicks
+        WHERE created_at >= ${since}::timestamptz AND property_slug = ${propertySlug}
+      `
+    : await sql<LeadStatsRow[]>`
+        SELECT channel, intent, property_slug, source_path, cta_location, device_type, created_at
+        FROM public.lead_clicks
+        WHERE created_at >= ${since}::timestamptz
+      `;
 
   const totalCalls = rows.filter((r) => r.channel === "call").length;
   const totalWhatsapp = rows.filter((r) => r.channel === "whatsapp").length;

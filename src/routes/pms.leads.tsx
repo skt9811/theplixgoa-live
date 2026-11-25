@@ -11,7 +11,7 @@ export const Route = createFileRoute("/pms/leads")({
 
 // Every website lead (src/lib/leads.server.ts): saved before the team email
 // is sent, so nothing submitted on the site is ever lost.
-type LeadType = "contact" | "callback" | "partner" | "subscriber";
+type LeadType = "contact" | "callback" | "partner" | "subscriber" | "signup";
 type LeadStatus = "new" | "contacted" | "converted" | "closed";
 type PmsLead = {
   id: string;
@@ -34,12 +34,14 @@ const TYPE_LABEL: Record<LeadType, string> = {
   callback: "Callback request",
   partner: "List your property",
   subscriber: "Newsletter subscriber",
+  signup: "Account sign-up",
 };
 const TYPE_STYLE: Record<LeadType, string> = {
   contact: "bg-sky-100 text-sky-700",
   callback: "bg-violet-100 text-violet-700",
   partner: "bg-amber-100 text-amber-800",
   subscriber: "bg-pink-100 text-pink-700",
+  signup: "bg-teal-100 text-teal-700",
 };
 const STATUS_LABEL: Record<LeadStatus, string> = { new: "New", contacted: "Contacted", converted: "Converted", closed: "Closed" };
 const STATUS_STYLE: Record<LeadStatus, string> = {
@@ -60,6 +62,8 @@ const DETAIL_LABEL: Record<string, string> = {
   propertyName: "Property name",
   preferredModel: "Preferred model",
   source: "Signed up via",
+  method: "Signed up with",
+  note: "Note",
   recovered_from: "Recovered from",
 };
 
@@ -123,12 +127,12 @@ function Leads() {
       <div className="mx-auto max-w-5xl">
         <h1 className="text-xl font-bold">Leads</h1>
         <p className="text-sm text-slate-500">
-          Every enquiry from the website — Contact form, Request Callback, List Your Property and newsletter sign-ups.
+          Every enquiry from the website — Contact form, Request Callback, List Your Property, newsletter and account sign-ups.
           {leads && ` ${leads.length} total · ${newCount} new.`}
         </p>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {(["all", "contact", "callback", "partner", "subscriber"] as const).map((t) => (
+          {(["all", "contact", "callback", "partner", "subscriber", "signup"] as const).map((t) => (
             <button key={t} type="button" onClick={() => setType(t)} className={chip(type === t)}>
               {t === "all" ? "All types" : TYPE_LABEL[t]}
             </button>

@@ -6,6 +6,7 @@
 // uses (see node_modules/@auth/core/jwt.js + lib/utils/cookie.js), so one
 // /api/auth/session check (Auth.js's own endpoint) correctly reads sessions
 // from either login path.
+import { saveLead } from "@/lib/leads.server";
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { encode as encodeSessionJwt } from "@auth/core/jwt";
@@ -97,5 +98,7 @@ export async function createUserWithPassword(email: string, password: string, na
   );
   const row = rows[0];
   if (!row) throw new Error("Insert returned no row");
+  // New guest account → PMS → Leads (website and mobile email sign-up).
+  await saveLead({ type: "signup", name: row.name || row.email, email: row.email, details: { method: "Email & password" } });
   return row;
 }

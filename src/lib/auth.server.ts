@@ -11,6 +11,7 @@
 // while password login uses JWT in one Auth.js instance. The `sessions`
 // table in Neon exists (see the schema script) for adapter completeness but
 // isn't read at runtime.
+import { saveLead } from "@/lib/leads.server";
 import PostgresAdapter from "@auth/pg-adapter";
 import Google from "@auth/core/providers/google";
 import type { AuthConfig } from "@auth/core/types";
@@ -59,6 +60,13 @@ export function getAuthConfig(req?: Request): AuthConfig {
     ...(req ? { useSecureCookies: isSecureRequest(req) } : {}),
     ...(pgPool ? { adapter: PostgresAdapter(pgPool) } : {}),
     providers: isGoogleAuthConfigured() ? [Google] : [],
+    // A brand-new Google account on the website also shows in PMS → Leads.
+    events: {
+      createUser: async ({ user }) => {
+        if (!user.email) return;
+        await saveLead({ type: "signup", name: user.name || user.email, email: user.email, details: { method: "Google (website)" } });
+      },
+    },
     pages: {
       // Avoid Auth.js's built-in HTML error/signin pages — this app renders
       // its own AuthModal; errors come back as a `?error=` query param on

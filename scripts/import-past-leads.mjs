@@ -1,6 +1,7 @@
 // One-off import into public.website_leads (Plix PMS → Leads) of leads that
 // came in before leads were stored:
 //   - every row of public.newsletter_subscribers (type "subscriber")
+//   - every guest account in public.users (type "signup")
 //   - Contact / Callback / List Your Property submissions recovered from the
 //     team notification emails in Resend's history, read from a local
 //     scripts/past-leads-from-email.json (guest contact details — never
@@ -24,6 +25,17 @@ const records = [];
 for (const s of await sql`SELECT id, email, source, created_at FROM public.newsletter_subscribers ORDER BY created_at`) {
   records.push({ key: `subscriber:${s.id}`, type: "subscriber", name: s.email, email: s.email, phone: null, property: null, message: null,
     details: { source: s.source }, status: "new", notes: null, emailed: false, created_at: s.created_at });
+}
+
+// Guest accounts (website / mobile sign-ups). emailVerified is set at sign-up
+// for email and mobile accounts; website Google accounts have no recorded date.
+for (const u of await sql`SELECT u.id, u.name, u.email, u."emailVerified" AS verified, (u.password_hash IS NOT NULL) AS has_password,
+    EXISTS (SELECT 1 FROM public.accounts a WHERE a."userId" = u.id AND a.provider = 'google') AS google
+  FROM public.users u ORDER BY u.id`) {
+  const method = u.google && u.has_password ? "Email & password + Google" : u.google ? "Google (website)" : "Email & password";
+  records.push({ key: `user:${u.id}`, type: "signup", name: u.name || u.email, email: u.email, phone: null, property: null, message: null,
+    details: { method, ...(u.verified ? {} : { note: "Sign-up date not recorded; shown as the import date" }) },
+    status: "new", notes: null, emailed: false, created_at: u.verified ?? new Date() });
 }
 
 for (const e of emailLeads) {

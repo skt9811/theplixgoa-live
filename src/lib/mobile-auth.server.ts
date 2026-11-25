@@ -15,6 +15,7 @@
 // Google flows already write to (see password-auth.server.ts), and issues a
 // bearer JWT the app attaches to subsequent requests — the mobile equivalent
 // of the session cookie, since cookies aren't a usable primitive here.
+import { saveLead } from "@/lib/leads.server";
 import { jwtVerify, SignJWT } from "jose";
 import { getAuthPool } from "@/lib/auth.server";
 import { createUserWithPassword, findUserByEmail, verifyPassword } from "@/lib/password-auth.server";
@@ -88,6 +89,7 @@ async function findOrCreateGoogleUser(email: string, name: string | undefined): 
   );
   const row = rows[0];
   if (!row) throw new Error("Insert returned no row");
+  await saveLead({ type: "signup", name: row.name || row.email, email: row.email, details: { method: "Google (mobile app)" } });
   return row;
 }
 

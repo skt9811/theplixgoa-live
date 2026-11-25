@@ -20,7 +20,7 @@ export function SiteHeader() {
   const [guestUser, setGuestUser] = useState<GuestUser | null>(null);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const isHome = pathname === "/";
-  const isPropertyDetail = pathname.startsWith("/properties/");
+  const isStaysResults = pathname === "/stays" || pathname === "/stays/";
 
   // Auto-close mobile menu on route change
   useEffect(() => {
@@ -250,7 +250,9 @@ export function SiteHeader() {
         </div>
       )}
 
-      {!isHome && !isPropertyDetail && (
+      {/* Search lives in the homepage hero; the header bar only appears on the
+          /stays results page, where it is the way to change dates/guests. */}
+      {isStaysResults && (
         <div className="border-t border-border/60 bg-background/70">
           <div className="mx-auto max-w-7xl px-4 py-3 md:px-6">
             <SearchBar compact />

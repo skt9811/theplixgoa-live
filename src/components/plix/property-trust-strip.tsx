@@ -27,7 +27,9 @@ export function PropertyTrustStrip({ propertyName }: Props) {
       </li>
       <li className="flex items-center gap-2">
         <CalendarCheck className="size-4 shrink-0 text-primary" aria-hidden />
-        Free cancellation 30+ days before check-in
+        <a href="/cancellation" className="underline-offset-2 hover:text-foreground hover:underline">
+          Free cancellation 30+ days before check-in
+        </a>
       </li>
       <li className="flex items-center gap-2">
         <Receipt className="size-4 shrink-0 text-primary" aria-hidden />

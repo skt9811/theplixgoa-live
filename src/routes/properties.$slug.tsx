@@ -481,8 +481,6 @@ function PropertyDetail() {
   // two different pages under two different claims about what it covers.
   const relatedPosts = blogPosts.filter((post) => postMentionsLocation(post, property.location)).slice(0, 3);
 
-  const input =
-    "mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-ring/40 min-h-[44px]";
 
   function handleRoomsChange(value: number) {
     setRooms(value);
@@ -802,154 +800,126 @@ function PropertyDetail() {
           className="lg:col-span-4 sticky top-24 self-start max-h-[calc(100vh-7rem)] overflow-y-auto"
           style={{ top: asideTop }}
         >
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
-            {datesChosen && nights > 0 ? (
-              <div className="flex items-end gap-1">
-                <span className="text-3xl font-semibold text-navy">
-                  {formatINR(Math.round(subtotal / nights))}
-                </span>
-                <span className="pb-1 text-sm text-muted-foreground">
-                  /night{roomPriceMultiplier > 1 ? ` for ${roomPriceMultiplier} rooms` : ""}
-                  {hasCustomRate ? " (average)" : ""}
-                </span>
-              </div>
-            ) : (property.starting_price ?? property.base_price) > 0 ? (
-              // Before dates: the lowest upcoming nightly rate (never more than
-              // a guest can book), so the card leads with a real number.
-              <div>
-                <div className="flex items-end gap-1">
-                  <span className="pb-1 text-sm text-muted-foreground">From</span>
-                  <span className="text-3xl font-semibold text-navy">
+          {/* Booking card, StayVista-style: price first, then one bordered
+              panel of Check-in / Check-out / Guests / Rooms cells, one dark
+              button. The breakdown and promo code appear only once dates
+              are picked, so the empty state stays short. */}
+          <div className="rounded-2xl border border-border bg-card shadow-soft">
+            <div className="rounded-t-2xl bg-gradient-to-br from-[#FBEFE6] via-card to-[#F3EDF3] p-5">
+              {datesChosen && nights > 0 ? (
+                <p className="flex flex-wrap items-baseline gap-x-1.5">
+                  <span className="text-[28px] font-semibold leading-none text-navy">
+                    {formatINR(Math.round(subtotal / nights))}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {roomPriceMultiplier > 1 ? `(for ${roomPriceMultiplier} rooms) ` : ""}per night
+                    {hasCustomRate ? " (avg)" : ""} + taxes
+                  </span>
+                </p>
+              ) : (property.starting_price ?? property.base_price) > 0 ? (
+                <p className="flex flex-wrap items-baseline gap-x-1.5">
+                  <span className="text-sm text-muted-foreground">From</span>
+                  <span className="text-[28px] font-semibold leading-none text-navy">
                     {formatINR(property.starting_price ?? property.base_price)}
                   </span>
-                  <span className="pb-1 text-sm text-muted-foreground">
-                    /night{isMultiRoom ? " per room" : ""} + taxes
+                  <span className="text-sm text-muted-foreground">
+                    {isMultiRoom ? "per room " : ""}per night + taxes
                   </span>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">Select dates for the exact price</p>
-              </div>
-            ) : (
-              <p className="text-base font-semibold text-navy">Select check-in &amp; check-out dates to view price</p>
-            )}
-            {datesChosen && hasCustomRate && (
-              <p className="mt-1 text-xs text-primary">Seasonal pricing applied for selected dates</p>
-            )}
-
-            <div className="mt-4 rounded-xl border border-primary/20 bg-accent px-4 py-2.5 text-xs font-semibold text-accent-foreground">
-              Book direct & save — zero OTA commission on this rate
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Check-in
-                <input
-                  id="book-check-in"
-                  type="date"
-                  min={todayISO()}
-                  value={checkInChosen ? checkIn : ""}
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    setCheckIn(e.target.value);
-                    setCheckInChosen(true);
-                    // Keep the (not yet chosen) check-out after the new check-in.
-                    if (!checkOutChosen || e.target.value >= checkOut) setCheckOut(addDaysISO(e.target.value, 1));
-                    trackFunnelEvent("select_dates", { property_slug: property.slug, field: "check_in" });
-                  }}
-                  className={`${input} min-h-[44px]`}
-                />
-              </label>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Check-out
-                <input
-                  type="date"
-                  min={checkInChosen ? addDaysISO(checkIn, 1) : todayISO()}
-                  value={checkOutChosen ? checkOut : ""}
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    setCheckOut(e.target.value);
-                    setCheckOutChosen(true);
-                    trackFunnelEvent("select_dates", { property_slug: property.slug, field: "check_out" });
-                  }}
-                  className={`${input} min-h-[44px]`}
-                />
-              </label>
-            </div>
-
-            {canBookWhole && (
-              <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted p-1">
-                <button
-                  type="button"
-                  onClick={() => setBookingMode("rooms")}
-                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
-                    bookingMode === "rooms" ? "bg-card text-navy shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Individual Rooms
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBookingMode("whole")}
-                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
-                    bookingMode === "whole" ? "bg-card text-navy shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Entire Bungalow
-                </button>
-              </div>
-            )}
-
-            {isMultiRoom && (
-              <label className="mt-3 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Rooms
-                <input
-                  type="number"
-                  min={1}
-                  max={maxRooms}
-                  value={rooms}
-                  disabled={bookingMode === "whole"}
-                  onChange={(e) => handleRoomsChange(Number(e.target.value))}
-                  className={`${input} min-h-[44px] disabled:cursor-not-allowed disabled:opacity-60`}
-                />
-                {bookingMode === "whole" && (
-                  <span className="mt-1 block text-[11px] font-normal normal-case text-muted-foreground">
-                    All {property.total_inventory} rooms included
-                  </span>
-                )}
-              </label>
-            )}
-
-            <label className="mt-3 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Guests
-              <input
-                type="number"
-                min={1}
-                max={effectiveMaxGuests}
-                value={guests}
-                onChange={(e) => handleGuestsChange(Number(e.target.value))}
-                className={`${input} min-h-[44px]`}
-              />
-              {extraGuestPricingApplies && (
-                <span className="mt-1 block text-[11px] font-normal normal-case text-muted-foreground">
-                  {defaultGuests} guests included · {formatINR(extraGuestRate(property.id))} extra per
-                  guest, per night, beyond that
-                </span>
+                </p>
+              ) : (
+                <p className="text-base font-semibold text-navy">Select dates to view price</p>
               )}
-            </label>
-            {guestError && (
-              <p className="mt-1 text-xs text-red-600">{guestError}</p>
-            )}
 
-            {!datesChosen ? (
-              <div className="mt-5 border-t border-border pt-4 text-sm text-muted-foreground">
-                Choose your check-in and check-out dates to see the exact rate for those nights, with GST.
+              <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card">
+                <div className="grid grid-cols-2 divide-x divide-border">
+                  <DateCell
+                    id="book-check-in"
+                    label="Check-in"
+                    value={checkInChosen ? checkIn : ""}
+                    min={todayISO()}
+                    onChange={(v) => {
+                      setCheckIn(v);
+                      setCheckInChosen(true);
+                      // Keep the (not yet chosen) check-out after the new check-in.
+                      if (!checkOutChosen || v >= checkOut) setCheckOut(addDaysISO(v, 1));
+                      trackFunnelEvent("select_dates", { property_slug: property.slug, field: "check_in" });
+                    }}
+                  />
+                  <DateCell
+                    id="book-check-out"
+                    label="Check-out"
+                    value={checkOutChosen ? checkOut : ""}
+                    min={checkInChosen ? addDaysISO(checkIn, 1) : todayISO()}
+                    onChange={(v) => {
+                      setCheckOut(v);
+                      setCheckOutChosen(true);
+                      trackFunnelEvent("select_dates", { property_slug: property.slug, field: "check_out" });
+                    }}
+                  />
+                </div>
+                <div className={`grid divide-x divide-border border-t border-border ${isMultiRoom ? "grid-cols-2" : "grid-cols-1"}`}>
+                  <StepperCell
+                    label="Guests"
+                    value={guests}
+                    unit={guests === 1 ? "Guest" : "Guests"}
+                    min={1}
+                    max={effectiveMaxGuests}
+                    onChange={handleGuestsChange}
+                  />
+                  {isMultiRoom && (
+                    <StepperCell
+                      label="Rooms"
+                      value={rooms}
+                      unit={rooms === 1 ? "Room" : "Rooms"}
+                      min={1}
+                      max={maxRooms}
+                      disabled={bookingMode === "whole"}
+                      onChange={handleRoomsChange}
+                    />
+                  )}
+                </div>
               </div>
+
+              {canBookWhole && (
+                <div className="mt-3 grid grid-cols-2 gap-1 rounded-full border border-border bg-card p-1">
+                  {(["rooms", "whole"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setBookingMode(mode)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        bookingMode === mode ? "bg-navy text-navy-foreground" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {mode === "rooms" ? "Individual rooms" : "Entire bungalow"}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {bookingMode === "whole" && isMultiRoom && (
+                <p className="mt-2 text-[11px] text-muted-foreground">All {property.total_inventory} rooms included</p>
+              )}
+              {extraGuestPricingApplies && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  {defaultGuests} guests included · {formatINR(extraGuestRate(property.id))} per extra guest, per night
+                </p>
+              )}
+              {guestError && <p className="mt-2 text-xs text-red-600">{guestError}</p>}
+            </div>
+
+            <div className="p-5 pt-4">
+            {!datesChosen ? (
+              <p className="rounded-lg bg-accent px-3 py-2 text-center text-xs font-medium text-accent-foreground">
+                Book direct &amp; save — zero OTA commission
+              </p>
             ) : (
-            <div className="mt-5 space-y-2 border-t border-border pt-4 text-sm">
+            <div className="space-y-2 text-sm">
               {nights > 0 && hasCustomRate ? (
                 <div className="space-y-1">
                   {nightsList.map((n, i) => (
                     <div key={n} className="flex justify-between text-muted-foreground">
-                      <span>{n} — {formatINR((nightlyRates[i] ?? 0) - extraGuestChargePerNight)}</span>
+                      <span>{shortDateLabel(n)}</span>
+                      <span className="text-foreground">{formatINR((nightlyRates[i] ?? 0) - extraGuestChargePerNight)}</span>
                     </div>
                   ))}
                 </div>
@@ -1046,24 +1016,26 @@ function PropertyDetail() {
             )}
 
             <button
-              disabled={!datesChosen || nights === 0 || datesBlocked || Boolean(guestError)}
+              type="button"
+              disabled={(datesChosen && (nights === 0 || datesBlocked)) || Boolean(guestError)}
               onClick={() => {
+                // No dates yet: open the check-in calendar instead of a dead,
+                // greyed-out button.
+                if (!datesChosen || nights === 0) {
+                  openDatePicker(checkInChosen ? "book-check-out" : "book-check-in");
+                  return;
+                }
                 trackFunnelEvent("click_book", { property_slug: property.slug, location: "desktop_widget" });
                 setCheckoutOpen(true);
               }}
-              className="mt-5 w-full rounded-full bg-navy px-6 py-4 text-sm font-semibold text-navy-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 min-h-[44px]"
+              className="mt-4 w-full rounded-xl bg-navy px-6 py-3.5 text-base font-semibold text-navy-foreground transition-colors hover:bg-navy/90 disabled:cursor-not-allowed disabled:opacity-60 min-h-[48px]"
             >
               {!datesChosen || nights === 0 ? "Select Dates" : datesBlocked ? "Dates unavailable" : "Book Direct Now"}
             </button>
-            <p className="mt-3 text-center text-xs text-muted-foreground">
-              Best price guaranteed · Zero commission ·{" "}
-              <Link to="/cancellation" className="underline hover:text-foreground">
-                See cancellation policy
-              </Link>
-            </p>
             <PropertyRatingBadge propertySlug={property.slug} />
             <PropertyTrustStrip propertyName={property.name} />
             <PropertyAlsoListed propertySlug={property.slug} />
+            </div>
           </div>
 
           <div className="mt-4">
@@ -1139,8 +1111,8 @@ function PropertyDetail() {
           type="button"
           onClick={() => {
             if (!datesChosen || nights === 0 || datesBlocked || guestError) {
-              document.getElementById("book")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              if (!datesChosen) document.getElementById("book-check-in")?.focus({ preventScroll: true });
+              if (!datesChosen) openDatePicker(checkInChosen ? "book-check-out" : "book-check-in");
+              else document.getElementById("book")?.scrollIntoView({ behavior: "smooth", block: "start" });
             } else {
               trackFunnelEvent("click_book", { property_slug: property.slug, location: "mobile_sticky_bar" });
               setCheckoutOpen(true);
@@ -1169,6 +1141,103 @@ function PropertyDetail() {
           />
         </Suspense>
       )}
+    </div>
+  );
+}
+
+/** Opens a date input's native calendar (falls back to focus where
+ * showPicker isn't supported). */
+function openDatePicker(id: string) {
+  const el = document.getElementById(id) as HTMLInputElement | null;
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  try {
+    el.showPicker();
+  } catch {
+    el.focus();
+  }
+}
+
+const shortDateLabel = (iso: string) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+
+/** One booking-card cell: small label, "Add date" or the picked date, with
+ * the native date input layered on top so the whole cell opens the picker. */
+function DateCell({
+  id,
+  label,
+  value,
+  min,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  min: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label htmlFor={id} className="relative block cursor-pointer px-3.5 py-2.5 transition-colors hover:bg-muted/60">
+      <span className="block text-[11px] font-medium text-muted-foreground">{label}</span>
+      <span className={`mt-0.5 block text-sm font-semibold ${value ? "text-navy" : "text-muted-foreground/70"}`}>
+        {value ? shortDateLabel(value) : "Add date"}
+      </span>
+      <input
+        id={id}
+        type="date"
+        min={min}
+        value={value}
+        onClick={(e) => {
+          try {
+            e.currentTarget.showPicker();
+          } catch {
+            /* older browsers open it on their own */
+          }
+        }}
+        onChange={(e) => e.target.value && onChange(e.target.value)}
+        aria-label={label}
+        className="absolute inset-0 size-full cursor-pointer opacity-0 [color-scheme:light]"
+      />
+    </label>
+  );
+}
+
+/** Booking-card cell with − / + buttons instead of a bare number box. */
+function StepperCell({
+  label,
+  value,
+  unit,
+  min,
+  max,
+  disabled = false,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  unit: string;
+  min: number;
+  max: number;
+  disabled?: boolean;
+  onChange: (v: number) => void;
+}) {
+  const btn =
+    "inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-navy transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40";
+  return (
+    <div className={`px-3.5 py-2.5 ${disabled ? "opacity-60" : ""}`}>
+      <span className="block text-[11px] font-medium text-muted-foreground">{label}</span>
+      <div className="mt-0.5 flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-navy">
+          {value} {unit}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <button type="button" aria-label={`Fewer ${label.toLowerCase()}`} disabled={disabled || value <= min} onClick={() => onChange(value - 1)} className={btn}>
+            −
+          </button>
+          <button type="button" aria-label={`More ${label.toLowerCase()}`} disabled={disabled || value >= max} onClick={() => onChange(value + 1)} className={btn}>
+            +
+          </button>
+        </span>
+      </div>
     </div>
   );
 }

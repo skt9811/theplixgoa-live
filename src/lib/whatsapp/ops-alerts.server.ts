@@ -169,6 +169,7 @@ export async function drainOpsOutbox(): Promise<{ sent: number; pending: number;
         SELECT id, text, group_jid FROM public.whatsapp_outbox WHERE sent_at IS NULL AND attempts < 5 AND id > ${lastId} ORDER BY id LIMIT 25`;
       if (rows.length === 0) break;
       lastId = rows[rows.length - 1]!.id;
+      let failed = false;
       try {
         await withWhatsApp(async (sock) => {
           for (const row of rows) {
@@ -178,6 +179,10 @@ export async function drainOpsOutbox(): Promise<{ sent: number; pending: number;
               sent++;
             } catch (err) {
               await sql`UPDATE public.whatsapp_outbox SET attempts = attempts + 1, last_error = ${String(err instanceof Error ? err.message : err).slice(0, 500)} WHERE id = ${row.id}`;
+              // Stop here so later messages never overtake this one; the
+              // rest go out (in order) on the next run.
+              failed = true;
+              break;
             }
           }
         });
@@ -186,6 +191,7 @@ export async function drainOpsOutbox(): Promise<{ sent: number; pending: number;
         await sql`UPDATE public.whatsapp_outbox SET attempts = attempts + 1, last_error = ${message} WHERE id = ANY(${rows.map((r) => r.id)}) AND sent_at IS NULL`;
         throw err;
       }
+      if (failed) break;
     }
     return { sent, pending: await pendingCount() };
   } finally {
@@ -409,19 +415,66 @@ export function posAlert(title: string, details: (string | null | undefined | fa
 type ReportBooking = {
   property_id: string; guest_name: string; check_in: string; check_out: string; status: string;
   adults: number; children: number; rooms: number; balance: number; raw_status: string | null; is_backup_booking: boolean;
+  amount?: number | undefined; unit?: string | null | undefined;
 };
 
-/** Tomorrow's arrivals/departures (IST) and tonight's in-house count. */
+const liveStays = (bookings: ReportBooking[]) => bookings.filter((b) => b.status !== "cancelled" && b.raw_status !== "blocked" && !b.is_backup_booking);
+const inHouseOn = (bookings: ReportBooking[], date: string) => liveStays(bookings).filter((b) => b.check_in <= date && b.check_out > date);
+
+/** Message 1: tomorrow's arrivals/departures (IST) and everyone in-house tonight. */
 export function dailyOpsReport(bookings: ReportBooking[], todayIst: string, tomorrowIst: string): string {
-  const live = bookings.filter((b) => b.status !== "cancelled" && b.raw_status !== "blocked" && !b.is_backup_booking);
+  const live = liveStays(bookings);
   const arrivals = live.filter((b) => b.check_in === tomorrowIst).sort((a, b) => a.property_id.localeCompare(b.property_id));
   const departures = live.filter((b) => b.check_out === tomorrowIst).sort((a, b) => a.property_id.localeCompare(b.property_id));
-  const inHouse = live.filter((b) => b.check_in <= todayIst && b.check_out > todayIst);
+  const inHouse = inHouseOn(bookings, todayIst).sort((a, b) => a.property_id.localeCompare(b.property_id) || a.check_out.localeCompare(b.check_out));
   const due = (n: number) => (n > 0 ? ` · due ${inr(n)}` : "");
+  const pax = (b: ReportBooking) => b.adults + b.children;
   const lines = [`📋 *Plix ops report — ${day(tomorrowIst)}*`, "", `🛬 *Check-ins tomorrow (${arrivals.length})*`];
-  lines.push(...(arrivals.length ? arrivals.map((b) => `• ${propertyLabel(b.property_id)} — ${b.guest_name} · ${b.adults + b.children} pax${b.rooms > 1 ? ` · ${b.rooms} rooms` : ""}${due(b.balance)}`) : ["• None"]));
+  lines.push(...(arrivals.length ? arrivals.map((b) => `• ${propertyLabel(b.property_id)} — ${b.guest_name} · ${pax(b)} pax${b.rooms > 1 ? ` · ${b.rooms} rooms` : ""}${due(b.balance)}`) : ["• None"]));
   lines.push("", `🛫 *Check-outs tomorrow (${departures.length})*`);
   lines.push(...(departures.length ? departures.map((b) => `• ${propertyLabel(b.property_id)} — ${b.guest_name}${due(b.balance)}`) : ["• None"]));
-  lines.push("", `🏠 In-house tonight: ${inHouse.length} booking${inHouse.length === 1 ? "" : "s"}`);
+  lines.push("", `🏠 *In-house tonight (${inHouse.length})*`);
+  lines.push(
+    ...(inHouse.length
+      ? inHouse.map(
+          (b) =>
+            `• ${propertyLabel(b.property_id)} — ${b.guest_name}${b.unit ? ` · ${b.unit}` : b.rooms > 1 ? ` · ${b.rooms} rooms` : ""} · ${pax(b)} pax · out ${day(b.check_out)} · ${b.balance > 0 ? `due ${inr(b.balance)}` : "paid"}`,
+        )
+      : ["• None"]),
+  );
+  return lines.join("\n");
+}
+
+/** The six Plix properties the daily income report always lists, in this order. */
+const INCOME_PROPERTIES = ["harbor-court", "the-plix-villa", "casa-marina", "casa-meadows", "casa-moana", "vivenda-chico"] as const;
+
+/**
+ * Message 2: income for today (IST) per property — tonight's share of each
+ * in-house stay's room total (the same accrual the PMS dashboard uses), POS
+ * bills settled today, and income entries in the PMS ledger dated today.
+ */
+export function dailyIncomeReport(
+  bookings: ReportBooking[],
+  pms: { pos: Map<string, number>; other: Map<string, number> },
+  todayIst: string,
+): string {
+  const rooms = new Map<string, number>();
+  for (const b of inHouseOn(bookings, todayIst)) {
+    const nights = Math.max(1, Math.round((Date.parse(b.check_out) - Date.parse(b.check_in)) / 86_400_000));
+    rooms.set(b.property_id, (rooms.get(b.property_id) ?? 0) + (b.amount ?? 0) / nights);
+  }
+  let total = 0;
+  const lines = [`💰 *Plix daily income — ${day(todayIst)}*`, ""];
+  INCOME_PROPERTIES.forEach((slug, i) => {
+    const r = Math.round(rooms.get(slug) ?? 0);
+    const p = Math.round(pms.pos.get(slug) ?? 0);
+    const o = Math.round(pms.other.get(slug) ?? 0);
+    const sum = r + p + o;
+    total += sum;
+    lines.push(`${i + 1}. *${propertyLabel(slug)}* — ${inr(sum)}`);
+    const parts = [r ? `🛏️ Rooms ${inr(r)}` : "", p ? `🍽️ POS ${inr(p)}` : "", o ? `➕ Other ${inr(o)}` : ""].filter(Boolean);
+    if (parts.length) lines.push(`    ${parts.join(" · ")}`);
+  });
+  lines.push("", `*Total: ${inr(total)}*`, "_Rooms = tonight's share of each stay · POS = bills settled today · Other = ledger income today_");
   return lines.join("\n");
 }

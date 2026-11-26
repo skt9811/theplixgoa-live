@@ -4,9 +4,10 @@
 //   GET /api/whatsapp/pair    — QR code to link the ops number (once)
 //   GET /api/whatsapp/groups  — the number's groups, to copy the ops group id
 //   GET /api/whatsapp/test    — sends a test message to the group
-//   GET /api/cron/daily-ops-report — 8 PM IST next-day check-in/out report
-import { getWebDb } from "@/lib/pms-db.server";
-import { dailyOpsReport, drainOpsOutbox, listWhatsAppGroups, queueOps, startWhatsAppPairing } from "@/lib/whatsapp/ops-alerts.server";
+//   GET /api/cron/daily-ops-report — 8 PM IST manifest (check-ins/outs, in-house)
+//                                    + property-wise income for today
+import { getPmsDb, getWebDb } from "@/lib/pms-db.server";
+import { dailyIncomeReport, dailyOpsReport, drainOpsOutbox, listWhatsAppGroups, queueOps, startWhatsAppPairing } from "@/lib/whatsapp/ops-alerts.server";
 
 function authorized(req: Request): Response | null {
   const secret = process.env["CRON_SECRET"];
@@ -30,17 +31,17 @@ const json = (body: unknown, status = 200) =>
 type Sql = NonNullable<ReturnType<typeof getWebDb>>;
 
 /** Live (not cancelled / blocked) stays touching today or tomorrow, from both booking tables. */
-async function staysAround(sql: Sql, today: string, tomorrow: string) {
+export async function staysAround(sql: Sql, today: string, tomorrow: string) {
   const [manual, online] = await Promise.all([
-    sql<{ property_id: string; guest_name: string; check_in: string; check_out: string; adults: number; children: number; rooms: number; amount: string; advance: string; is_backup_booking: boolean | null }[]>`
+    sql<{ property_id: string; guest_name: string; check_in: string; check_out: string; adults: number; children: number; rooms: number; amount: string; advance: string; is_backup_booking: boolean | null; room_allocations: unknown; notes: string | null }[]>`
       SELECT property_id, guest_name, check_in::text AS check_in, check_out::text AS check_out,
              COALESCE(adults_count, guests_count, 0) AS adults, COALESCE(children_count, 0) AS children, COALESCE(rooms_count, 1) AS rooms,
-             booking_amount AS amount, COALESCE(advance_amount, 0) AS advance, is_backup_booking
+             booking_amount AS amount, COALESCE(advance_amount, 0) AS advance, is_backup_booking, room_allocations, notes
       FROM public.portal_bookings
       WHERE organization_id = 'org_plix_internal' AND status NOT IN ('blocked', 'cancelled')
         AND check_in <= ${tomorrow}::date AND check_out >= ${today}::date`,
-    sql<{ property_id: string; guest_name: string; check_in: string; check_out: string; guests: number; rooms: number | null }[]>`
-      SELECT property_id, guest_name, check_in::text AS check_in, check_out::text AS check_out, guests, rooms
+    sql<{ property_id: string; guest_name: string; check_in: string; check_out: string; guests: number; rooms: number | null; total_amount: string }[]>`
+      SELECT property_id, guest_name, check_in::text AS check_in, check_out::text AS check_out, guests, rooms, total_amount
       FROM public.bookings
       WHERE payment_status IN ('paid', 'simulated')
         AND check_in <= ${tomorrow}::date AND check_out >= ${today}::date`,
@@ -50,12 +51,51 @@ async function staysAround(sql: Sql, today: string, tomorrow: string) {
       property_id: b.property_id, guest_name: b.guest_name, check_in: b.check_in, check_out: b.check_out, status: "confirmed",
       adults: Number(b.adults), children: Number(b.children), rooms: Number(b.rooms),
       balance: Math.max(0, Number(b.amount) - Number(b.advance)), raw_status: null, is_backup_booking: Boolean(b.is_backup_booking),
+      amount: Number(b.amount), unit: roomUnit(b.room_allocations, b.notes),
     })),
     ...online.map((b) => ({
       property_id: b.property_id, guest_name: b.guest_name, check_in: b.check_in, check_out: b.check_out, status: "confirmed",
       adults: Number(b.guests), children: 0, rooms: Number(b.rooms ?? 1), balance: 0, raw_status: null, is_backup_booking: false,
+      amount: Number(b.total_amount), unit: null,
     })),
   ];
+}
+
+/** Room / unit label: the allocated room categories, or a voucher's "Room/Villa: …" note. */
+function roomUnit(allocations: unknown, notes: string | null): string | null {
+  if (Array.isArray(allocations) && allocations.length) {
+    const counts = new Map<string, number>();
+    for (const a of allocations) {
+      const c = typeof a === "object" && a && typeof (a as { category?: unknown }).category === "string" ? (a as { category: string }).category.trim() : "";
+      // "Room" is the form's default, not a real room name: let the room count show instead.
+      if (c && c.toLowerCase() !== "room") counts.set(c, (counts.get(c) ?? 0) + 1);
+    }
+    if (counts.size) return [...counts].map(([c, n]) => (n > 1 ? `${n}× ${c}` : c)).join(", ");
+  }
+  const m = /Room\/Villa: ([^·]+?)(?: ·|$)/.exec(notes ?? "");
+  return m?.[1]?.trim() || null;
+}
+
+/** Today's (IST) POS sales and ledger income per property, from the PMS database. */
+export async function pmsIncomeToday(today: string): Promise<{ pos: Map<string, number>; other: Map<string, number> }> {
+  const pos = new Map<string, number>();
+  const other = new Map<string, number>();
+  const pms = getPmsDb();
+  if (!pms) return { pos, other };
+  const [sales, ledger] = await Promise.all([
+    pms<{ property_id: string; total: string }[]>`
+      SELECT property_id, COALESCE(sum(total_amount), 0) AS total FROM pms_pos_orders
+      WHERE status = 'completed' AND organization_id = 'org_plix_internal'
+        AND (settled_at AT TIME ZONE 'Asia/Kolkata')::date = ${today}::date
+      GROUP BY property_id`.catch(() => []),
+    pms<{ property_id: string; total: string }[]>`
+      SELECT property_id, COALESCE(sum(amount), 0) AS total FROM expenses
+      WHERE type = 'income' AND organization_id = 'org_plix_internal' AND expense_date = ${today}::date
+      GROUP BY property_id`.catch(() => []),
+  ]);
+  for (const r of sales) pos.set(r.property_id, Number(r.total));
+  for (const r of ledger) other.set(r.property_id, Number(r.total));
+  return { pos, other };
 }
 
 const istDate = (offsetDays = 0) => new Date(Date.now() + 5.5 * 3_600_000 + offsetDays * 86_400_000).toISOString().slice(0, 10);
@@ -122,12 +162,17 @@ export async function handleWhatsAppRoute(req: Request, pathname: string): Promi
     if (!sql) return json({ error: "Database not configured" }, 500);
     const today = istDate(0);
     const tomorrow = istDate(1);
-    const report = dailyOpsReport(await staysAround(sql, today, tomorrow), today, tomorrow);
-    await queueOps(report);
+    const [stays, income] = await Promise.all([staysAround(sql, today, tomorrow), pmsIncomeToday(today)]);
+    const report = dailyOpsReport(stays, today, tomorrow);
+    const incomeReport = dailyIncomeReport(stays, income, today);
+    // Queued in order; the sender goes oldest-first and stops at a failure,
+    // so the income report never arrives before the manifest.
+    await queueOps(report, "ops");
+    await queueOps(incomeReport, "ops");
     try {
-      return json({ report, ...(await drainOpsOutbox()) });
+      return json({ report, incomeReport, ...(await drainOpsOutbox()) });
     } catch (err) {
-      return json({ report, error: err instanceof Error ? err.message : String(err) }, 500);
+      return json({ report, incomeReport, error: err instanceof Error ? err.message : String(err) }, 500);
     }
   }
 

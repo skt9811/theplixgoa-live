@@ -46,7 +46,7 @@ const TIERS = [
 export function PropertyRefundTimeline({ propertyName }: { propertyName: string }) {
   return (
     <section id="refund-policy" className="mt-10">
-      <h2 className="text-2xl font-semibold text-navy">{propertyName} house rules &amp; cancellation policy</h2>
+      <h2 className="text-xl font-semibold text-navy md:text-[22px]">{propertyName} house rules &amp; cancellation policy</h2>
 
       {/* Check-in / check-out badges */}
       <div className="mt-4 flex flex-wrap gap-3">

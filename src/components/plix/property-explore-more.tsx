@@ -22,7 +22,7 @@ export function PropertyExploreMore({ currentSlug }: Props) {
   return (
     <section className="mt-14">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-navy">Explore More Properties</h2>
+        <h2 className="text-xl font-semibold text-navy md:text-[22px]">Explore More Properties</h2>
         <div className="hidden gap-2 sm:flex">
           <button
             type="button"

@@ -241,7 +241,7 @@ function LocationNotFound() {
       <h1 className="text-2xl font-semibold text-navy">We couldn't find that destination</h1>
       <Link
         to="/stays"
-        className="mt-6 inline-block rounded-full bg-gradient-emerald px-6 py-3 text-sm font-semibold text-primary-foreground"
+        className="mt-6 inline-block rounded-full bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground"
       >
         Browse all stays
       </Link>

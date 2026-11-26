@@ -517,7 +517,7 @@ function withBrandSuffix(shortName: string): string {
 // website of <Name>" as plainly as possible, in under 50 words.
 export function propertyIntroParagraph(p: Property): string {
   const pool = poolWord(p);
-  const poolPhrase = pool ? `, ${pool}` : "";
+  const poolPhrase = pool ? `, with a ${pool}` : "";
   const isResort = RESORT_SLUGS.has(p.slug);
   const article = !isResort && p.bedrooms === 8 ? "an" : "a";
   const unitPhrase = isResort ? `${p.bedrooms}-room resort` : `${p.bedrooms} BHK villa`;

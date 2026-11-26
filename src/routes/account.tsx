@@ -90,7 +90,7 @@ function AccountPage() {
         </p>
         <Link
           to="/"
-          className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-emerald px-6 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02]"
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground shadow-soft transition-transform hover:scale-[1.02]"
         >
           <Home className="size-4" aria-hidden />
           Back to home
@@ -129,7 +129,7 @@ function AccountPage() {
           <p className="text-sm text-muted-foreground">No bookings yet with this email.</p>
           <Link
             to="/stays"
-            className="mt-4 inline-flex items-center justify-center rounded-full bg-gradient-emerald px-6 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02]"
+            className="mt-4 inline-flex items-center justify-center rounded-full bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground shadow-soft transition-transform hover:scale-[1.02]"
           >
             Browse stays
           </Link>

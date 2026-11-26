@@ -230,7 +230,7 @@ function Fallback({ title }: { title: string }) {
       <h1 className="text-2xl font-semibold text-navy">{title}</h1>
       <Link
         to="/stays"
-        className="mt-6 inline-block rounded-full bg-gradient-emerald px-6 py-3 text-sm font-semibold text-primary-foreground"
+        className="mt-6 inline-block rounded-full bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground"
       >
         Browse all stays
       </Link>
@@ -260,6 +260,14 @@ function PropertyDetail() {
   const [checkInChosen, setCheckInChosen] = useState(Boolean(urlSearch.checkIn));
   const [checkOutChosen, setCheckOutChosen] = useState(Boolean(urlSearch.checkOut));
   const datesChosen = checkInChosen && checkOutChosen;
+  // The phone booking bar is ~4.5rem tall: lift the site's floating buttons
+  // (WhatsApp, back-to-top, Plix AI) above it, same handshake as the blog bar.
+  useEffect(() => {
+    document.documentElement.style.setProperty("--sticky-cta-h", "4.75rem");
+    return () => {
+      document.documentElement.style.removeProperty("--sticky-cta-h");
+    };
+  }, []);
   // Arriving from a card's "Select Dates" (…#book): open on the date picker.
   useEffect(() => {
     if (window.location.hash !== "#book") return;
@@ -497,7 +505,10 @@ function PropertyDetail() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 pb-24 md:px-6 md:pb-8">
+    // White page behind the property (full-bleed via the shadow/clip-path
+    // trick, so the container keeps its width): calmer than the cream,
+    // lets the photos carry the colour.
+    <div className="mx-auto max-w-7xl bg-card px-4 py-8 pb-24 shadow-[0_0_0_100vmax_var(--card)] [clip-path:inset(0_-100vmax)] md:px-6 md:pb-8">
       <nav className="text-sm text-muted-foreground">
         <Link to="/" className="hover:text-primary">
           Home
@@ -620,7 +631,7 @@ function PropertyDetail() {
           />
 
           <section id="overview" className="mt-10">
-            <h2 className="text-2xl font-semibold text-navy">{property.name} overview</h2>
+            <h2 className="text-xl font-semibold text-navy md:text-[22px]">{property.name} overview</h2>
             <p className="mt-3 leading-relaxed text-muted-foreground">{property.description}</p>
             {/* Spelling/aka variants: one natural sentence, kept out of the
                 page's opening lines (schema alternateName carries the rest). */}
@@ -637,7 +648,7 @@ function PropertyDetail() {
           <PropertyReviewsSection propertyId={property.id} propertyName={property.name} />
 
           <section id="amenities" className="mt-10">
-            <h2 className="text-2xl font-semibold text-navy">{property.name} amenities</h2>
+            <h2 className="text-xl font-semibold text-navy md:text-[22px]">{property.name} amenities</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
               {property.amenity_tags.map((a) => {
                 const Icon = amenityIcon(a);
@@ -659,7 +670,7 @@ function PropertyDetail() {
           </section>
 
           <section id="meals" className="mt-10">
-            <h2 className="text-2xl font-semibold text-navy">{property.name} dining &amp; meals</h2>
+            <h2 className="text-xl font-semibold text-navy md:text-[22px]">{property.name} dining &amp; meals</h2>
             {hasRestaurant ? (
               <p className="mt-3 leading-relaxed text-muted-foreground">
                 {property.name} has an on-site restaurant serving local and international dishes, so
@@ -683,7 +694,7 @@ function PropertyDetail() {
           <PropertyAirportFares />
 
           <section id="location" className="mt-10">
-            <h2 className="text-2xl font-semibold text-navy">{property.name} location</h2>
+            <h2 className="text-xl font-semibold text-navy md:text-[22px]">{property.name} location</h2>
             {enclaveEntity && (
               <p className="mt-1 text-sm text-foreground">
                 Located within <span className="font-medium">{property.enclave}</span>, {enclaveEntity.locality}
@@ -753,7 +764,7 @@ function PropertyDetail() {
           </section>
 
           <section id="experiences" className="mt-10">
-            <h2 className="text-2xl font-semibold text-navy">{property.name} nearby attractions &amp; experiences</h2>
+            <h2 className="text-xl font-semibold text-navy md:text-[22px]">{property.name} nearby attractions &amp; experiences</h2>
             <ul className="mt-4 divide-y divide-border rounded-2xl border border-border bg-card">
               {property.nearby.map((n) => (
                 <li key={n.name} className="flex items-center justify-between px-5 py-3.5 text-sm">
@@ -791,7 +802,7 @@ function PropertyDetail() {
           className="lg:col-span-4 sticky top-24 self-start max-h-[calc(100vh-7rem)] overflow-y-auto"
           style={{ top: asideTop }}
         >
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
             {datesChosen && nights > 0 ? (
               <div className="flex items-end gap-1">
                 <span className="text-3xl font-semibold text-navy">
@@ -801,6 +812,21 @@ function PropertyDetail() {
                   /night{roomPriceMultiplier > 1 ? ` for ${roomPriceMultiplier} rooms` : ""}
                   {hasCustomRate ? " (average)" : ""}
                 </span>
+              </div>
+            ) : (property.starting_price ?? property.base_price) > 0 ? (
+              // Before dates: the lowest upcoming nightly rate (never more than
+              // a guest can book), so the card leads with a real number.
+              <div>
+                <div className="flex items-end gap-1">
+                  <span className="pb-1 text-sm text-muted-foreground">From</span>
+                  <span className="text-3xl font-semibold text-navy">
+                    {formatINR(property.starting_price ?? property.base_price)}
+                  </span>
+                  <span className="pb-1 text-sm text-muted-foreground">
+                    /night{isMultiRoom ? " per room" : ""} + taxes
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">Select dates for the exact price</p>
               </div>
             ) : (
               <p className="text-base font-semibold text-navy">Select check-in &amp; check-out dates to view price</p>
@@ -1025,7 +1051,7 @@ function PropertyDetail() {
                 trackFunnelEvent("click_book", { property_slug: property.slug, location: "desktop_widget" });
                 setCheckoutOpen(true);
               }}
-              className="mt-5 w-full rounded-full bg-gradient-emerald px-6 py-4 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 min-h-[44px]"
+              className="mt-5 w-full rounded-full bg-navy px-6 py-4 text-sm font-semibold text-navy-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 min-h-[44px]"
             >
               {!datesChosen || nights === 0 ? "Select Dates" : datesBlocked ? "Dates unavailable" : "Book Direct Now"}
             </button>
@@ -1068,7 +1094,18 @@ function PropertyDetail() {
             </p>
           </div>
         ) : (
-          <p className="text-xs font-medium leading-tight text-muted-foreground">Select dates<br />to see price</p>
+          (property.starting_price ?? property.base_price) > 0 ? (
+            <div>
+              <p className="whitespace-nowrap">
+                <span className="text-xs text-muted-foreground">From </span>
+                <span className="text-lg font-semibold text-navy">{formatINR(property.starting_price ?? property.base_price)}</span>
+                <span className="text-xs text-muted-foreground"> /night</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground">+ taxes · select dates</p>
+            </div>
+          ) : (
+            <p className="text-xs font-medium leading-tight text-muted-foreground">Select dates<br />to see price</p>
+          )
         )}
         {/* One-tap call / WhatsApp for mobile guests (most traffic is mobile;
             many prefer to ask before booking). WhatsApp names the property. */}

@@ -94,7 +94,7 @@ export function PropertyImageCarousel({
 
   return (
     <section id={sectionId} className="mt-10">
-      <h2 className="text-2xl font-semibold text-navy">{heading ?? `${propertyName} photo gallery`}</h2>
+      <h2 className="text-xl font-semibold text-navy md:text-[22px]">{heading ?? `${propertyName} photo gallery`}</h2>
       <div
         className="relative mt-4"
         onMouseEnter={() => {

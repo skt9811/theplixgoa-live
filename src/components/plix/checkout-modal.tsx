@@ -475,7 +475,7 @@ export function CheckoutModal({
             <button
               type="submit"
               disabled={status === "creating_order"}
-              className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-emerald px-6 py-4 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:opacity-70 min-h-[44px]"
+              className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-navy px-6 py-4 text-sm font-semibold text-navy-foreground shadow-soft transition-transform hover:scale-[1.02] disabled:opacity-70 min-h-[44px]"
             >
               {status === "creating_order" ? (
                 <>

@@ -214,7 +214,7 @@ function FaqPage() {
         </p>
         <Link
           to="/contact"
-          className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-gradient-emerald px-6 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02]"
+          className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground shadow-soft transition-transform hover:scale-[1.02]"
         >
           Contact us
           <ChevronRight className="size-4" />

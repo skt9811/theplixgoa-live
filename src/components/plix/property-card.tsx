@@ -351,7 +351,7 @@ function DefaultPropertyCard({
             search={linkSearch}
             target="_blank"
             rel="noopener noreferrer"
-            className="shrink-0 rounded-full bg-gradient-emerald px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform duration-200 hover:scale-[1.03] min-h-[44px] inline-flex items-center"
+            className="shrink-0 rounded-full bg-navy px-5 py-3 text-sm font-semibold text-navy-foreground shadow-soft transition-transform duration-200 hover:scale-[1.03] min-h-[44px] inline-flex items-center"
           >
             {hasDates ? "View Stay" : "Select Dates"}
           </Link>

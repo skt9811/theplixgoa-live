@@ -28,7 +28,7 @@ const AIRPORT_FARES = [
 export function PropertyAirportFares() {
   return (
     <section id="on-demand-services" className="mt-10">
-      <h2 className="text-2xl font-semibold text-navy">On-Demand Services</h2>
+      <h2 className="text-xl font-semibold text-navy md:text-[22px]">On-Demand Services</h2>
       <p className="mt-2 text-sm text-muted-foreground">
         Airport transfers arranged on request — ask your caretaker or add this at checkout.
       </p>

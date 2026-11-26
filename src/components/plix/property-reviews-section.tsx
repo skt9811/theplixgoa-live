@@ -176,7 +176,7 @@ export function PropertyReviewsSection({ propertyId, propertyName }: Props) {
   return (
     <section id="guest-reviews" className="mt-10">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-2xl font-semibold text-navy">Guest Reviews &amp; Experiences for {propertyName}</h2>
+        <h2 className="text-xl font-semibold text-navy md:text-[22px]">Guest Reviews &amp; Experiences for {propertyName}</h2>
         {avgRating !== null && (
           <span className="flex items-center gap-1.5 text-sm font-semibold text-navy">
             <Star className="size-4 fill-primary text-primary" aria-hidden />

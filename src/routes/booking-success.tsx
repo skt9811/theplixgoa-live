@@ -156,7 +156,7 @@ function BookingSuccess() {
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Link
           to="/stays"
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-gradient-emerald px-6 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02]"
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground shadow-soft transition-transform hover:scale-[1.02]"
         >
           Browse more stays
         </Link>

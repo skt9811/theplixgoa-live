@@ -555,14 +555,6 @@ function PropertyDetail() {
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-foreground/90">
           {propertyIntroParagraph(property)}
         </p>
-        {/* Hard Rule: spelling/aka variants appear only in schema
-            alternateName and at most one natural sentence on the page —
-            never as the displayed name, and never repeated elsewhere. */}
-        {propertySearchVariantSentence(property) && (
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            {propertySearchVariantSentence(property)}
-          </p>
-        )}
         {PHOTOS_SECTION_SLUGS.has(property.slug) && (
           <a
             href="#photos"
@@ -630,6 +622,11 @@ function PropertyDetail() {
           <section id="overview" className="mt-10">
             <h2 className="text-2xl font-semibold text-navy">{property.name} overview</h2>
             <p className="mt-3 leading-relaxed text-muted-foreground">{property.description}</p>
+            {/* Spelling/aka variants: one natural sentence, kept out of the
+                page's opening lines (schema alternateName carries the rest). */}
+            {propertySearchVariantSentence(property) && (
+              <p className="mt-2 text-xs text-muted-foreground">{propertySearchVariantSentence(property)}</p>
+            )}
             <PropertyCheckinRulesCard />
           </section>
 

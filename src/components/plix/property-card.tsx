@@ -18,6 +18,11 @@ import { heroSrcSet } from "@/lib/hero-variants";
 import { poolDisplayLabel } from "@/lib/seo";
 import { REAL_RATING_SOURCES } from "@/lib/trust-config";
 
+/** "From" nightly rate for cards with no searched dates: the cheapest upcoming
+ * rate (starting_price = LEAST(base, cheapest upcoming override)), so the
+ * figure is never more than a guest can actually book. */
+const fromRate = (p: Property) => p.starting_price ?? p.base_price;
+
 function propertyCardSubtitle(p: Property): string {
   const beds = p.bedrooms <= 6 ? `${p.bedrooms} BHK` : `${p.bedrooms} Bedroom`;
   const hasCaretaker = p.amenity_tags.some(
@@ -166,7 +171,13 @@ function MinimalPropertyCard({ property }: Omit<PropertyCardProps, "variant">) {
         <div className="mt-4 flex flex-1 items-end">
           <div className="flex w-full items-center justify-between gap-3 border-t border-border pt-4">
             <div>
-              <p className="text-sm font-semibold text-navy">Select dates for pricing</p>
+              {fromRate(property) > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  From <span className="text-lg font-semibold text-navy">{formatINR(fromRate(property))}</span> /night
+                </p>
+              ) : (
+                <p className="text-sm font-semibold text-navy">Select dates for pricing</p>
+              )}
               <p className="text-xs text-muted-foreground">
                 {multiRoom ? "Per room" : "Entire villa"} · Book direct
               </p>
@@ -318,10 +329,20 @@ function DefaultPropertyCard({
                 {searchRate.nights === 1 ? "night" : "nights"}
               </p>
             </div>
-          ) : (
+          ) : hasDates || fromRate(property) <= 0 ? (
             <span className="text-sm font-medium text-gray-600">
               {hasDates ? "Check availability for rates" : "Select dates for pricing"}
             </span>
+          ) : (
+            <div>
+              <span className="text-sm text-muted-foreground">From </span>
+              <span className="text-2xl font-semibold text-navy">{formatINR(fromRate(property))}</span>
+              <span className="text-sm text-muted-foreground">
+                {" "}
+                /night{isMultiRoomProperty(property.slug) ? ", per room" : ", entire villa"}
+              </span>
+              <p className="text-xs text-muted-foreground">Rates vary by date</p>
+            </div>
           )}
           <Link
             to="/properties/$slug"

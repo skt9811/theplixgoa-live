@@ -19,12 +19,6 @@ type ConciergeMessage = {
 // codebase already uses for the same kind of decoupled cross-component signal.
 export const OPEN_CONCIERGE_EVENT = "plix-open-concierge";
 
-// Matches the "lg" breakpoint the rest of this page already switches its
-// layout on (e.g. the lg:col-span-8/4 split) — desktop gets the card
-// expanded on landing per the design; mobile stays collapsed since an
-// expanded card would cover most of a phone screen.
-const DESKTOP_QUERY = "(min-width: 1024px)";
-
 // Same scrollIntoView pattern PropertySubNav and PropertyCheckinRulesCard
 // already use for in-page navigation.
 function scrollToSection(id: string) {
@@ -209,12 +203,8 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
   const t = UI_STRINGS[lang];
   const hasUserSent = messages.some((m) => m.role === "user");
 
-  // Auto-open on desktop landing. Starts closed (matching SSR, which has no
-  // window to check) and flips open on mount if the viewport is desktop-
-  // width — a normal post-hydration state update, not a hydration mismatch.
-  useEffect(() => {
-    if (window.matchMedia(DESKTOP_QUERY).matches) setOpen(true);
-  }, []);
+  // Starts closed on every device: auto-opening on desktop covered the
+  // booking widget. Guests open it from the floating button.
 
   // The property sub-nav's "FAQ's" tab fires this to open the card directly,
   // in addition to its own scroll to the on-page FAQ section.

@@ -21,6 +21,9 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
   const [guests, setGuests] = useState(urlSearch.guests ?? 2);
   const [rooms, setRooms] = useState(urlSearch.rooms ?? 1);
   const [guestError, setGuestError] = useState("");
+  // Phones (compact header bar on /stays): a one-line summary that opens the
+  // full form on tap, instead of a form that pins a third of the screen.
+  const [expanded, setExpanded] = useState(false);
 
   // Sync from URL when navigating between pages
   useEffect(() => {
@@ -74,6 +77,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (guestError) return;
+    setExpanded(false);
     const searchParams = {
       checkIn: checkIn || undefined,
       checkOut: checkOut || undefined,
@@ -222,5 +226,28 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
     </form>
   );
 
-  return formContent;
+  if (!compact) return formContent;
+  const shortDate = (iso: string) =>
+    new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  const dates = checkIn && checkOut ? `${shortDate(checkIn)} – ${shortDate(checkOut)}` : "Add dates";
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="flex w-full items-center gap-3 rounded-full border border-gray-200 bg-white py-2 pl-4 pr-2 text-left shadow-soft md:hidden"
+      >
+        <Search className="size-4 shrink-0 text-bronze" aria-hidden />
+        <span className="min-w-0 flex-1 truncate text-sm">
+          <span className="font-semibold text-navy">{selectedProperty?.name ?? "Any stay"}</span>
+          <span className="text-muted-foreground"> · {dates} · {guests} guests</span>
+        </span>
+        <span className="shrink-0 rounded-full bg-bronze px-3 py-1.5 text-xs font-semibold text-bronze-foreground">
+          {expanded ? "Close" : "Edit"}
+        </span>
+      </button>
+      <div className={`${expanded ? "mt-2 block" : "hidden"} md:mt-0 md:block`}>{formContent}</div>
+    </>
+  );
 }

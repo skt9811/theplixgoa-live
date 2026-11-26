@@ -54,10 +54,12 @@ export function CookieNotice() {
     <div
       role="dialog"
       aria-label="Cookie notice"
-      className="fixed inset-x-0 bottom-0 z-[90] border-t border-border bg-card px-4 py-4 shadow-lift sm:px-6"
+      // A small card in the bottom-left corner (the right side has the
+      // WhatsApp / back-to-top buttons), not a full-width bar over the page.
+      className="fixed bottom-3 left-3 right-3 z-[90] rounded-2xl border border-border bg-card p-4 shadow-lift sm:right-auto sm:max-w-sm"
     >
-      <div className="mx-auto flex max-w-5xl flex-col items-center gap-3 sm:flex-row sm:justify-between">
-        <p className="text-center text-xs text-muted-foreground sm:text-left">
+      <div className="flex flex-col gap-3">
+        <p className="text-xs leading-relaxed text-muted-foreground">
           We use cookies to understand how guests use this site and to improve the booking
           experience. See our{" "}
           <a href="/privacy" className="underline hover:text-foreground">
@@ -65,7 +67,7 @@ export function CookieNotice() {
           </a>
           .
         </p>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 justify-end gap-2">
           <button
             type="button"
             onClick={() => choose(false)}

@@ -67,11 +67,11 @@ export function SiteFooter() {
           <div className="flex flex-col items-center justify-between gap-6 border-b border-white/15 pb-10 sm:flex-row">
             <Link to="/" aria-label="The Plix Goa home">
               <img
-                src="/Plix_Transparent_(1).png"
+                src="/plix-logo-wide.png"
                 alt="The Plix Goa"
-                width={70}
-                height={70}
-                className="h-12 w-auto object-contain brightness-0 invert"
+                width={410}
+                height={210}
+                className="h-14 w-auto object-contain brightness-0 invert"
               />
             </Link>
             <p className="font-serif text-3xl font-normal text-navy-foreground md:text-4xl">

@@ -1,21 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { BadgeIndianRupee, Building2, ConciergeBell, HeartHandshake, Hop as HomeIcon, MapPin as MapPinIcon, Quote, Sparkles, Star, Utensils, Waves, Wine } from "lucide-react";
+import { BadgeIndianRupee, Building2, ConciergeBell, HeartHandshake, House, MapPin as MapPinIcon, Quote, Sparkles, Star, Utensils, Waves, Wine } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
 import { ReviewCarousel } from "@/components/plix/review-carousel";
 import { HeroSearchBar } from "@/components/plix/hero-search-bar";
 import { HeroCarousel } from "@/components/plix/hero-carousel";
 import { NewsletterModal } from "@/components/plix/newsletter-modal";
 import { propertiesQuery, reviewsQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
-import { chicoHeroImage } from "@/lib/plix";
-import { HOME_HERO_SIZES, HOME_HERO_SRCSET } from "@/lib/hero-variants";
+import { chicoHeroImage, resolveImageEntries } from "@/lib/plix";
+import { HOME_HERO_SIZES, HOME_HERO_SRCSET, heroSrcSet } from "@/lib/hero-variants";
 import { locationSlug } from "@/lib/locations";
 import { getHomepageReviews } from "@/lib/property-reviews-data";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 import {
   DEFAULT_LOCATION_GRIDS,
   fetchActiveLocationGrids,
+  resolveLocationImage,
   type LocationGrid,
 } from "@/lib/locations-data";
 import { FaqAccordion } from "@/components/plix/faq-accordion";
@@ -159,158 +160,6 @@ const faqs = [
   },
 ];
 
-type IllustrationProps = { className?: string };
-
-function VagatorIllustration({ className }: IllustrationProps) {
-  return (
-    <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg">
-      <circle cx="86" cy="30" r="13" fill="#D4AF37" fillOpacity="0.85" />
-      <path
-        d="M6 94 L20 58 L30 72 L42 36 L54 64 L64 48 L70 94 Z"
-        fill="none"
-        stroke="#C4A77D"
-        strokeWidth="2.2"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      <path
-        d="M2 98 Q12 92 22 98 T42 98 T62 98 T82 98 T102 98 T122 98"
-        fill="none"
-        stroke="#C4A77D"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M2 106 Q12 100 22 106 T42 106 T62 106 T82 106 T102 106 T122 106"
-        fill="none"
-        stroke="#C4A77D"
-        strokeWidth="2"
-        strokeLinecap="round"
-        opacity="0.5"
-      />
-    </svg>
-  );
-}
-
-function AnjunaIllustration({ className }: IllustrationProps) {
-  return (
-    <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg">
-      <path d="M66 100 C64 82 68 66 70 52" fill="none" stroke="#C4A77D" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M70 52 C56 46 46 50 36 60" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
-      <path d="M70 52 C60 40 62 30 76 24" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
-      <path d="M70 52 C82 42 96 42 104 52" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
-      <path d="M70 52 C82 48 92 34 88 20" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
-      <path d="M70 52 C58 44 48 30 52 18" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
-      <path d="M12 92 L18 70 L34 66" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M34 66 L36 92" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
-      <path d="M10 92 L38 92" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
-      <path d="M14 92 L12 100 M34 92 L36 100" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M2 106 Q12 100 22 106 T42 106 T62 106 T82 106 T102 106 T122 106"
-        fill="none"
-        stroke="#C4A77D"
-        strokeWidth="2"
-        strokeLinecap="round"
-        opacity="0.6"
-      />
-    </svg>
-  );
-}
-
-function MorjimIllustration({ className }: IllustrationProps) {
-  return (
-    <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M28 92 Q28 54 60 54 Q92 54 92 92 Z"
-        fill="none"
-        stroke="#C4A77D"
-        strokeWidth="2.4"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M60 54 L60 92 M40 58 Q46 76 44 92 M80 58 Q74 76 76 92 M32 78 Q60 68 88 78"
-        fill="none"
-        stroke="#C4A77D"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <circle cx="22" cy="86" r="4" fill="none" stroke="#C4A77D" strokeWidth="1.8" />
-      <path d="M30 96 Q24 100 18 98 M90 96 Q96 100 102 98" fill="none" stroke="#C4A77D" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M98 92 Q96 82 100 74 M104 92 Q102 84 106 78" fill="none" stroke="#C4A77D" strokeWidth="1.6" strokeLinecap="round" />
-      <path
-        d="M2 106 Q12 100 22 106 T42 106 T62 106 T82 106 T102 106 T122 106"
-        fill="none"
-        stroke="#C4A77D"
-        strokeWidth="2"
-        strokeLinecap="round"
-        opacity="0.6"
-      />
-    </svg>
-  );
-}
-
-function CandolimIllustration({ className }: IllustrationProps) {
-  return (
-    <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M30 96 L30 44 Q60 16 90 44 L90 96"
-        fill="none"
-        stroke="#C4A77D"
-        strokeWidth="2.4"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      <path d="M40 96 L40 48 Q60 28 80 48 L80 96" fill="none" stroke="#C4A77D" strokeWidth="1.6" />
-      <path d="M60 30 L60 44 M52 34 L56 44 M68 34 L64 44" fill="none" stroke="#C4A77D" strokeWidth="1.4" strokeLinecap="round" />
-      <path d="M18 96 L102 96 M14 102 L106 102" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinecap="round" />
-      <path d="M60 6 L60 14 M56 10 L64 10" fill="none" stroke="#C4A77D" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function AssagaoIllustration({ className }: IllustrationProps) {
-  return (
-    <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg">
-      <path d="M60 56 Q50 32 60 10 Q70 32 60 56 Z" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M60 56 Q36 44 18 48 Q38 58 60 56 Z" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M60 56 Q84 44 102 48 Q82 58 60 56 Z" fill="none" stroke="#C4A77D" strokeWidth="2" strokeLinejoin="round" />
-      <path
-        d="M60 56 Q46 34 30 26 Q42 48 60 56 Z"
-        fill="none"
-        stroke="#C4A77D"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-        opacity="0.85"
-      />
-      <path
-        d="M60 56 Q74 34 90 26 Q78 48 60 56 Z"
-        fill="none"
-        stroke="#C4A77D"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-        opacity="0.85"
-      />
-      <path
-        d="M10 100 Q30 90 40 98 Q55 106 70 96 Q90 88 110 98"
-        fill="none"
-        stroke="#C4A77D"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="40" cy="98" r="2.2" fill="#D4AF37" />
-      <circle cx="70" cy="96" r="2.2" fill="#D4AF37" />
-    </svg>
-  );
-}
-
-const DESTINATION_ILLUSTRATIONS = {
-  vagator: VagatorIllustration,
-  anjuna: AnjunaIllustration,
-  morjim: MorjimIllustration,
-  candolim: CandolimIllustration,
-  assagao: AssagaoIllustration,
-};
-
 // Homepage "A taste of the collection" display order: Vivenda Chico first,
 // The Plix Resort and Morjim Pride last, everything else keeps DB order.
 const FEATURED_LAST_SLUGS = new Set(["the-plix-resort-morjim", "morjim-pride"]);
@@ -319,6 +168,15 @@ function featuredRank(slug: string): number {
   if (FEATURED_LAST_SLUGS.has(slug)) return 2;
   return 1;
 }
+
+// The stay whose lead photo represents each area on the location cards.
+const LOCATION_LEAD_PROPERTY: Record<string, string> = {
+  vagator: "casa-serenita",
+  anjuna: "villa-madera",
+  morjim: "the-plix-resort-morjim",
+  candolim: "vivenda-chico",
+  assagao: "the-plix-villa",
+};
 
 function Home() {
   const { data: properties } = useSuspenseQuery(propertiesQuery());
@@ -372,11 +230,22 @@ function Home() {
   const isDefaultHeroImage = !config?.hero_image_url;
 
   const locationSource = locations.length > 0 ? locations : DEFAULT_LOCATION_GRIDS;
-  const dynamicLocations = locationSource.map((l) => ({
-    name: l.title,
-    query: l.title,
-    blurb: l.description || "",
-  }));
+  const dynamicLocations = locationSource.map((l) => {
+    // A real photo of one of our own stays in that area (an admin-set image
+    // wins); the stock fallback only if no property there has photos.
+    const inArea = properties.filter((p) => p.location.trim().toLowerCase() === l.title.trim().toLowerCase());
+    const lead =
+      inArea.find((p) => p.slug === LOCATION_LEAD_PROPERTY[l.title.trim().toLowerCase()]) ?? inArea[0];
+    const entry = lead ? resolveImageEntries(lead.image_keys)[0] : undefined;
+    return {
+      name: l.title,
+      query: l.title,
+      blurb: l.description || "",
+      count: inArea.length,
+      image: l.image_url?.trim() || entry?.src || resolveLocationImage(l.title),
+      srcSet: !l.image_url?.trim() && entry ? heroSrcSet(entry.key, entry.src) : undefined,
+    };
+  });
 
   return (
     <>
@@ -403,18 +272,18 @@ function Home() {
       <section className="border-b border-[#e8dece] bg-[#fbf7ee]">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-6 px-4 py-8 md:grid-cols-4 md:px-6">
           {[
-            { icon: "🏆", title: "Best Price Guaranteed", blurb: "Book direct & save 10–15%" },
-            { icon: "🌊", title: "Prime Locations", blurb: "Anjuna, Vagator, Morjim" },
-            { icon: "🧹", title: "5-Star Housekeeping", blurb: "Dedicated staff & chef on demand" },
-            { icon: "📞", title: "24/7 Guest Concierge", blurb: "Personalized stay assistance" },
+            { icon: BadgeIndianRupee, title: "Best Price Guaranteed", blurb: "Book direct & save 10–15%" },
+            { icon: MapPinIcon, title: "Prime Locations", blurb: "Anjuna, Vagator, Morjim" },
+            { icon: Sparkles, title: "5-Star Housekeeping", blurb: "Dedicated staff & chef on demand" },
+            { icon: ConciergeBell, title: "24/7 Guest Concierge", blurb: "Personalized stay assistance" },
           ].map((item) => (
             <div key={item.title} className="flex items-start gap-3">
-              <span className="text-2xl leading-none" aria-hidden>
-                {item.icon}
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-bronze/12 text-bronze" aria-hidden>
+                <item.icon className="size-5" strokeWidth={1.5} />
               </span>
               <div>
-                <p className="text-sm font-semibold text-[#4f624f]">{item.title}</p>
-                <p className="mt-0.5 text-xs leading-snug text-[#4f624f]/70">{item.blurb}</p>
+                <p className="text-sm font-semibold text-navy">{item.title}</p>
+                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{item.blurb}</p>
               </div>
             </div>
           ))}
@@ -424,7 +293,7 @@ function Home() {
       <section className="bg-[#fbf7ee] px-4 py-16 md:px-6 lg:py-20">
         <div className="mx-auto max-w-6xl">
           <div className="text-center">
-            <h2 className="font-serif text-3xl font-normal tracking-wide text-[#4f624f] md:text-5xl">
+            <h2 className="text-3xl font-semibold text-navy md:text-5xl">
               Where Luxury Meets Effortless Living
             </h2>
             <div className="mx-auto mt-6 flex max-w-xs items-center justify-center gap-4 text-[#c4a482]">
@@ -433,9 +302,9 @@ function Home() {
               <span className="h-px flex-1 bg-[#dfd5c3]" />
             </div>
           </div>
-          <div className="mt-12 grid grid-cols-2 md:grid-cols-5">
+          <div className="mt-12 grid grid-cols-2 gap-y-2 md:grid-cols-5 md:gap-y-0">
             {[
-              { icon: HomeIcon, label: "Private Villas" },
+              { icon: House, label: "Private Villas" },
               { icon: Waves, label: "Private Pool" },
               { icon: Wine, label: "24×7 Bar & Restaurant" },
               { icon: Utensils, label: "Pool Side & In-villa Dining" },
@@ -443,13 +312,13 @@ function Home() {
             ].map((a, index) => (
               <div
                 key={a.label}
-                className={`group flex min-h-52 flex-col items-center justify-center border-[#e8dece] px-4 py-8 text-center transition-colors hover:bg-white/70 ${index % 5 !== 4 ? "md:border-r" : ""} ${index < 5 ? "border-b md:border-b-0" : ""} ${index % 2 !== 1 ? "border-r md:border-r" : ""}`}
+                className={`group flex flex-col items-center justify-center rounded-2xl border-[#e8dece] px-4 py-6 text-center transition-colors last:col-span-2 hover:bg-white/70 md:min-h-52 md:rounded-none md:py-8 md:last:col-span-1 ${index % 5 !== 4 ? "md:border-r" : ""}`}
               >
-                <span className="flex size-22 items-center justify-center rounded-full border border-[#e8dece] text-[#4f624f] transition-transform duration-300 group-hover:scale-105">
+                <span className="flex size-20 items-center justify-center rounded-full border border-[#e8dece] text-bronze transition-transform duration-300 group-hover:scale-105 md:size-22">
                   <a.icon className="size-8 stroke-[1.25]" aria-hidden />
                 </span>
                 <span className="mt-4 h-px w-7 bg-[#c4a482]" />
-                <p className="mt-5 max-w-[170px] font-serif text-base leading-snug text-[#4f624f]">{a.label}</p>
+                <p className="mt-5 max-w-[170px] font-serif text-base leading-snug text-navy">{a.label}</p>
               </div>
             ))}
           </div>
@@ -463,26 +332,36 @@ function Home() {
           title="Explore our locations"
           sub="Five distinct pockets of North Goa, one uncompromising standard of hospitality."
         />
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {dynamicLocations.map((l) => {
-            const Illustration =
-              DESTINATION_ILLUSTRATIONS[l.name.trim().toLowerCase() as keyof typeof DESTINATION_ILLUSTRATIONS] ??
-              AnjunaIllustration;
-            return (
-              <Link
-                key={l.name}
-                to="/locations/$slug"
-                params={{ slug: locationSlug(l.query) }}
-                className="flex flex-col items-center justify-center rounded-3xl border border-amber-100/50 bg-white p-8 text-center shadow-[0_20px_50px_rgba(0,0,0,0.06)] transition-transform duration-300 hover:-translate-y-1"
-              >
-                <Illustration className="mx-auto mb-6 h-28 w-28" />
-                <h3 className="mb-2 font-display text-2xl font-medium text-slate-900">{l.name}</h3>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8C6D3F]">
-                  {l.blurb}
-                </p>
-              </Link>
-            );
-          })}
+        {/* Swipeable row on phones (five tall cards were ~4 screens of
+            scrolling); one even row of five on desktop. */}
+        <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-5 md:overflow-visible md:px-0 md:pb-0">
+          {dynamicLocations.map((l) => (
+            <Link
+              key={l.name}
+              to="/locations/$slug"
+              params={{ slug: locationSlug(l.query) }}
+              className="group relative isolate block aspect-[3/4] w-[62%] shrink-0 snap-start overflow-hidden rounded-3xl bg-navy shadow-soft ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-card sm:w-[40%] md:w-auto"
+            >
+              <img
+                src={l.image}
+                srcSet={l.srcSet}
+                sizes="(max-width: 767px) 62vw, 20vw"
+                alt={`${l.name}, North Goa`}
+                loading="lazy"
+                className="absolute inset-0 -z-10 size-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+              />
+              <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+              <div className="flex h-full flex-col justify-end p-5 text-white">
+                <h3 className="font-display text-2xl font-medium">{l.name}</h3>
+                {l.blurb && <p className="mt-1 text-xs leading-snug text-white/80">{l.blurb}</p>}
+                {l.count > 0 && (
+                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-bronze">
+                    {l.count} {l.count === 1 ? "stay" : "stays"}
+                  </p>
+                )}
+              </div>
+            </Link>
+          ))}
         </div>
         <div className="mt-8 text-center">
           <Link
@@ -503,10 +382,20 @@ function Home() {
             sub="Our most-loved homes across North Goa."
           />
           <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {featured.map((p) => (
+            {featured.slice(0, 9).map((p) => (
               <PropertyCard key={p.id} property={p} variant="minimal" />
             ))}
           </div>
+          {featured.length > 9 && (
+            <div className="mt-8 text-center">
+              <Link
+                to="/stays"
+                className="inline-block rounded-full bg-navy px-6 py-3 text-sm font-semibold text-navy-foreground transition-transform duration-200 hover:scale-[1.03]"
+              >
+                View all {featured.length} stays
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 
@@ -530,7 +419,7 @@ function Home() {
       </section>
 
       {config?.section_perks_visible !== false && (
-      <section className="mx-auto max-w-7xl px-4 py-16 md:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-4 pt-16 md:px-6">
         <SectionHeading
           eyebrow="The Plix Promise"
           title="Where Home Comfort Meets Resort Luxury"
@@ -556,7 +445,7 @@ function Home() {
       <ListYourPropertyBanner />
 
       {homepageReviews.length > 0 && (
-      <section className="mx-auto max-w-7xl px-4 py-16 md:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-16 pt-6 md:px-6">
         <h2 className="text-center font-display text-3xl font-semibold text-navy md:text-4xl">
           Loved by Our Guests
         </h2>
@@ -579,10 +468,17 @@ function Home() {
         <div className="relative mt-8 aspect-video w-full overflow-hidden rounded-3xl shadow-card">
           <video
             className="absolute inset-0 size-full object-cover"
-            src={isDesktopViewport ? "/drone-showcase.mp4" : undefined}
+            // Starts at 0:06 (the opening seconds show the crew launching the
+            // drone); the poster is that same frame, and is all phones load.
+            src={isDesktopViewport ? "/drone-showcase.mp4#t=6" : undefined}
+            poster="/drone-poster.jpg"
             preload="none"
             autoPlay={isDesktopViewport}
-            loop
+            // Loop back to 0:06, not 0:00 (plain `loop` would replay the launch).
+            onEnded={(e) => {
+              e.currentTarget.currentTime = 6;
+              void e.currentTarget.play().catch(() => undefined);
+            }}
             muted
             playsInline
           />

@@ -521,7 +521,7 @@ export function propertyIntroParagraph(p: Property): string {
   const isResort = RESORT_SLUGS.has(p.slug);
   const article = !isResort && p.bedrooms === 8 ? "an" : "a";
   const unitPhrase = isResort ? `${p.bedrooms}-room resort` : `${p.bedrooms} BHK villa`;
-  return `Official website of ${withBrandSuffix(propertyShortName(p))} — ${article} ${unitPhrase} in ${p.location}, Goa, sleeping up to ${p.max_guests} guests${poolPhrase}.`;
+  return `${withBrandSuffix(propertyShortName(p))} is ${article} ${unitPhrase} in ${p.location}, Goa, sleeping up to ${p.max_guests} guests${poolPhrase}.`;
 }
 
 // "<Short Name> by The Plix" for the schema name: p.name carries a marketing

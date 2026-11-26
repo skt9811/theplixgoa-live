@@ -41,21 +41,20 @@ export function SiteHeader() {
   }, [isHome]);
 
   const homeSolid = isHome && scrolled;
-  const linkClass = isHome
+  // White-on-photo only while the header floats over the home hero; once
+  // scrolled (and on every other page) it is a light bar with dark text.
+  const overHero = isHome && !homeSolid;
+  const linkClass = overHero
     ? "rounded-full px-3 py-2 text-white/90 transition-colors hover:bg-white/15 hover:text-white"
     : "rounded-full px-3 py-2 text-foreground/80 transition-colors hover:bg-accent hover:text-accent-foreground";
-  const activeLinkClass = isHome && !homeSolid
-    ? "bg-white/15 text-white"
-    : homeSolid
-      ? "bg-white/20 text-white"
-      : "bg-accent text-accent-foreground";
+  const activeLinkClass = overHero ? "bg-white/15 text-white" : "bg-accent text-accent-foreground";
 
   return (
     <header
       className={
         isHome
           ? `fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-              homeSolid ? "bg-bronze text-white shadow-md" : "bg-transparent text-white"
+              homeSolid ? "border-b border-border/70 bg-background/95 text-foreground shadow-sm backdrop-blur-xl" : "bg-transparent text-white"
             }`
           : "sticky top-0 z-50 border-b border-border/70 bg-background/95 backdrop-blur-xl"
       }
@@ -70,16 +69,12 @@ export function SiteHeader() {
       >
         <Link to="/" className="flex items-center gap-2.5" aria-label="The Plix Goa home">
           <img
-            src="/Plix_Transparent_(1).png"
+            src="/plix-logo-wide.png"
             alt="Plix Hospitality"
-            width={70}
-            height={70}
-            className={`h-10 w-auto object-contain transition-all duration-300 md:h-12 lg:h-14 ${
-              isHome && !homeSolid
-                ? "brightness-0 invert drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]"
-                : homeSolid
-                  ? "brightness-0 invert"
-                  : ""
+            width={410}
+            height={210}
+            className={`h-11 w-auto object-contain transition-all duration-300 md:h-12 ${
+              overHero ? "brightness-0 invert drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]" : ""
             }`}
           />
         </Link>
@@ -119,7 +114,7 @@ export function SiteHeader() {
             <div className="flex items-center gap-2">
               <Link
                 to="/account"
-                className={`flex items-center gap-1.5 text-sm transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-foreground/80 hover:text-primary"}`}
+                className={`flex items-center gap-1.5 text-sm transition-colors ${overHero ? "text-white/85 hover:text-white" : "text-foreground/80 hover:text-primary"}`}
                 title="My account"
               >
                 <User className="size-3.5" aria-hidden />
@@ -130,7 +125,7 @@ export function SiteHeader() {
                   void signOutGuest();
                   setGuestUser(null);
                 }}
-                className={`transition-colors ${isHome ? "text-white/60 hover:text-white" : "text-foreground/50 hover:text-primary"}`}
+                className={`transition-colors ${overHero ? "text-white/60 hover:text-white" : "text-foreground/50 hover:text-primary"}`}
                 title="Sign out"
               >
                 <LogOut className="size-3.5" aria-hidden />
@@ -139,7 +134,7 @@ export function SiteHeader() {
           ) : (
             <button
               onClick={() => setAuthOpen(true)}
-              className={`flex items-center gap-1.5 text-sm transition-colors ${isHome ? "text-white/85 hover:text-white" : "text-foreground/80 hover:text-primary"}`}
+              className={`flex items-center gap-1.5 text-sm transition-colors ${overHero ? "text-white/85 hover:text-white" : "text-foreground/80 hover:text-primary"}`}
             >
               <User className="size-3.5" aria-hidden />
               Sign In
@@ -154,7 +149,7 @@ export function SiteHeader() {
         </div>
 
         <button
-          className={`justify-self-end ${isHome ? "rounded-lg border border-white/40 p-2 text-white" : "rounded-lg border border-border p-2"} lg:hidden`}
+          className={`justify-self-end ${overHero ? "rounded-lg border border-white/40 p-2 text-white" : "rounded-lg border border-border p-2"} lg:hidden`}
           onClick={() => setOpen((v) => !v)}
           aria-label="Toggle menu"
         >

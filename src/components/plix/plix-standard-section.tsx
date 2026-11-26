@@ -111,7 +111,7 @@ export function PlixStandardSection() {
             <ul className="mt-5 grid grid-cols-3 gap-x-2 gap-y-4">
               {FEATURES.map((f) => (
                 <li key={f.label} className="flex flex-col items-center gap-2 text-center">
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-200 via-amber-400 to-orange-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_6px_14px_-4px_rgba(234,88,12,0.6)]">
+                  <span className="flex size-10 items-center justify-center rounded-full border border-bronze/50 bg-bronze/15 text-bronze">
                     <f.icon className="size-[18px] drop-shadow" aria-hidden />
                   </span>
                   <span className="text-[10.5px] font-medium leading-tight text-white/90">{f.label}</span>

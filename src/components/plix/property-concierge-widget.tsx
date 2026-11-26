@@ -306,7 +306,7 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
         type="button"
         onClick={() => setOpen(true)}
         aria-expanded={false}
-        className="fixed bottom-20 right-6 z-50 flex items-center gap-2 rounded-full bg-navy max-md:right-4 max-md:bottom-[calc(5rem+var(--sticky-cta-h,0px))] px-4 py-3 text-sm font-semibold text-navy-foreground shadow-2xl transition-transform hover:scale-105"
+        className="fixed bottom-6 left-6 z-50 flex items-center gap-2 rounded-full bg-navy max-md:left-auto max-md:right-4 max-md:bottom-[calc(0.75rem+var(--sticky-cta-h,0px))] max-md:px-3 max-md:py-2 max-md:text-xs px-4 py-3 text-sm font-semibold text-navy-foreground shadow-2xl transition-transform hover:scale-105"
       >
         <Bot className="size-4" aria-hidden />
         Plix AI
@@ -315,7 +315,7 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
   }
 
   return (
-    <div className="animate-rise fixed bottom-20 right-6 z-50 flex max-h-[calc(100dvh-6rem)] w-84 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-[#F3E5DC] bg-[#FFFBF9] shadow-2xl">
+    <div className="animate-rise fixed bottom-6 left-6 z-[70] flex max-h-[calc(100dvh-6rem)] max-md:bottom-[calc(0.75rem+var(--sticky-cta-h,0px))] max-md:left-auto max-md:right-4 w-84 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-[#F3E5DC] bg-[#FFFBF9] shadow-2xl">
       <div className="flex shrink-0 items-start justify-between gap-2 border-b border-[#F3E5DC] bg-[#FFFBF9] px-4 py-3.5">
         <div className="flex items-start gap-2.5">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#F3E5DC] text-[#C87D65]">

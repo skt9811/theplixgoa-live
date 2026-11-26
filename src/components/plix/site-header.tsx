@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LogOut, Menu, User, X } from "lucide-react";
+import { LogOut, Menu, PhoneCall, User, X } from "lucide-react";
+import { CallbackDialog } from "@/components/plix/request-callback-strip";
 import { useEffect, useState } from "react";
 import { SearchBar } from "@/components/plix/search-bar";
 import { AuthModal } from "@/components/plix/auth-modal";
@@ -21,6 +22,10 @@ export function SiteHeader() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const isHome = pathname === "/";
   const isStaysResults = pathname === "/stays" || pathname === "/stays/";
+  // Property pages (desktop): StayVista-style bar — search pill in the
+  // middle, "Get in Touch" + account icon on the right.
+  const isProperty = pathname.startsWith("/properties/");
+  const [callbackOpen, setCallbackOpen] = useState(false);
 
   // Auto-close mobile menu on route change
   useEffect(() => {
@@ -79,7 +84,13 @@ export function SiteHeader() {
           />
         </Link>
 
-        <nav className="hidden items-center justify-self-center gap-1 text-sm font-medium lg:flex">
+        {isProperty && (
+          <div className="hidden w-full max-w-2xl justify-self-center lg:block">
+            <SearchBar compact />
+          </div>
+        )}
+
+        <nav className={`hidden items-center justify-self-center gap-1 text-sm font-medium ${isProperty ? "" : "lg:flex"}`}>
           <div className="group relative">
             <Link to="/stays" className={`flex items-center gap-1 ${linkClass}`}>
               Villas &amp; Stays
@@ -109,7 +120,29 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-3 justify-self-end lg:flex">
+        {isProperty && (
+          <div className="hidden items-center gap-2 justify-self-end lg:flex">
+            {guestUser ? (
+              <Link to="/account" title="My account" aria-label="My account" className="flex size-10 items-center justify-center rounded-full border border-border text-navy hover:bg-muted">
+                <User className="size-4" aria-hidden />
+              </Link>
+            ) : (
+              <button type="button" onClick={() => setAuthOpen(true)} aria-label="Sign in" className="flex size-10 items-center justify-center rounded-full border border-border text-navy hover:bg-muted">
+                <User className="size-4" aria-hidden />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setCallbackOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full bg-navy px-5 py-2.5 text-sm font-semibold text-navy-foreground transition-colors hover:bg-navy/90"
+            >
+              <PhoneCall className="size-4" aria-hidden />
+              Get in Touch
+            </button>
+          </div>
+        )}
+
+        <div className={`hidden items-center gap-3 justify-self-end ${isProperty ? "" : "lg:flex"}`}>
           {guestUser ? (
             <div className="flex items-center gap-2">
               <Link
@@ -256,6 +289,7 @@ export function SiteHeader() {
       )}
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      {isProperty && <CallbackDialog open={callbackOpen} onOpenChange={setCallbackOpen} />}
     </header>
   );
 }

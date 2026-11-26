@@ -385,3 +385,10 @@
     color: var(--muted-foreground);
   }
 }
+
+/* Property pages: the booking bar (phones) and sidebar (desktop) already
+   carry Call / WhatsApp, so the site's floating WhatsApp + back-to-top
+   buttons are hidden there instead of stacking over them. */
+html[data-property-page] .plix-fabs {
+  display: none;
+}

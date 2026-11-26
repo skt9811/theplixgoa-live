@@ -5,6 +5,7 @@ import { BadgeIndianRupee, Building2, ConciergeBell, HeartHandshake, House, MapP
 import { PropertyCard } from "@/components/plix/property-card";
 import { ReviewCarousel } from "@/components/plix/review-carousel";
 import { HeroSearchBar } from "@/components/plix/hero-search-bar";
+import { MobileHomeDiscovery } from "@/components/plix/mobile-home-discovery";
 import { HeroCarousel } from "@/components/plix/hero-carousel";
 import { NewsletterModal } from "@/components/plix/newsletter-modal";
 import { propertiesQuery, reviewsQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
@@ -249,7 +250,9 @@ function Home() {
 
   return (
     <>
-      <section className="relative isolate flex h-[calc(100dvh-4rem)] w-full flex-col items-center justify-center overflow-hidden">
+      {/* Phones: a compact hero (search moves into the pill + bottom sheet
+          below, so stays show up near the top); desktop unchanged. */}
+      <section className="relative isolate flex h-[46dvh] min-h-[330px] w-full flex-col items-center justify-center overflow-hidden md:h-[calc(100dvh-4rem)] md:min-h-0">
         <HeroCarousel
           slide1Image={isDefaultHeroImage ? chicoHeroImage : heroImageSrc}
           slide1SrcSet={isDefaultHeroImage ? HOME_HERO_SRCSET : undefined}
@@ -262,11 +265,13 @@ function Home() {
         {/* Anchored to the bottom of the hero via mt-auto + pb-8, rather than
             overlapping into the section below — z-30 keeps it above the
             carousel's own arrows/dots (z-20) wherever they're near each other. */}
-        <div className="relative z-30 mx-auto mt-auto w-full max-w-5xl px-4 pb-8">
+        <div className="relative z-30 mx-auto mt-auto hidden w-full max-w-5xl px-4 pb-8 md:block">
           <HeroSearchBar />
           <RequestCallbackStrip />
         </div>
       </section>
+
+      <MobileHomeDiscovery properties={featured} />
 
       {/* Luxury value proposition ribbon */}
       <section className="border-b border-[#e8dece] bg-[#fbf7ee]">
@@ -374,7 +379,8 @@ function Home() {
       </section>
       )}
 
-      <section className="bg-sand/60 py-16">
+      {/* Phones get these same stays in the swipe row above. */}
+      <section className="bg-sand/60 py-16 max-md:hidden">
         <div className="mx-auto max-w-7xl px-4 md:px-6">
           <SectionHeading
             eyebrow="Featured Sanctuaries"

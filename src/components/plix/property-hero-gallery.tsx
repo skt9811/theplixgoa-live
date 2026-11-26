@@ -7,6 +7,7 @@ import { PropertyGalleryModal } from "@/components/plix/property-gallery-modal";
 import { SITE_PHONE_1 } from "@/lib/seo";
 import { trackFunnelEvent } from "@/lib/gtag";
 import { trackLeadClick } from "@/lib/lead-tracker";
+import { readWishlist, writeWishlist } from "@/lib/wishlist";
 
 type Props = {
   images: string[];
@@ -17,27 +18,6 @@ type Props = {
   location: string;
 };
 
-const WISHLIST_LS_KEY = "plix_wishlist_slugs";
-
-function readWishlist(): Set<string> {
-  if (typeof localStorage === "undefined") return new Set();
-  try {
-    const raw = localStorage.getItem(WISHLIST_LS_KEY);
-    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function writeWishlist(slugs: Set<string>): void {
-  if (typeof localStorage === "undefined") return;
-  try {
-    localStorage.setItem(WISHLIST_LS_KEY, JSON.stringify(Array.from(slugs)));
-  } catch {
-    // storage full or unavailable
-  }
-}
-
 /**
  * Strictly scoped to the `images` array passed in — always the current
  * property's own resolved gallery (see properties.$slug.tsx), never mixed
@@ -47,6 +27,7 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryInitialFilter, setGalleryInitialFilter] = useState<"All" | "Videos">("All");
   const [wishlisted, setWishlisted] = useState(false);
+  const [slide, setSlide] = useState(0);
 
   useEffect(() => {
     setWishlisted(readWishlist().has(propertySlug));
@@ -55,12 +36,17 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
   if (images.length === 0) return null;
 
   const main = images[0] ?? "";
-  const secondary = images[1] ?? main;
-  const third = images[2] ?? main;
-  const remaining = Math.max(images.length - 3, 0);
+  // Desktop bento: main (6 cols) | two stacked (3) | share tile + "+N More" (3).
+  const midTop = images[1] ?? main;
+  const secondary = images[2] ?? main;
+  const midBottom = images[3] ?? main;
+  const third = images[4] ?? main;
+  const remaining = Math.max(images.length - 5, 0);
   // On mobile only the main tile shows; "+N More" there should reflect every
   // photo beyond it, not just the ones the desktop 3-tile grid hides.
-  const remainingMobile = Math.max(images.length - 1, 0);
+  // The phone strip swipes through the first photos; the rest are one tap
+  // away in the full gallery.
+  const stripImages = images.slice(0, 12);
 
   function openGallery(filter: "All" | "Videos" = "All") {
     setGalleryInitialFilter(filter);
@@ -118,13 +104,46 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
 
   return (
     <>
-      <section className="relative mt-6 grid grid-cols-1 gap-2 overflow-hidden rounded-2xl md:h-[min(42vw,560px)] md:grid-cols-3 md:grid-rows-2">
+      {/* Phones: one full-bleed, swipeable photo strip at the very top of
+          the page (StayVista-style), with the action bar over it. */}
+      <div className="relative -mx-4 -mt-8 md:hidden">
+        <div
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
+            if (i !== slide) setSlide(i);
+          }}
+          className="flex h-[300px] snap-x snap-mandatory overflow-x-auto overflow-y-hidden rounded-b-3xl bg-navy [scrollbar-width:none] sm:h-[380px] [&::-webkit-scrollbar]:hidden"
+        >
+          {stripImages.map((src, i) => (
+            <button
+              key={`${i}-${src}`}
+              type="button"
+              onClick={() => openGallery()}
+              aria-label={`View ${propertyName} photos`}
+              className="relative h-full w-full shrink-0 snap-center"
+            >
+              <SmartImage
+                src={src}
+                alt={i === 0 ? `${propertyName} — main exterior and pool view` : `${propertyName} — photo ${i + 1}`}
+                loading={i === 0 ? "eager" : "lazy"}
+                fetchPriority={i === 0 ? "high" : "auto"}
+                srcSet={heroSrcSet(imageKeys?.[i], src)}
+                sizes="100vw"
+                width={1200}
+                height={800}
+                className="block size-full object-cover object-center"
+              />
+            </button>
+          ))}
+        </div>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/35 to-transparent" />
         {/* Mobile-only floating top action bar — back, share, call, wishlist.
             Desktop keeps the same actions split across the main tile's own
             overlays (video/photos pill, share/wishlist on the secondary
             tile) instead of a dedicated bar, so this is hidden at the md
             breakpoint rather than shown alongside them. */}
-        <div className="absolute inset-x-3 top-3 z-10 flex items-center justify-between md:hidden">
+        <div className="absolute inset-x-3 top-3 z-10 flex items-center justify-between ">
           <button
             type="button"
             onClick={handleBack}
@@ -169,12 +188,32 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
           </div>
         </div>
 
+        {stripImages.length > 1 && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
+            {Array.from({ length: Math.min(stripImages.length, 5) }, (_, d) => {
+              const dots = Math.min(stripImages.length, 5);
+              const active = Math.round((slide / Math.max(1, stripImages.length - 1)) * (dots - 1));
+              return <span key={d} className={`h-1.5 rounded-full bg-white transition-all ${d === active ? "w-4" : "w-1.5 opacity-60"}`} />;
+            })}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => openGallery()}
+          className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm"
+        >
+          <Camera className="size-3.5" aria-hidden />
+          View Photos ({images.length})
+        </button>
+      </div>
+
+      <section className="relative mt-6 hidden grid-cols-1 gap-2 overflow-hidden rounded-2xl md:grid md:h-[420px] md:grid-cols-12 md:grid-rows-2 md:gap-2.5">
         {/* Left main feature — ~65% width on desktop, full-bleed on mobile */}
         <button
           type="button"
           onClick={() => openGallery()}
           aria-label="View property photos"
-          className="group relative aspect-[4/3] min-h-0 overflow-hidden text-left md:aspect-auto md:col-span-2 md:row-span-2"
+          className="group relative aspect-[4/3] min-h-0 overflow-hidden text-left md:aspect-auto md:col-span-6 md:row-span-2"
         >
           <SmartImage
             src={main}
@@ -234,16 +273,22 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
             </span>
           </div>
 
-          {/* Mobile-only "View Photos" badge, bottom-right of the single
-              hero image — replaces the desktop text pill above with the
-              compact camera-icon badge the StayVista-style mobile layout
-              uses instead of a 3-tile grid. */}
-          <div className="absolute bottom-3 right-3 md:hidden">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-black/65 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
-              <Camera className="size-3.5" aria-hidden />
-              {remainingMobile > 0 ? `View Photos (${remainingMobile + 1})` : "View Photos"}
-            </span>
-          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => openGallery()}
+          aria-label="View property photos"
+          className="group relative hidden min-h-0 overflow-hidden md:col-span-3 md:block"
+        >
+          <SmartImage
+            src={midTop}
+            alt={`${propertyName} — interior view`}
+            loading="lazy"
+            width={800}
+            height={600}
+            className="block h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+          />
         </button>
 
         {/* Right top tile — hidden on mobile, where the single main image
@@ -270,7 +315,7 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
             }
           }}
           aria-label="View property photos"
-          className="group relative hidden aspect-[4/3] min-h-0 cursor-pointer overflow-hidden text-left md:aspect-auto md:block"
+          className="group relative hidden min-h-0 cursor-pointer overflow-hidden text-left md:col-span-3 md:block"
         >
           <SmartImage
             src={secondary}
@@ -301,12 +346,28 @@ export function PropertyHeroGallery({ images, imageKeys, videos = [], propertyNa
           </div>
         </div>
 
+        <button
+          type="button"
+          onClick={() => openGallery()}
+          aria-label="View property photos"
+          className="group relative hidden min-h-0 overflow-hidden md:col-span-3 md:block"
+        >
+          <SmartImage
+            src={midBottom}
+            alt={`${propertyName} — room view`}
+            loading="lazy"
+            width={800}
+            height={600}
+            className="block h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+          />
+        </button>
+
         {/* Right bottom tile — "+N More" overlay, hidden on mobile */}
         <button
           type="button"
           onClick={() => openGallery()}
           aria-label={remaining > 0 ? `View ${remaining} more photos` : "View property photos"}
-          className="group relative hidden aspect-[4/3] min-h-0 overflow-hidden text-left md:aspect-auto md:block"
+          className="group relative hidden min-h-0 overflow-hidden text-left md:col-span-3 md:block"
         >
           <SmartImage
             src={third}

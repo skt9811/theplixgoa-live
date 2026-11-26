@@ -1,31 +1,30 @@
 import { useState } from "react";
 import { IdCard, LogIn, LogOut, ShieldCheck } from "lucide-react";
 
-type TabId = "checkin" | "rules" | "meals" | "faqs";
+type TabId = "refund" | "rules" | "checkin";
 
+// Sits right under the refund timeline, so "Refund Policy" opens the full
+// published policy; the other two show their details inline.
 const TABS: { id: TabId; label: string }[] = [
-  { id: "checkin", label: "Check-In" },
+  { id: "refund", label: "Refund Policy" },
   { id: "rules", label: "House Rules" },
-  { id: "meals", label: "Meals" },
-  { id: "faqs", label: "FAQs" },
+  { id: "checkin", label: "Stay Information" },
 ];
 
-function scrollToSection(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-}
 
 export function PropertyCheckinRulesCard() {
   const [active, setActive] = useState<TabId>("checkin");
 
   function handleTabClick(id: TabId) {
+    if (id === "refund") {
+      window.open("/cancellation", "_blank", "noopener");
+      return;
+    }
     setActive(id);
-    // Meals and FAQs already have their own full sections further down the
-    // page — jump there instead of duplicating that content in this card.
-    if (id === "meals" || id === "faqs") scrollToSection(id);
   }
 
   return (
-    <div id="house-rules" className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-soft">
+    <div id="house-rules" className="mt-4 rounded-2xl border border-border bg-card p-5">
       <div className="flex flex-wrap gap-2">
         {TABS.map((tab) => (
           <button

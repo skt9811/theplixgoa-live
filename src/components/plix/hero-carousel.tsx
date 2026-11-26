@@ -190,11 +190,11 @@ export function HeroCarousel({
                   would drag them all the way to the bottom edge — directly
                   behind the floating search widget. Top-biased padding
                   achieves the same "upper-middle" placement without that risk. */}
-              <div className="relative z-10 mx-auto flex h-full w-full max-w-4xl flex-col items-center justify-start px-4 pb-6 pt-20 text-center">
+              <div className="relative z-10 mx-auto flex h-full w-full max-w-4xl flex-col items-center justify-start px-4 pb-6 pt-16 text-center md:pt-20">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/90 drop-shadow-[0_1px_8px_rgba(0,0,0,0.5)]">
                   The Plix Goa · North Goa, India
                 </p>
-                <HeadingTag className="my-2 max-w-3xl font-serif text-3xl font-normal leading-[1.15] tracking-wide text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.35)] lg:text-4xl xl:text-5xl">
+                <HeadingTag className="my-2 max-w-3xl font-serif text-[26px] sm:text-3xl font-normal leading-[1.15] tracking-wide text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.35)] lg:text-4xl xl:text-5xl">
                   {slide.heading}
                 </HeadingTag>
                 <p className="mx-auto my-2 max-w-2xl text-sm text-white drop-shadow-[0_1px_10px_rgba(0,0,0,0.6)] lg:text-base">
@@ -248,7 +248,7 @@ export function HeroCarousel({
         type="button"
         onClick={() => emblaApi?.scrollPrev()}
         aria-label="Previous slide"
-        className="absolute left-3 top-1/2 z-20 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20 sm:left-6 sm:size-11"
+        className="absolute left-3 top-1/2 z-20 hidden size-10 md:flex -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20 sm:left-6 sm:size-11"
       >
         <ChevronLeft className="size-5" aria-hidden />
       </button>
@@ -256,7 +256,7 @@ export function HeroCarousel({
         type="button"
         onClick={() => emblaApi?.scrollNext()}
         aria-label="Next slide"
-        className="absolute right-3 top-1/2 z-20 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20 sm:right-6 sm:size-11"
+        className="absolute right-3 top-1/2 z-20 hidden size-10 md:flex -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20 sm:right-6 sm:size-11"
       >
         <ChevronRight className="size-5" aria-hidden />
       </button>

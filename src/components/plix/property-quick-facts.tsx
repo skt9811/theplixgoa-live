@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Accessibility, Eye, Star, UtensilsCrossed, Wrench, X } from "lucide-react";
+import { Accessibility, Eye, UtensilsCrossed, Wrench, X } from "lucide-react";
 import { amenityCategory, amenityIcon, type AmenityCategory } from "@/components/plix/amenity-icons";
 
 type Props = {
@@ -62,41 +62,12 @@ export function PropertyQuickFacts({
     tags: amenityTags.filter((tag) => amenityCategory(tag) === category),
   })).filter((group) => group.tags.length > 0);
 
-  function scrollToReviews() {
-    document.getElementById("reviews")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
 
   return (
     <section className="mt-6">
-      {/* Rating */}
-      {avgRating !== null ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <a
-            href="#guest-reviews"
-            onClick={(e) => {
-              e.preventDefault();
-              scrollToReviews();
-            }}
-            className="flex items-center gap-1.5 text-sm font-medium text-navy hover:underline"
-          >
-            <Star className="size-4 fill-primary text-primary" aria-hidden />
-            {avgRating.toFixed(1)}
-            <span className="text-muted-foreground">
-              ({reviewCount} review{reviewCount === 1 ? "" : "s"})
-            </span>
-          </a>
-          {avgRating >= 4.5 && (
-            <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
-              Like a 5★
-            </span>
-          )}
-        </div>
-      ) : (
-        <span className="text-sm text-muted-foreground">New listing</span>
-      )}
-
+      {/* The rating line lives in the page header now (title area). */}
       {/* Pill badges */}
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
         <Pill>Up to {maxGuests} Guests</Pill>
         <Pill>
           {roomsCount} {roomsLabel}

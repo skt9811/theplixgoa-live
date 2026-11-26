@@ -4,29 +4,31 @@ import { ArrowUp, Facebook, Instagram, MessageCircle } from "lucide-react";
 import { ObfuscatedEmail } from "@/components/plix/obfuscated-email";
 import { whatsappLink, SITE_ADDRESS_LINE } from "@/lib/seo";
 import { PROPERTIES } from "@/lib/plix";
+import { locationSlug } from "@/lib/locations";
 import { fetchSiteConfig, type SiteConfig } from "@/lib/site-config";
 import { trackFunnelEvent } from "@/lib/gtag";
 import { trackLeadClick } from "@/lib/lead-tracker";
 
-const quickLinks = [
-  { label: "About Us", to: "/about" as const },
-  { label: "Contact Us", to: "/contact" as const },
-  { label: "List Your Property", to: "/partner" as const },
-  // Not duplicated here: the legal bar at the very bottom of the footer
-  // already has "Terms Of Services", paired with Privacy Policy — the
-  // standard place for it. Two Terms links to the same /terms page is the
-  // redundancy, not either one on its own.
-  { label: "Blogs", to: "/blog" as const },
-  { label: "FAQs", to: "/faq" as const },
-  // Renamed from "Plix Gallery": no standalone gallery page exists — this
-  // goes to /stays (every property's full photo set), so the label now
-  // says what it actually is instead of implying a dedicated gallery page.
+const DESTINATIONS = ["Vagator", "Assagao", "Morjim", "Candolim", "Anjuna"];
+const COLLECTIONS = [
   { label: "All Properties", to: "/stays" as const },
-  { label: "Large Group Stays", to: "/stays/large-groups" as const },
   { label: "Private Pool Villas", to: "/stays/private-pool-villas" as const },
+  { label: "Large Group Stays", to: "/stays/large-groups" as const },
   { label: "Pet-Friendly Villas", to: "/stays/pet-friendly-villas" as const },
+];
+const ABOUT = [
+  { label: "About Us", to: "/about" as const },
+  { label: "List Your Property", to: "/partner" as const },
+  { label: "Blog", to: "/blog" as const },
+];
+// Terms/Privacy live in the legal bar at the bottom, so not repeated here.
+const SUPPORT = [
+  { label: "Contact Us", to: "/contact" as const },
+  { label: "FAQs", to: "/faq" as const },
   { label: "Cancellation Policy", to: "/cancellation" as const },
 ];
+const colTitle = "text-xs font-semibold uppercase tracking-[0.22em] text-neutral-500";
+const footLink = "w-fit text-neutral-300 transition-colors hover:text-white";
 
 export function SiteFooter() {
   const [config, setConfig] = useState<SiteConfig | null>(null);
@@ -61,7 +63,7 @@ export function SiteFooter() {
 
   return (
     <>
-      <footer className="bg-navy text-navy-foreground">
+      <footer className="bg-neutral-900 text-neutral-300">
         <div className="mx-auto max-w-7xl px-4 py-12 md:px-6">
           {/* Header row */}
           <div className="flex flex-col items-center justify-between gap-6 border-b border-white/15 pb-10 sm:flex-row">
@@ -74,7 +76,7 @@ export function SiteFooter() {
                 className="h-14 w-auto object-contain brightness-0 invert"
               />
             </Link>
-            <p className="font-serif text-3xl font-normal text-navy-foreground md:text-4xl">
+            <p className="font-serif text-3xl font-normal text-white md:text-4xl">
               Let's <span className="italic text-bronze">Escape.</span>
             </p>
           </div>
@@ -83,11 +85,11 @@ export function SiteFooter() {
           <div className="grid gap-10 py-12 md:grid-cols-2 md:gap-12 lg:grid-cols-4">
             {/* Column 1 — company overview & transparency */}
             <div>
-              <p className="max-w-sm text-sm leading-relaxed text-navy-foreground/80">
+              <p className="max-w-sm text-sm leading-relaxed text-neutral-300">
                 Luxury stays and boutique resorts across North Goa. Unmatched comfort, privacy, and
                 elegance. Book your escape today.
               </p>
-              <p className="mt-5 max-w-sm text-xs leading-relaxed text-navy-foreground/60">
+              <p className="mt-5 max-w-sm text-xs leading-relaxed text-neutral-500">
                 The Plix Goa is proudly owned and operated by Plix Hospitality Private Limited, the
                 parent company behind our hospitality services. Our business is GST-registered,
                 ensuring transparency and compliance at every step.
@@ -98,7 +100,7 @@ export function SiteFooter() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Facebook"
-                  className="flex size-9 items-center justify-center rounded-full border border-white/20 text-navy-foreground/80 transition-colors hover:border-bronze hover:text-bronze"
+                  className="flex size-9 items-center justify-center rounded-full border border-white/20 text-neutral-300 transition-colors hover:border-bronze hover:text-bronze"
                 >
                   <Facebook className="size-4" aria-hidden />
                 </a>
@@ -107,7 +109,7 @@ export function SiteFooter() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Instagram"
-                  className="flex size-9 items-center justify-center rounded-full border border-white/20 text-navy-foreground/80 transition-colors hover:border-bronze hover:text-bronze"
+                  className="flex size-9 items-center justify-center rounded-full border border-white/20 text-neutral-300 transition-colors hover:border-bronze hover:text-bronze"
                 >
                   <Instagram className="size-4" aria-hidden />
                 </a>
@@ -120,63 +122,71 @@ export function SiteFooter() {
                     trackLeadClick({ channel: "whatsapp", intent: "general", ctaLocation: "footer_social" });
                   }}
                   aria-label="WhatsApp"
-                  className="flex size-9 items-center justify-center rounded-full border border-white/20 text-navy-foreground/80 transition-colors hover:border-bronze hover:text-bronze"
+                  className="flex size-9 items-center justify-center rounded-full border border-white/20 text-neutral-300 transition-colors hover:border-bronze hover:text-bronze"
                 >
                   <MessageCircle className="size-4" aria-hidden />
                 </a>
               </div>
             </div>
 
-            {/* Column 2 — quick links */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-navy-foreground/60">
-                Quick Links
-              </p>
-              <div className="mt-4 grid gap-2.5 text-sm">
-                {quickLinks.map((link) => (
-                  <Link
-                    key={link.label}
-                    to={link.to}
-                    className="w-fit text-navy-foreground/80 transition-colors hover:text-white"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
+            {/* Destinations + collections */}
+            <div className="grid content-start gap-8">
+              <div>
+                <p className={colTitle}>Destinations</p>
+                <div className="mt-4 grid gap-2.5 text-sm">
+                  {DESTINATIONS.map((d) => (
+                    <Link key={d} to="/locations/$slug" params={{ slug: locationSlug(d) }} className={footLink}>
+                      Villas in {d}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className={colTitle}>Top Collections</p>
+                <div className="mt-4 grid gap-2.5 text-sm">
+                  {COLLECTIONS.map((l) => (
+                    <Link key={l.label} to={l.to} className={footLink}>
+                      {l.label}
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Column 3 — every property, exact name as anchor text, linking
-                to its own page (not the location hub) — on every page's
-                server-rendered footer, so every property gets a real
-                internal link from the whole site, not just a hover dropdown. */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-navy-foreground/60">
-                Our Properties
-              </p>
-              <div className="mt-4 grid gap-2.5 text-sm">
-                {PROPERTIES.map((p) => (
-                  <Link
-                    key={p.id}
-                    to="/properties/$slug"
-                    params={{ slug: p.slug }}
-                    className="w-fit text-navy-foreground/80 transition-colors hover:text-white"
-                  >
-                    {p.name}
-                  </Link>
-                ))}
+            {/* About + support */}
+            <div className="grid content-start gap-8">
+              <div>
+                <p className={colTitle}>About</p>
+                <div className="mt-4 grid gap-2.5 text-sm">
+                  {ABOUT.map((l) => (
+                    <Link key={l.label} to={l.to} className={footLink}>
+                      {l.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className={colTitle}>Support</p>
+                <div className="mt-4 grid gap-2.5 text-sm">
+                  {SUPPORT.map((l) => (
+                    <Link key={l.label} to={l.to} className={footLink}>
+                      {l.label}
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* Column 4 — address & contact */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-navy-foreground/60">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-neutral-500">
                 Address &amp; Contact
               </p>
               {/* <address> is the semantic element for the organization's
                   contact details (locality, phones, email). not-italic
                   undoes the browser's default italic styling for it. */}
               <address className="mt-4 grid gap-3 text-sm not-italic">
-                <span className="text-navy-foreground/80">
+                <span className="text-neutral-300">
                   {SITE_ADDRESS_LINE}
                 </span>
                 <a
@@ -185,7 +195,7 @@ export function SiteFooter() {
                     trackFunnelEvent("click_call", { location: "footer_reservations" });
                     trackLeadClick({ channel: "call", intent: "guest_booking", ctaLocation: "footer_reservations" });
                   }}
-                  className="w-fit text-navy-foreground/80 transition-colors hover:text-white"
+                  className="w-fit text-neutral-300 transition-colors hover:text-white"
                 >
                   Reservations: {phone1}
                 </a>
@@ -195,12 +205,24 @@ export function SiteFooter() {
                     trackFunnelEvent("click_call", { location: "footer_enquiry" });
                     trackLeadClick({ channel: "call", intent: "general", ctaLocation: "footer_enquiry" });
                   }}
-                  className="w-fit text-navy-foreground/80 transition-colors hover:text-white"
+                  className="w-fit text-neutral-300 transition-colors hover:text-white"
                 >
                   Enquiry: {phone2}
                 </a>
-                <ObfuscatedEmail className="w-fit text-navy-foreground/80 transition-colors hover:text-white" />
+                <ObfuscatedEmail className="w-fit text-neutral-300 transition-colors hover:text-white" />
               </address>
+            </div>
+          </div>
+
+          {/* Every property, exact name as anchor text, on every page. */}
+          <div className="border-t border-white/10 py-6">
+            <p className={colTitle}>Our Properties</p>
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              {PROPERTIES.map((p) => (
+                <Link key={p.id} to="/properties/$slug" params={{ slug: p.slug }} className={footLink}>
+                  {p.name}
+                </Link>
+              ))}
             </div>
           </div>
 
@@ -208,10 +230,10 @@ export function SiteFooter() {
           {/* One row: credit left, legal links right. Right padding keeps the
               links clear of the floating WhatsApp button; bottom padding on
               phones does the same for its round icon. */}
-          <div className="flex flex-col items-center justify-between gap-3 border-t border-white/15 pb-16 pt-6 text-center text-xs text-navy-foreground/60 sm:flex-row sm:pb-0 sm:text-left md:pr-56">
+          <div className="flex flex-col items-center justify-between gap-3 border-t border-white/15 pb-16 pt-6 text-center text-xs text-neutral-500 sm:flex-row sm:pb-0 sm:text-left md:pr-56">
             <p>
               © {new Date().getFullYear()} The Plix Goa · An initiative by{" "}
-              <span className="font-semibold text-navy-foreground/85">Plix Hospitality Private Limited</span>
+              <span className="font-semibold text-neutral-200">Plix Hospitality Private Limited</span>
             </p>
             <div className="flex shrink-0 items-center gap-5">
               <Link to="/privacy" className="transition-colors hover:text-white">
@@ -233,7 +255,7 @@ export function SiteFooter() {
           blog stay CTA), so these buttons sit above it rather than over it. */}
       {/* Side by side (not stacked), so nothing collides with the property
           page's "Plix AI" button, which sits directly above this row. */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-row items-center gap-3 max-md:bottom-[calc(1.5rem+var(--sticky-cta-h,0px))] max-md:right-4">
+      <div className="plix-fabs fixed bottom-6 right-6 z-50 flex flex-row items-center gap-3 max-md:bottom-[calc(1.5rem+var(--sticky-cta-h,0px))] max-md:right-4">
         {showBackToTop && (
           <button
             type="button"

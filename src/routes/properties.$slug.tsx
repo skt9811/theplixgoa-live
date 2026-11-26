@@ -23,15 +23,21 @@ import { PropertySubNav, SUB_NAV_HEIGHT } from "@/components/plix/property-sub-n
 import { PropertyQuickFacts } from "@/components/plix/property-quick-facts";
 import { PropertyRefundTimeline } from "@/components/plix/property-refund-timeline";
 import { PropertyFaq } from "@/components/plix/property-faq";
-import { PropertyConnectHostCard } from "@/components/plix/property-connect-host-card";
+import {
+  PropertyAmenitiesGrid,
+  PropertyConnectBanner,
+  PropertyExperienceCards,
+  PropertyPlixExperience,
+  PropertySpaces,
+  SidebarHostButtons,
+  buildSpaceCards,
+} from "@/components/plix/property-sections";
 import { PropertyTrustStrip } from "@/components/plix/property-trust-strip";
 import { PropertyRatingBadge } from "@/components/plix/property-rating-badge";
 import { PropertyAlsoListed } from "@/components/plix/property-also-listed";
 import { PropertyHostBlock } from "@/components/plix/property-host-block";
 import { PropertyConciergeWidget } from "@/components/plix/property-concierge-widget";
 import { PropertyCheckinRulesCard } from "@/components/plix/property-checkin-rules-card";
-import { amenityIcon } from "@/components/plix/amenity-icons";
-import { PHOTO_ROOM_LABEL } from "@/lib/photo-categories";
 import { useStickyHeaderOffset } from "@/lib/use-sticky-header-offset";
 
 const CheckoutModal = lazy(() =>
@@ -102,7 +108,6 @@ type PropertySearch = {
 // already has — business request to surface the full photo set higher up
 // for these specifically (Harbor Court added after Search Console showed
 // impressions without clicks).
-const PHOTOS_SECTION_SLUGS = new Set(["morjim-pride", "the-plix-resort-morjim", "harbor-court"]);
 
 export const Route = createFileRoute("/properties/$slug")({
   validateSearch: (search: Record<string, unknown>): PropertySearch => ({
@@ -264,8 +269,10 @@ function PropertyDetail() {
   // (WhatsApp, back-to-top, Plix AI) above it, same handshake as the blog bar.
   useEffect(() => {
     document.documentElement.style.setProperty("--sticky-cta-h", "4.75rem");
+    document.documentElement.dataset["propertyPage"] = "1";
     return () => {
       document.documentElement.style.removeProperty("--sticky-cta-h");
+      delete document.documentElement.dataset["propertyPage"];
     };
   }, []);
   // Arriving from a card's "Select Dates" (…#book): open on the date picker.
@@ -507,13 +514,16 @@ function PropertyDetail() {
     // trick, so the container keeps its width): calmer than the cream,
     // lets the photos carry the colour.
     <div className="mx-auto max-w-7xl bg-card px-4 py-8 pb-24 shadow-[0_0_0_100vmax_var(--card)] [clip-path:inset(0_-100vmax)] md:px-6 md:pb-8">
-      <nav className="text-sm text-muted-foreground">
+      {/* Phones: photos first, then name/location/rating (StayVista-style);
+          the breadcrumb only shows from md up. */}
+      <div className="flex flex-col">
+      <nav className="text-sm text-muted-foreground max-md:hidden">
         <Link to="/" className="hover:text-primary">
           Home
         </Link>
         <span className="px-2">/</span>
         <Link to="/stays" className="hover:text-primary">
-          Stays
+          Villas and Hotels in North Goa
         </Link>
         <span className="px-2">/</span>
         <Link to="/locations/$slug" params={{ slug: locationSlug(property.location) }} className="hover:text-primary">
@@ -523,61 +533,10 @@ function PropertyDetail() {
         <span className="text-foreground">{property.name}</span>
       </nav>
 
-      <header className="mt-4">
-        <h1 className="text-3xl font-semibold text-navy md:text-4xl">{property.name}</h1>
-        {propertyTagline(property) && (
-          <p className="mt-1 text-lg font-medium text-primary">{propertyTagline(property)}</p>
-        )}
-        <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <MapPin className="size-4 text-primary" aria-hidden />
-            <Link to="/locations/$slug" params={{ slug: locationSlug(property.location) }} className="hover:text-primary hover:underline">
-              {property.location}
-            </Link>
-            , {property.region}
-            {/* Same postal code map the schema's address block uses
-                (LOCATION_POSTAL_CODES in seo.ts) — visible NAP text and the
-                LodgingBusiness JSON-LD address should never disagree. */}
-            {LOCATION_POSTAL_CODES[property.location] && `, ${LOCATION_POSTAL_CODES[property.location]}`}
-          </span>
-          {property.distance_to_beach && (
-            <>
-              {/* A real separator character, not just the parent's CSS gap:
-                  the postcode span above and this one are visually spaced by
-                  gap-x-4 alone, with no actual text between them — fine on
-                  screen, but "403512" and "2 mins walk" concatenate into
-                  "4035122 mins walk" for anything reading text content
-                  rather than rendered layout (a crawler's text snapshot,
-                  some screen-reader modes, copy-paste). */}
-              <span aria-hidden className="text-muted-foreground/60">·</span>
-              <span className="flex items-center gap-1.5">
-                <Footprints className="size-4 text-primary" aria-hidden />
-                {property.distance_to_beach}
-              </span>
-            </>
-          )}
-        </p>
-        {/* Brand-search Phase 1: the first paragraph after the H1 is the text
-            Google most often pulls as the SERP snippet — generated from data
-            (propertyIntroParagraph in seo.ts), not hand-typed, so it always
-            states the plain official name, locality and real key facts. */}
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-foreground/90">
-          {propertyIntroParagraph(property)}
-        </p>
-        {PHOTOS_SECTION_SLUGS.has(property.slug) && (
-          <a
-            href="#photos"
-            className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
-          >
-            View Photos
-          </a>
-        )}
-      </header>
-
       {/* Photos-first ordering: the gallery comes right after the header,
           before the Key Facts summary — a guest sees the villa before a
           spec sheet about it. */}
-      <section id="photo-gallery">
+      <section id="photo-gallery" className="max-md:order-first">
         {/* No heading of its own here: PropertyImageCarousel below already
             renders a real, visible "{name} photo gallery" <h2> for this
             same section — a duplicate heading, not two distinct ones. */}
@@ -591,31 +550,69 @@ function PropertyDetail() {
         />
       </section>
 
-      {PHOTOS_SECTION_SLUGS.has(property.slug) && (
-        <PropertyImageCarousel
-          images={images}
-          propertyName={property.name}
-          location={property.location}
-          sectionId="photos"
-          heading="Photos"
-          altOverrides={property.image_keys.map((key) => {
-            const room = PHOTO_ROOM_LABEL[key];
-            return room ? `${property.name} ${room}, ${property.location} Goa` : undefined;
-          })}
-        />
-      )}
-
-      <PropertyKeyFacts
-        property={property}
-        isMultiRoom={isMultiRoom}
-        roomsLabel={roomsLabel}
-        roomsCount={roomsCount}
-      />
+      </div>
 
       <PropertySubNav />
 
       <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-12 items-start">
-        <div id="highlights" className="lg:col-span-8">
+        <div className="lg:col-span-8">
+          <header>
+            <h1 className="text-[28px] font-semibold leading-tight text-navy md:text-4xl">{property.name}</h1>
+            {propertyTagline(property) && (
+              <p className="mt-2 inline-flex rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground">{propertyTagline(property)}</p>
+            )}
+            <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <MapPin className="size-4 text-primary" aria-hidden />
+                <span>
+                <Link to="/locations/$slug" params={{ slug: locationSlug(property.location) }} className="hover:text-primary hover:underline">
+                  {property.location}
+                </Link>
+                {`, ${property.region}`}
+                {/* Same postal code map the schema's address block uses
+                    (LOCATION_POSTAL_CODES in seo.ts) — visible NAP text and the
+                    LodgingBusiness JSON-LD address should never disagree. */}
+                {LOCATION_POSTAL_CODES[property.location] && `, ${LOCATION_POSTAL_CODES[property.location]}`}
+                </span>
+              </span>
+              {property.distance_to_beach && (
+                <>
+                  {/* A real separator character, not just the parent's CSS gap:
+                      the postcode span above and this one are visually spaced by
+                      gap-x-4 alone, with no actual text between them — fine on
+                      screen, but "403512" and "2 mins walk" concatenate into
+                      "4035122 mins walk" for anything reading text content
+                      rather than rendered layout (a crawler's text snapshot,
+                      some screen-reader modes, copy-paste). */}
+                  <span aria-hidden className="text-muted-foreground/60">·</span>
+                  <span className="flex items-center gap-1.5">
+                    <Footprints className="size-4 text-primary" aria-hidden />
+                    {property.distance_to_beach}
+                  </span>
+                </>
+              )}
+            </p>
+            {/* Brand-search Phase 1: the first paragraph after the H1 is the text
+                Google most often pulls as the SERP snippet — generated from data
+                (propertyIntroParagraph in seo.ts), not hand-typed, so it always
+                states the plain official name, locality and real key facts. */}
+            {avgRating !== null && (
+              <a href="#reviews" className="mt-2 inline-flex items-center gap-2 text-sm">
+                <span className="inline-flex items-center gap-1">
+                  <span className="text-primary">★</span>
+                  <span className="font-semibold text-navy">{avgRating.toFixed(1)}</span>
+                  <span className="text-muted-foreground">/5</span>
+                </span>
+                <span className="h-4 w-px bg-border" aria-hidden />
+                <span className="font-medium text-primary underline-offset-2 hover:underline">{allPropertyReviews.length} Reviews</span>
+              </a>
+            )}
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-foreground/90">
+              {propertyIntroParagraph(property)}
+            </p>
+          </header>
+
+          <div id="highlights" className="scroll-mt-32">
           <PropertyQuickFacts
             propertyName={property.name}
             roomsLabel={roomsLabel}
@@ -627,8 +624,12 @@ function PropertyDetail() {
             avgRating={avgRating}
             reviewCount={allPropertyReviews.length}
           />
+          </div>
 
-          <section id="overview" className="mt-10">
+          <PropertyConnectBanner propertyName={property.name} />
+          <PropertyPlixExperience />
+
+          <section id="overview" className="mt-10 scroll-mt-32">
             <h2 className="text-xl font-semibold text-navy md:text-[22px]">{property.name} overview</h2>
             <p className="mt-3 leading-relaxed text-muted-foreground">{property.description}</p>
             {/* Spelling/aka variants: one natural sentence, kept out of the
@@ -636,38 +637,39 @@ function PropertyDetail() {
             {propertySearchVariantSentence(property) && (
               <p className="mt-2 text-xs text-muted-foreground">{propertySearchVariantSentence(property)}</p>
             )}
-            <PropertyCheckinRulesCard />
+            <div className="mt-4 flex flex-wrap gap-2">
+              <a href="#spaces" className="rounded-lg border border-navy px-4 py-2 text-sm font-semibold text-navy transition-colors hover:bg-muted">
+                Explore Your Stay
+              </a>
+              <a href="#faqs" className="rounded-lg border border-navy px-4 py-2 text-sm font-semibold text-navy transition-colors hover:bg-muted">
+                FAQ&apos;s
+              </a>
+            </div>
+            <PropertyKeyFacts
+              property={property}
+              isMultiRoom={isMultiRoom}
+              roomsLabel={roomsLabel}
+              roomsCount={roomsCount}
+            />
+
           </section>
 
           <PropertyRefundTimeline propertyName={property.name} />
+          <PropertyCheckinRulesCard />
 
-          <PropertyImageCarousel images={images} propertyName={property.name} location={property.location} />
+          {buildSpaceCards(images, property.image_keys).length >= 2 ? (
+            <PropertySpaces images={images} imageKeys={property.image_keys} propertyName={property.name} />
+          ) : (
+            <PropertyImageCarousel images={images} propertyName={property.name} location={property.location} />
+          )}
 
-          <PropertyReviewsSection propertyId={property.id} propertyName={property.name} />
+          <div id="reviews" className="scroll-mt-32">
+            <PropertyReviewsSection propertyId={property.id} propertyName={property.name} />
+          </div>
 
-          <section id="amenities" className="mt-10">
-            <h2 className="text-xl font-semibold text-navy md:text-[22px]">{property.name} amenities</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-              {property.amenity_tags.map((a) => {
-                const Icon = amenityIcon(a);
-                return (
-                  <div
-                    key={a}
-                    className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm"
-                  >
-                    <Icon className="size-4 text-primary" />
-                    {a}
-                  </div>
-                );
-              })}
-            </div>
-            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-              Popular add-ons — BBQ setup, bonfire evenings, and a private chef — can be arranged by
-              your caretaker, priced on request.
-            </p>
-          </section>
+          <PropertyAmenitiesGrid propertyName={property.name} tags={property.amenity_tags} />
 
-          <section id="meals" className="mt-10">
+          <section id="meals" className="mt-10 scroll-mt-32">
             <h2 className="text-xl font-semibold text-navy md:text-[22px]">{property.name} dining &amp; meals</h2>
             {hasRestaurant ? (
               <p className="mt-3 leading-relaxed text-muted-foreground">
@@ -689,9 +691,7 @@ function PropertyDetail() {
             )}
           </section>
 
-          <PropertyAirportFares />
-
-          <section id="location" className="mt-10">
+          <section id="location" className="mt-10 scroll-mt-32">
             <h2 className="text-xl font-semibold text-navy md:text-[22px]">{property.name} location</h2>
             {enclaveEntity && (
               <p className="mt-1 text-sm text-foreground">
@@ -713,8 +713,10 @@ function PropertyDetail() {
                 {SITE_PHONE_1}
               </a>
             </p>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div>
             {property.google_maps_embed_url ? (
-              <div className="mt-4 h-[380px] w-full overflow-hidden rounded-2xl border border-border shadow-soft">
+              <div className="h-[320px] w-full overflow-hidden rounded-2xl border border-border shadow-soft">
                 <iframe
                   src={property.google_maps_embed_url}
                   width="100%"
@@ -759,11 +761,10 @@ function PropertyDetail() {
                 </div>
               </div>
             )}
-          </section>
-
-          <section id="experiences" className="mt-10">
-            <h2 className="text-xl font-semibold text-navy md:text-[22px]">{property.name} nearby attractions &amp; experiences</h2>
-            <ul className="mt-4 divide-y divide-border rounded-2xl border border-border bg-card">
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-navy">Nearby places</p>
+            <ul className="mt-2 divide-y divide-border rounded-2xl border border-border bg-card">
               {property.nearby.map((n) => (
                 <li key={n.name} className="flex items-center justify-between px-5 py-3.5 text-sm">
                   <span className="text-foreground">{n.name}</span>
@@ -771,6 +772,14 @@ function PropertyDetail() {
                 </li>
               ))}
             </ul>
+            </div>
+            </div>
+          </section>
+
+          <section id="experiences" className="mt-10 scroll-mt-32">
+            <h2 className="text-xl font-semibold text-navy md:text-[22px]">Experiences at {property.name}</h2>
+            <PropertyExperienceCards propertyName={property.name} propertySlug={property.slug} />
+            <PropertyAirportFares />
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
               <Link
                 to="/locations/$slug"
@@ -1038,8 +1047,8 @@ function PropertyDetail() {
             </div>
           </div>
 
-          <div className="mt-4">
-            <PropertyConnectHostCard propertyName={property.name} propertySlug={property.slug} />
+          <div className="mt-3">
+            <SidebarHostButtons propertyName={property.name} propertySlug={property.slug} />
           </div>
           <div className="mt-4">
             <PropertyHostBlock />
@@ -1054,7 +1063,7 @@ function PropertyDetail() {
           this a guest has to scroll all the way back up to book. Mirrors
           the desktop CTA's own logic: no dates picked yet scrolls to the
           booking form instead of opening checkout with nothing selected. */}
-      <div className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-between gap-4 border-t border-border bg-card px-4 py-3 shadow-lift md:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-between gap-3 border-t border-border bg-card px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-lift lg:hidden">
         {datesChosen && nights > 0 ? (
           <div>
             <div className="flex items-baseline gap-1">

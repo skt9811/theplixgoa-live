@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CircleCheck, PhoneCall } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -7,14 +7,29 @@ import { SITE_PHONE_1 } from "@/lib/seo";
 const TIMES = ["Any time", "Morning (9 AM – 12 PM)", "Afternoon (12 – 4 PM)", "Evening (4 – 8 PM)"];
 const emptyForm = { name: "", phone: "", preferredTime: TIMES[0]!, note: "" };
 
-// Strip under the homepage search bar: "we're here to help" + a callback form.
-export function RequestCallbackStrip() {
-  const [open, setOpen] = useState(false);
+/** The callback form (saves a website lead + WhatsApp alert via
+ * /api/callback-request). `context` pre-fills the note, e.g. the property. */
+export function CallbackDialog({
+  open,
+  onOpenChange,
+  context,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  context?: string | undefined;
+}) {
   const [form, setForm] = useState(emptyForm);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const input =
     "mt-1 w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm font-normal outline-none focus:ring-2 focus:ring-ring/40";
+
+  useEffect(() => {
+    if (open) {
+      setSent(false);
+      if (context) setForm((f) => (f.note ? f : { ...f, note: context }));
+    }
+  }, [open, context]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,23 +55,7 @@ export function RequestCallbackStrip() {
   }
 
   return (
-    <>
-      <div className="mt-3 flex flex-col items-start justify-between gap-2 rounded-2xl bg-gradient-to-r from-[#fbf3ea] to-[#f6e3e0] px-5 py-3.5 shadow-soft sm:flex-row sm:items-center">
-        <p className="text-sm text-navy">Finding your ideal vacation spot should be easy, we're here to help!</p>
-        <button
-          type="button"
-          onClick={() => {
-            setSent(false);
-            setOpen(true);
-          }}
-          className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-primary underline underline-offset-4 hover:opacity-80"
-        >
-          <PhoneCall className="size-4" aria-hidden />
-          Request Callback
-        </button>
-      </div>
-
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-serif text-2xl font-normal text-navy">Request a callback</DialogTitle>
@@ -100,6 +99,29 @@ export function RequestCallbackStrip() {
           )}
         </DialogContent>
       </Dialog>
+  );
+}
+
+// Strip under the homepage search bar: "we're here to help" + a callback form.
+export function RequestCallbackStrip() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="mt-3 flex flex-col items-start justify-between gap-2 rounded-2xl bg-gradient-to-r from-[#fbf3ea] to-[#f6e3e0] px-5 py-3.5 shadow-soft sm:flex-row sm:items-center">
+        <p className="text-sm text-navy">Finding your ideal vacation spot should be easy, we're here to help!</p>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(true);
+          }}
+          className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-primary underline underline-offset-4 hover:opacity-80"
+        >
+          <PhoneCall className="size-4" aria-hidden />
+          Request Callback
+        </button>
+      </div>
+
+      <CallbackDialog open={open} onOpenChange={setOpen} />
     </>
   );
 }

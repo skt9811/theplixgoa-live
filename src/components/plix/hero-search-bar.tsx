@@ -11,7 +11,8 @@ import { GUESTS_PER_ROOM, isMultiRoomProperty, maxGuestsForRooms, maxRoomsForPro
  * params/navigation contract as SearchBar so results land on the same
  * /stays or /properties/$slug destinations.
  */
-export function HeroSearchBar() {
+export function HeroSearchBar({ variant = "hero", onDone }: { variant?: "hero" | "sheet"; onDone?: () => void } = {}) {
+  const sheet = variant === "sheet";
   const navigate = useNavigate();
 
   const [selectedSlug, setSelectedSlug] = useState("");
@@ -62,6 +63,7 @@ export function HeroSearchBar() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (guestError) return;
+    onDone?.();
     const searchParams = {
       checkIn: checkIn || undefined,
       checkOut: checkOut || undefined,
@@ -75,16 +77,18 @@ export function HeroSearchBar() {
     }
   }
 
-  const fieldLabel = "flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/80";
-  const fieldShell =
-    "mt-1.5 flex items-center rounded-xl bg-white/95 px-3 py-2.5 shadow-soft";
+  // "sheet": the same form on a white bottom sheet (phones), so labels are dark.
+  const fieldLabel = `flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider ${sheet ? "text-muted-foreground" : "text-white/80"}`;
+  const fieldShell = sheet
+    ? "mt-1.5 flex items-center rounded-xl border border-border bg-card px-3 py-3"
+    : "mt-1.5 flex items-center rounded-xl bg-white/95 px-3 py-2.5 shadow-soft";
   const fieldInput =
     "w-full min-w-0 bg-transparent text-sm font-medium text-navy outline-none [color-scheme:light]";
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full rounded-3xl border border-white/25 bg-white/15 p-4 shadow-2xl backdrop-blur-md sm:p-5"
+      className={sheet ? "w-full" : "w-full rounded-3xl border border-white/25 bg-white/15 p-4 shadow-2xl backdrop-blur-md sm:p-5"}
     >
       <div className="lg:flex lg:flex-row lg:items-end lg:gap-3">
       <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -214,7 +218,7 @@ export function HeroSearchBar() {
         </label>
       )}
 
-      {guestError && <p className="mt-2 text-xs text-red-200">{guestError}</p>}
+      {guestError && <p className={`mt-2 text-xs ${sheet ? "text-red-600" : "text-red-200"}`}>{guestError}</p>}
     </form>
   );
 }

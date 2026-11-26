@@ -1,10 +1,10 @@
 import type { ReviewPlatform } from "@/lib/property-reviews-data";
 
 export const PLATFORM_STYLE: Record<ReviewPlatform, string> = {
-  Google: "bg-blue-50 text-blue-700 ring-blue-200",
-  Airbnb: "bg-rose-50 text-rose-700 ring-rose-200",
-  Agoda: "bg-sky-50 text-sky-700 ring-sky-200",
-  MakeMyTrip: "bg-white text-[#27447c] ring-border",
+  Google: "bg-card text-navy ring-border",
+  Airbnb: "bg-card text-navy ring-border",
+  Agoda: "bg-card text-navy ring-border",
+  MakeMyTrip: "bg-card text-navy ring-border",
 };
 
 function GoogleMark() {

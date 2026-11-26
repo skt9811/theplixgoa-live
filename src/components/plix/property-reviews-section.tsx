@@ -43,14 +43,8 @@ const SUMMARY_HIGHLIGHTS: { label: string; blurb: string }[] = [
   },
 ];
 
-const AVATAR_PALETTE = [
-  "bg-emerald-100 text-emerald-700",
-  "bg-sky-100 text-sky-700",
-  "bg-amber-100 text-amber-700",
-  "bg-rose-100 text-rose-700",
-  "bg-violet-100 text-violet-700",
-  "bg-teal-100 text-teal-700",
-];
+// One calm avatar style (palette tint), not a rainbow of colours.
+const AVATAR_PALETTE = ["bg-accent text-accent-foreground"];
 
 function initialsOf(name: string) {
   const parts = name.trim().split(/\s+/);
@@ -121,7 +115,7 @@ function ReviewCard({ review }: { review: PropertyReview }) {
         {review.categories.map((c) => (
           <span
             key={c}
-            className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200"
+            className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground/70 ring-1 ring-inset ring-border"
           >
             <Check className="size-3" aria-hidden /> {c}
           </span>

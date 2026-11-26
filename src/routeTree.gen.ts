@@ -63,6 +63,7 @@ import { Route as PmsPosSettingsRouteImport } from './routes/pms.pos.settings'
 import { Route as PmsSettingsUsersRouteImport } from './routes/pms.settings_.users'
 import { Route as PmsAuthCallbackRouteImport } from './routes/pms_.auth.callback'
 import { Route as PmsAuthGoogleStartRouteImport } from './routes/pms_.auth.google-start'
+import { Route as PropertiesSlugBrochureRouteImport } from './routes/properties_.$slug.brochure'
 import { Route as PmsPosManageIndexRouteImport } from './routes/pms.pos.manage.index'
 import { Route as PmsPosManageActivityLogsRouteImport } from './routes/pms.pos.manage.activity-logs'
 import { Route as PmsPosManageCategoriesRouteImport } from './routes/pms.pos.manage.categories'
@@ -352,6 +353,11 @@ const PmsAuthGoogleStartRoute = PmsAuthGoogleStartRouteImport.update({
   path: '/pms/auth/google-start',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PropertiesSlugBrochureRoute = PropertiesSlugBrochureRouteImport.update({
+  id: '/properties_/$slug/brochure',
+  path: '/properties/$slug/brochure',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PmsPosManageIndexRoute = PmsPosManageIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -501,6 +507,7 @@ export interface FileRoutesByFullPath {
   '/pms/settings/users': typeof PmsSettingsUsersRoute
   '/pms/auth/callback': typeof PmsAuthCallbackRoute
   '/pms/auth/google-start': typeof PmsAuthGoogleStartRoute
+  '/properties/$slug/brochure': typeof PropertiesSlugBrochureRoute
   '/pms/pos/': typeof PmsPosIndexRoute
   '/pms/pos/manage/activity-logs': typeof PmsPosManageActivityLogsRoute
   '/pms/pos/manage/categories': typeof PmsPosManageCategoriesRoute
@@ -570,6 +577,7 @@ export interface FileRoutesByTo {
   '/pms/settings/users': typeof PmsSettingsUsersRoute
   '/pms/auth/callback': typeof PmsAuthCallbackRoute
   '/pms/auth/google-start': typeof PmsAuthGoogleStartRoute
+  '/properties/$slug/brochure': typeof PropertiesSlugBrochureRoute
   '/pms/pos': typeof PmsPosIndexRoute
   '/pms/pos/manage/activity-logs': typeof PmsPosManageActivityLogsRoute
   '/pms/pos/manage/categories': typeof PmsPosManageCategoriesRoute
@@ -645,6 +653,7 @@ export interface FileRoutesById {
   '/pms/settings_/users': typeof PmsSettingsUsersRoute
   '/pms_/auth/callback': typeof PmsAuthCallbackRoute
   '/pms_/auth/google-start': typeof PmsAuthGoogleStartRoute
+  '/properties_/$slug/brochure': typeof PropertiesSlugBrochureRoute
   '/pms/pos/': typeof PmsPosIndexRoute
   '/pms/pos/manage/activity-logs': typeof PmsPosManageActivityLogsRoute
   '/pms/pos/manage/categories': typeof PmsPosManageCategoriesRoute
@@ -721,6 +730,7 @@ export interface FileRouteTypes {
     | '/pms/settings/users'
     | '/pms/auth/callback'
     | '/pms/auth/google-start'
+    | '/properties/$slug/brochure'
     | '/pms/pos/'
     | '/pms/pos/manage/activity-logs'
     | '/pms/pos/manage/categories'
@@ -790,6 +800,7 @@ export interface FileRouteTypes {
     | '/pms/settings/users'
     | '/pms/auth/callback'
     | '/pms/auth/google-start'
+    | '/properties/$slug/brochure'
     | '/pms/pos'
     | '/pms/pos/manage/activity-logs'
     | '/pms/pos/manage/categories'
@@ -864,6 +875,7 @@ export interface FileRouteTypes {
     | '/pms/settings_/users'
     | '/pms_/auth/callback'
     | '/pms_/auth/google-start'
+    | '/properties_/$slug/brochure'
     | '/pms/pos/'
     | '/pms/pos/manage/activity-logs'
     | '/pms/pos/manage/categories'
@@ -913,6 +925,7 @@ export interface RootRouteChildren {
   BlogIndexRoute: typeof BlogIndexRoute
   PmsAuthCallbackRoute: typeof PmsAuthCallbackRoute
   PmsAuthGoogleStartRoute: typeof PmsAuthGoogleStartRoute
+  PropertiesSlugBrochureRoute: typeof PropertiesSlugBrochureRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1295,6 +1308,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PmsAuthGoogleStartRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/properties_/$slug/brochure': {
+      id: '/properties_/$slug/brochure'
+      path: '/properties/$slug/brochure'
+      fullPath: '/properties/$slug/brochure'
+      preLoaderRoute: typeof PropertiesSlugBrochureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pms/pos/manage/': {
       id: '/pms/pos/manage/'
       path: '/'
@@ -1588,6 +1608,7 @@ const rootRouteChildren: RootRouteChildren = {
   BlogIndexRoute: BlogIndexRoute,
   PmsAuthCallbackRoute: PmsAuthCallbackRoute,
   PmsAuthGoogleStartRoute: PmsAuthGoogleStartRoute,
+  PropertiesSlugBrochureRoute: PropertiesSlugBrochureRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

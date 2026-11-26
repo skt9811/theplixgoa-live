@@ -392,3 +392,13 @@
 html[data-property-page] .plix-fabs {
   display: none;
 }
+
+/* Brochure page: print just the brochure, not the site chrome. */
+@media print {
+  html[data-brochure] body > * header,
+  html[data-brochure] footer,
+  html[data-brochure] .plix-fabs,
+  html[data-brochure] [aria-label="Cookie notice"] {
+    display: none !important;
+  }
+}

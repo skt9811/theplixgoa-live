@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
+  FileText,
   Footprints,
   Loader as Loader2,
   MapPin,
@@ -10,7 +11,6 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { PropertyImageCarousel } from "@/components/plix/property-image-carousel";
 import { PropertyAirportFares } from "@/components/plix/property-airport-fares";
 import { PropertyExploreMore } from "@/components/plix/property-explore-more";
 import { PropertyReviewsSection } from "@/components/plix/property-reviews-section";
@@ -30,7 +30,6 @@ import {
   PropertyPlixExperience,
   PropertySpaces,
   SidebarHostButtons,
-  buildSpaceCards,
 } from "@/components/plix/property-sections";
 import { PropertyTrustStrip } from "@/components/plix/property-trust-strip";
 import { PropertyRatingBadge } from "@/components/plix/property-rating-badge";
@@ -517,7 +516,8 @@ function PropertyDetail() {
       {/* Phones: photos first, then name/location/rating (StayVista-style);
           the breadcrumb only shows from md up. */}
       <div className="flex flex-col">
-      <nav className="text-sm text-muted-foreground max-md:hidden">
+      <div className="flex items-center justify-between gap-4 max-md:hidden">
+      <nav className="text-sm text-muted-foreground">
         <Link to="/" className="hover:text-primary">
           Home
         </Link>
@@ -532,14 +532,21 @@ function PropertyDetail() {
         <span className="px-2">/</span>
         <span className="text-foreground">{property.name}</span>
       </nav>
+        <a
+          href={`/properties/${property.slug}/brochure`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-primary/40 px-3.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-accent"
+        >
+          <FileText className="size-3.5" aria-hidden />
+          View Brochure
+        </a>
+      </div>
 
       {/* Photos-first ordering: the gallery comes right after the header,
           before the Key Facts summary — a guest sees the villa before a
           spec sheet about it. */}
       <section id="photo-gallery" className="max-md:order-first">
-        {/* No heading of its own here: PropertyImageCarousel below already
-            renders a real, visible "{name} photo gallery" <h2> for this
-            same section — a duplicate heading, not two distinct ones. */}
         <PropertyHeroGallery
           images={images}
           imageKeys={property.image_keys}
@@ -557,7 +564,18 @@ function PropertyDetail() {
       <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-12 items-start">
         <div className="lg:col-span-8">
           <header>
-            <h1 className="text-[28px] font-semibold leading-tight text-navy md:text-4xl">{property.name}</h1>
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-[28px] font-semibold leading-tight text-navy md:text-4xl">{property.name}</h1>
+              <a
+                href={`/properties/${property.slug}/brochure`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary md:hidden"
+              >
+                <FileText className="size-3.5" aria-hidden />
+                Brochure
+              </a>
+            </div>
             {propertyTagline(property) && (
               <p className="mt-2 inline-flex rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground">{propertyTagline(property)}</p>
             )}
@@ -657,11 +675,9 @@ function PropertyDetail() {
           <PropertyRefundTimeline propertyName={property.name} />
           <PropertyCheckinRulesCard />
 
-          {buildSpaceCards(images, property.image_keys).length >= 2 ? (
-            <PropertySpaces images={images} imageKeys={property.image_keys} propertyName={property.name} />
-          ) : (
-            <PropertyImageCarousel images={images} propertyName={property.name} location={property.location} />
-          )}
+          {/* One gallery only: the hero/lightbox. Spaces shows one labelled
+              photo per room/area (no second "photo gallery" strip). */}
+          <PropertySpaces images={images} imageKeys={property.image_keys} propertyName={property.name} />
 
           <div id="reviews" className="scroll-mt-32">
             <PropertyReviewsSection propertyId={property.id} propertyName={property.name} />

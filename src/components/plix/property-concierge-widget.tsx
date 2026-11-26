@@ -306,7 +306,7 @@ export function PropertyConciergeWidget({ propertyName, propertySlug }: Props) {
         type="button"
         onClick={() => setOpen(true)}
         aria-expanded={false}
-        className="fixed bottom-20 right-6 z-50 flex items-center gap-2 rounded-full bg-navy px-4 py-3 text-sm font-semibold text-navy-foreground shadow-2xl transition-transform hover:scale-105"
+        className="fixed bottom-20 right-6 z-50 flex items-center gap-2 rounded-full bg-navy max-md:right-4 px-4 py-3 text-sm font-semibold text-navy-foreground shadow-2xl transition-transform hover:scale-105"
       >
         <Bot className="size-4" aria-hidden />
         Plix AI

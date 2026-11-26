@@ -180,6 +180,9 @@ export function HeroCarousel({
               {/* Soft dark gradient vignette for high-contrast text readability */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
               <div className="absolute inset-0 bg-gradient-to-b from-[#2a1810]/70 via-transparent to-[#1a0e05]/70" />
+              {/* Soft dark halo behind the heading block, so the white text
+                  stays readable over bright skies and white walls. */}
+              <div className="absolute inset-x-0 top-0 h-[60%] bg-[radial-gradient(ellipse_55%_60%_at_50%_30%,rgba(20,10,5,0.45),transparent_75%)]" />
 
               {/* justify-start (not justify-between) is deliberate: the dot
                   indicators live inside this same full-height wrapper, and
@@ -188,13 +191,13 @@ export function HeroCarousel({
                   behind the floating search widget. Top-biased padding
                   achieves the same "upper-middle" placement without that risk. */}
               <div className="relative z-10 mx-auto flex h-full w-full max-w-4xl flex-col items-center justify-start px-4 pb-6 pt-20 text-center">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/90 drop-shadow-[0_1px_8px_rgba(0,0,0,0.5)]">
                   The Plix Goa · North Goa, India
                 </p>
                 <HeadingTag className="my-2 max-w-3xl font-serif text-3xl font-normal leading-[1.15] tracking-wide text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.35)] lg:text-4xl xl:text-5xl">
                   {slide.heading}
                 </HeadingTag>
-                <p className="my-2 max-w-2xl mx-auto text-sm font-light text-white/90 lg:text-base">
+                <p className="mx-auto my-2 max-w-2xl text-sm text-white drop-shadow-[0_1px_10px_rgba(0,0,0,0.6)] lg:text-base">
                   {slide.subheading}
                 </p>
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-4">

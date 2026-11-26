@@ -72,25 +72,30 @@
   --card-foreground: oklch(0.2821 0.0524 347.762); /* #3C1E2E */
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.2821 0.0524 347.762); /* #3C1E2E */
-  --primary: oklch(0.596 0.128 163.2);
-  --primary-foreground: oklch(0.99 0.005 160);
-  --primary-glow: oklch(0.72 0.135 165);
+  /* Accent: deep terracotta (#B4532A), the logo's orange darkened so text
+     and white-on-terracotta both pass WCAG AA (4.6:1 / 5.0:1). Replaced an
+     emerald green that clashed with the warm cream/gold/plum palette.
+     Green is kept only for WhatsApp and success states. */
+  --primary: oklch(0.5574 0.1375 41.94); /* #B4532A */
+  --primary-foreground: oklch(0.99 0.005 60);
+  --primary-glow: oklch(0.6303 0.1362 45.24); /* #CB6B3C */
   --navy: oklch(0.2821 0.0524 347.762); /* #3C1E2E — Deep Luxury Plum (headings/serif titles) */
   --navy-foreground: oklch(0.984 0.003 247.858);
   --sand: oklch(0.955 0.018 85);
   --bronze: oklch(0.72 0.09 70);
-  --bronze-foreground: oklch(0.99 0.005 240);
+  /* Plum on gold (5.9:1); white on gold was 2.5:1, below AA. */
+  --bronze-foreground: oklch(0.2821 0.0524 347.762); /* #3C1E2E */
   --secondary: oklch(0.9528 0.0127 86.830); /* #F3EFE6 — Elevated Soft Cream */
   --secondary-foreground: oklch(0.2821 0.0524 347.762); /* #3C1E2E */
   --muted: oklch(0.9528 0.0127 86.830); /* #F3EFE6 — Elevated Soft Cream */
   --muted-foreground: oklch(0.4383 0.0193 342.012); /* #5A4E55 — Muted Warm Taupe */
-  --accent: oklch(0.955 0.03 165);
-  --accent-foreground: oklch(0.35 0.09 163);
+  --accent: oklch(0.9429 0.0187 51.97); /* #F7E9E1 — terracotta tint */
+  --accent-foreground: oklch(0.4536 0.1165 40.61); /* #8A3B1C */
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.984 0.003 247.858);
   --border: oklch(0.9014 0.0405 96.264); /* #E6DFC1 — Soft Gold border */
   --input: oklch(0.9014 0.0405 96.264); /* #E6DFC1 — Soft Gold border */
-  --ring: oklch(0.596 0.128 163.2);
+  --ring: oklch(0.5574 0.1375 41.94);
   --gradient-hero: linear-gradient(
     180deg,
     color-mix(in oklab, var(--navy) 15%, transparent) 0%,
@@ -170,6 +175,9 @@
   --color-bronze: var(--bronze);
   --color-bronze-foreground: var(--bronze-foreground);
   --font-display: "Fraunces", ui-serif, Georgia, serif;
+  /* `font-serif` (used by ~30 headings) fell back to Georgia, so two
+     different serifs were mixed on the same pages. One serif everywhere. */
+  --font-serif: "Fraunces", ui-serif, Georgia, serif;
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --shadow-soft: var(--shadow-soft);
   --shadow-card: var(--shadow-card);

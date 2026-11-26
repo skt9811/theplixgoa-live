@@ -22,7 +22,7 @@ const CATEGORY_ORDER: AmenityCategory[] = ["Outdoor", "Kitchen", "Media", "Servi
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full bg-sky-50 px-3.5 py-1.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-200">
+    <span className="rounded-full bg-card px-3.5 py-1.5 text-xs font-semibold text-navy ring-1 ring-inset ring-border">
       {children}
     </span>
   );

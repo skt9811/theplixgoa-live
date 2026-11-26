@@ -334,14 +334,15 @@ function DefaultPropertyCard({
               {hasDates ? "Check availability for rates" : "Select dates for pricing"}
             </span>
           ) : (
-            <div>
-              <span className="text-sm text-muted-foreground">From </span>
-              <span className="text-2xl font-semibold text-navy">{formatINR(fromRate(property))}</span>
-              <span className="text-sm text-muted-foreground">
-                {" "}
-                /night{isMultiRoomProperty(property.slug) ? ", per room" : ", entire villa"}
-              </span>
-              <p className="text-xs text-muted-foreground">Rates vary by date</p>
+            <div className="min-w-0">
+              <p className="whitespace-nowrap">
+                <span className="text-sm text-muted-foreground">From </span>
+                <span className="text-xl font-semibold text-navy sm:text-2xl">{formatINR(fromRate(property))}</span>
+                <span className="text-sm text-muted-foreground"> /night</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isMultiRoomProperty(property.slug) ? "Per room" : "Entire villa"} · rates vary by date
+              </p>
             </div>
           )}
           <Link

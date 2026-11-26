@@ -809,7 +809,7 @@ function PropertyDetail() {
               <p className="mt-1 text-xs text-primary">Seasonal pricing applied for selected dates</p>
             )}
 
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-emerald-700">
+            <div className="mt-4 rounded-xl border border-primary/20 bg-accent px-4 py-2.5 text-xs font-semibold text-accent-foreground">
               Book direct & save — zero OTA commission on this rate
             </div>
 

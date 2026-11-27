@@ -1534,12 +1534,15 @@ export const PROPERTIES: Property[] = [
       { name: "Calangute Beach", distance: "10 mins drive" },
       { name: "Dabolim Airport", distance: "45 mins drive" },
     ],
-    latitude: 15.515,
-    longitude: 73.762,
-    google_maps_embed_url:
-      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3844.3223041428723!2d73.76651777478182!3d15.520843253885856!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bbfc105cc2ac883%3A0x47be2befb7da01d3!2sVivenda%20Chico!5e0!3m2!1sen!2sin!4v1787225678244!5m2!1sen!2sin",
-    // CID 0x47be2befb7da01d3 -> decimal 5169617730849604051.
-    google_maps_url: "https://www.google.com/maps?cid=5169617730849604051",
+    // Coordinates of the property's Google Maps pin (from its old listing's
+    // embed); the previous 15.515/73.762 was ~800 m off.
+    latitude: 15.520843,
+    longitude: 73.766518,
+    // The old Google Business Profile (CID 5169617730849604051) was deleted.
+    // Until the new profile's link is added, the map and links use the pin's
+    // coordinates (same approach as Villa Madera / Casa Serenita).
+    google_maps_embed_url: "https://maps.google.com/maps?q=15.520843,73.766518&z=17&output=embed",
+    google_maps_url: "https://www.google.com/maps/search/?api=1&query=15.520843,73.766518",
     total_inventory: 8,
   },
   {

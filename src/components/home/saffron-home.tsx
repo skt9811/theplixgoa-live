@@ -131,6 +131,63 @@ function Eyebrow({ children, light = false }: { children: ReactNode; light?: boo
   );
 }
 
+/** A frame that keeps crossfading through `keys` on its own timer, each
+ * photo slowly zooming (Ken Burns) while visible. Static first photo for
+ * reduced motion. Timers clear on unmount. */
+function CyclingImage({
+  keys,
+  interval,
+  opacity = 1,
+  fade = 1.4,
+  zoom = [1, 1.12],
+  className = "",
+}: {
+  keys: string[];
+  interval: number;
+  opacity?: number;
+  fade?: number;
+  zoom?: [number, number];
+  className?: string;
+}) {
+  const reduce = useReducedMotion();
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (reduce || keys.length < 2) return;
+    const t = window.setInterval(() => setI((n) => (n + 1) % keys.length), interval);
+    return () => window.clearInterval(t);
+  }, [reduce, keys.length, interval]);
+  const k = keys[i] ?? keys[0] ?? "";
+  // Gentle pan direction varies per photo so consecutive shots don't move alike.
+  // Plain start/end values (keyframe arrays here made the browser's
+  // Element.animate reject the animation and crash the page).
+  const pan = i % 2 === 0 ? { x: "-3%", y: "-2%" } : { x: "3%", y: "2%" };
+  return (
+    <div className={`absolute inset-0 overflow-hidden ${className}`}>
+      <AnimatePresence mode="sync" initial={false}>
+        <motion.img
+          key={`${k}-${i}`}
+          src={img(k)}
+          alt=""
+          className="absolute inset-0 size-full object-cover"
+          initial={reduce ? false : { opacity: 0, scale: zoom[0], x: "0%", y: "0%" }}
+          animate={
+            reduce
+              ? { opacity }
+              : { opacity, scale: zoom[1], x: pan.x, y: pan.y }
+          }
+          exit={{ opacity: 0 }}
+          transition={{
+            opacity: { duration: fade, ease: "easeInOut" },
+            scale: { duration: interval / 1000 + fade, ease: "linear" },
+            x: { duration: interval / 1000 + fade, ease: "linear" },
+            y: { duration: interval / 1000 + fade, ease: "linear" },
+          }}
+        />
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /* 0 · Preloader ------------------------------------------------------------ */
 function Preloader({ onDone }: { onDone: () => void }) {
   const [show, setShow] = useState(true);
@@ -270,14 +327,16 @@ function PillNav({ onCheck, ready }: { onCheck: () => void; ready: boolean }) {
 function HeroLine({
   lead,
   ending,
-  photo,
+  photos,
+  cycle,
   delay,
   ready,
   pillW,
 }: {
   lead: string;
   ending: string;
-  photo: string;
+  photos: string[];
+  cycle: number;
   delay: number;
   ready: boolean;
   pillW: number;
@@ -294,7 +353,7 @@ function HeroLine({
       >
         {lead}
         <motion.span
-          className="inline-flex h-9 overflow-hidden rounded-full border border-white/30 align-middle shadow-lg sm:h-12 lg:h-14"
+          className="relative inline-flex h-9 overflow-hidden rounded-full border border-white/30 align-middle shadow-lg sm:h-12 lg:h-14"
           initial={reduce ? false : { width: 0, marginLeft: 0, marginRight: 0, opacity: 0, scale: 0.85 }}
           animate={
             go
@@ -303,7 +362,7 @@ function HeroLine({
           }
           transition={{ duration: 0.5, ease: OUT, delay: reduce ? 0 : delay + 0.15 }}
         >
-          <img src={photo} alt="" className="size-full object-cover" />
+          <CyclingImage keys={photos} interval={cycle} fade={1.1} zoom={[1, 1.08]} />
         </motion.span>
         <em>{ending}</em>
       </motion.span>
@@ -349,9 +408,9 @@ function Hero({ ready }: { ready: boolean }) {
           <Eyebrow light>North Goa · Five coastal villages</Eyebrow>
         </motion.div>
         <h1 className="mt-5 font-[family-name:var(--saffron-serif)] text-4xl leading-[1.08] sm:text-6xl lg:text-[74px]">
-          <HeroLine lead="Wake to" ending="coastal breeze." photo={img("villamadera5")} delay={0.1} ready={ready} pillW={pillW} />
-          <HeroLine lead="Wander in" ending="palm shade." photo={img("vivendachico10")} delay={0.21} ready={ready} pillW={pillW} />
-          <HeroLine lead="Dine by" ending="twilight." photo={img("casamarina23")} delay={0.32} ready={ready} pillW={pillW} />
+          <HeroLine lead="Wake to" ending="coastal breeze." photos={["villamadera5", "plixvilla25", "villamadera16", "vivendachico10"]} cycle={3500} delay={0.1} ready={ready} pillW={pillW} />
+          <HeroLine lead="Wander in" ending="palm shade." photos={["vivendachico17", "plixvilla27", "casameadows29", "vivendachico5"]} cycle={4000} delay={0.21} ready={ready} pillW={pillW} />
+          <HeroLine lead="Dine by" ending="twilight." photos={["casamarina23", "casameadows31", "casamoana12", "villamadera1"]} cycle={4500} delay={0.32} ready={ready} pillW={pillW} />
           <span className="sr-only"> — private pool villas and boutique resorts in North Goa by The Plix</span>
         </h1>
         <div className="flex flex-col justify-between gap-6 pt-10 sm:flex-row sm:items-end">
@@ -799,20 +858,41 @@ function Word({ progress, i, n, w, it }: { progress: MotionValue<number>; i: num
   );
 }
 
-/** Ghost photo behind the manifesto: fades 0 -> 0.25 -> 0 around its own
- * moment in the scroll, drifts and grows slightly; vignette-masked. */
-function GhostPhoto({ progress, k, peak, drift, className }: { progress: MotionValue<number>; k: string; peak: number; drift: number; className: string }) {
+/** Ghost frame behind the manifesto: scroll fades it in/out around its
+ * moment and adds parallax; it also floats on its own and keeps cycling
+ * photos (crossfade + Ken Burns) while the reader pauses. */
+function GhostPhoto({
+  progress,
+  keys,
+  cycle,
+  peak,
+  drift,
+  float,
+  className,
+}: {
+  progress: MotionValue<number>;
+  keys: string[];
+  cycle: number;
+  peak: number;
+  drift: number;
+  float: number;
+  className: string;
+}) {
   const reduce = useReducedMotion();
-  const opacity = useTransform(progress, [peak - 0.28, peak, peak + 0.28], [0, 0.25, 0]);
+  // Scroll offsets must stay inside 0..1 and increase, or the browser's
+  // accelerated scroll animation throws (and takes the page down).
+  const visible = useTransform(progress, [Math.max(0, peak - 0.28), peak, Math.min(1, peak + 0.28)], [0, 1, 0]);
   const y = useTransform(progress, [0, 1], [drift, -drift]);
   const scale = useTransform(progress, [0, 1], [0.94, 1.03]);
   return (
-    <motion.div
-      aria-hidden
-      style={reduce ? { opacity: 0.12 } : { opacity, y, scale }}
-      className={`pointer-events-none absolute select-none overflow-hidden rounded-2xl [mask-image:radial-gradient(ellipse_at_center,black_45%,transparent_100%)] ${className}`}
-    >
-      <img src={img(k)} alt="" className="size-full object-cover" />
+    <motion.div aria-hidden style={reduce ? { opacity: 0.6 } : { opacity: visible, y, scale }} className={`pointer-events-none absolute select-none ${className}`}>
+      <motion.div
+        className="relative size-full overflow-hidden rounded-2xl [mask-image:radial-gradient(ellipse_at_center,black_45%,transparent_100%)]"
+        animate={reduce ? { y: 0, rotate: 0 } : { y: [-12, 12, -12], rotate: [-1.5, 1.5, -1.5] }}
+        transition={{ duration: float, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <CyclingImage keys={keys} interval={cycle} opacity={0.34} fade={1.4} zoom={[1, 1.12]} />
+      </motion.div>
     </motion.div>
   );
 }
@@ -852,7 +932,12 @@ function Odometer({ value, go }: { value: string; go: boolean }) {
   );
 }
 
-const STAT_PHOTOS = ["vivendachico11", "casameadows4", "villamadera13", "plixvilla18"];
+const STAT_PHOTOS: { keys: string[]; cycle: number }[] = [
+  { keys: ["vivendachico11", "plixvilla4", "villamadera19", "casameadows6"], cycle: 2800 },
+  { keys: ["casameadows4", "casamarina2", "vivendachico6", "plixvilla11"], cycle: 3400 },
+  { keys: ["villamadera13", "vivendachico1", "harborcourt31", "plixresortnew17"], cycle: 4000 },
+  { keys: ["plixvilla18", "vivendachico5", "villamadera24", "casamoana25"], cycle: 4600 },
+];
 
 function Manifesto({ properties }: { properties: Property[] }) {
   const textRef = useRef<HTMLDivElement>(null);
@@ -872,10 +957,10 @@ function Manifesto({ properties }: { properties: Property[] }) {
     <section id="our-story" ref={sectionRef} className="relative overflow-x-clip px-5 py-28 text-white sm:px-6" style={{ background: C.forest }}>
       {/* Ghost gallery around the manifesto (behind it, never over the words). */}
       <div className="pointer-events-none absolute inset-0 mx-auto max-w-6xl">
-        <GhostPhoto progress={sectionProgress} k="villamadera5" peak={0.3} drift={40} className="left-[2%] top-[6%] h-44 w-64 sm:h-56 sm:w-80" />
-        <GhostPhoto progress={sectionProgress} k="vivendachico17" peak={0.42} drift={-50} className="right-[2%] top-[18%] h-52 w-40 sm:h-72 sm:w-56" />
-        <GhostPhoto progress={sectionProgress} k="casamarina23" peak={0.52} drift={36} className="bottom-[38%] left-[8%] hidden h-40 w-56 sm:block" />
-        <GhostPhoto progress={sectionProgress} k="villamadera1" peak={0.6} drift={-30} className="bottom-[34%] right-[10%] h-36 w-52 sm:h-44 sm:w-64" />
+        <GhostPhoto progress={sectionProgress} keys={["villamadera5", "plixvilla25", "vivendachico10", "casamarina22", "morjimpride6"]} cycle={3200} float={10} peak={0.3} drift={40} className="left-[2%] top-[6%] h-44 w-64 sm:h-56 sm:w-80" />
+        <GhostPhoto progress={sectionProgress} keys={["vivendachico17", "villamadera1", "plixvilla18", "casamoana13", "vivendachico25"]} cycle={3900} float={12} peak={0.42} drift={-50} className="right-[2%] top-[18%] h-52 w-40 sm:h-72 sm:w-56" />
+        <GhostPhoto progress={sectionProgress} keys={["casamarina23", "casameadows32", "villamadera16", "plixvilla27", "vivendachico4"]} cycle={4500} float={11} peak={0.52} drift={36} className="bottom-[38%] left-[8%] hidden h-40 w-56 sm:block" />
+        <GhostPhoto progress={sectionProgress} keys={["vivendachico11", "casameadows4", "plixvilla4", "villamadera4", "casamoana17"]} cycle={5100} float={13} peak={0.6} drift={-30} className="bottom-[34%] right-[10%] h-36 w-52 sm:h-44 sm:w-64" />
       </div>
       <div className="relative mx-auto max-w-5xl">
         <Eyebrow light>The Plix philosophy</Eyebrow>
@@ -889,9 +974,9 @@ function Manifesto({ properties }: { properties: Property[] }) {
             <div key={st.label} className="group relative px-4 pb-6 pt-10 lg:px-6">
               <div
                 aria-hidden
-                className={`pointer-events-none absolute inset-x-2 inset-y-3 overflow-hidden rounded-2xl transition-opacity duration-700 [mask-image:linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)] group-hover:opacity-30 ${statsIn ? "opacity-20" : "opacity-0"}`}
+                className={`pointer-events-none absolute inset-x-2 inset-y-3 overflow-hidden rounded-2xl transition-opacity duration-700 [mask-image:linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)] group-hover:[&_img]:!opacity-45 ${statsIn ? "opacity-100" : "opacity-0"}`}
               >
-                <img src={img(STAT_PHOTOS[i] ?? "villamadera5")} alt="" className="size-full object-cover" />
+                <CyclingImage keys={STAT_PHOTOS[i]?.keys ?? ["villamadera5"]} interval={STAT_PHOTOS[i]?.cycle ?? 3400} opacity={0.28} fade={1.2} zoom={[1.02, 1.12]} />
               </div>
               <p className="relative font-[family-name:var(--saffron-serif)] text-5xl text-[#F6F3EC] sm:text-6xl">
                 <Odometer value={st.v} go={statsIn} />

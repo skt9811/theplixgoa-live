@@ -634,28 +634,64 @@ function CoastalMap({ properties }: { properties: Property[] }) {
 
   return (
     <section id="retreats" className="relative flex min-h-screen items-center overflow-hidden py-20 text-white lg:py-28" style={{ background: C.forest }}>
+      {/* The active property's photo, clearly visible on the right; it
+          crossfades in with a slow settle-zoom on every switch. */}
       <AnimatePresence>
         {active && (
           <motion.img
             key={active.slug}
             src={resolveImages(active.image_keys)[0]}
             alt=""
-            className="absolute inset-0 size-full object-cover"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.28 }}
+            className="absolute inset-0 size-full object-cover brightness-[0.82] contrast-[1.08]"
+            initial={{ opacity: 0, scale: 1.08 }}
+            animate={{ opacity: 0.52, scale: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.7 }}
+            transition={{ opacity: { duration: 0.65, ease: "easeInOut" }, scale: { duration: 6, ease: "easeOut" } }}
           />
         )}
       </AnimatePresence>
-      <div className="absolute inset-0 bg-gradient-to-r from-[#141712] via-[#141712]/85 to-[#141712]/60" />
+      {/* Directional scrim: dark behind the map/text on the left, opening up
+          on the right so the scene reads; soft top/bottom edges. */}
+      <div className="absolute inset-0 bg-gradient-to-r from-[#141712]/90 via-[#141712]/60 to-[#141712]/35" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#141712] via-transparent to-[#141712]" />
+      <AnimatePresence mode="wait">
+        {active && (
+          <motion.div
+            key={`cap-${active.slug}`}
+            initial={{ opacity: 0, y: 8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: [0.96, 1.04, 1] }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.55, ease: OUT }}
+            className="absolute right-6 top-24 z-10 hidden items-center gap-2 rounded-full border border-white/20 bg-black/40 px-4 py-2 text-xs text-white/90 backdrop-blur-md md:flex"
+          >
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#C99E57] opacity-70" />
+              <span className="relative inline-flex size-2 rounded-full bg-[#C99E57]" />
+            </span>
+            Now viewing: {shortName(active)} · {active.location}
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="relative z-10 mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-10 px-5 sm:px-6 lg:grid-cols-12">
         <div className="lg:col-span-5">
           <Eyebrow light>North Goa coastline · {VILLAGES.length} villages</Eyebrow>
           <h2 className="mt-3 font-[family-name:var(--saffron-serif)] text-4xl leading-tight sm:text-5xl">
             Where every retreat tells a <em>unique story</em>
           </h2>
-          <svg viewBox="0 0 400 520" className="mx-auto mt-5 w-full max-w-[250px] sm:max-w-[340px] lg:mx-0 lg:mt-6 lg:max-w-[420px]" role="img" aria-label="Map of North Goa villages with Plix stays">
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={`status-${village}`}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.3 }}
+              className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#C99E57]/40 bg-[#C99E57]/10 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-[#e2c48f]"
+            >
+              <span className="size-1.5 rounded-full bg-[#C99E57]" />
+              Showing {list.length} {list.length === 1 ? "retreat" : "retreats"} {village === "All" ? "across North Goa" : `in ${village}`}
+            </motion.p>
+          </AnimatePresence>
+          <svg viewBox="0 0 400 520" className="mx-auto mt-4 w-full max-w-[250px] sm:max-w-[340px] lg:mx-0 lg:mt-6 lg:max-w-[420px]" role="img" aria-label="Map of North Goa villages with Plix stays">
             <defs>
               <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
                 <path d="M40 0H0V40" fill="none" stroke="rgba(255,255,255,0.06)" />
@@ -689,6 +725,19 @@ function CoastalMap({ properties }: { properties: Property[] }) {
                 <g key={x.name} className="cursor-pointer" onClick={() => pick(x.name)} onMouseEnter={() => pick(x.name)}>
                   {on && (
                     <motion.circle cx={cx} cy={cy} r="10" fill={C.gold} initial={{ opacity: 0.5, scale: 1 }} animate={{ opacity: 0, scale: 3 }} transition={{ duration: 1.6, repeat: Infinity }} style={{ transformOrigin: `${cx}px ${cy}px` }} />
+                  )}
+                  {on && (
+                    <motion.circle
+                      key={`glow-${x.name}`}
+                      cx={cx}
+                      cy={cy}
+                      r="16"
+                      fill={C.gold}
+                      initial={{ opacity: 0.55, scale: 0.3 }}
+                      animate={{ opacity: 0.18, scale: 1 }}
+                      transition={{ duration: 0.6, ease: OUT }}
+                      style={{ transformOrigin: `${cx}px ${cy}px`, filter: "blur(3px)" }}
+                    />
                   )}
                   <circle cx={cx} cy={cy} r={on ? 7 : 5} fill={on ? C.gold : "#fff"} stroke={C.forest} strokeWidth="2" />
                   <rect x={cx + 12} y={cy - 11} width={(x.name.length + 4) * 7.2 + 16} height="22" rx="11" fill={on ? C.gold : "rgba(255,255,255,0.12)"} />
@@ -729,8 +778,14 @@ function CoastalMap({ properties }: { properties: Property[] }) {
                         key={x.slug}
                         onMouseEnter={() => setSlug(x.slug)}
                         onClick={() => setSlug(x.slug)}
-                        className={`group relative flex gap-3 rounded-2xl border p-3 backdrop-blur-xl transition ${on ? "border-[#C99E57] bg-white/15" : "border-white/15 bg-white/[0.07] hover:bg-white/10"}`}
+                        className={`group relative flex cursor-pointer gap-3 rounded-2xl border p-3 backdrop-blur-xl transition duration-300 ${on ? "scale-[1.02] border-[#C99E57] bg-white/15 ring-1 ring-[#C99E57]/40" : "border-white/15 bg-black/35 opacity-85 hover:opacity-100"}`}
                       >
+                        {on && (
+                          <span className="absolute -top-2 right-3 inline-flex items-center gap-1.5 rounded-full bg-[#C99E57] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-[#141712]">
+                            <span className="size-1.5 animate-pulse rounded-full bg-[#141712]" />
+                            Previewing
+                          </span>
+                        )}
                         <img src={resolveImages(x.image_keys)[0]} alt={shortName(x)} loading="lazy" className="size-24 shrink-0 rounded-xl object-cover" />
                         <div className="flex min-w-0 flex-1 flex-col">
                           <p className="truncate font-[family-name:var(--saffron-serif)] text-xl">{shortName(x)}</p>

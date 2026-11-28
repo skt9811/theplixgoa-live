@@ -1,23 +1,16 @@
 // Sections carried over from the previous homepage, restyled for the
 // editorial (charcoal + ivory, Cormorant) design. Same content as before.
-import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowUpRight,
   BadgeIndianRupee,
   ConciergeBell,
-  House,
   MapPin,
   Sparkles,
-  Utensils,
-  Waves,
-  Wine,
 } from "lucide-react";
 import { PropertyCard } from "@/components/plix/property-card";
-import { ReviewCarousel } from "@/components/plix/review-carousel";
 import { RequestCallbackStrip } from "@/components/plix/request-callback-strip";
 import { ListYourPropertyBanner } from "@/components/plix/list-your-property-banner";
-import { getHomepageReviews } from "@/lib/property-reviews-data";
 import type { Property } from "@/lib/plix";
 
 const IVORY = "#ECE7DC";
@@ -64,40 +57,6 @@ export function ValueRibbon() {
   );
 }
 
-/** "Where Luxury Meets Effortless Living" amenity row. */
-export function AmenitiesBand() {
-  const items = [
-    { icon: House, label: "Private Villas" },
-    { icon: Waves, label: "Private Pool" },
-    { icon: Wine, label: "24×7 Bar & Restaurant" },
-    { icon: Utensils, label: "Pool Side & In-villa Dining" },
-    { icon: Sparkles, label: "Curated Guest Experiences" },
-  ];
-  return (
-    <section className="px-5 py-20 sm:px-6" style={{ background: IVORY }}>
-      <div className="mx-auto max-w-6xl text-center">
-        <h2 className={`${serif} text-4xl sm:text-5xl`}>Where Luxury Meets Effortless Living</h2>
-        <div className="mx-auto mt-6 flex max-w-xs items-center justify-center gap-4 text-[#C99E57]">
-          <span className="h-px flex-1 bg-black/10" />
-          <span className="text-xl">✦</span>
-          <span className="h-px flex-1 bg-black/10" />
-        </div>
-        <div className="mt-12 grid grid-cols-2 gap-y-8 md:grid-cols-5">
-          {items.map((a, i) => (
-            <div key={a.label} className={`flex flex-col items-center px-4 last:col-span-2 md:last:col-span-1 ${i < 4 ? "md:border-r md:border-black/10" : ""}`}>
-              <span className="flex size-20 items-center justify-center rounded-full border border-black/10 text-[#9a7a44]">
-                <a.icon className="size-8" strokeWidth={1.25} aria-hidden />
-              </span>
-              <span className="mt-4 h-px w-7 bg-[#C99E57]" />
-              <p className={`mt-4 max-w-[170px] ${serif} text-lg leading-snug`}>{a.label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /** "A taste of the collection": the property cards. */
 export function TasteOfCollection({ properties }: { properties: Property[] }) {
   return (
@@ -125,25 +84,5 @@ export function ListYourProperty() {
     <div style={{ background: IVORY }}>
       <ListYourPropertyBanner />
     </div>
-  );
-}
-
-/** "Loved by Our Guests" review carousel. */
-export function GuestReviews({ properties }: { properties: Property[] }) {
-  const propertyNames = useMemo(() => Object.fromEntries(properties.map((p) => [p.slug, p.name])), [properties]);
-  const homepageReviews = useMemo(() => getHomepageReviews(properties.map((p) => p.slug)), [properties]);
-  return (
-    <>
-      {homepageReviews.length > 0 && (
-        <section className="px-5 pb-20 pt-4 sm:px-6" style={{ background: IVORY }}>
-          <div className="mx-auto max-w-7xl">
-            <h2 className={`text-center ${serif} text-4xl sm:text-5xl`}>Loved by Our Guests</h2>
-            <div className="mt-10">
-              <ReviewCarousel reviews={homepageReviews} propertyNames={propertyNames} />
-            </div>
-          </div>
-        </section>
-      )}
-    </>
   );
 }

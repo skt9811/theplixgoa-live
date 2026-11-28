@@ -19,8 +19,6 @@ import {
 import { ArrowUpRight, Menu, Phone, X } from "lucide-react";
 import { CallbackDialog } from "@/components/plix/request-callback-strip";
 import {
-  AmenitiesBand,
-  GuestReviews,
   ListYourProperty,
   TasteOfCollection,
   ValueRibbon,
@@ -109,13 +107,11 @@ export function SaffronHome({ properties, faqs }: { properties: Property[]; faqs
       <Hero ready={ready} />
       <ValueRibbon />
       <CoastalMap properties={properties} />
-      <AmenitiesBand />
       <TasteOfCollection properties={properties} />
       <OffersSection />
       <Manifesto properties={properties} />
       <DayInGoa />
       <ListYourProperty />
-      <GuestReviews properties={properties} />
       <Journal />
       <section className="px-4 py-20 md:px-6" style={{ background: C.ivory }}>
         <div className="mx-auto max-w-3xl">

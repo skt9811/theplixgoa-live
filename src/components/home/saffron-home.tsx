@@ -2,8 +2,8 @@
 // warm ivory, Cormorant Garamond + Plus Jakarta Sans). Built only from real
 // data: the live property list, own property photos, real blog posts, real
 // offers and the existing lead flows (callback form -> Leads + WhatsApp).
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   AnimatePresence,
@@ -20,7 +20,6 @@ import { FaqAccordion } from "@/components/plix/faq-accordion";
 import { ObfuscatedEmail } from "@/components/plix/obfuscated-email";
 import { blogSummariesQuery } from "@/lib/blog";
 import { chicoHeroImage, formatINR, resolveImages, todayISO, type Property } from "@/lib/plix";
-import { HOME_HERO_SIZES, HOME_HERO_SRCSET } from "@/lib/hero-variants";
 import { isMultiRoomProperty } from "@/lib/rates";
 import { SITE_PHONE_1 } from "@/lib/seo";
 import { trackFunnelEvent } from "@/lib/gtag";
@@ -36,6 +35,8 @@ const C = {
   gold: "#C99E57",
 };
 const img = (key: string) => resolveImages([key])[0] ?? chicoHeroImage;
+/** Twilight pool (Marina Villas) — also preloaded by the homepage route. */
+export const HERO_IMAGE = img("casamarina23");
 const shortName = (p: Property) => p.name.split(" - ")[0] ?? p.name;
 const fromRate = (p: Property) => p.starting_price ?? p.base_price;
 
@@ -59,16 +60,39 @@ const NAV = [
 ];
 const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-export function SaffronHome({ properties, faqs }: { properties: Property[]; faqs: { q: string; a: string }[] }) {
-  const [drawer, setDrawer] = useState<string | null>(null); // slug preselected, or "" for default
-  const [callback, setCallback] = useState<string | null>(null); // context text
+/** Shared actions for every page built on the Saffron layout. */
+type SaffronActions = { openDrawer: (slug?: string) => void; openCallback: (context: string) => void };
+const SaffronCtx = createContext<SaffronActions>({ openDrawer: () => undefined, openCallback: () => undefined });
+const useSaffron = () => useContext(SaffronCtx);
+
+/** Nav + booking drawer + callback form + footer around a page's sections. */
+export function SaffronShell({ properties, children }: { properties: Property[]; children: ReactNode }) {
+  const [drawer, setDrawer] = useState<string | null>(null); // preselected slug ("" = first)
+  const [callback, setCallback] = useState<string | null>(null);
+  const actions = useMemo<SaffronActions>(
+    () => ({ openDrawer: (slug = "") => setDrawer(slug), openCallback: (c) => setCallback(c) }),
+    [],
+  );
   return (
-    <div className="saffron overflow-x-clip" style={{ background: C.ivory, color: C.ink }}>
+    <SaffronCtx.Provider value={actions}>
+      <div className="saffron overflow-x-clip" style={{ background: C.ivory, color: C.ink }}>
+        <PillNav onCheck={() => setDrawer("")} />
+        {children}
+        <HomeFooter properties={properties} onCheck={() => setDrawer("")} onInquire={() => setCallback("Planning a stay")} />
+        {drawer !== null && <BookingDrawer properties={properties} initialSlug={drawer} onClose={() => setDrawer(null)} />}
+        <CallbackDialog open={callback !== null} onOpenChange={(o) => !o && setCallback(null)} context={callback ?? undefined} />
+      </div>
+    </SaffronCtx.Provider>
+  );
+}
+
+export function SaffronHome({ properties, faqs }: { properties: Property[]; faqs: { q: string; a: string }[] }) {
+  return (
+    <SaffronShell properties={properties}>
       <Preloader />
-      <PillNav onCheck={() => setDrawer("")} />
       <Hero />
-      <CoastalMap properties={properties} onBook={(slug) => setDrawer(slug)} />
-      <Offers onClaim={(t) => setCallback(`Offer enquiry: ${t}`)} />
+      <CoastalMap properties={properties} />
+      <OffersSection />
       <Manifesto properties={properties} />
       <DayInGoa />
       <Journal />
@@ -85,11 +109,13 @@ export function SaffronHome({ properties, faqs }: { properties: Property[]; faqs
           </div>
         </div>
       </section>
-      <HomeFooter properties={properties} onCheck={() => setDrawer("")} onInquire={() => setCallback("Planning a stay")} />
-      {drawer !== null && <BookingDrawer properties={properties} initialSlug={drawer} onClose={() => setDrawer(null)} />}
-      <CallbackDialog open={callback !== null} onOpenChange={(o) => !o && setCallback(null)} context={callback ?? undefined} />
-    </div>
+    </SaffronShell>
   );
+}
+
+function OffersSection() {
+  const { openCallback } = useSaffron();
+  return <Offers onClaim={(t) => openCallback(`Offer enquiry: ${t}`)} />;
 }
 
 function Eyebrow({ children, light = false }: { children: ReactNode; light?: boolean }) {
@@ -144,6 +170,9 @@ function Preloader() {
 /* 1 · Floating pill navbar ------------------------------------------------- */
 function PillNav({ onCheck }: { onCheck: () => void }) {
   const [open, setOpen] = useState(false);
+  const onHome = useRouterState({ select: (st) => st.location.pathname }) === "/";
+  // On the homepage, smooth-scroll; anywhere else, go to that homepage section.
+  const goSection = (id: string) => (onHome ? scrollTo(id) : window.location.assign(`/#${id}`));
   return (
     <div className="fixed inset-x-0 top-4 z-50 px-4">
       <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-white/15 bg-[#141712]/70 px-5 py-2.5 backdrop-blur-xl">
@@ -152,12 +181,18 @@ function PillNav({ onCheck }: { onCheck: () => void }) {
         </Link>
         <div className="hidden items-center gap-7 text-xs uppercase tracking-[0.18em] text-white/80 lg:flex">
           {NAV.map((n) => (
-            <button key={n.id} type="button" onClick={() => scrollTo(n.id)} className="uppercase tracking-[0.18em] transition-colors hover:text-white">
+            <button key={n.id} type="button" onClick={() => goSection(n.id)} className="uppercase tracking-[0.18em] transition-colors hover:text-white">
               {n.label}
             </button>
           ))}
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            to="/partner"
+            className="hidden rounded-full border border-white/25 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/90 transition-colors hover:bg-white/10 sm:inline-flex"
+          >
+            List your property
+          </Link>
           <button
             type="button"
             onClick={onCheck}
@@ -184,16 +219,22 @@ function PillNav({ onCheck }: { onCheck: () => void }) {
                 type="button"
                 onClick={() => {
                   setOpen(false);
-                  scrollTo(n.id);
+                  goSection(n.id);
                 }}
                 className="block w-full py-2.5 text-left text-sm uppercase tracking-[0.18em] text-white/85"
               >
                 {n.label}
               </button>
             ))}
-            <div className="mt-2 grid grid-cols-2 gap-2 border-t border-white/10 pt-3 text-sm text-white/75">
-              <Link to="/stays">All stays</Link>
-              <Link to="/partner">List your property</Link>
+            <Link
+              to="/partner"
+              className="mt-2 block rounded-full border border-white/25 px-4 py-2.5 text-center text-xs uppercase tracking-[0.16em] text-white"
+            >
+              List your property
+            </Link>
+            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3 text-sm text-white/75">
+              <Link to="/retreats">All retreats</Link>
+              <Link to="/stays">Search stays</Link>
               <Link to="/contact">Contact</Link>
               <Link to="/blog">Blog</Link>
             </div>
@@ -211,7 +252,7 @@ function PillPhoto({ src, delay }: { src: string; delay: number }) {
       className="mx-2 inline-block h-9 overflow-hidden rounded-full border border-white/30 align-middle shadow-lg sm:h-12 lg:h-14"
       initial={{ width: 0 }}
       animate={{ width: "var(--pill-w)" }}
-      transition={{ type: "spring", stiffness: 60, damping: 16, delay: delay + 1.2 }}
+      transition={{ duration: 0.9, ease: EASE, delay: delay + 0.6 }}
       style={{ ["--pill-w" as string]: "clamp(4rem, 8vw, 7rem)" }}
     >
       <img src={src} alt="" className="size-full object-cover" />
@@ -223,17 +264,16 @@ function Hero() {
   return (
     <section id="top" className="relative isolate flex min-h-[100svh] items-end overflow-hidden text-white">
       <motion.img
-        src={chicoHeroImage}
-        srcSet={HOME_HERO_SRCSET}
-        sizes={HOME_HERO_SIZES}
-        alt="Vivenda Chico heritage bungalow and pool, Candolim, North Goa"
+        src={HERO_IMAGE}
+        alt="Pool at dusk with garden lights, Marina Villas by The Plix, Anjuna, North Goa"
         fetchPriority="high"
         className="absolute inset-0 -z-10 size-full object-cover"
         initial={{ scale: 1.06 }}
         animate={{ scale: 1 }}
         transition={{ duration: 8, ease: "easeOut" }}
       />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#141712] via-black/30 to-black/35" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#141712]/85 via-[#141712]/55 to-[#141712]/40" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#141712] via-transparent to-black/50" />
       <div className="mx-auto w-full max-w-7xl px-5 pb-10 pt-32 sm:px-6 lg:pb-14">
         <Eyebrow light>North Goa · Five coastal villages</Eyebrow>
         <h1 className="mt-5 font-[family-name:var(--saffron-serif)] text-4xl leading-[1.08] sm:text-6xl lg:text-[74px]">
@@ -254,13 +294,12 @@ function Hero() {
               Boutique villas and coastal sanctuaries across Vagator, Anjuna, Assagao, Morjim and Candolim — crafted for slow
               mornings and unhurried stays.
             </p>
-            <button
-              type="button"
-              onClick={() => scrollTo("retreats")}
+            <Link
+              to="/retreats"
               className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/10 px-6 py-3 text-xs uppercase tracking-[0.2em] text-white backdrop-blur-md transition hover:bg-white hover:text-[#141712]"
             >
               Explore our retreats <ArrowUpRight className="size-4" />
-            </button>
+            </Link>
           </div>
           <div className="hidden items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-white/70 sm:flex">
             Scroll to explore
@@ -407,7 +446,9 @@ function BookingDrawer({ properties, initialSlug, onClose }: { properties: Prope
 }
 
 /* 4 · Coastal map + location showcase -------------------------------------- */
-function CoastalMap({ properties, onBook }: { properties: Property[]; onBook: (slug: string) => void }) {
+function CoastalMap({ properties }: { properties: Property[] }) {
+  const { openDrawer } = useSaffron();
+  const onBook = (slug: string) => openDrawer(slug);
   const byVillage = useMemo(() => {
     const m = new Map<string, Property[]>();
     for (const v of VILLAGES) m.set(v.name, properties.filter((p) => p.location === v.name));
@@ -423,6 +464,8 @@ function CoastalMap({ properties, onBook }: { properties: Property[]; onBook: (s
     setSlug(l[0]?.slug ?? "");
   };
   const v = VILLAGES.find((x) => x.name === (active?.location ?? village));
+  const count = (name: string) => (name === "All" ? properties.length : (byVillage.get(name)?.length ?? 0));
+  const multi = list.length > 1;
   const coast = [
     [15.66, 73.726], [15.645, 73.731], [15.632, 73.734], [15.618, 73.736], [15.606, 73.737],
     [15.592, 73.739], [15.578, 73.741], [15.56, 73.746], [15.545, 73.752], [15.53, 73.757], [15.505, 73.76],
@@ -488,9 +531,9 @@ function CoastalMap({ properties, onBook }: { properties: Property[]; onBook: (s
                     <motion.circle cx={cx} cy={cy} r="10" fill={C.gold} initial={{ opacity: 0.5, scale: 1 }} animate={{ opacity: 0, scale: 3 }} transition={{ duration: 1.6, repeat: Infinity }} style={{ transformOrigin: `${cx}px ${cy}px` }} />
                   )}
                   <circle cx={cx} cy={cy} r={on ? 7 : 5} fill={on ? C.gold : "#fff"} stroke={C.forest} strokeWidth="2" />
-                  <rect x={cx + 12} y={cy - 11} width={x.name.length * 7.4 + 16} height="22" rx="11" fill={on ? C.gold : "rgba(255,255,255,0.12)"} />
+                  <rect x={cx + 12} y={cy - 11} width={(x.name.length + 4) * 7.2 + 16} height="22" rx="11" fill={on ? C.gold : "rgba(255,255,255,0.12)"} />
                   <text x={cx + 20} y={cy + 4} fill={on ? C.forest : "#fff"} fontSize="11" fontWeight="600">
-                    {x.name}
+                    {x.name} ({count(x.name)})
                   </text>
                 </g>
               );
@@ -504,7 +547,7 @@ function CoastalMap({ properties, onBook }: { properties: Property[]; onBook: (s
                 onClick={() => pick(t)}
                 className={`rounded-full border px-3.5 py-1.5 text-xs tracking-wide transition ${village === t ? "border-[#C99E57] bg-[#C99E57] text-[#141712]" : "border-white/20 text-white/80 hover:bg-white/10"}`}
               >
-                {t === "All" ? "All Locations" : t}
+                {t === "All" ? `All Locations (${count("All")})` : `${t} (${count(t)})`}
               </button>
             ))}
           </div>
@@ -512,10 +555,50 @@ function CoastalMap({ properties, onBook }: { properties: Property[]; onBook: (s
 
         <div className="lg:col-span-7">
           <AnimatePresence mode="wait">
-            {active && (
+            {multi ? (
+              <motion.div key={`grid-${village}`} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.45, ease: EASE }}>
+                <Eyebrow light>
+                  {village === "All" ? "North Goa" : village} · {list.length} boutique retreats
+                </Eyebrow>
+                <p className="mt-2 font-[family-name:var(--saffron-serif)] text-2xl italic text-white/85 sm:text-3xl">Select any retreat below to view details</p>
+                <div className={`mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 ${village === "All" ? "max-h-[560px] overflow-y-auto pr-1 [scrollbar-width:thin]" : ""}`}>
+                  {list.map((x) => {
+                    const on = x.slug === active?.slug;
+                    return (
+                      <div
+                        key={x.slug}
+                        onMouseEnter={() => setSlug(x.slug)}
+                        onClick={() => setSlug(x.slug)}
+                        className={`group relative flex gap-3 rounded-2xl border p-3 backdrop-blur-xl transition ${on ? "border-[#C99E57] bg-white/15" : "border-white/15 bg-white/[0.07] hover:bg-white/10"}`}
+                      >
+                        <img src={resolveImages(x.image_keys)[0]} alt={shortName(x)} loading="lazy" className="size-24 shrink-0 rounded-xl object-cover" />
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <p className="truncate font-[family-name:var(--saffron-serif)] text-xl">{shortName(x)}</p>
+                          <p className="text-xs text-white/65">
+                            {village === "All" ? `${x.location} · ` : ""}
+                            {x.bedrooms} {isMultiRoomProperty(x.slug) ? "rooms" : "bedrooms"} · {x.max_guests} guests
+                          </p>
+                          <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+                            {fromRate(x) > 0 && <span className="text-sm text-white/90">{formatINR(fromRate(x))}/night</span>}
+                            <Link
+                              to="/properties/$slug"
+                              params={{ slug: x.slug }}
+                              className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[#141712]"
+                            >
+                              Explore <ArrowUpRight className="size-3.5" />
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            ) : (
+              active && (
               <motion.div key={active.slug} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.45, ease: EASE }}>
                 <Eyebrow light>
-                  {active.location} · {v?.vibe ?? "North Goa"}
+                  {active.location} · {v?.vibe ?? "North Goa"} · 1 boutique retreat
                 </Eyebrow>
                 <h3 className="mt-3 font-[family-name:var(--saffron-serif)] text-4xl italic sm:text-6xl">{shortName(active)}</h3>
                 <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/75">{active.description}</p>
@@ -532,20 +615,6 @@ function CoastalMap({ properties, onBook }: { properties: Property[]; onBook: (s
                     <p className="text-sm text-white/85">
                       Upto {active.max_guests} Guests · {active.bedrooms} {isMultiRoomProperty(active.slug) ? "Rooms" : "Bedrooms"} · {active.bathrooms} Baths
                     </p>
-                    {list.length > 1 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {list.map((x) => (
-                          <button
-                            key={x.slug}
-                            type="button"
-                            onClick={() => setSlug(x.slug)}
-                            className={`rounded-full px-3 py-1 text-xs transition ${x.slug === active.slug ? "bg-white text-[#141712]" : "border border-white/25 text-white/80 hover:bg-white/10"}`}
-                          >
-                            {shortName(x)}
-                          </button>
-                        ))}
-                      </div>
-                    )}
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Link
                         to="/properties/$slug"
@@ -561,8 +630,15 @@ function CoastalMap({ properties, onBook }: { properties: Property[]; onBook: (s
                   </div>
                 </div>
               </motion.div>
+              )
             )}
           </AnimatePresence>
+          <Link
+            to="/retreats"
+            className="mt-8 inline-flex items-center gap-2 rounded-full border border-white/30 px-6 py-3 text-xs uppercase tracking-[0.2em] text-white transition hover:bg-white hover:text-[#141712]"
+          >
+            View all retreats →
+          </Link>
         </div>
       </div>
     </section>
@@ -921,5 +997,121 @@ function HomeFooter({ properties, onCheck, onInquire }: { properties: Property[]
         <p className="mt-2 text-xs text-white/45">© {new Date().getFullYear()} The Plix Goa · An initiative by Plix Hospitality Private Limited</p>
       </div>
     </footer>
+  );
+}
+
+/* /retreats · full catalog ------------------------------------------------- */
+export function RetreatsCatalog({ properties }: { properties: Property[] }) {
+  return (
+    <SaffronShell properties={properties}>
+      <RetreatsBody properties={properties} />
+    </SaffronShell>
+  );
+}
+
+function RetreatsBody({ properties }: { properties: Property[] }) {
+  const { openDrawer } = useSaffron();
+  const [village, setVillage] = useState("All");
+  const [guests, setGuests] = useState(0);
+  const [rooms, setRooms] = useState(0);
+  const count = (name: string) => (name === "All" ? properties.length : properties.filter((p) => p.location === name).length);
+  const shown = properties.filter(
+    (p) => (village === "All" || p.location === village) && p.max_guests >= guests && p.bedrooms >= rooms,
+  );
+  const select = "rounded-full border border-black/15 bg-white px-4 py-2 text-sm outline-none";
+  return (
+    <>
+      <header className="px-5 pb-14 pt-36 text-white sm:px-6" style={{ background: C.forest }}>
+        <div className="mx-auto max-w-7xl">
+          <Eyebrow light>North Goa · {VILLAGES.length} coastal villages</Eyebrow>
+          <h1 className="mt-4 font-[family-name:var(--saffron-serif)] text-5xl leading-[1.05] sm:text-7xl">
+            All North Goa <em>retreats</em>
+          </h1>
+          <p className="mt-5 max-w-xl text-sm leading-relaxed text-white/70">
+            Private pool villas, a heritage bungalow and boutique resorts across Vagator, Anjuna, Assagao, Morjim and Candolim —
+            every one run by our own Goa team and booked direct.
+          </p>
+        </div>
+      </header>
+      <section className="px-5 py-12 sm:px-6" style={{ background: C.ivory }}>
+        <div className="mx-auto max-w-7xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {["All", ...VILLAGES.map((v) => v.name)].map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setVillage(t)}
+                  className={`rounded-full border px-4 py-2 text-sm transition ${village === t ? "border-[#141712] bg-[#141712] text-white" : "border-black/15 bg-white hover:bg-black/5"}`}
+                >
+                  {t === "All" ? `All Stays (${count("All")})` : `${t} (${count(t)})`}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <select aria-label="Guests" value={guests} onChange={(e) => setGuests(Number(e.target.value))} className={select}>
+                <option value={0}>Any group size</option>
+                {[4, 8, 12, 20, 30, 50].map((n) => (
+                  <option key={n} value={n}>
+                    {n}+ guests
+                  </option>
+                ))}
+              </select>
+              <select aria-label="Rooms" value={rooms} onChange={(e) => setRooms(Number(e.target.value))} className={select}>
+                <option value={0}>Any rooms</option>
+                {[3, 4, 5, 8, 10].map((n) => (
+                  <option key={n} value={n}>
+                    {n}+ rooms
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <p className="mt-6 text-sm text-[#8f897e]">
+            {shown.length} {shown.length === 1 ? "retreat" : "retreats"}
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {shown.map((p) => (
+              <article key={p.slug} className="group flex flex-col overflow-hidden rounded-3xl border border-black/5 bg-white shadow-[0_10px_30px_-18px_rgba(20,23,18,0.35)]">
+                <div className="relative aspect-[4/3] overflow-hidden">
+                  <img src={resolveImages(p.image_keys)[0]} alt={`${shortName(p)}, ${p.location}`} loading="lazy" className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <span className="absolute left-3 top-3 rounded-full bg-[#141712]/75 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-white backdrop-blur">{p.location}</span>
+                </div>
+                <div className="flex flex-1 flex-col p-5">
+                  <h2 className="font-[family-name:var(--saffron-serif)] text-3xl leading-tight">{shortName(p)}</h2>
+                  <p className="mt-1 text-sm text-[#8f897e]">
+                    Upto {p.max_guests} guests · {p.bedrooms} {isMultiRoomProperty(p.slug) ? "rooms" : "bedrooms"} · {p.bathrooms} baths
+                  </p>
+                  {fromRate(p) > 0 && (
+                    <p className="mt-3">
+                      <span className="text-xs text-[#8f897e]">From </span>
+                      <span className="font-[family-name:var(--saffron-serif)] text-2xl">{formatINR(fromRate(p))}</span>
+                      <span className="text-xs text-[#8f897e]"> /night</span>
+                    </p>
+                  )}
+                  <div className="mt-auto flex gap-2 pt-5">
+                    <Link
+                      to="/properties/$slug"
+                      params={{ slug: p.slug }}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-[#141712] px-3 py-2.5 text-[11px] font-medium uppercase tracking-[0.1em] text-white"
+                    >
+                      Explore <ArrowUpRight className="size-3.5" />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => openDrawer(p.slug)}
+                      className="flex-1 whitespace-nowrap rounded-full border border-black/15 px-3 py-2.5 text-[11px] font-medium uppercase tracking-[0.1em] hover:bg-black/5"
+                    >
+                      Check availability
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+          {shown.length === 0 && <p className="mt-10 text-center text-[#8f897e]">No retreat matches those filters — try a smaller group or fewer rooms.</p>}
+        </div>
+      </section>
+    </>
   );
 }

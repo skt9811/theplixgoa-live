@@ -21,6 +21,7 @@ import { Route as PartnerRouteImport } from './routes/partner'
 import { Route as PmsRouteImport } from './routes/pms'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as RetreatsRouteImport } from './routes/retreats'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as StaysRouteImport } from './routes/stays'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -141,6 +142,11 @@ const PortalRoute = PortalRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RetreatsRoute = RetreatsRouteImport.update({
+  id: '/retreats',
+  path: '/retreats',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignupRoute = SignupRouteImport.update({
@@ -466,6 +472,7 @@ export interface FileRoutesByFullPath {
   '/pms': typeof PmsRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
   '/privacy': typeof PrivacyRoute
+  '/retreats': typeof RetreatsRoute
   '/signup': typeof SignupRoute
   '/stays': typeof StaysRoute
   '/terms': typeof TermsRoute
@@ -539,6 +546,7 @@ export interface FileRoutesByTo {
   '/faq': typeof FaqRoute
   '/partner': typeof PartnerRoute
   '/privacy': typeof PrivacyRoute
+  '/retreats': typeof RetreatsRoute
   '/signup': typeof SignupRoute
   '/stays': typeof StaysRoute
   '/terms': typeof TermsRoute
@@ -612,6 +620,7 @@ export interface FileRoutesById {
   '/pms': typeof PmsRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
   '/privacy': typeof PrivacyRoute
+  '/retreats': typeof RetreatsRoute
   '/signup': typeof SignupRoute
   '/stays': typeof StaysRoute
   '/terms': typeof TermsRoute
@@ -689,6 +698,7 @@ export interface FileRouteTypes {
     | '/pms'
     | '/portal'
     | '/privacy'
+    | '/retreats'
     | '/signup'
     | '/stays'
     | '/terms'
@@ -762,6 +772,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/partner'
     | '/privacy'
+    | '/retreats'
     | '/signup'
     | '/stays'
     | '/terms'
@@ -834,6 +845,7 @@ export interface FileRouteTypes {
     | '/pms'
     | '/portal'
     | '/privacy'
+    | '/retreats'
     | '/signup'
     | '/stays'
     | '/terms'
@@ -910,6 +922,7 @@ export interface RootRouteChildren {
   PmsRoute: typeof PmsRouteWithChildren
   PortalRoute: typeof PortalRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
+  RetreatsRoute: typeof RetreatsRoute
   SignupRoute: typeof SignupRoute
   StaysRoute: typeof StaysRoute
   TermsRoute: typeof TermsRoute
@@ -1012,6 +1025,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/retreats': {
+      id: '/retreats'
+      path: '/retreats'
+      fullPath: '/retreats'
+      preLoaderRoute: typeof RetreatsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signup': {
@@ -1593,6 +1613,7 @@ const rootRouteChildren: RootRouteChildren = {
   PmsRoute: PmsRouteWithChildren,
   PortalRoute: PortalRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
+  RetreatsRoute: RetreatsRoute,
   SignupRoute: SignupRoute,
   StaysRoute: StaysRoute,
   TermsRoute: TermsRoute,

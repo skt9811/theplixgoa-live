@@ -480,7 +480,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <div className="flex min-h-screen flex-col overflow-x-clip bg-background">
         {/* The homepage brings its own floating nav and footer. */}
-        {pathname !== "/" && <SiteHeader />}
+        {pathname !== "/" && pathname !== "/retreats" && <SiteHeader />}
         {/* overflow-x-clip, not -hidden: per the CSS overflow spec, setting
             overflow-x to anything but visible/clip (hidden/auto/scroll)
             forces the browser to compute overflow-y as auto too, which turns
@@ -494,7 +494,7 @@ function RootComponent() {
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
         </main>
-        <SiteFooter fabsOnly={pathname === "/"} />
+        <SiteFooter fabsOnly={pathname === "/" || pathname === "/retreats"} />
       </div>
       <Toaster position="top-center" richColors />
       <CookieNotice />

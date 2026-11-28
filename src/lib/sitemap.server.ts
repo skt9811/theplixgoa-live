@@ -18,6 +18,7 @@ type StaticPage = { path: string; changefreq: string; priority: string };
 const STATIC_PAGES: StaticPage[] = [
   { path: "/", changefreq: "daily", priority: "1.0" },
   { path: "/stays", changefreq: "daily", priority: "0.9" },
+  { path: "/retreats", changefreq: "weekly", priority: "0.8" },
   { path: "/stays/large-groups", changefreq: "weekly", priority: "0.8" },
   { path: "/stays/private-pool-villas", changefreq: "weekly", priority: "0.8" },
   { path: "/stays/pet-friendly-villas", changefreq: "weekly", priority: "0.8" },

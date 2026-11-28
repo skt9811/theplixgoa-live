@@ -1,9 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { SaffronHome } from "@/components/home/saffron-home";
+import { HERO_IMAGE, SaffronHome } from "@/components/home/saffron-home";
 import { NewsletterModal } from "@/components/plix/newsletter-modal";
 import { propertiesQuery, reviewsQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
-import { HOME_HERO_SIZES, HOME_HERO_SRCSET } from "@/lib/hero-variants";
 import {
   SITE_URL,
   SITE_NAME,
@@ -50,17 +49,8 @@ export const Route = createFileRoute("/")({
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap",
       },
-      // The hero (LCP) image, homepage only, with the same srcset/sizes as
-      // its <img> so the preload and the image are one download. Moved here
-      // from __root.tsx, where it made every page fetch this photo first.
-      {
-        rel: "preload",
-        as: "image",
-        type: "image/webp",
-        imageSrcSet: HOME_HERO_SRCSET,
-        imageSizes: HOME_HERO_SIZES,
-        fetchPriority: "high",
-      },
+      // The hero (LCP) image, homepage only, so it starts downloading first.
+      { rel: "preload", as: "image", href: HERO_IMAGE, fetchPriority: "high" },
     ],
     scripts: [
       // The homepage is the ONE place brandJsonLd() renders in full — every

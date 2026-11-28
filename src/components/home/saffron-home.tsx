@@ -56,8 +56,6 @@ const VILLAGES: { name: string; vibe: string; lat: number; lng: number }[] = [
   { name: "Assagao", vibe: "Forested & inland", lat: 15.594, lng: 73.778 },
   { name: "Candolim", vibe: "Heritage & beach shacks", lat: 15.517, lng: 73.765 },
 ];
-const mapX = (lng: number) => 60 + ((lng - 73.7) / 0.1) * 300;
-const mapY = (lat: number) => 40 + ((15.66 - lat) / 0.16) * 440;
 
 const NAV = [
   { id: "our-story", label: "Our Story" },
@@ -606,6 +604,168 @@ function BookingDrawer({ properties, initialSlug, onClose }: { properties: Prope
 }
 
 /* 4 · Coastal map + location showcase -------------------------------------- */
+/* North Goa map: editorial cartography ---------------------------------- */
+// viewBox 460x560; north up. lat 15.665 -> 15.488 maps to y 36 -> 532,
+// lng 73.705 -> 73.825 maps to x 30 -> 430 (sea on the left / west).
+const gx = (lng: number) => 30 + ((lng - 73.705) / 0.12) * 400;
+const gy = (lat: number) => 36 + ((15.665 - lat) / 0.177) * 496;
+type Pt = [number, number];
+/** Smooth path through points (Catmull-Rom converted to cubic Beziers). */
+function smooth(pts: Pt[]): string {
+  if (pts.length < 2) return "";
+  let d = `M${pts[0]![0].toFixed(1)},${pts[0]![1].toFixed(1)}`;
+  for (let k = 0; k < pts.length - 1; k++) {
+    const p0 = pts[k - 1] ?? pts[k]!;
+    const p1 = pts[k]!;
+    const p2 = pts[k + 1]!;
+    const p3 = pts[k + 2] ?? p2;
+    const c1: Pt = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2: Pt = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += ` C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+const ll = (lat: number, lng: number): Pt => [gx(lng), gy(lat)];
+// North -> south: Morjim sweep, Chapora mouth, Vagator cliffs, Anjuna bay,
+// Baga-Calangute curve, Candolim, Sinquerim / Aguada headland.
+const COAST: Pt[] = [
+  ll(15.665, 73.7215), ll(15.648, 73.7255), ll(15.632, 73.7295), ll(15.617, 73.7335), ll(15.607, 73.7372),
+  ll(15.6015, 73.7322), ll(15.594, 73.7345), ll(15.586, 73.7365), ll(15.578, 73.7335), ll(15.571, 73.739),
+  ll(15.561, 73.7445), ll(15.548, 73.7505), ll(15.534, 73.7555), ll(15.519, 73.7598), ll(15.506, 73.7625),
+  ll(15.497, 73.7585), ll(15.4905, 73.7655),
+];
+const COAST_D = smooth(COAST);
+const CHAPORA_D = smooth([ll(15.607, 73.7372), ll(15.6105, 73.752), ll(15.6065, 73.768), ll(15.6135, 73.786), ll(15.6095, 73.804), ll(15.6165, 73.822)]);
+const BAGA_D = smooth([ll(15.5585, 73.7462), ll(15.5615, 73.7575), ll(15.5575, 73.7685), ll(15.5625, 73.7795)]);
+// Diagonal through open water west of Anjuna/Baga (clear of the coordinates).
+const SEA_LABEL_D = smooth([ll(15.594, 73.709), ll(15.574, 73.7135), ll(15.552, 73.7225)]);
+
+function GoaMap({ activeVillage, count, onPick }: { activeVillage: string; count: (v: string) => number; onPick: (v: string) => void }) {
+  const reduce = useReducedMotion();
+  const pins = VILLAGES.map((v) => ({ ...v, x: gx(v.lng), y: gy(v.lat) }));
+  const activeIdx = pins.findIndex((p) => p.name === activeVillage);
+  const route = smooth(pins.map((p) => [p.x, p.y] as Pt));
+  const routeToActive = activeIdx > 0 ? smooth(pins.slice(0, activeIdx + 1).map((p) => [p.x, p.y] as Pt)) : "";
+  const assagao = pins.find((p) => p.name === "Assagao");
+  const gold = C.gold;
+  const serif = "var(--saffron-serif)";
+  return (
+    <svg
+      viewBox="0 0 460 560"
+      className="mx-auto mt-4 w-full max-w-[330px] overflow-visible sm:max-w-[400px] lg:mx-0 lg:max-w-[460px]"
+      role="img"
+      aria-label="Map of North Goa: Morjim, Vagator, Anjuna, Assagao and Candolim, with the number of Plix stays in each"
+    >
+      <defs>
+        <radialGradient id="aura">
+          <stop offset="0" stopColor={gold} stopOpacity="0.35" />
+          <stop offset="1" stopColor={gold} stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      {/* hairline graticule + coordinates */}
+      {[15.65, 15.6, 15.55, 15.5].map((lat) => (
+        <g key={lat}>
+          <line x1="0" x2="460" y1={gy(lat)} y2={gy(lat)} stroke="rgba(255,255,255,0.04)" />
+          <line x1="0" x2="8" y1={gy(lat)} y2={gy(lat)} stroke="rgba(201,158,87,0.55)" />
+          <text x="12" y={gy(lat) - 4} fill="rgba(201,158,87,0.6)" fontSize="9" letterSpacing="2.2">
+            {`15°${Math.round((lat - 15) * 60)}'N`}
+          </text>
+        </g>
+      ))}
+      {[73.75, 73.8].map((lng) => (
+        <g key={lng}>
+          <line y1="0" y2="560" x1={gx(lng)} x2={gx(lng)} stroke="rgba(255,255,255,0.04)" />
+          <line y1="552" y2="560" x1={gx(lng)} x2={gx(lng)} stroke="rgba(201,158,87,0.55)" />
+          <text x={gx(lng) + 4} y="556" fill="rgba(201,158,87,0.6)" fontSize="9" letterSpacing="2.2">
+            {`73°${Math.round((lng - 73) * 60)}'E`}
+          </text>
+        </g>
+      ))}
+
+      {/* bathymetric contours, fading out to sea */}
+      {[0.28, 0.16, 0.08].map((o, k) => (
+        <path key={o} d={COAST_D} fill="none" stroke={`rgba(201,158,87,${o})`} strokeWidth="0.9" transform={`translate(${-(k + 1) * 13},${(k + 1) * 3})`} />
+      ))}
+      {/* Assagao's forested hills */}
+      {assagao &&
+        [16, 28, 42].map((r, k) => (
+          <ellipse key={r} cx={assagao.x + 4} cy={assagao.y - 2} rx={r * 1.25} ry={r} fill="none" stroke={`rgba(201,158,87,${0.16 - k * 0.04})`} strokeWidth="0.8" />
+        ))}
+      {/* coastline */}
+      <path d={COAST_D} fill="none" stroke={gold} strokeWidth="1.8" strokeLinecap="round" />
+      {/* rivers */}
+      <path id="chapora" d={CHAPORA_D} fill="none" stroke="rgba(150,190,205,0.55)" strokeWidth="2.2" strokeLinecap="round" />
+      <path id="baga" d={BAGA_D} fill="none" stroke="rgba(150,190,205,0.4)" strokeWidth="1.4" strokeLinecap="round" />
+      <text fill="rgba(200,220,228,0.6)" fontSize="11" fontStyle="italic" fontFamily={serif} letterSpacing="1.5" dy="-6">
+        <textPath href="#chapora" startOffset="30%">Chapora River</textPath>
+      </text>
+      <text fill="rgba(200,220,228,0.5)" fontSize="10" fontStyle="italic" fontFamily={serif} letterSpacing="1.2" dy="-5">
+        <textPath href="#baga" startOffset="18%">Baga Creek</textPath>
+      </text>
+      <path id="sea-label" d={SEA_LABEL_D} fill="none" />
+      <text fill="rgba(246,243,236,0.34)" fontSize="14" fontStyle="italic" fontFamily={serif} letterSpacing="2.5">
+        <textPath href="#sea-label" startOffset="2%">Arabian Sea</textPath>
+      </text>
+
+      {/* compass rose */}
+      <g transform="translate(58,440)" opacity="0.45" stroke={gold} fill="none" strokeWidth="0.8">
+        <circle r="18" />
+        <circle r="3" fill={gold} />
+        <path d="M0,-24 L4,0 L0,24 L-4,0 Z" />
+        <path d="M-24,0 L0,3 L24,0 L0,-3 Z" opacity="0.6" />
+        <text y="-28" textAnchor="middle" fill={gold} stroke="none" fontSize="10" letterSpacing="1" fontFamily={serif}>
+          N
+        </text>
+      </g>
+
+      {/* route between villages; the stretch to the active one draws in gold */}
+      <path d={route} fill="none" stroke="rgba(246,243,236,0.18)" strokeDasharray="2 6" strokeLinecap="round" />
+      {routeToActive && (
+        <motion.path
+          key={`route-${activeVillage}`}
+          d={routeToActive}
+          fill="none"
+          stroke={gold}
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          initial={reduce ? false : { pathLength: 0, opacity: 0.4 }}
+          animate={{ pathLength: 1, opacity: 0.9 }}
+          transition={{ duration: 0.9, ease: OUT }}
+        />
+      )}
+
+      {pins.map((p) => {
+        const on = p.name === activeVillage;
+        const n = count(p.name);
+        const labelW = p.name.length * 9.6;
+        return (
+          <g key={p.name} className="cursor-pointer" onClick={() => onPick(p.name)} onMouseEnter={() => onPick(p.name)}>
+            {/* generous invisible hit area */}
+            <rect x={p.x - 14} y={p.y - 16} width={labelW + 58} height="32" fill="transparent" />
+            {on && <circle cx={p.x} cy={p.y} r="44" fill="url(#aura)" />}
+            {on && !reduce && (
+              <motion.circle cx={p.x} cy={p.y} r="9" fill="none" stroke={gold} strokeWidth="1.2" initial={{ opacity: 0.8, scale: 1 }} animate={{ opacity: 0, scale: 3 }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }} style={{ transformOrigin: `${p.x}px ${p.y}px` }} />
+            )}
+            <circle cx={p.x} cy={p.y} r={on ? 9 : 6} fill="none" stroke={on ? gold : "rgba(246,243,236,0.45)"} strokeWidth="1" />
+            <circle cx={p.x} cy={p.y} r={on ? 4.2 : 3} fill={on ? gold : "#F6F3EC"} />
+            <text x={p.x + 16} y={p.y + 6} fill={on ? "#F6F3EC" : "rgba(246,243,236,0.62)"} fontSize="19" fontFamily={serif} style={{ transition: "fill .3s" }}>
+              {p.name}
+            </text>
+            {on && <line x1={p.x + 16} x2={p.x + 16 + labelW} y1={p.y + 11} y2={p.y + 11} stroke={gold} strokeWidth="1" opacity="0.8" />}
+            <g transform={`translate(${p.x + 16 + labelW + 14},${p.y})`}>
+              <circle r="10" fill={on ? gold : "none"} stroke={gold} strokeOpacity={on ? 1 : 0.55} strokeWidth="0.9" />
+              <text y="3.4" textAnchor="middle" fill={on ? C.forest : "rgba(201,158,87,0.9)"} fontSize="9.5" fontWeight="600" letterSpacing="0.5">
+                {String(n).padStart(2, "0")}
+              </text>
+            </g>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function CoastalMap({ properties }: { properties: Property[] }) {
   const { openDrawer } = useSaffron();
   const onBook = (slug: string) => openDrawer(slug);
@@ -626,12 +786,6 @@ function CoastalMap({ properties }: { properties: Property[] }) {
   const v = VILLAGES.find((x) => x.name === (active?.location ?? village));
   const count = (name: string) => (name === "All" ? properties.length : (byVillage.get(name)?.length ?? 0));
   const multi = list.length > 1;
-  const coast = [
-    [15.66, 73.726], [15.645, 73.731], [15.632, 73.734], [15.618, 73.736], [15.606, 73.737],
-    [15.592, 73.739], [15.578, 73.741], [15.56, 73.746], [15.545, 73.752], [15.53, 73.757], [15.505, 73.76],
-  ];
-  const coastPath = coast.map(([la, ln], i) => `${i ? "L" : "M"}${mapX(ln!)},${mapY(la!)}`).join(" ");
-
   return (
     <section id="retreats" className="relative flex min-h-screen items-center overflow-hidden py-20 text-white lg:py-28" style={{ background: C.forest }}>
       {/* The active property's photo, clearly visible on the right; it
@@ -691,63 +845,11 @@ function CoastalMap({ properties }: { properties: Property[] }) {
               Showing {list.length} {list.length === 1 ? "retreat" : "retreats"} {village === "All" ? "across North Goa" : `in ${village}`}
             </motion.p>
           </AnimatePresence>
-          <svg viewBox="0 0 400 520" className="mx-auto mt-4 w-full max-w-[250px] sm:max-w-[340px] lg:mx-0 lg:mt-6 lg:max-w-[420px]" role="img" aria-label="Map of North Goa villages with Plix stays">
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M40 0H0V40" fill="none" stroke="rgba(255,255,255,0.06)" />
-              </pattern>
-            </defs>
-            <rect width="400" height="520" fill="url(#grid)" rx="24" />
-            <path d={`${coastPath} L0,520 L0,0 Z`} fill="rgba(201,158,87,0.08)" />
-            {[0, 1, 2].map((i) => (
-              <path key={i} d={coastPath} fill="none" stroke="rgba(201,158,87,0.25)" strokeWidth="1" transform={`translate(${-14 - i * 14},0)`} />
-            ))}
-            <path d={coastPath} fill="none" stroke={C.gold} strokeWidth="2" />
-            <path
-              d={`M${mapX(73.737)},${mapY(15.606)} C${mapX(73.755)},${mapY(15.612)} ${mapX(73.775)},${mapY(15.605)} ${mapX(73.8)},${mapY(15.614)}`}
-              fill="none"
-              stroke="rgba(160,200,220,0.5)"
-              strokeWidth="2"
-            />
-            <text x={mapX(73.78)} y={mapY(15.618)} fill="rgba(255,255,255,0.45)" fontSize="10" letterSpacing="2">CHAPORA RIVER</text>
-            <text x="18" y="280" fill="rgba(255,255,255,0.35)" fontSize="11" letterSpacing="3" transform="rotate(-90 18 280)">ARABIAN SEA</text>
-            <polyline
-              points={VILLAGES.map((x) => `${mapX(x.lng)},${mapY(x.lat)}`).join(" ")}
-              fill="none"
-              stroke="rgba(255,255,255,0.25)"
-              strokeDasharray="3 5"
-            />
-            {VILLAGES.map((x) => {
-              const on = (active?.location ?? village) === x.name;
-              const cx = mapX(x.lng);
-              const cy = mapY(x.lat);
-              return (
-                <g key={x.name} className="cursor-pointer" onClick={() => pick(x.name)} onMouseEnter={() => pick(x.name)}>
-                  {on && (
-                    <motion.circle cx={cx} cy={cy} r="10" fill={C.gold} initial={{ opacity: 0.5, scale: 1 }} animate={{ opacity: 0, scale: 3 }} transition={{ duration: 1.6, repeat: Infinity }} style={{ transformOrigin: `${cx}px ${cy}px` }} />
-                  )}
-                  {on && (
-                    <motion.circle
-                      key={`glow-${x.name}`}
-                      cx={cx}
-                      cy={cy}
-                      r="16"
-                      fill={C.gold}
-                      initial={{ opacity: 0.55, scale: 0.3 }}
-                      animate={{ opacity: 0.18, scale: 1 }}
-                      transition={{ duration: 0.6, ease: OUT }}
-                      style={{ transformOrigin: `${cx}px ${cy}px`, filter: "blur(3px)" }}
-                    />
-                  )}
-                  <circle cx={cx} cy={cy} r={on ? 7 : 5} fill={on ? C.gold : "#fff"} stroke={C.forest} strokeWidth="2" />
-                  <rect x={cx + 12} y={cy - 11} width={(x.name.length + 4) * 7.2 + 16} height="22" rx="11" fill={on ? C.gold : "rgba(255,255,255,0.12)"} />
-                  <text x={cx + 20} y={cy + 4} fill={on ? C.forest : "#fff"} fontSize="11" fontWeight="600">
-                    {x.name} ({count(x.name)})
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
+          <GoaMap
+            activeVillage={active?.location ?? village}
+            count={count}
+            onPick={pick}
+          />
           <div className="mt-4 flex flex-wrap gap-2">
             {["All", ...VILLAGES.map((x) => x.name)].map((t) => (
               <button

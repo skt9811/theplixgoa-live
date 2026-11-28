@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { HERO_POSTER, SaffronHome } from "@/components/home/saffron-home";
 import { NewsletterModal } from "@/components/plix/newsletter-modal";
 import { propertiesQuery, reviewsQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
+import { blogSummariesQuery } from "@/lib/blog";
 import {
   SITE_URL,
   SITE_NAME,
@@ -74,9 +75,14 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  loader: ({ context }) => {
-    void context.queryClient.ensureQueryData(propertiesQuery());
+  loader: async ({ context }) => {
     void context.queryClient.ensureQueryData(reviewsQuery);
+    // Awaited so the Journal's blog links are in the server HTML (crawlers),
+    // not only fetched later in the browser. A blog failure never blocks.
+    await Promise.all([
+      context.queryClient.ensureQueryData(propertiesQuery()),
+      context.queryClient.ensureQueryData(blogSummariesQuery).catch(() => undefined),
+    ]);
   },
   // Static page: cached at the edge for a day (see EDGE_CACHE_CONTROL_LONG).
   // The server entry strips cache directives from any non-200 response.

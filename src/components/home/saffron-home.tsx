@@ -355,7 +355,7 @@ function HeroLine({
         animate={go ? { y: "0%", opacity: 1 } : { y: "105%", opacity: 0 }}
         transition={{ duration: 0.55, ease: OUT, delay: reduce ? 0 : delay }}
       >
-        {lead}
+        {lead}{" "}
         <motion.span
           className="relative inline-flex h-9 overflow-hidden rounded-full border border-white/30 align-middle shadow-lg sm:h-12 lg:h-14"
           initial={reduce ? false : { width: 0, marginLeft: 0, marginRight: 0, opacity: 0, scale: 0.85 }}
@@ -367,8 +367,8 @@ function HeroLine({
           transition={{ duration: 0.5, ease: OUT, delay: reduce ? 0 : delay + 0.15 }}
         >
           <CyclingImage keys={photos} interval={cycle} fade={1.1} zoom={[1, 1.08]} />
-        </motion.span>
-        <em>{ending}</em>
+        </motion.span>{" "}
+        <em>{ending}</em>{" "}
       </motion.span>
     </span>
   );

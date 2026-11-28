@@ -262,8 +262,11 @@ function PillNav({ onCheck, ready }: { onCheck: () => void; ready: boolean }) {
       transition={{ duration: 0.45, ease: OUT }}
     >
       <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-white/15 bg-[#141712]/70 px-5 py-2.5 backdrop-blur-xl">
-        <Link to="/" className="font-[family-name:var(--saffron-serif)] text-xl tracking-tight text-white">
-          The Plix
+        <Link to="/" className="-my-1 flex items-center" aria-label="The Plix Goa home">
+          {/* The colour logo's dark palm and script vanish on the charcoal
+              pill, so it is shown in white here (as the site header does
+              over photos). */}
+          <img src="/plix-logo-wide.png" alt="Plix Hospitality" width={410} height={210} className="h-10 w-auto object-contain brightness-0 invert md:h-12" />
         </Link>
         <div className="hidden items-center gap-7 text-xs uppercase tracking-[0.18em] text-white/80 lg:flex">
           {NAV.map((n) => (

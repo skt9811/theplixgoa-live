@@ -60,7 +60,7 @@ export function ValueRibbon() {
 /** "A taste of the collection": the property cards. */
 export function TasteOfCollection({ properties }: { properties: Property[] }) {
   return (
-    <section className="px-5 py-20 text-white sm:px-6" style={{ background: FOREST }}>
+    <section className="px-5 pb-20 pt-10 text-white sm:px-6" style={{ background: FOREST }}>
       <div className="mx-auto max-w-7xl">
         <Heading eyebrow="Featured sanctuaries" title="A taste of the collection" sub="Our most-loved homes across North Goa." light />
         <div className="-mx-5 mt-8 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:gap-6 md:overflow-visible md:px-0 lg:grid-cols-3">

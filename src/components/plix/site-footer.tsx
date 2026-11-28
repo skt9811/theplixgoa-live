@@ -264,7 +264,7 @@ export function SiteFooter({ fabsOnly = false }: { fabsOnly?: boolean } = {}) {
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
             aria-label="Back to top"
-            className="flex size-11 items-center justify-center rounded-full bg-navy text-white shadow-lg transition-transform hover:scale-105"
+            className={`flex size-11 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105 ${fabsOnly ? "border border-[#C99E57]/50 bg-[#141712]/85 text-[#C99E57] backdrop-blur-md" : "bg-navy text-white"}`}
           >
             <ArrowUp className="size-4" aria-hidden />
           </button>

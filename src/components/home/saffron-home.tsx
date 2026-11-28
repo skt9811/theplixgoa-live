@@ -795,7 +795,7 @@ function CoastalMap({ properties }: { properties: Property[] }) {
   const count = (name: string) => (name === "All" ? properties.length : (byVillage.get(name)?.length ?? 0));
   const multi = list.length > 1;
   return (
-    <section id="retreats" className="relative flex min-h-screen items-center overflow-hidden py-20 text-white lg:py-28" style={{ background: C.forest }}>
+    <section id="retreats" className="relative flex min-h-screen items-center overflow-hidden pb-10 pt-20 text-white lg:pb-12 lg:pt-28" style={{ background: C.forest }}>
       {/* The active property's photo, clearly visible on the right; it
           crossfades in with a slow settle-zoom on every switch. */}
       <AnimatePresence>
@@ -1017,7 +1017,7 @@ function Offers({ onClaim }: { onClaim: (title: string) => void }) {
               style={{ background: "#21251D", color: "#ECE7DC" }}
             >
               <div className="md:col-span-7">
-                <span className="rounded-full border border-[#C99E57]/40 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-[#C99E57]">{o.tag}</span>
+                <span className="inline-block rounded-xl border border-[#C99E57]/40 px-3 py-1 text-[10px] uppercase leading-relaxed tracking-[0.22em] text-[#C99E57] sm:rounded-full">{o.tag}</span>
                 <h3 className="mt-4 font-[family-name:var(--saffron-serif)] text-3xl sm:text-4xl">{o.title}</h3>
                 <p className="mt-3 max-w-lg text-sm leading-relaxed text-white/65">{o.body}</p>
                 <button
@@ -1154,7 +1154,7 @@ function Manifesto({ properties }: { properties: Property[] }) {
     { v: "4.9/5", label: "Guest rating", note: "Across our Plix stays" },
   ];
   return (
-    <section id="our-story" ref={sectionRef} className="relative overflow-x-clip px-5 py-28 text-white sm:px-6" style={{ background: C.forest }}>
+    <section id="our-story" ref={sectionRef} className="relative overflow-x-clip px-5 pb-12 pt-28 text-white sm:px-6 md:pb-20" style={{ background: C.forest }}>
       {/* Ghost gallery around the manifesto (behind it, never over the words). */}
       <div className="pointer-events-none absolute inset-0 mx-auto max-w-6xl">
         <GhostPhoto progress={sectionProgress} keys={["villamadera5", "plixvilla25", "vivendachico10", "casamarina22", "morjimpride6"]} cycle={3200} float={10} peak={0.3} drift={40} className="left-[2%] top-[6%] h-44 w-64 sm:h-56 sm:w-80" />
@@ -1220,14 +1220,20 @@ function DayInGoa() {
   const x = useTransform(scrollYProgress, [0, 1], ["0%", "-48%"]);
   const ticker = "Slow mornings in Assagao • Sunsets over Vagator cliffs • Private pools & coastal hospitality • Direct bookings at The Plix Goa • ";
   return (
-    <section id="a-day-in-goa" className="overflow-x-clip pt-20 text-white" style={{ background: C.forest }}>
-      <div className="mx-auto max-w-7xl px-5 sm:px-6">
+    <section id="a-day-in-goa" className="overflow-x-clip pt-8 text-white md:pt-0" style={{ background: C.forest }}>
+      {/* Desktop: the heading rides inside the sticky frame with the rail, so
+          the two stay together instead of leaving an empty screen between. */}
+      <div className="mx-auto max-w-7xl px-5 sm:px-6 md:hidden">
         <Eyebrow light>Moments · Morning to starlight</Eyebrow>
         <h2 className="mt-3 font-[family-name:var(--saffron-serif)] text-4xl sm:text-6xl">A day in North Goa</h2>
       </div>
       {/* Desktop: vertical scroll drives the rail sideways. Phones: swipe. */}
-      <div ref={ref} className="relative hidden h-[220vh] md:block">
-        <div className="sticky top-0 flex h-screen items-center overflow-hidden">
+      <div ref={ref} className="relative hidden h-[200vh] md:block">
+        <div className="sticky top-0 flex h-screen flex-col justify-center gap-10 overflow-hidden pt-16">
+          <div className="mx-auto w-full max-w-7xl px-6">
+            <Eyebrow light>Moments · Morning to starlight</Eyebrow>
+            <h2 className="mt-3 font-[family-name:var(--saffron-serif)] text-6xl">A day in North Goa</h2>
+          </div>
           <motion.div style={{ x }} className="flex gap-6 pl-[max(1.5rem,calc((100vw-80rem)/2+1.5rem))]">
             {MOMENTS.map((m, i) => (
               <MomentCard key={m.t} m={m} i={i} />

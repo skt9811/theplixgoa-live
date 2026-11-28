@@ -28,7 +28,7 @@ import { trackLeadClick } from "@/lib/lead-tracker";
 const EASE = [0.76, 0, 0.24, 1] as const;
 const C = {
   forest: "#141712",
-  ivory: "#F6F3EC",
+  ivory: "#ECE7DC", // softened from #F6F3EC (less glare next to the dark sections)
   linen: "#EFECE4",
   stone: "#A8A297",
   ink: "#181815",
@@ -686,17 +686,19 @@ function Offers({ onClaim }: { onClaim: (title: string) => void }) {
           {OFFERS.map((o, i) => (
             <div
               key={o.title}
-              className={`sticky ${tops[i]} grid grid-cols-1 items-center gap-6 rounded-3xl border border-black/5 p-7 shadow-[0_-12px_40px_rgba(0,0,0,0.35)] sm:p-10 md:grid-cols-12`}
-              style={{ background: C.linen, color: C.ink }}
+              // Dark olive cards (were bright linen): they stack inside the dark
+              // section without glaring; gold carries the accent.
+              className={`sticky ${tops[i]} grid grid-cols-1 items-center gap-6 rounded-3xl border border-white/10 p-7 shadow-[0_-12px_40px_rgba(0,0,0,0.45)] sm:p-10 md:grid-cols-12`}
+              style={{ background: "#21251D", color: "#ECE7DC" }}
             >
               <div className="md:col-span-7">
-                <span className="rounded-full border border-black/10 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-[#6f695f]">{o.tag}</span>
+                <span className="rounded-full border border-[#C99E57]/40 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-[#C99E57]">{o.tag}</span>
                 <h3 className="mt-4 font-[family-name:var(--saffron-serif)] text-3xl sm:text-4xl">{o.title}</h3>
-                <p className="mt-3 max-w-lg text-sm leading-relaxed text-[#5f5a52]">{o.body}</p>
+                <p className="mt-3 max-w-lg text-sm leading-relaxed text-white/65">{o.body}</p>
                 <button
                   type="button"
                   onClick={() => onClaim(o.title)}
-                  className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#141712] px-5 py-3 text-xs uppercase tracking-[0.2em] text-white"
+                  className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#C99E57] px-5 py-3 text-xs font-medium uppercase tracking-[0.2em] text-[#141712] transition hover:bg-[#d6ad68]"
                 >
                   Claim this offer <ArrowUpRight className="size-4" />
                 </button>

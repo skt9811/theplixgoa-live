@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { HERO_IMAGE, SaffronHome } from "@/components/home/saffron-home";
+import { HERO_POSTER, SaffronHome } from "@/components/home/saffron-home";
 import { NewsletterModal } from "@/components/plix/newsletter-modal";
 import { propertiesQuery, reviewsQuery, usePropertiesLiveRefresh } from "@/lib/plix-queries";
 import {
@@ -50,7 +50,7 @@ export const Route = createFileRoute("/")({
         href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap",
       },
       // The hero (LCP) image, homepage only, so it starts downloading first.
-      { rel: "preload", as: "image", href: HERO_IMAGE, fetchPriority: "high" },
+      { rel: "preload", as: "image", href: HERO_POSTER, fetchPriority: "high" },
     ],
     scripts: [
       // The homepage is the ONE place brandJsonLd() renders in full — every

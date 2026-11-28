@@ -39,8 +39,13 @@ const C = {
   gold: "#C99E57",
 };
 const img = (key: string) => resolveImages([key])[0] ?? chicoHeroImage;
-/** Twilight pool (Marina Villas) — also preloaded by the homepage route. */
+/** Twilight pool (Marina Villas): fallback if the hero video can't play. */
 export const HERO_IMAGE = img("casamarina23");
+/** Drone video hero: aerial of our villas; poster = its 0:06 frame (the
+ * first seconds show the crew launching the drone, so playback starts at 6s). */
+export const HERO_VIDEO = "/videos/hero-drone.mp4";
+export const HERO_POSTER = "/images/hero-poster.jpg";
+const HERO_VIDEO_START = 6;
 const shortName = (p: Property) => p.name.split(" - ")[0] ?? p.name;
 const fromRate = (p: Property) => p.starting_price ?? p.base_price;
 
@@ -373,6 +378,16 @@ function HeroLine({
 function Hero({ ready }: { ready: boolean }) {
   const reduce = useReducedMotion();
   const go = ready || reduce;
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [playVideo, setPlayVideo] = useState(false);
+  useEffect(() => {
+    if (reduce) return;
+    const mq = window.matchMedia("(min-width: 768px)");
+    const set = () => setPlayVideo(mq.matches);
+    set();
+    mq.addEventListener("change", set);
+    return () => mq.removeEventListener("change", set);
+  }, [reduce]);
   // Pill width = clamp(64px, 7.5vw, 114px), in px so it can animate from 0.
   const [pillW, setPillW] = useState(96);
   useEffect(() => {
@@ -388,17 +403,46 @@ function Hero({ ready }: { ready: boolean }) {
   });
   return (
     <section id="top" className="relative isolate flex min-h-[100svh] items-end overflow-hidden text-white">
-      <motion.img
-        src={HERO_IMAGE}
-        alt="Pool at dusk with garden lights, Marina Villas by The Plix, Anjuna, North Goa"
-        fetchPriority="high"
-        className="absolute inset-0 -z-10 size-full object-cover"
+      <motion.div
+        className="absolute inset-0 -z-10"
         initial={reduce ? false : { scale: 1.06, filter: "blur(4px)" }}
         animate={go ? { scale: 1, filter: "blur(0px)" } : { scale: 1.06, filter: "blur(4px)" }}
         transition={{ duration: 0.85, ease: OUT }}
-      />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#141712]/85 via-[#141712]/55 to-[#141712]/40" />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#141712] via-transparent to-black/50" />
+      >
+        {/* Graded drone video on tablets/desktop; phones (and reduced motion,
+            or if the video fails) get the poster frame, saving ~7 MB of
+            mobile data on the first screen. */}
+        <img
+          src={videoFailed ? HERO_IMAGE : HERO_POSTER}
+          alt="Aerial view of a Plix villa and pool in North Goa"
+          fetchPriority="high"
+          className="absolute inset-0 size-full object-cover brightness-[0.72] contrast-[1.12] saturate-[0.88] sepia-[0.08]"
+        />
+        {playVideo && !videoFailed && (
+          <video
+            className="absolute inset-0 size-full object-cover brightness-[0.72] contrast-[1.12] saturate-[0.88] sepia-[0.08]"
+            src={`${HERO_VIDEO}#t=${HERO_VIDEO_START}`}
+            poster={HERO_POSTER}
+            autoPlay
+            muted
+            playsInline
+            preload="metadata"
+            aria-hidden
+            onError={() => setVideoFailed(true)}
+            // Belt and braces for the #t=6 fragment (some servers/browsers ignore it).
+            onLoadedMetadata={(e) => {
+              if (e.currentTarget.currentTime < HERO_VIDEO_START) e.currentTarget.currentTime = HERO_VIDEO_START;
+            }}
+            // Loop from 0:06, not 0:00 (the loop attribute would replay the launch).
+            onEnded={(e) => {
+              e.currentTarget.currentTime = HERO_VIDEO_START;
+              void e.currentTarget.play().catch(() => undefined);
+            }}
+          />
+        )}
+      </motion.div>
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#141712]/80 via-[#141712]/45 to-transparent" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#141712] via-[#141712]/35 to-black/50" />
       <div className="mx-auto w-full max-w-7xl px-5 pb-10 pt-32 sm:px-6 lg:pb-14">
         <motion.div
           initial={reduce ? false : { opacity: 0, y: -10 }}
@@ -1204,7 +1248,7 @@ function HomeFooter({ properties, onCheck, onInquire }: { properties: Property[]
           <Link to="/terms" className="hover:text-white">Terms</Link>
           <Link to="/pms/login" className="hover:text-white">PMS Login</Link>
         </div>
-        <p className="mt-12 select-none whitespace-nowrap font-[family-name:var(--saffron-serif)] text-[18vw] leading-none text-white/[0.06]" aria-hidden>
+        <p className="mt-10 select-none whitespace-nowrap font-[family-name:var(--saffron-serif)] text-4xl leading-none tracking-tight text-white/[0.08] sm:text-6xl lg:text-7xl" aria-hidden>
           The Plix Goa
         </p>
         <p className="mt-2 text-xs text-white/45">© {new Date().getFullYear()} The Plix Goa · An initiative by Plix Hospitality Private Limited</p>

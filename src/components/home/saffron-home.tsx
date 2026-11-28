@@ -41,11 +41,10 @@ const C = {
 const img = (key: string) => resolveImages([key])[0] ?? chicoHeroImage;
 /** Twilight pool (Marina Villas): fallback if the hero video can't play. */
 export const HERO_IMAGE = img("casamarina23");
-/** Drone video hero: aerial of our villas; poster = its 0:06 frame (the
- * first seconds show the crew launching the drone, so playback starts at 6s). */
+/** Drone video hero (plays from the very beginning and loops); poster =
+ * its first frame so there's no jump when playback starts. */
 export const HERO_VIDEO = "/videos/hero-drone.mp4";
 export const HERO_POSTER = "/images/hero-poster.jpg";
-const HERO_VIDEO_START = 6;
 const shortName = (p: Property) => p.name.split(" - ")[0] ?? p.name;
 const fromRate = (p: Property) => p.starting_price ?? p.base_price;
 
@@ -421,23 +420,15 @@ function Hero({ ready }: { ready: boolean }) {
         {playVideo && !videoFailed && (
           <video
             className="absolute inset-0 size-full object-cover brightness-[0.72] contrast-[1.12] saturate-[0.88] sepia-[0.08]"
-            src={`${HERO_VIDEO}#t=${HERO_VIDEO_START}`}
+            src={HERO_VIDEO}
             poster={HERO_POSTER}
             autoPlay
+            loop
             muted
             playsInline
             preload="metadata"
             aria-hidden
             onError={() => setVideoFailed(true)}
-            // Belt and braces for the #t=6 fragment (some servers/browsers ignore it).
-            onLoadedMetadata={(e) => {
-              if (e.currentTarget.currentTime < HERO_VIDEO_START) e.currentTarget.currentTime = HERO_VIDEO_START;
-            }}
-            // Loop from 0:06, not 0:00 (the loop attribute would replay the launch).
-            onEnded={(e) => {
-              e.currentTarget.currentTime = HERO_VIDEO_START;
-              void e.currentTarget.play().catch(() => undefined);
-            }}
           />
         )}
       </motion.div>

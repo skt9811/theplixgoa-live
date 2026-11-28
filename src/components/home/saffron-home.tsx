@@ -18,6 +18,15 @@ import {
 } from "framer-motion";
 import { ArrowUpRight, Menu, Phone, X } from "lucide-react";
 import { CallbackDialog } from "@/components/plix/request-callback-strip";
+import {
+  AmenitiesBand,
+  GuestReviews,
+  ListYourProperty,
+  PlixPromise,
+  PlixStandard,
+  TasteOfCollection,
+  ValueRibbon,
+} from "@/components/home/legacy-sections";
 import { FaqAccordion } from "@/components/plix/faq-accordion";
 import { ObfuscatedEmail } from "@/components/plix/obfuscated-email";
 import { blogSummariesQuery } from "@/lib/blog";
@@ -100,10 +109,17 @@ export function SaffronHome({ properties, faqs }: { properties: Property[]; faqs
     <SaffronShell properties={properties} ready={ready}>
       <Preloader onDone={() => setReady(true)} />
       <Hero ready={ready} />
+      <ValueRibbon />
       <CoastalMap properties={properties} />
+      <AmenitiesBand />
+      <TasteOfCollection properties={properties} />
       <OffersSection />
+      <PlixStandard />
       <Manifesto properties={properties} />
+      <PlixPromise />
       <DayInGoa />
+      <ListYourProperty />
+      <GuestReviews properties={properties} />
       <Journal />
       <section className="px-4 py-20 md:px-6" style={{ background: C.ivory }}>
         <div className="mx-auto max-w-3xl">
@@ -1142,8 +1158,8 @@ function Manifesto({ properties }: { properties: Property[] }) {
   const stats = [
     { v: String(properties.length), label: "Boutique retreats", note: "Villas, a heritage bungalow & resorts" },
     { v: `${Math.floor(rooms / 10) * 10}+`, label: "Rooms & bedrooms", note: "Private villas & boutique rooms" },
-    { v: String(VILLAGES.length), label: "Coastal villages", note: VILLAGES.map((x) => x.name).join(", ") },
-    { v: "24/7", label: "Local concierge", note: "On-ground Goa hospitality team" },
+    { v: "5,000+", label: "Happy guests hosted", note: "Families, friends & celebrations" },
+    { v: "4.9/5", label: "Guest rating", note: "Across our Plix stays" },
   ];
   return (
     <section id="our-story" ref={sectionRef} className="relative overflow-x-clip px-5 py-28 text-white sm:px-6" style={{ background: C.forest }}>

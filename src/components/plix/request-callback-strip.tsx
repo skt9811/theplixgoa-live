@@ -103,18 +103,22 @@ export function CallbackDialog({
 }
 
 // Strip under the homepage search bar: "we're here to help" + a callback form.
-export function RequestCallbackStrip() {
+export function RequestCallbackStrip({ dark = false }: { dark?: boolean } = {}) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <div className="mt-3 flex flex-col items-start justify-between gap-2 rounded-2xl bg-gradient-to-r from-[#fbf3ea] to-[#f6e3e0] px-5 py-3.5 shadow-soft sm:flex-row sm:items-center">
-        <p className="text-sm text-navy">Finding your ideal vacation spot should be easy, we're here to help!</p>
+      <div
+        className={`mt-3 flex flex-col items-start justify-between gap-2 rounded-2xl px-5 py-3.5 sm:flex-row sm:items-center ${
+          dark ? "border border-white/10 bg-white/[0.05]" : "bg-gradient-to-r from-[#fbf3ea] to-[#f6e3e0] shadow-soft"
+        }`}
+      >
+        <p className={`text-sm ${dark ? "text-white/80" : "text-navy"}`}>Finding your ideal vacation spot should be easy, we're here to help!</p>
         <button
           type="button"
           onClick={() => {
             setOpen(true);
           }}
-          className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-primary underline underline-offset-4 hover:opacity-80"
+          className={`inline-flex shrink-0 items-center gap-2 text-sm font-semibold underline underline-offset-4 hover:opacity-80 ${dark ? "text-[#C99E57]" : "text-primary"}`}
         >
           <PhoneCall className="size-4" aria-hidden />
           Request Callback

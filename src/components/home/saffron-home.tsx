@@ -22,8 +22,6 @@ import {
   AmenitiesBand,
   GuestReviews,
   ListYourProperty,
-  PlixPromise,
-  PlixStandard,
   TasteOfCollection,
   ValueRibbon,
 } from "@/components/home/legacy-sections";
@@ -114,9 +112,7 @@ export function SaffronHome({ properties, faqs }: { properties: Property[]; faqs
       <AmenitiesBand />
       <TasteOfCollection properties={properties} />
       <OffersSection />
-      <PlixStandard />
       <Manifesto properties={properties} />
-      <PlixPromise />
       <DayInGoa />
       <ListYourProperty />
       <GuestReviews properties={properties} />
@@ -1315,7 +1311,6 @@ function season() {
 
 function HomeFooter({ properties, onCheck, onInquire }: { properties: Property[]; onCheck: () => void; onInquire: () => void }) {
   const [time, setTime] = useState("");
-  const [hover, setHover] = useState<string | null>(null);
   useEffect(() => {
     setTime(istNow());
     const t = window.setInterval(() => setTime(istNow()), 15_000);
@@ -1368,35 +1363,6 @@ function HomeFooter({ properties, onCheck, onInquire }: { properties: Property[]
             <p className="mt-3 font-[family-name:var(--saffron-serif)] text-4xl tabular-nums">{time || "--:--"} <span className="text-lg text-white/50">IST</span></p>
             <p className="mt-1 text-sm text-white/60">{season()}</p>
           </div>
-        </div>
-
-        <div className="mt-16">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-white/55">Departures · The retreats</p>
-          <ul className="mt-4">
-            {properties.map((p) => (
-              <li key={p.slug} className="relative" onMouseEnter={() => setHover(p.slug)} onMouseLeave={() => setHover((h) => (h === p.slug ? null : h))}>
-                <Link to="/properties/$slug" params={{ slug: p.slug }} className="group flex items-center justify-between border-b border-white/10 py-5 font-[family-name:var(--saffron-serif)] text-3xl sm:text-5xl">
-                  <span className="transition-transform group-hover:translate-x-2">{shortName(p)}</span>
-                  <span className="flex items-center gap-3 text-xs font-sans uppercase tracking-[0.2em] text-white/55">
-                    {p.location} <ArrowUpRight className="size-5" />
-                  </span>
-                </Link>
-                <AnimatePresence>
-                  {hover === p.slug && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, rotate: 0 }}
-                      animate={{ opacity: 1, y: 0, rotate: 2 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      transition={{ duration: 0.3 }}
-                      className="pointer-events-none absolute right-40 top-1/2 z-10 hidden h-40 w-64 -translate-y-1/2 overflow-hidden rounded-2xl border border-white/20 shadow-2xl lg:block"
-                    >
-                      <img src={resolveImages(p.image_keys)[0]} alt="" className="size-full object-cover" />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </li>
-            ))}
-          </ul>
         </div>
 
         <div className="mt-16 flex flex-wrap gap-x-6 gap-y-2 text-xs uppercase tracking-[0.2em] text-white/60">

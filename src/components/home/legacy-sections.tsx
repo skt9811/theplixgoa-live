@@ -16,7 +16,6 @@ import {
 import { PropertyCard } from "@/components/plix/property-card";
 import { ReviewCarousel } from "@/components/plix/review-carousel";
 import { RequestCallbackStrip } from "@/components/plix/request-callback-strip";
-import { PlixStandardSection } from "@/components/plix/plix-standard-section";
 import { ListYourPropertyBanner } from "@/components/plix/list-your-property-banner";
 import { getHomepageReviews } from "@/lib/property-reviews-data";
 import type { Property } from "@/lib/plix";
@@ -102,55 +101,18 @@ export function AmenitiesBand() {
 /** "A taste of the collection": the property cards. */
 export function TasteOfCollection({ properties }: { properties: Property[] }) {
   return (
-    <section className="px-5 pb-20 sm:px-6" style={{ background: IVORY }}>
+    <section className="px-5 py-20 text-white sm:px-6" style={{ background: FOREST }}>
       <div className="mx-auto max-w-7xl">
-        <Heading eyebrow="Featured sanctuaries" title="A taste of the collection" sub="Our most-loved homes across North Goa." />
+        <Heading eyebrow="Featured sanctuaries" title="A taste of the collection" sub="Our most-loved homes across North Goa." light />
         <div className="-mx-5 mt-8 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:gap-6 md:overflow-visible md:px-0 lg:grid-cols-3">
           {properties.slice(0, 9).map((p) => (
-            <PropertyCard key={p.id} property={p} className="w-[85%] shrink-0 snap-start md:w-auto" />
+            <PropertyCard key={p.id} property={p} tone="dark" className="w-[85%] shrink-0 snap-start md:w-auto" />
           ))}
         </div>
         <div className="mt-8 text-center">
-          <Link to="/retreats" className="inline-flex items-center gap-2 rounded-full bg-[#141712] px-6 py-3 text-xs uppercase tracking-[0.2em] text-white">
+          <Link to="/retreats" className="inline-flex items-center gap-2 rounded-full border border-white/30 px-6 py-3 text-xs uppercase tracking-[0.2em] text-white transition hover:bg-white hover:text-[#141712]">
             View all {properties.length} stays <ArrowUpRight className="size-4" />
           </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/** The Plix Standard (existing section) on the ivory background. */
-export function PlixStandard() {
-  return (
-    <div className="pb-4 pt-2" style={{ background: IVORY }}>
-      <PlixStandardSection />
-    </div>
-  );
-}
-
-/** "The Plix Promise" cards. */
-export function PlixPromise() {
-  const perks = [
-    { icon: Waves, title: "Private Pool Sanctuaries", body: "Most villas feature their own private pool wrapped in lush tropical greenery." },
-    { icon: ConciergeBell, title: "Dedicated Caretakers & Service", body: "Full-time housekeeping and attentive hospitality at your beck and call." },
-    { icon: BadgeIndianRupee, title: "Direct Booking Advantage", body: "Skip OTA commissions and secure guaranteed best rates straight from the source." },
-    { icon: MapPin, title: "Prime North Goa Locations", body: "Steps away from iconic beaches, sunset spots, and world-class culinary hubs." },
-  ];
-  return (
-    <section className="px-5 py-20 sm:px-6" style={{ background: IVORY }}>
-      <div className="mx-auto max-w-7xl">
-        <Heading eyebrow="The Plix Promise" title="Where Home Comfort Meets Resort Luxury" sub="A seamless balance of complete private sanctuary living with full-service hospitality." />
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {perks.map((p) => (
-            <div key={p.title} className="rounded-3xl border border-black/5 bg-white/70 p-6 transition hover:-translate-y-1 hover:bg-white">
-              <span className="flex size-11 items-center justify-center rounded-full border border-[#C99E57]/50 text-[#9a7a44]">
-                <p.icon className="size-5" strokeWidth={1.5} aria-hidden />
-              </span>
-              <h3 className={`mt-4 ${serif} text-2xl`}>{p.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-[#6f695f]">{p.body}</p>
-            </div>
-          ))}
         </div>
       </div>
     </section>

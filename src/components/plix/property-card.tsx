@@ -40,6 +40,8 @@ type PropertyCardProps = {
     | undefined;
   /** Extra classes for the card root (e.g. width inside a swipe row). */
   className?: string | undefined;
+  /** "dark": glass card for dark sections (homepage collection row). */
+  tone?: "light" | "dark" | undefined;
 };
 
 /**
@@ -49,7 +51,10 @@ type PropertyCardProps = {
  * ↗ button. The title is a stretched link, so the whole card opens the
  * property while the heart and photo arrows stay clickable on top.
  */
-export function PropertyCard({ property, titleOverride, searchRate, search, className = "" }: PropertyCardProps) {
+export function PropertyCard({ property, titleOverride, searchRate, search, className = "", tone = "light" }: PropertyCardProps) {
+  const dark = tone === "dark";
+  const ink = dark ? "text-[#F6F3EC]" : "text-navy";
+  const muted = dark ? "text-white/60" : "text-muted-foreground";
   const images = resolveImages(property.image_keys);
   const leadKey = resolveImageEntries(property.image_keys)[0]?.key;
   const [index, setIndex] = useState(0);
@@ -69,7 +74,9 @@ export function PropertyCard({ property, titleOverride, searchRate, search, clas
 
   return (
     <article
-      className={`group relative flex h-full flex-col overflow-hidden rounded-3xl bg-card shadow-soft ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-card ${className}`}
+      className={`group relative flex h-full flex-col overflow-hidden rounded-3xl transition-all duration-300 hover:-translate-y-1 ${
+        dark ? "bg-white/[0.06] ring-1 ring-white/10 backdrop-blur-xl hover:bg-white/[0.09]" : "bg-card shadow-soft ring-1 ring-black/5 hover:shadow-card"
+      } ${className}`}
     >
       <div className="relative aspect-[4/3] overflow-hidden">
         {/* Only the photo being shown is on the page (the arrows swap the
@@ -118,7 +125,7 @@ export function PropertyCard({ property, titleOverride, searchRate, search, clas
       </div>
 
       <div className="flex flex-1 flex-col p-4 sm:p-5">
-        <h3 className="truncate text-lg font-semibold text-navy">
+        <h3 className={`truncate text-lg font-semibold ${ink}`}>
           <Link
             to="/properties/$slug"
             params={{ slug: property.slug }}
@@ -130,11 +137,11 @@ export function PropertyCard({ property, titleOverride, searchRate, search, clas
             {titleOverride ?? property.name}
           </Link>
         </h3>
-        <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
+        <p className={`mt-0.5 flex items-center gap-1 text-sm ${muted}`}>
           <MapPin className="size-3.5 shrink-0" aria-hidden />
           {property.location}, {property.region}
         </p>
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className={`mt-2 text-xs ${muted}`}>
           {guests} Guests · {property.bedrooms} {multiRoom ? "Rooms" : "Bedrooms"} · {property.bathrooms} Baths
         </p>
 
@@ -142,29 +149,29 @@ export function PropertyCard({ property, titleOverride, searchRate, search, clas
           {searchRate ? (
             <div className="min-w-0">
               <p className="whitespace-nowrap">
-                <span className="text-lg font-semibold text-navy">{formatINR(searchRate.nightly)}</span>
-                <span className="text-xs text-muted-foreground"> /night{multiRoom ? " per room" : ""}</span>
+                <span className={`text-lg font-semibold ${ink}`}>{formatINR(searchRate.nightly)}</span>
+                <span className={`text-xs ${muted}`}> /night{multiRoom ? " per room" : ""}</span>
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className={`text-xs ${muted}`}>
                 {formatINR(searchRate.total)} for {searchRate.nights} {searchRate.nights === 1 ? "night" : "nights"}
               </p>
             </div>
           ) : hasDates || fromRate(property) <= 0 ? (
-            <p className="text-sm font-medium text-muted-foreground">
+            <p className={`text-sm font-medium ${muted}`}>
               {hasDates ? "Check availability for rates" : "Select dates for pricing"}
             </p>
           ) : (
             <div className="min-w-0">
               <p className="whitespace-nowrap">
-                <span className="text-xs text-muted-foreground">From </span>
-                <span className="text-lg font-semibold text-navy">{formatINR(fromRate(property))}</span>
-                <span className="text-xs text-muted-foreground"> /night</span>
+                <span className={`text-xs ${muted}`}>From </span>
+                <span className={`text-lg font-semibold ${ink}`}>{formatINR(fromRate(property))}</span>
+                <span className={`text-xs ${muted}`}> /night</span>
               </p>
-              <p className="text-xs text-muted-foreground">{multiRoom ? "Per room" : "Entire villa"} · rates vary by date</p>
+              <p className={`text-xs ${muted}`}>{multiRoom ? "Per room" : "Entire villa"} · rates vary by date</p>
             </div>
           )}
           <span
-            className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-navy text-navy-foreground transition-transform group-hover:scale-105"
+            className={`flex size-11 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105 ${dark ? "bg-[#C99E57] text-[#141712]" : "bg-navy text-navy-foreground"}`}
             aria-hidden
           >
             <ArrowUpRight className="size-5" />

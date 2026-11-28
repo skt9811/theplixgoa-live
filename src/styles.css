@@ -402,3 +402,16 @@ html[data-property-page] .plix-fabs {
     display: none !important;
   }
 }
+
+/* Homepage editorial design (src/components/home/saffron-home.tsx). */
+.saffron {
+  --saffron-serif: "Cormorant Garamond", Georgia, serif;
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+.saffron h1,
+.saffron h2,
+.saffron h3 {
+  font-family: var(--saffron-serif);
+  font-weight: 500;
+  letter-spacing: 0;
+}

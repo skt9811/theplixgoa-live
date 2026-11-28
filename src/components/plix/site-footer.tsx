@@ -30,7 +30,8 @@ const SUPPORT = [
 const colTitle = "text-xs font-semibold uppercase tracking-[0.22em] text-neutral-500";
 const footLink = "w-fit text-neutral-300 transition-colors hover:text-white";
 
-export function SiteFooter() {
+/** `fabsOnly`: just the floating WhatsApp / back-to-top buttons (the homepage has its own footer). */
+export function SiteFooter({ fabsOnly = false }: { fabsOnly?: boolean } = {}) {
   const [config, setConfig] = useState<SiteConfig | null>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
 
@@ -63,6 +64,7 @@ export function SiteFooter() {
 
   return (
     <>
+      {!fabsOnly && (
       <footer className="bg-neutral-900 text-neutral-300">
         <div className="mx-auto max-w-7xl px-4 py-12 md:px-6">
           {/* Header row */}
@@ -246,6 +248,7 @@ export function SiteFooter() {
           </div>
         </div>
       </footer>
+      )}
 
       {/* Floating action buttons — a single WhatsApp pill (not a separate
           circular FAB stacked behind it; that was a real duplicate this app

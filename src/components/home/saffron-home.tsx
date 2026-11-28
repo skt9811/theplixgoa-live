@@ -11,6 +11,8 @@ import {
   motion,
   useInView,
   useScroll,
+  useReducedMotion,
+  useSpring,
   useTransform,
   type MotionValue,
 } from "framer-motion";
@@ -26,6 +28,8 @@ import { trackFunnelEvent } from "@/lib/gtag";
 import { trackLeadClick } from "@/lib/lead-tracker";
 
 const EASE = [0.76, 0, 0.24, 1] as const;
+/** Editorial entrance curve for the hero choreography. */
+const OUT = [0.22, 1, 0.36, 1] as const;
 const C = {
   forest: "#141712",
   ivory: "#ECE7DC", // softened from #F6F3EC (less glare next to the dark sections)
@@ -66,7 +70,7 @@ const SaffronCtx = createContext<SaffronActions>({ openDrawer: () => undefined, 
 const useSaffron = () => useContext(SaffronCtx);
 
 /** Nav + booking drawer + callback form + footer around a page's sections. */
-export function SaffronShell({ properties, children }: { properties: Property[]; children: ReactNode }) {
+export function SaffronShell({ properties, children, ready = true }: { properties: Property[]; children: ReactNode; ready?: boolean }) {
   const [drawer, setDrawer] = useState<string | null>(null); // preselected slug ("" = first)
   const [callback, setCallback] = useState<string | null>(null);
   const actions = useMemo<SaffronActions>(
@@ -76,7 +80,7 @@ export function SaffronShell({ properties, children }: { properties: Property[];
   return (
     <SaffronCtx.Provider value={actions}>
       <div className="saffron overflow-x-clip" style={{ background: C.ivory, color: C.ink }}>
-        <PillNav onCheck={() => setDrawer("")} />
+        <PillNav onCheck={() => setDrawer("")} ready={ready} />
         {children}
         <HomeFooter properties={properties} onCheck={() => setDrawer("")} onInquire={() => setCallback("Planning a stay")} />
         {drawer !== null && <BookingDrawer properties={properties} initialSlug={drawer} onClose={() => setDrawer(null)} />}
@@ -87,10 +91,13 @@ export function SaffronShell({ properties, children }: { properties: Property[];
 }
 
 export function SaffronHome({ properties, faqs }: { properties: Property[]; faqs: { q: string; a: string }[] }) {
+  // The hero entrance plays once the preloader lifts (it would run unseen
+  // underneath it otherwise).
+  const [ready, setReady] = useState(false);
   return (
-    <SaffronShell properties={properties}>
-      <Preloader />
-      <Hero />
+    <SaffronShell properties={properties} ready={ready}>
+      <Preloader onDone={() => setReady(true)} />
+      <Hero ready={ready} />
       <CoastalMap properties={properties} />
       <OffersSection />
       <Manifesto properties={properties} />
@@ -125,7 +132,7 @@ function Eyebrow({ children, light = false }: { children: ReactNode; light?: boo
 }
 
 /* 0 · Preloader ------------------------------------------------------------ */
-function Preloader() {
+function Preloader({ onDone }: { onDone: () => void }) {
   const [show, setShow] = useState(true);
   useEffect(() => {
     let seen = false;
@@ -135,9 +142,15 @@ function Preloader() {
     } catch {
       /* private mode: just play the short version */
     }
-    const t = window.setTimeout(() => setShow(false), seen ? 400 : 1400);
-    return () => window.clearTimeout(t);
-  }, []);
+    const ms = seen ? 400 : 1400;
+    const t = window.setTimeout(() => setShow(false), ms);
+    // Start the hero entrance as the overlay begins to fade.
+    const r = window.setTimeout(onDone, ms + 150);
+    return () => {
+      window.clearTimeout(t);
+      window.clearTimeout(r);
+    };
+  }, [onDone]);
   return (
     <AnimatePresence>
       {show && (
@@ -168,13 +181,19 @@ function Preloader() {
 }
 
 /* 1 · Floating pill navbar ------------------------------------------------- */
-function PillNav({ onCheck }: { onCheck: () => void }) {
+function PillNav({ onCheck, ready }: { onCheck: () => void; ready: boolean }) {
   const [open, setOpen] = useState(false);
+  const reduce = useReducedMotion();
   const onHome = useRouterState({ select: (st) => st.location.pathname }) === "/";
   // On the homepage, smooth-scroll; anywhere else, go to that homepage section.
   const goSection = (id: string) => (onHome ? scrollTo(id) : window.location.assign(`/#${id}`));
   return (
-    <div className="fixed inset-x-0 top-4 z-50 px-4">
+    <motion.div
+      className="fixed inset-x-0 top-4 z-50 px-4"
+      initial={reduce ? false : { opacity: 0, y: -10 }}
+      animate={ready || reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
+      transition={{ duration: 0.45, ease: OUT }}
+    >
       <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-white/15 bg-[#141712]/70 px-5 py-2.5 backdrop-blur-xl">
         <Link to="/" className="font-[family-name:var(--saffron-serif)] text-xl tracking-tight text-white">
           The Plix
@@ -241,26 +260,73 @@ function PillNav({ onCheck }: { onCheck: () => void }) {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 
 /* 2 · Hero ------------------------------------------------------------------ */
-function PillPhoto({ src, delay }: { src: string; delay: number }) {
+/** One headline line: rises out of a mask, then its photo pill opens and
+ * pushes the italic ending to the right. */
+function HeroLine({
+  lead,
+  ending,
+  photo,
+  delay,
+  ready,
+  pillW,
+}: {
+  lead: string;
+  ending: string;
+  photo: string;
+  delay: number;
+  ready: boolean;
+  pillW: number;
+}) {
+  const reduce = useReducedMotion();
+  const go = ready || reduce;
   return (
-    <motion.span
-      className="mx-2 inline-block h-9 overflow-hidden rounded-full border border-white/30 align-middle shadow-lg sm:h-12 lg:h-14"
-      initial={{ width: 0 }}
-      animate={{ width: "var(--pill-w)" }}
-      transition={{ duration: 0.9, ease: EASE, delay: delay + 0.6 }}
-      style={{ ["--pill-w" as string]: "clamp(4rem, 8vw, 7rem)" }}
-    >
-      <img src={src} alt="" className="size-full object-cover" />
-    </motion.span>
+    <span className="-mb-[0.14em] block overflow-hidden pb-[0.14em]">
+      <motion.span
+        className="inline-block"
+        initial={reduce ? false : { y: "105%", opacity: 0 }}
+        animate={go ? { y: "0%", opacity: 1 } : { y: "105%", opacity: 0 }}
+        transition={{ duration: 0.55, ease: OUT, delay: reduce ? 0 : delay }}
+      >
+        {lead}
+        <motion.span
+          className="inline-flex h-9 overflow-hidden rounded-full border border-white/30 align-middle shadow-lg sm:h-12 lg:h-14"
+          initial={reduce ? false : { width: 0, marginLeft: 0, marginRight: 0, opacity: 0, scale: 0.85 }}
+          animate={
+            go
+              ? { width: pillW, marginLeft: "0.55rem", marginRight: "0.55rem", opacity: 1, scale: 1 }
+              : { width: 0, marginLeft: 0, marginRight: 0, opacity: 0, scale: 0.85 }
+          }
+          transition={{ duration: 0.5, ease: OUT, delay: reduce ? 0 : delay + 0.15 }}
+        >
+          <img src={photo} alt="" className="size-full object-cover" />
+        </motion.span>
+        <em>{ending}</em>
+      </motion.span>
+    </span>
   );
 }
 
-function Hero() {
+function Hero({ ready }: { ready: boolean }) {
+  const reduce = useReducedMotion();
+  const go = ready || reduce;
+  // Pill width = clamp(64px, 7.5vw, 114px), in px so it can animate from 0.
+  const [pillW, setPillW] = useState(96);
+  useEffect(() => {
+    const set = () => setPillW(Math.round(Math.min(114, Math.max(64, window.innerWidth * 0.075))));
+    set();
+    window.addEventListener("resize", set);
+    return () => window.removeEventListener("resize", set);
+  }, []);
+  const fadeUp = (delay: number) => ({
+    initial: reduce ? false : { opacity: 0, y: 16 },
+    animate: go ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 },
+    transition: { duration: 0.45, ease: OUT, delay: reduce ? 0 : delay },
+  });
   return (
     <section id="top" className="relative isolate flex min-h-[100svh] items-end overflow-hidden text-white">
       <motion.img
@@ -268,28 +334,28 @@ function Hero() {
         alt="Pool at dusk with garden lights, Marina Villas by The Plix, Anjuna, North Goa"
         fetchPriority="high"
         className="absolute inset-0 -z-10 size-full object-cover"
-        initial={{ scale: 1.06 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 8, ease: "easeOut" }}
+        initial={reduce ? false : { scale: 1.06, filter: "blur(4px)" }}
+        animate={go ? { scale: 1, filter: "blur(0px)" } : { scale: 1.06, filter: "blur(4px)" }}
+        transition={{ duration: 0.85, ease: OUT }}
       />
       <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#141712]/85 via-[#141712]/55 to-[#141712]/40" />
       <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#141712] via-transparent to-black/50" />
       <div className="mx-auto w-full max-w-7xl px-5 pb-10 pt-32 sm:px-6 lg:pb-14">
-        <Eyebrow light>North Goa · Five coastal villages</Eyebrow>
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: -10 }}
+          animate={go ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
+          transition={{ duration: 0.45, ease: OUT }}
+        >
+          <Eyebrow light>North Goa · Five coastal villages</Eyebrow>
+        </motion.div>
         <h1 className="mt-5 font-[family-name:var(--saffron-serif)] text-4xl leading-[1.08] sm:text-6xl lg:text-[74px]">
-          <span className="block">
-            Wake to <PillPhoto src={img("villamadera5")} delay={0.2} /> <em>coastal breeze.</em>
-          </span>
-          <span className="block">
-            Wander in <PillPhoto src={img("vivendachico10")} delay={0.38} /> <em>palm shade.</em>
-          </span>
-          <span className="block">
-            Dine by <PillPhoto src={img("casamarina23")} delay={0.56} /> <em>twilight.</em>
-          </span>
+          <HeroLine lead="Wake to" ending="coastal breeze." photo={img("villamadera5")} delay={0.1} ready={ready} pillW={pillW} />
+          <HeroLine lead="Wander in" ending="palm shade." photo={img("vivendachico10")} delay={0.21} ready={ready} pillW={pillW} />
+          <HeroLine lead="Dine by" ending="twilight." photo={img("casamarina23")} delay={0.32} ready={ready} pillW={pillW} />
           <span className="sr-only"> — private pool villas and boutique resorts in North Goa by The Plix</span>
         </h1>
         <div className="flex flex-col justify-between gap-6 pt-10 sm:flex-row sm:items-end">
-          <div className="max-w-md">
+          <motion.div className="max-w-md" {...fadeUp(0.48)}>
             <p className="text-sm leading-relaxed text-white/80">
               Boutique villas and coastal sanctuaries across Vagator, Anjuna, Assagao, Morjim and Candolim — crafted for slow
               mornings and unhurried stays.
@@ -300,17 +366,17 @@ function Hero() {
             >
               Explore our retreats <ArrowUpRight className="size-4" />
             </Link>
-          </div>
-          <div className="hidden items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-white/70 sm:flex">
+          </motion.div>
+          <motion.div className="hidden items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-white/70 sm:flex" {...fadeUp(0.56)}>
             Scroll to explore
             <span className="relative block h-10 w-px overflow-hidden bg-white/20">
               <motion.span
                 className="absolute inset-x-0 top-0 h-4 bg-white"
-                animate={{ y: [-16, 40] }}
+                animate={reduce ? { y: 0 } : { y: [-16, 40] }}
                 transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
               />
             </span>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>
@@ -716,7 +782,7 @@ function Offers({ onClaim }: { onClaim: (title: string) => void }) {
 type MWord = { w: string; i?: boolean };
 const plain = (t: string): MWord[] => t.split(" ").map((w) => ({ w }));
 const MANIFESTO: MWord[] = [
-  ...plain("We don't just run stays. We keep"),
+  ...plain("We don't build hotels. We keep"),
   { w: "quiet", i: true },
   { w: "corners", i: true },
   ...plain("of North Goa for the people who"),
@@ -725,7 +791,7 @@ const MANIFESTO: MWord[] = [
 ];
 
 function Word({ progress, i, n, w, it }: { progress: MotionValue<number>; i: number; n: number; w: string; it?: boolean | undefined }) {
-  const color = useTransform(progress, [i / n, (i + 1) / n], ["#C2BCB0", C.ink]);
+  const color = useTransform(progress, [i / n, (i + 1) / n], ["#5C5850", "#F6F3EC"]);
   return (
     <motion.span style={{ color }} className={it ? "italic" : ""}>
       {w}{" "}
@@ -733,45 +799,105 @@ function Word({ progress, i, n, w, it }: { progress: MotionValue<number>; i: num
   );
 }
 
-function Counter({ to, suffix = "", text }: { to: number; suffix?: string; text?: string | undefined }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
-  useEffect(() => {
-    if (!inView || !ref.current || text) return;
-    const c = animate(0, to, { duration: 1.4, ease: "easeOut", onUpdate: (v) => ref.current && (ref.current.textContent = `${Math.round(v)}${suffix}`) });
-    return () => c.stop();
-  }, [inView, to, suffix, text]);
-  return <span ref={ref}>{text ?? `0${suffix}`}</span>;
+/** Ghost photo behind the manifesto: fades 0 -> 0.25 -> 0 around its own
+ * moment in the scroll, drifts and grows slightly; vignette-masked. */
+function GhostPhoto({ progress, k, peak, drift, className }: { progress: MotionValue<number>; k: string; peak: number; drift: number; className: string }) {
+  const reduce = useReducedMotion();
+  const opacity = useTransform(progress, [peak - 0.28, peak, peak + 0.28], [0, 0.25, 0]);
+  const y = useTransform(progress, [0, 1], [drift, -drift]);
+  const scale = useTransform(progress, [0, 1], [0.94, 1.03]);
+  return (
+    <motion.div
+      aria-hidden
+      style={reduce ? { opacity: 0.12 } : { opacity, y, scale }}
+      className={`pointer-events-none absolute select-none overflow-hidden rounded-2xl [mask-image:radial-gradient(ellipse_at_center,black_45%,transparent_100%)] ${className}`}
+    >
+      <img src={img(k)} alt="" className="size-full object-cover" />
+    </motion.div>
+  );
 }
 
+/** One odometer digit: a 0-9 column that rolls to its value on view. */
+function OdometerDigit({ d, go }: { d: number; go: boolean }) {
+  const reduce = useReducedMotion();
+  const spring = useSpring(0, { stiffness: 70, damping: 18 });
+  useEffect(() => {
+    if (go || reduce) spring.set(d);
+  }, [go, reduce, d, spring]);
+  const y = useTransform(spring, (v) => `${-v * 10}%`);
+  // The invisible final digit sets this column's width (so "10" doesn't
+  // get the gap of the widest numeral); cells are 1.2em tall so no sliver
+  // of the neighbouring digit shows.
+  return (
+    <span className="relative inline-block h-[1.2em] overflow-hidden align-bottom leading-[1.2em]">
+      <span className="invisible">{d}</span>
+      <motion.span className="absolute left-0 top-0 flex flex-col" style={{ y }}>
+        {Array.from({ length: 10 }, (_, n) => (
+          <span key={n} className="block h-[1.2em] leading-[1.2em]">
+            {n}
+          </span>
+        ))}
+      </motion.span>
+    </span>
+  );
+}
+
+function Odometer({ value, go }: { value: string; go: boolean }) {
+  return (
+    <span className="inline-flex items-end" aria-label={value}>
+      {value.split("").map((ch, i) =>
+        /\d/.test(ch) ? <OdometerDigit key={i} d={Number(ch)} go={go} /> : <span key={i} className="leading-[1.2em]">{ch}</span>,
+      )}
+    </span>
+  );
+}
+
+const STAT_PHOTOS = ["vivendachico11", "casameadows4", "villamadera13", "plixvilla18"];
+
 function Manifesto({ properties }: { properties: Property[] }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start 0.85", "end 0.45"] });
-  const rooms = properties.reduce((s, p) => s + p.bedrooms, 0);
-  const roundedRooms = Math.floor(rooms / 10) * 10;
+  const textRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const statsRef = useRef<HTMLDivElement>(null);
+  const statsIn = useInView(statsRef, { once: true, margin: "-80px" });
+  const { scrollYProgress } = useScroll({ target: textRef, offset: ["start 0.85", "end 0.45"] });
+  const { scrollYProgress: sectionProgress } = useScroll({ target: sectionRef, offset: ["start end", "end start"] });
+  const rooms = properties.reduce((sum, p) => sum + p.bedrooms, 0);
   const stats = [
-    { n: properties.length, s: "", label: "Boutique retreats", note: "Villas, a heritage bungalow & resorts" },
-    { n: roundedRooms, s: "+", label: "Rooms & bedrooms", note: "Private villas & boutique rooms" },
-    { n: VILLAGES.length, s: "", label: "Coastal villages", note: VILLAGES.map((v) => v.name).join(", ") },
-    { n: 0, s: "", t: "24/7", label: "Local concierge", note: "On-ground Goa hospitality team" },
+    { v: String(properties.length), label: "Boutique retreats", note: "Villas, a heritage bungalow & resorts" },
+    { v: `${Math.floor(rooms / 10) * 10}+`, label: "Rooms & bedrooms", note: "Private villas & boutique rooms" },
+    { v: String(VILLAGES.length), label: "Coastal villages", note: VILLAGES.map((x) => x.name).join(", ") },
+    { v: "24/7", label: "Local concierge", note: "On-ground Goa hospitality team" },
   ];
   return (
-    <section id="our-story" className="px-5 py-24 sm:px-6" style={{ background: C.ivory }}>
-      <div className="mx-auto max-w-5xl">
-        <Eyebrow>The Plix philosophy</Eyebrow>
-        <div ref={ref} className="mt-6 max-w-4xl font-[family-name:var(--saffron-serif)] text-3xl leading-[1.18] sm:text-5xl lg:text-[54px]">
+    <section id="our-story" ref={sectionRef} className="relative overflow-x-clip px-5 py-28 text-white sm:px-6" style={{ background: C.forest }}>
+      {/* Ghost gallery around the manifesto (behind it, never over the words). */}
+      <div className="pointer-events-none absolute inset-0 mx-auto max-w-6xl">
+        <GhostPhoto progress={sectionProgress} k="villamadera5" peak={0.3} drift={40} className="left-[2%] top-[6%] h-44 w-64 sm:h-56 sm:w-80" />
+        <GhostPhoto progress={sectionProgress} k="vivendachico17" peak={0.42} drift={-50} className="right-[2%] top-[18%] h-52 w-40 sm:h-72 sm:w-56" />
+        <GhostPhoto progress={sectionProgress} k="casamarina23" peak={0.52} drift={36} className="bottom-[38%] left-[8%] hidden h-40 w-56 sm:block" />
+        <GhostPhoto progress={sectionProgress} k="villamadera1" peak={0.6} drift={-30} className="bottom-[34%] right-[10%] h-36 w-52 sm:h-44 sm:w-64" />
+      </div>
+      <div className="relative mx-auto max-w-5xl">
+        <Eyebrow light>The Plix philosophy</Eyebrow>
+        <div ref={textRef} className="mt-6 max-w-4xl font-[family-name:var(--saffron-serif)] text-3xl leading-[1.18] sm:text-5xl lg:text-[54px]">
           {MANIFESTO.map((m, i) => (
             <Word key={i} progress={scrollYProgress} i={i} n={MANIFESTO.length} w={m.w} it={m.i} />
           ))}
         </div>
-        <div className="mt-16 grid grid-cols-2 gap-8 border-t border-black/10 pt-10 lg:grid-cols-4">
-          {stats.map((s) => (
-            <div key={s.label}>
-              <p className="font-[family-name:var(--saffron-serif)] text-5xl">
-                <Counter to={s.n} suffix={s.s} text={s.t} />
+        <div ref={statsRef} className="mt-20 grid grid-cols-2 border-t border-white/10 lg:grid-cols-4 lg:divide-x lg:divide-white/10">
+          {stats.map((st, i) => (
+            <div key={st.label} className="group relative px-4 pb-6 pt-10 lg:px-6">
+              <div
+                aria-hidden
+                className={`pointer-events-none absolute inset-x-2 inset-y-3 overflow-hidden rounded-2xl transition-opacity duration-700 [mask-image:linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)] group-hover:opacity-30 ${statsIn ? "opacity-20" : "opacity-0"}`}
+              >
+                <img src={img(STAT_PHOTOS[i] ?? "villamadera5")} alt="" className="size-full object-cover" />
+              </div>
+              <p className="relative font-[family-name:var(--saffron-serif)] text-5xl text-[#F6F3EC] sm:text-6xl">
+                <Odometer value={st.v} go={statsIn} />
               </p>
-              <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.22em]">{s.label}</p>
-              <p className="mt-1 text-sm italic text-[#8f897e]">{s.note}</p>
+              <p className="relative mt-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/85">{st.label}</p>
+              <p className="relative mt-1 text-sm italic text-white/50">{st.note}</p>
             </div>
           ))}
         </div>
